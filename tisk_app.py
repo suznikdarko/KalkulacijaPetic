@@ -1,5 +1,6 @@
 import sys
 import subprocess
+from datetime import datetime
 
 # Poskus uvoza customtkinterja, če ni nameščen, se namesti avtomatsko
 try:
@@ -24,11 +25,15 @@ class TiskApp(ctk.CTk):
 
         # Naslov
         self.title_label = ctk.CTkLabel(self, text="Izračun stroškov tiska", font=ctk.CTkFont(size=24, weight="bold"))
-        self.title_label.grid(row=0, column=0, padx=20, pady=(30, 10))
+        self.title_label.grid(row=0, column=0, padx=20, pady=(30, 0))
+
+        # Datum
+        self.date_label = ctk.CTkLabel(self, text=f"Datum: {datetime.now().strftime('%d.%m.%Y')}", font=ctk.CTkFont(size=14))
+        self.date_label.grid(row=1, column=0, padx=20, pady=(0, 10))
 
         # Okvir za vnos
         self.vnos_frame = ctk.CTkFrame(self)
-        self.vnos_frame.grid(row=1, column=0, padx=30, pady=10, sticky="ew")
+        self.vnos_frame.grid(row=2, column=0, padx=30, pady=10, sticky="ew")
         self.vnos_frame.grid_columnconfigure(1, weight=1)
 
         self.naklada_label = ctk.CTkLabel(self.vnos_frame, text="Vnesi naklado:", font=ctk.CTkFont(size=16))
@@ -41,11 +46,11 @@ class TiskApp(ctk.CTk):
 
         # Gumb za izračun
         self.calc_button = ctk.CTkButton(self, text="Izračunaj ceno", command=self.izracunaj, font=ctk.CTkFont(size=16, weight="bold"), height=40)
-        self.calc_button.grid(row=2, column=0, padx=20, pady=15)
+        self.calc_button.grid(row=3, column=0, padx=20, pady=15)
 
         # Okvir za rezultate
         self.result_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.result_frame.grid(row=3, column=0, padx=30, pady=10, sticky="nsew")
+        self.result_frame.grid(row=4, column=0, padx=30, pady=10, sticky="nsew")
         self.result_frame.grid_columnconfigure(1, weight=1)
 
         # Prikaz rezultatov materiala (Pol za tisk)
