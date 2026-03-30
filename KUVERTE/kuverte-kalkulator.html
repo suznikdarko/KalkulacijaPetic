@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="sl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator za Kuverte - Optimalna Tiskarska Pola</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent-color: #f59e0b; /* Amber for envelopes focus */
+            --accent-glow: rgba(245, 158, 11, 0.5);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --sheet-bg: #e2e8f0;
+            --item-color-blue: #60a5fa;
+            --item-border-blue: #2563eb;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(at 0% 0%, rgba(245, 158, 11, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 1rem;
+            padding-bottom: 100px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+            grid-template-areas: 
+                "header header"
+                "visual calc";
+            gap: 1rem;
+            max-width: 1600px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .header-panel {
+            grid-area: header;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 1.25rem;
+            border-radius: 12px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.25rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .results { grid-area: visual; }
+        .calculation { grid-area: calc; }
+
+        @media (max-width: 1100px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-areas: "header" "visual" "calc";
+            }
+        }
+
+        h1, h2, h3 {
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #f59e0b, #ec4899);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        button.calculate-btn {
+            width: 100%;
+            padding: 0.8rem;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button.calculate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px var(--accent-glow);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .stat-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--glass-border);
+            padding: 0.75rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .stat-card .label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.2rem;
+        }
+
+        .canvas-container {
+            width: 100%;
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 450px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 60vh;
+            background-color: var(--sheet-bg);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .sticky-footer {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(15px);
+            border-top: 3px solid var(--accent-color);
+            padding: 0.75rem 2rem;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .sticky-price-item { text-align: center; }
+        .sticky-price-label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
+        .sticky-price-value { font-size: 1.5rem; font-weight: 800; color: #10b981; }
+
+        .finish-item {
+            display: grid;
+            grid-template-columns: 120px 1fr 1fr;
+            gap: 0.5rem;
+            align-items: center;
+            padding: 0.5rem;
+            background: rgba(15, 23, 42, 0.2);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid transparent;
+        }
+        .finish-item.active { border-left-color: #10b981; background: rgba(15, 23, 42, 0.5); }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <div class="header-panel">
+            <div style="grid-column: span 2;">
+                <label>Tip Kuverte (Hitri izbor)</label>
+                <select id="envelope-preset" onchange="applyEnvelopePreset()">
+                    <option value="custom">-- Poljubno (Vnesi spodaj) --</option>
+                    <option value="C6">C6 (Flat: 162x230 mm)</option>
+                    <option value="DL">DL (Flat: 220x220 mm)</option>
+                    <option value="C5">C5 (Flat: 229x324 mm)</option>
+                    <option value="C4">C4 (Flat: 324x458 mm)</option>
+                    <option value="B5">B5 (Flat: 250x353 mm)</option>
+                    <option value="B4">B4 (Flat: 353x500 mm)</option>
+                </select>
+            </div>
+            <div>
+                <label>Dimenzije (Š x V mm)</label>
+                <div style="display: flex; gap: 0.4rem; align-items: center;">
+                    <input type="number" id="width" value="229" onchange="calculate()">
+                    <span style="color:var(--text-muted);">x</span>
+                    <input type="number" id="height" value="162" onchange="calculate()">
+                </div>
+            </div>
+            <div>
+                <label>Naklada (kos)</label>
+                <input type="number" id="quantity" value="1000" onchange="calculate()">
+            </div>
+            <div>
+                <label>Stroj (Vedno S4)</label>
+                <input type="text" value="Heidelberg S4 (B2)" disabled style="background: rgba(15,23,42,0.9); border-color: #475569;">
+            </div>
+            <div style="justify-content: flex-end; display: flex; align-items: flex-end;">
+                <button class="calculate-btn" onclick="calculate()">Izračunaj</button>
+            </div>
+        </div>
+
+        <!-- VISUAL PANEL -->
+        <div class="panel results">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2>Izkoristek na B2 Poli</h2>
+                <div id="quick-stats" style="color: var(--text-muted); font-size: 0.9rem;">
+                    Na polo: <strong id="res-count-mini" style="color: var(--accent-color);">-</strong> | 
+                    Izkoristek: <strong id="res-usage-mini" style="color: var(--accent-color);">-</strong>
+                </div>
+            </div>
+            <div class="canvas-container" id="canvas-wrapper">
+                <canvas id="canvas"></canvas>
+            </div>
+            <div class="stats-grid" id="stats">
+                <div class="stat-card">
+                    <div class="value" id="res-count">0</div>
+                    <div class="label">Kosov na polo</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="res-usage">0%</div>
+                    <div class="label">Izkoristek</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="res-sheets-needed">0</div>
+                    <div class="label">Potrebno pol (B2)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="res-price-per-item">0.000 €</div>
+                    <div class="label">Strošek na kos</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CALCULATION PANEL -->
+        <div class="panel calculation">
+            <h2>Kalkulacija Stroškov (S4)</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="calc-section">
+                    <h3>1. Material & Plošče</h3>
+                    <div class="form-group">
+                        <label>Cena papirja (na kg)</label>
+                        <input type="number" id="calc-paper-price" value="1.50" step="0.01" onchange="calculatePrice()">
+                    </div>
+                    <div class="form-group">
+                        <label>Gramatura (g/m²)</label>
+                        <input type="number" id="calc-paper-weight" value="100" onchange="calculatePrice()">
+                    </div>
+                    <div class="form-group">
+                        <label>Število plošč (S4)</label>
+                        <input type="number" id="calc-plates-num" value="4" onchange="calculatePrice()">
+                    </div>
+                    <div class="form-group">
+                        <label>Cena na ploščo (€)</label>
+                        <input type="number" id="calc-plates-price" value="10.00" onchange="calculatePrice()">
+                    </div>
+                </div>
+
+                <div class="calc-section">
+                    <h3>2. Tisk (Stroj S4)</h3>
+                    <div class="form-group">
+                        <label>Urna postavka (€/h)</label>
+                        <input type="number" id="calc-machine-rate" value="120.00" onchange="calculatePrice()">
+                    </div>
+                    <div class="form-group">
+                        <label>Hitrost tiska (pol/h)</label>
+                        <input type="number" id="calc-machine-speed" value="10000" onchange="calculatePrice()">
+                    </div>
+                    <div class="form-group">
+                        <label>Priprava stroja (min)</label>
+                        <input type="number" id="calc-prep-time" value="30" onchange="calculatePrice()">
+                    </div>
+                    <div class="form-group">
+                        <label>Makulatura / Odpad (pol)</label>
+                        <input type="number" id="calc-paper-waste" value="320" onchange="calculatePrice()">
+                    </div>
+                </div>
+            </div>
+
+            <div class="calc-section" style="margin-top: 1rem;">
+                <h3>3. Dodelava (Izsek & Lepljenje)</h3>
+                <div class="finish-item" id="row-finish-tool">
+                    <label style="font-weight:bold;"><input type="checkbox" id="f-tool-active" onchange="toggleFinishRow('tool')"> Orodje / Nož</label>
+                    <div class="form-group" style="margin:0;"><label><small>Cena (€)</small></label><input type="number" id="f-tool-cost" value="150.00" onchange="calculatePrice()"></div>
+                    <div class="form-group" style="margin:0;"><label><small>Priprava (€)</small></label><input type="number" id="f-tool-prep" value="30.00" onchange="calculatePrice()"></div>
+                </div>
+                <div class="finish-item" id="row-finish-lepljenje">
+                    <label style="font-weight:bold;"><input type="checkbox" id="f-lepljenje-active" onchange="toggleFinishRow('lepljenje')"> Lepljenje</label>
+                    <div class="form-group" style="margin:0;"><label><small>Priprava (€)</small></label><input type="number" id="f-lepljenje-prep" value="50.00" onchange="calculatePrice()"></div>
+                    <div class="form-group" style="margin:0;"><label><small>Cena/1000 (€)</small></label><input type="number" id="f-lepljenje-per1000" value="45.00" onchange="calculatePrice()"></div>
+                </div>
+            </div>
+
+            <div class="calc-section" style="margin-top: 1.5rem; background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 8px;">
+                <div style="display:flex; justify-content: space-between; align-items:center;">
+                    <span style="font-size: 1.2rem; font-weight:700;">Skupaj Brez DDV:</span>
+                    <span id="res-price-total" style="font-size: 2rem; font-weight:800; color:#10b981;">0.00 €</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STICKY FOOTER -->
+    <div class="sticky-footer">
+        <div class="sticky-price-item">
+            <div class="sticky-price-label">Naklada</div>
+            <div class="sticky-price-value" id="sticky-qty" style="color: #60a5fa;">1000</div>
+        </div>
+        <div class="sticky-price-item">
+            <div class="sticky-price-label">Na kos</div>
+            <div class="sticky-price-value" id="sticky-price-per-item" style="color: #34d399;">0.000 €</div>
+        </div>
+        <div class="sticky-price-item">
+            <div class="sticky-price-label">Skupaj</div>
+            <div class="sticky-price-value" id="sticky-price-total-bottom">0.00 €</div>
+        </div>
+        <button class="calculate-btn" style="width:auto; padding: 0.6rem 1.5rem;" onclick="window.print()">Natisni Ponudbo</button>
+    </div>
+
+    <script>
+        const sheetB2 = { w: 698, h: 498, name: "B2" };
+        const gripper = 10;
+        const bleed = 2;
+
+        const envelopePresets = {
+            'C6': { w: 230, h: 162 },
+            'DL': { w: 220, h: 220 },
+            'C5': { w: 324, h: 229 },
+            'C4': { w: 458, h: 324 },
+            'B5': { w: 353, h: 250 },
+            'B4': { w: 500, h: 353 }
+        };
+
+        function applyEnvelopePreset() {
+            const type = document.getElementById('envelope-preset').value;
+            if (type !== 'custom' && envelopePresets[type]) {
+                document.getElementById('width').value = envelopePresets[type].w;
+                document.getElementById('height').value = envelopePresets[type].h;
+                calculate();
+            }
+        }
+
+        function optimizeLayout(sheetW, sheetH, itemW, itemH, grip) {
+            // Very simplified optimization for B2
+            let cols1 = Math.floor((sheetW - grip) / itemW);
+            let rows1 = Math.floor(sheetH / itemH);
+            let count1 = cols1 * rows1;
+
+            let cols2 = Math.floor((sheetW - grip) / itemH);
+            let rows2 = Math.floor(sheetH / itemW);
+            let count2 = cols2 * rows2;
+
+            if (count1 >= count2 && count1 > 0) return { count: count1, cols: cols1, rows: rows1, itemW, itemH };
+            if (count2 > count1) return { count: count2, cols: cols2, rows: rows2, itemW: itemH, itemH: itemW };
+            return null;
+        }
+
+        function calculate() {
+            const w = parseFloat(document.getElementById('width').value) + (2 * bleed);
+            const h = parseFloat(document.getElementById('height').value) + (2 * bleed);
+            const q = parseFloat(document.getElementById('quantity').value);
+
+            let layout = optimizeLayout(sheetB2.w, sheetB2.h, w, h, gripper);
+            if (!layout) {
+                alert("Format je prevelik za B2 polo!");
+                return;
+            }
+
+            const usage = (layout.count * w * h) / (sheetB2.w * sheetB2.h);
+            const sheetsNeeded = Math.ceil(q / layout.count);
+
+            document.getElementById('res-count').innerText = layout.count;
+            document.getElementById('res-count-mini').innerText = layout.count;
+            document.getElementById('res-usage').innerText = (usage * 100).toFixed(1) + '%';
+            document.getElementById('res-usage-mini').innerText = (usage * 100).toFixed(1) + '%';
+            document.getElementById('res-sheets-needed').innerText = sheetsNeeded;
+            document.getElementById('sticky-qty').innerText = q;
+
+            drawCanvas(sheetB2.w, sheetB2.h, layout);
+            calculatePrice();
+        }
+
+        function calculatePrice() {
+            const q = parseFloat(document.getElementById('quantity').value);
+            const sheets = parseInt(document.getElementById('res-sheets-needed').innerText) || 0;
+            const waste = parseInt(document.getElementById('calc-paper-waste').value) || 0;
+            const totalSheets = sheets + waste;
+
+            // 1. Material
+            const pPrice = parseFloat(document.getElementById('calc-paper-price').value);
+            const pWeight = parseFloat(document.getElementById('calc-paper-weight').value);
+            const areaM2 = (sheetB2.w / 1000) * (sheetB2.h / 1000);
+            const paperCost = totalSheets * areaM2 * (pWeight / 1000) * pPrice;
+
+            // 2. Plates
+            const plates = parseInt(document.getElementById('calc-plates-num').value);
+            const platesPrice = parseFloat(document.getElementById('calc-plates-price').value);
+            const platesCost = plates * platesPrice;
+
+            // 3. Machine
+            const mRate = parseFloat(document.getElementById('calc-machine-rate').value);
+            const mSpeed = parseFloat(document.getElementById('calc-machine-speed').value);
+            const mPrep = parseFloat(document.getElementById('calc-prep-time').value) / 60;
+            const printCost = (mPrep + (totalSheets / mSpeed)) * mRate;
+
+            // 4. Finishing
+            let finishCost = 0;
+            if (document.getElementById('f-tool-active').checked) {
+                finishCost += parseFloat(document.getElementById('f-tool-cost').value);
+                finishCost += parseFloat(document.getElementById('f-tool-prep').value);
+            }
+            if (document.getElementById('f-lepljenje-active').checked) {
+                finishCost += parseFloat(document.getElementById('f-lepljenje-prep').value);
+                finishCost += (q / 1000) * parseFloat(document.getElementById('f-lepljenje-per1000').value);
+            }
+
+            const total = paperCost + platesCost + printCost + finishCost;
+            document.getElementById('res-price-total').innerText = total.toFixed(2) + " €";
+            document.getElementById('sticky-price-total-bottom').innerText = total.toFixed(2) + " €";
+            document.getElementById('res-price-per-item').innerText = (total / q).toFixed(3) + " €";
+            document.getElementById('sticky-price-per-item').innerText = (total / q).toFixed(3) + " €";
+        }
+
+        function toggleFinishRow(type) {
+            const row = document.getElementById('row-finish-' + type);
+            if (document.getElementById('f-' + type + '-active').checked) row.classList.add('active');
+            else row.classList.remove('active');
+            calculatePrice();
+        }
+
+        function drawCanvas(sw, sh, layout) {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            const scale = Math.min(600 / sw, 400 / sh) * 0.9;
+            canvas.width = sw * scale;
+            canvas.height = sh * scale;
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Gripper
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.1)';
+            ctx.fillRect(0, 0, gripper * scale, canvas.height);
+
+            // Items
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.3)';
+            ctx.strokeStyle = '#d97706';
+            for (let r = 0; r < layout.rows; r++) {
+                for (let c = 0; c < layout.cols; c++) {
+                    ctx.fillRect((gripper + c * layout.itemW) * scale, (r * layout.itemH) * scale, layout.itemW * scale, layout.itemH * scale);
+                    ctx.strokeRect((gripper + c * layout.itemW) * scale, (r * layout.itemH) * scale, layout.itemW * scale, layout.itemH * scale);
+                }
+            }
+        }
+
+        calculate();
+    </script>
+</body>
+</html>
