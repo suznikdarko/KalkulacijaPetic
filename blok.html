@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Optimalna Tiskarska Pola - Kalkulator</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -47,11 +48,12 @@
 
         .container {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+            grid-template-columns: 1fr;
             grid-template-areas:
-                "header header"
-                "visual calc";
-            gap: 1rem;
+                "header"
+                "visual"
+                "calc";
+            gap: 1.5rem;
             max-width: 1600px;
             width: 100%;
             margin: 0 auto;
@@ -62,37 +64,36 @@
             backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
             border-radius: 12px;
-            padding: 1rem;
+            padding: 1.5rem;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
             overflow: hidden;
             min-width: 0;
-            /* Prepreči prekrivanje grid stolpcev */
+            display: flex;
+            flex-direction: column;
         }
 
         .header-panel {
             grid-area: header;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            padding: 1.25rem;
-            border-radius: 12px;
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1.25rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            gap: 1.5rem;
         }
 
         .results {
             grid-area: visual;
+            width: 100%;
         }
 
         .calculation {
             grid-area: calc;
+            width: 100%;
         }
 
         .calc-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
         }
 
         @media (max-width: 1100px) {
@@ -246,9 +247,25 @@
         /* Kalkulacija cene stili */
         .calc-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 1.5rem;
             margin-top: 1.5rem;
+        }
+
+        .calc-section {
+            padding: 1.25rem;
+            background: rgba(15, 23, 42, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            height: fit-content;
+        }
+
+        .calc-section h3 {
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            color: var(--accent-color);
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 0.5rem;
         }
 
         .calc-summary-grid {
@@ -385,20 +402,20 @@
             <div class="header-group">
                 <label>Dimenzije (Š x V mm)</label>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <input type="number" id="width" value="90" placeholder="Š">
+                    <input type="number" id="width" value="90" placeholder="Š" oninput="calculate()">
                     <span style="color:var(--text-muted);">x</span>
-                    <input type="number" id="height" value="50" placeholder="V">
+                    <input type="number" id="height" value="50" placeholder="V" oninput="calculate()">
                 </div>
             </div>
 
             <div class="header-group">
                 <label>Bleed / Rob (mm)</label>
-                <input type="number" id="bleed" value="2">
+                <input type="number" id="bleed" value="2" oninput="calculate()">
             </div>
 
             <div class="header-group">
                 <label>Prijemalec (mm)</label>
-                <input type="number" id="gripper" value="10">
+                <input type="number" id="gripper" value="10" oninput="calculate()">
             </div>
 
             <div class="header-group">
@@ -411,7 +428,7 @@
 
             <div class="header-group">
                 <label>Format tiskovne pole</label>
-                <select id="machine-format">
+                <select id="machine-format" onchange="calculate()">
                     <option value="auto">Samodejno (B2 max)</option>
                     <option value="B2">B2 (698 x 498 mm)</option>
                     <option value="638x448">Izrez (638 x 448 mm)</option>
@@ -487,11 +504,51 @@
             </div>
         </div>
 
-        <!-- Kalkulacija cene -->
         <div class="panel calculation">
-            <h2>Kalkulacija Stroškov Tiska</h2>
+            <h2>Kalkulacija Stroškov Tiska & Detajli Ponudbe</h2>
 
             <div class="calc-grid">
+                <!-- 0. Detajli Ponudbe (Novo) -->
+                <div class="calc-section"
+                    style="background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.3);">
+                    <h3>0. Podrobnosti Ponudbe (Metapodatki)</h3>
+                    <div class="form-group">
+                        <label>Email stranke</label>
+                        <input type="text" id="calc-cust-email" placeholder="npr. office@tenovislabels.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Naslov stranke</label>
+                        <textarea id="calc-cust-address" placeholder="Ulica, Pošta, Kraj"
+                            style="width: 100%; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border); border-radius: 10px; color: var(--text-main); padding: 0.5rem; font-family: inherit; font-size: 0.9rem; min-height: 80px;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>NaročiloTenovis (Šifra naročila)</label>
+                        <input type="text" id="calc-order-number" placeholder="npr. N 0112">
+                    </div>
+                    <div class="form-group">
+                        <label>Številka artikla / Verzija</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="calc-article-number" placeholder="npr. 87081" style="width: 60%;">
+                            <input type="text" id="calc-version" placeholder="npr. 27-02-25" style="width: 40%;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Obseg / Papir opis (za ponudbo)</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="calc-extent" placeholder="npr. 4 strani" style="width: 40%;">
+                            <input type="text" id="calc-paper-desc" placeholder="npr. 90g gloss" style="width: 60%;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Dodatni opisi formatov (Odprt | Zaprt 1 | Zaprt 2)</label>
+                        <input type="text" id="calc-format-open" placeholder="Odprt: 273 x 308 mm"
+                            style="font-size: 0.8rem; margin-bottom: 0.3rem;">
+                        <input type="text" id="calc-format-closed-1" placeholder="Zaprt 1: 145 x 308 mm"
+                            style="font-size: 0.8rem; margin-bottom: 0.3rem;">
+                        <input type="text" id="calc-format-closed-2" placeholder="Zaprt 2: 145 x 149 mm"
+                            style="font-size: 0.8rem;">
+                    </div>
+                </div>
                 <!-- 1. Papir -->
                 <div class="calc-section">
                     <h3>1. Material (Papir & Podkarton)</h3>
@@ -937,11 +994,19 @@
                         <label>Ime ponudbe (za shranjevanje)</label>
                         <input type="text" id="calc-project-name-2" placeholder="npr. Katalog Jesen 2024">
                     </div>
-                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                        <button onclick="saveCurrentProject()" style="background: #10b981; flex: 1; padding: 0.7rem;">💾
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
+                        <button onclick="saveCurrentProject()"
+                            style="background: #10b981; flex: 1; min-width: 120px; padding: 0.7rem;">💾
                             Shrani v arhiv</button>
-                        <button onclick="exportToFile()" style="background: #3b82f6; flex: 1; padding: 0.7rem;">📥
-                            Izvozi v datoteko</button>
+                        <button onclick="exportToFile()"
+                            style="background: #3b82f6; flex: 1; min-width: 120px; padding: 0.7rem;">📥
+                            Izvozi JSON</button>
+                        <button onclick="exportToPDF()"
+                            style="background: #f43f5e; flex: 1; min-width: 120px; padding: 0.7rem;">📄
+                            PDF</button>
+                        <button onclick="exportToWord()"
+                            style="background: #2563eb; flex: 1; min-width: 120px; padding: 0.7rem;">📝
+                            Word</button>
                     </div>
                     <div style="margin-top: 0.5rem;">
                         <input type="file" id="import-file-input" style="display: none;"
@@ -1898,6 +1963,16 @@
                     offerNumber: document.getElementById('calc-offer-number') ? document.getElementById('calc-offer-number').value : "",
                     customerCode: document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "",
                     customer: document.getElementById('calc-customer').value,
+                    orderNumber: document.getElementById('calc-order-number').value,
+                    articleNumber: document.getElementById('calc-article-number').value,
+                    version: document.getElementById('calc-version').value,
+                    custEmail: document.getElementById('calc-cust-email').value,
+                    custAddress: document.getElementById('calc-cust-address').value,
+                    formatOpen: document.getElementById('calc-format-open').value,
+                    formatClosed1: document.getElementById('calc-format-closed-1').value,
+                    formatClosed2: document.getElementById('calc-format-closed-2').value,
+                    extent: document.getElementById('calc-extent').value,
+                    paperDesc: document.getElementById('calc-paper-desc').value,
                     materialCode: document.getElementById('calc-material-code').value,
                     inputs: {
                         machine_format: document.getElementById('machine-format').value,
@@ -2011,6 +2086,18 @@
                 if (document.getElementById('calc-offer-number')) document.getElementById('calc-offer-number').value = proj.offerNumber || "";
                 if (document.getElementById('calc-customer-code')) document.getElementById('calc-customer-code').value = proj.customerCode || "";
                 document.getElementById('calc-customer').value = proj.customer || "";
+
+                if (document.getElementById('calc-order-number')) document.getElementById('calc-order-number').value = proj.orderNumber || "";
+                if (document.getElementById('calc-article-number')) document.getElementById('calc-article-number').value = proj.articleNumber || "";
+                if (document.getElementById('calc-version')) document.getElementById('calc-version').value = proj.version || "";
+                if (document.getElementById('calc-cust-email')) document.getElementById('calc-cust-email').value = proj.custEmail || "";
+                if (document.getElementById('calc-cust-address')) document.getElementById('calc-cust-address').value = proj.custAddress || "";
+                if (document.getElementById('calc-format-open')) document.getElementById('calc-format-open').value = proj.formatOpen || "";
+                if (document.getElementById('calc-format-closed-1')) document.getElementById('calc-format-closed-1').value = proj.formatClosed1 || "";
+                if (document.getElementById('calc-format-closed-2')) document.getElementById('calc-format-closed-2').value = proj.formatClosed2 || "";
+                if (document.getElementById('calc-extent')) document.getElementById('calc-extent').value = proj.extent || "";
+                if (document.getElementById('calc-paper-desc')) document.getElementById('calc-paper-desc').value = proj.paperDesc || "";
+
                 document.getElementById('calc-material-code').value = proj.materialCode || "";
 
                 document.getElementById('machine-format').value = inp.machine_format;
@@ -2147,6 +2234,16 @@
                         offerNumber: document.getElementById('calc-offer-number') ? document.getElementById('calc-offer-number').value : "",
                         customerCode: document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "",
                         customer: document.getElementById('calc-customer').value,
+                        orderNumber: document.getElementById('calc-order-number').value,
+                        articleNumber: document.getElementById('calc-article-number').value,
+                        version: document.getElementById('calc-version').value,
+                        custEmail: document.getElementById('calc-cust-email').value,
+                        custAddress: document.getElementById('calc-cust-address').value,
+                        formatOpen: document.getElementById('calc-format-open').value,
+                        formatClosed1: document.getElementById('calc-format-closed-1').value,
+                        formatClosed2: document.getElementById('calc-format-closed-2').value,
+                        extent: document.getElementById('calc-extent').value,
+                        paperDesc: document.getElementById('calc-paper-desc').value,
                         materialCode: document.getElementById('calc-material-code').value,
                         timestamp: Date.now(),
                         inputs: {
@@ -2233,6 +2330,174 @@
                     event.target.value = "";
                 };
                 reader.readAsText(file);
+            }
+
+            function getFinishingDesc() {
+                let desc = [];
+                if (document.getElementById('f-cilinder-active').checked) desc.push("izsek z orodjem");
+                if (document.getElementById('f-zgibanje-active').checked) {
+                    let folds = document.getElementById('f-zgibanje-folds').value;
+                    desc.push(folds + "x zgibano");
+                }
+                if (document.getElementById('f-noz-active').checked) desc.push("razrez");
+                if (document.getElementById('f-tool-active').checked) desc.push("izsek z orodjem");
+                if (document.getElementById('f-sivanje-active').checked) desc.push("šivanje");
+                if (document.getElementById('f-lepljenje-active').checked) desc.push("lepljenje");
+                if (document.getElementById('f-lepljenjeblokov-active').checked) desc.push("lepljenje blokov");
+                if (document.getElementById('f-spiraljenje-active').checked) desc.push("špiraljenje");
+                if (document.getElementById('f-lam-active').checked) {
+                    let type = document.getElementById('f-lam-type').value;
+                    desc.push("plastifikacija (" + type + ")");
+                }
+                return desc.join(", ") || "/";
+            }
+
+            function generateExportHTML() {
+                let name = (document.getElementById('calc-project-name-2').value || document.getElementById('calc-project-name').value) || '/';
+                let orderNo = document.getElementById('calc-order-number').value || '/';
+                let customer = document.getElementById('calc-customer').value || '/';
+                let custAddress = document.getElementById('calc-cust-address').value || '/';
+                let custEmail = document.getElementById('calc-cust-email').value || '/';
+                let article = document.getElementById('calc-article-number').value || '/';
+                let version = document.getElementById('calc-version').value || '/';
+                let fmtOpen = document.getElementById('calc-format-open').value || '/';
+                let fmtC1 = document.getElementById('calc-format-closed-1').value || '/';
+                let fmtC2 = document.getElementById('calc-format-closed-2').value || '/';
+                let extent = document.getElementById('calc-extent').value || '/';
+                let paper = document.getElementById('calc-paper-desc').value || '/';
+
+                let qty = document.getElementById('quantity').value;
+                let totalCost = document.getElementById('res-price-total').innerText;
+                let perItemCost = document.getElementById('res-price-per-item').innerText;
+
+                let front = document.getElementById('calc-color-front').value;
+                let back = document.getElementById('calc-color-back').value;
+                let tiskText = front + "/" + back + " - color";
+
+                let finishing = getFinishingDesc();
+                let today = new Date().toLocaleDateString('sl-SI');
+
+                return `
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <style>
+                            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+                            body { font-family: 'Inter', Arial, sans-serif; color: #111; line-height: 1.4; padding: 40px; font-size: 11pt; }
+                            .header-table { width: 100%; margin-bottom: 40px; }
+                            .header-left { width: 50%; vertical-align: top; }
+                            .header-right { width: 50%; text-align: right; vertical-align: top; }
+                            .meta-table { display: inline-block; text-align: left; margin-top: 10px; }
+                            .meta-table td { padding: 2px 5px; }
+                            
+                            .title-row { margin-bottom: 20px; font-weight: bold; font-size: 14pt; }
+                            .intro-text { margin-bottom: 30px; }
+                            
+                            .details-table { width: 100%; margin-bottom: 40px; border-collapse: collapse; }
+                            .details-table td { padding: 4px 0; vertical-align: top; }
+                            .label { font-weight: bold; width: 150px; }
+                            
+                            .price-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                            .price-table th { text-align: left; border-bottom: 1px solid #000; padding: 10px 5px; font-weight: bold; }
+                            .price-table td { padding: 15px 5px; border-bottom: 1px solid #eee; }
+                        </style>
+                    </head>
+                    <body>
+                        <table class="header-table">
+                            <tr>
+                                <td class="header-left">
+                                    <strong>${customer}</strong><br>
+                                    <div style="white-space: pre-wrap;">${custAddress}</div>
+                                </td>
+                                <td class="header-right">
+                                    <table class="meta-table">
+                                        <tr><td>Datum:</td><td><strong>${today}</strong></td></tr>
+                                        <tr><td>${custEmail}</td><td>Stranka:</td><td><strong>${customer}</strong></td></tr>
+                                        <tr><td></td><td>Ponudba:</td><td><strong>${name}</strong></td></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <div class="title-row">
+                            Ponudba <span style="margin-left: 150px;">NaročiloTenovis: ${orderNo}</span>
+                        </div>
+
+                        <div class="intro-text">
+                            Zahvaljujemo se Vam za Vaše povpraševanje in Vam ponujamo naslednje:
+                        </div>
+
+                        <table class="details-table">
+                            <tr><td class="label">Izdelek:</td><td>${name}</td></tr>
+                            <tr><td class="label">Številka artikla:</td><td>${article} <span style="margin-left: 50px;">Verzija: ${version}</span></td></tr>
+                            <tr><td class="label">Format:</td><td>
+                                ${fmtOpen} - odprt format<br>
+                                ${fmtC1} - zaprt format<br>
+                                ${fmtC2} - zaprt format posameznega produkta
+                            </td></tr>
+                            <tr><td class="label">Obseg:</td><td>${extent}</td></tr>
+                            <tr><td class="label">Tisk:</td><td>${tiskText}</td></tr>
+                            <tr><td class="label">Papir:</td><td>${paper}</td></tr>
+                            <tr><td class="label">Dodel.:</td><td>${finishing}</td></tr>
+                        </table>
+
+                        <table class="price-table">
+                            <thead>
+                                <tr>
+                                    <th>Naklada</th>
+                                    <th>Cena za kos</th>
+                                    <th>Cena skupno</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>${qty}</td>
+                                    <td>${perItemCost}</td>
+                                    <td><strong>${totalCost}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div style="margin-top: 50px; font-size: 9pt; color: #666;">
+                            Ponudba velja 30 dni. Cene so brez DDV.
+                        </div>
+                    </body>
+                    </html>
+                `;
+            }
+
+            function exportToWord() {
+                let html = generateExportHTML();
+                let blob = new Blob(['\ufeff', html], {
+                    type: 'application/msword'
+                });
+                let url = URL.createObjectURL(blob);
+                let link = document.createElement('a');
+                link.href = url;
+                let name = document.getElementById('calc-project-name').value || 'Ponudba';
+                link.download = name.replace(/\s+/g, '_') + '.doc';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            function exportToPDF() {
+                if (typeof window.html2pdf === 'undefined') {
+                    alert('Knjižnica za PDF se še nalaga ali pa ni na voljo.');
+                    return;
+                }
+                let element = document.createElement('div');
+                element.innerHTML = generateExportHTML();
+
+                let opt = {
+                    margin: 10,
+                    filename: (document.getElementById('calc-project-name').value || 'Ponudba').replace(/\s+/g, '_') + '.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                window.html2pdf().set(opt).from(element).save();
             }
             function printFormat() {
                 const canvas = document.getElementById('canvas');
@@ -2334,7 +2599,7 @@
             <div style="display:flex; gap:0.5rem;">
                 <button class="calculate-btn" onclick="saveCurrentProject()"
                     style="margin: 0; width: auto; background: #10b981; padding: 0.5rem 1.2rem; font-size:0.85rem;">💾
-                    Shrani Ponudbo</button>
+                    Shrani Ponudba</button>
             </div>
         </div>
     </div>
