@@ -665,6 +665,62 @@
                         </div>
 
                         <div>
+                            <!-- Znašanje -->
+                            <div class="finish-item" id="row-finish-znasanje">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-znasanje-active"
+                                        onchange="toggleFinishRow('znasanje')">
+                                    Znašanje
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Priprava (€)</small></label>
+                                    <input type="number" id="f-znasanje-prep" value="15.00" onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena/1000 (€)</small></label>
+                                    <input type="number" id="f-znasanje-per1000" value="10.00"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
+
+                            <!-- Lepljenje blokov -->
+                            <div class="finish-item" id="row-finish-lepljenjeblokov">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-lepljenjeblokov-active"
+                                        onchange="toggleFinishRow('lepljenjeblokov')">
+                                    Lepljenje blokov
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Priprava (€)</small></label>
+                                    <input type="number" id="f-lepljenjeblokov-prep" value="15.00"
+                                        onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena/kos (€)</small></label>
+                                    <input type="number" id="f-lepljenjeblokov-kos" value="0.20"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
+
+                            <!-- Špiraljenje -->
+                            <div class="finish-item" id="row-finish-spiraljenje">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-spiraljenje-active"
+                                        onchange="toggleFinishRow('spiraljenje')">
+                                    Špiraljenje
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Priprava (€)</small></label>
+                                    <input type="number" id="f-spiraljenje-prep" value="15.00"
+                                        onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena/kos (€)</small></label>
+                                    <input type="number" id="f-spiraljenje-kos" value="0.50"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
+
                             <!-- Šivanje -->
                             <div class="finish-item" id="row-finish-sivanje">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
@@ -1212,6 +1268,27 @@
                     totalFinishCost += (nTime / 60) * nRate;
                 }
 
+                // Znašanje
+                if (document.getElementById('f-znasanje-active').checked) {
+                    let znPrep = parseFloat(document.getElementById('f-znasanje-prep').value) || 0;
+                    let znPer1000 = parseFloat(document.getElementById('f-znasanje-per1000').value) || 0;
+                    totalFinishCost += znPrep + (totalItemsForm / 1000) * znPer1000;
+                }
+
+                // Lepljenje blokov
+                if (document.getElementById('f-lepljenjeblokov-active').checked) {
+                    let lbPrep = parseFloat(document.getElementById('f-lepljenjeblokov-prep').value) || 0;
+                    let lbKos = parseFloat(document.getElementById('f-lepljenjeblokov-kos').value) || 0;
+                    totalFinishCost += lbPrep + totalItemsForm * lbKos;
+                }
+
+                // Špiraljenje
+                if (document.getElementById('f-spiraljenje-active').checked) {
+                    let spPrep = parseFloat(document.getElementById('f-spiraljenje-prep').value) || 0;
+                    let spKos = parseFloat(document.getElementById('f-spiraljenje-kos').value) || 0;
+                    totalFinishCost += spPrep + totalItemsForm * spKos;
+                }
+
                 // Šivanje
                 if (document.getElementById('f-sivanje-active').checked) {
                     let sPrep = parseFloat(document.getElementById('f-sivanje-prep').value) || 0;
@@ -1301,39 +1378,61 @@
                 const ctx = canvas.getContext('2d');
                 canvas.style.display = 'block';
 
-                // Calculate scale to fit container nicely
+                // Izračun merila za popolno prileganje
                 var wrapper = document.getElementById('canvas-wrapper');
-                var maxCanvasW = wrapper ? wrapper.clientWidth - 30 : 600;
-                if (maxCanvasW <= 0) maxCanvasW = 600; // Fallback if wrapper hidden
+                var maxCanvasW = wrapper ? wrapper.clientWidth - 40 : 600;
+                if (maxCanvasW <= 0) maxCanvasW = 600;
 
                 const maxCanvasH = 500;
-
-                const scaleW = maxCanvasW / sheetW;
-                const scaleH = maxCanvasH / sheetH;
-                const scale = Math.min(scaleW, scaleH) * 0.95;
+                const scale = Math.min(maxCanvasW / sheetW, maxCanvasH / sheetH) * 0.9;
 
                 canvas.width = sheetW * scale;
                 canvas.height = sheetH * scale;
 
-                // Clear & Setup background (Sheet)
-                ctx.fillStyle = '#f1f5f9'; // Paper color
+                // Ozadje (Papir)
+                ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Draw gripper margin
-                ctx.fillStyle = 'rgba(239, 68, 68, 0.2)'; // Red-ish transparent for gripper
+                // Rob papirja (Stroke)
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+                // Prijemalec (Gripper) - Vizualna označba
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.1)';
                 if (layout.gripEdge === 'W') {
-                    // along the left edge (vertical strip)
-                    ctx.fillRect(0, 0, gripper * scale, sheetH * scale);
+                    ctx.fillRect(0, 0, gripper * scale, canvas.height);
+                    // Črta za prijemalec
+                    ctx.beginPath();
+                    ctx.setLineDash([2, 4]);
+                    ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+                    ctx.moveTo(gripper * scale, 0);
+                    ctx.lineTo(gripper * scale, canvas.height);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
                 } else {
-                    // along the bottom edge (horizontal strip)
-                    ctx.fillRect(0, (sheetH - gripper) * scale, sheetW * scale, gripper * scale);
+                    ctx.fillRect(0, canvas.height - (gripper * scale), canvas.width, gripper * scale);
+                    // Črta za prijemalec
+                    ctx.beginPath();
+                    ctx.setLineDash([2, 4]);
+                    ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+                    ctx.moveTo(0, canvas.height - (gripper * scale));
+                    ctx.lineTo(canvas.width, canvas.height - (gripper * scale));
+                    ctx.stroke();
+                    ctx.setLineDash([]);
                 }
 
-                // Draw items
-                const offsetX = layout.gripEdge === 'W' ? gripper : 0;
-                const offsetY = 0; // items start from 0 because vertical spacer is on left, horizontal is on bottom
+                // Sredinski izpis števila stavkov (Ups) - Velik in prozoren v ozadju
+                ctx.save();
+                ctx.font = 'bold ' + (canvas.height * 0.4) + 'px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.05)';
+                ctx.fillText(layout.count, canvas.width / 2, canvas.height / 2);
+                ctx.restore();
 
-                // Center the grid in the remaining area
+                // Izris posameznih kosov (Grid)
+                const offsetX = layout.gripEdge === 'W' ? gripper : 0;
                 const usableW = layout.gripEdge === 'W' ? sheetW - gripper : sheetW;
                 const usableH = layout.gripEdge === 'H' ? sheetH - gripper : sheetH;
 
@@ -1341,51 +1440,75 @@
                 const gridTotalH = layout.rows * layout.itemH;
 
                 const startX = offsetX + ((usableW - gridTotalW) / 2);
-                const startY = offsetY + ((usableH - gridTotalH) / 2);
+                const startY = (layout.gripEdge === 'H' ? 0 : 0) + ((usableH - gridTotalH) / 2);
 
                 for (let r = 0; r < layout.rows; r++) {
                     for (let c = 0; c < layout.cols; c++) {
-                        const x = startX + (c * layout.itemW);
-                        const y = startY + (r * layout.itemH);
+                        const x = (startX + (c * layout.itemW)) * scale;
+                        const y = (startY + (r * layout.itemH)) * scale;
+                        const w = layout.itemW * scale;
+                        const h = layout.itemH * scale;
 
-                        // Bleed Box
-                        ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
+                        // Barva za "Bleed box"
+                        ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
                         ctx.strokeStyle = '#3b82f6';
-                        ctx.lineWidth = 1;
-                        ctx.fillRect(x * scale, y * scale, layout.itemW * scale, layout.itemH * scale);
-                        ctx.strokeRect(x * scale, y * scale, layout.itemW * scale, layout.itemH * scale);
+                        ctx.lineWidth = 0.5;
+                        ctx.fillRect(x, y, w, h);
+                        ctx.strokeRect(x, y, w, h);
 
-                        // Final cutting line (Net dimension)
-                        const innerW = layout.rot ? origH : origW;
-                        const innerH = layout.rot ? origW : origH;
+                        // Rezni rob (Netto dimenzija)
+                        const innerW = (layout.rot ? origH : origW) * scale;
+                        const innerH = (layout.rot ? origW : origH) * scale;
+                        const bleedX = bleed * scale;
+                        const bleedY = bleed * scale;
 
-                        ctx.setLineDash([5, 5]);
                         ctx.strokeStyle = '#1e40af';
-                        ctx.strokeRect((x + bleed) * scale, (y + bleed) * scale, innerW * scale, innerH * scale);
+                        ctx.setLineDash([4, 2]);
+                        ctx.strokeRect(x + bleedX, y + bleedY, innerW, innerH);
                         ctx.setLineDash([]);
                     }
                 }
 
-                // Version/Sync check footer inside canvas container (visually confirms file version)
-                const footerText = "v4 - Dinamična Dodelava (Cilinder & Zgibanje)";
-                ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
-                ctx.font = '10px Inter';
-                ctx.fillText(footerText, 10, 15);
+                // DIMENZIJSKE ČRTE (Izris formata papirja)
+                ctx.font = 'bold 12px Inter';
+                ctx.fillStyle = '#475569';
 
-                // Add legend/text on canvas if needed
-                ctx.fillStyle = '#0f172a';
-                ctx.font = '12px Inter';
+                // Širina (zgoraj)
+                ctx.textAlign = 'center';
+                ctx.fillText(sheetW + ' mm', canvas.width / 2, 20);
+
+                // Višina (desno)
+                ctx.save();
+                ctx.translate(canvas.width - 10, canvas.height / 2);
+                ctx.rotate(Math.PI / 2);
+                ctx.textAlign = 'center';
+                ctx.fillText(sheetH + ' mm', 0, 0);
+                ctx.restore();
+
+                // Prijemalec tekst
                 if (gripper > 0) {
+                    ctx.font = 'italic 10px Inter';
+                    ctx.fillStyle = '#ef4444';
                     if (layout.gripEdge === 'W') {
                         ctx.save();
-                        ctx.translate(12, 100);
+                        ctx.translate(15, canvas.height / 2);
                         ctx.rotate(-Math.PI / 2);
-                        ctx.fillText('Prijemalec', 0, 0);
+                        ctx.fillText('Prijemalec ' + gripper + 'mm', 0, 0);
                         ctx.restore();
                     } else {
-                        ctx.fillText('Prijemalec', 10, (sheetH * scale) - 5);
+                        ctx.fillText('Prijemalec ' + gripper + 'mm', canvas.width / 2, canvas.height - 5);
                     }
                 }
+
+                // Bolj viden napis števila stavkov na sredini (spredaj)
+                ctx.font = 'bold 24px Inter';
+                ctx.fillStyle = '#0f172a';
+                ctx.textAlign = 'center';
+                // Dodamo belo senco za boljšo čitljivost čez grid
+                ctx.shadowColor = "white";
+                ctx.shadowBlur = 7;
+                ctx.fillText(layout.count + ' x', canvas.width / 2, canvas.height / 2);
+                ctx.shadowBlur = 0;
             }
 
             // INITIAL CALLS ON LOAD (MOVED TO BOTTOM)
