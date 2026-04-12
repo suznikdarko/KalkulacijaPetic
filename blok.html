@@ -348,12 +348,7 @@
     <div class="container">
         <!-- GLAVA Z VNOSI -->
         <div class="header-panel">
-            <div class="header-group" style="grid-column: span 2;">
-                <label for="calc-project-name">Projekt / Ime ponudbe</label>
-                <input type="text" id="calc-project-name" placeholder="Vnesite ime ponudbe">
-            </div>
-
-            <div class="header-group" style="grid-column: span 2;">
+            <div class="header-group" style="grid-column: span 1;">
                 <label for="calc-customer">Stranka</label>
                 <div style="display: flex; gap: 0.2rem; position: relative;">
                     <input type="text" id="calc-customer" list="customer-list" placeholder="Izberite stranko"
@@ -365,6 +360,21 @@
                     </div>
                 </div>
                 <datalist id="customer-list"></datalist>
+            </div>
+
+            <div class="header-group" style="grid-column: span 1;">
+                <label for="calc-project-name">Ime ponudbe</label>
+                <input type="text" id="calc-project-name" placeholder="Vnesite ime ponudbe">
+            </div>
+
+            <div class="header-group">
+                <label for="calc-offer-number">Številka ponudbe</label>
+                <input type="text" id="calc-offer-number" placeholder="npr. 2024-001">
+            </div>
+
+            <div class="header-group">
+                <label for="calc-customer-code">Šifra stranke</label>
+                <input type="text" id="calc-customer-code" placeholder="npr. CUST-123">
             </div>
 
             <div class="header-group">
@@ -394,10 +404,13 @@
             <div class="header-group">
                 <label>Naklada (kos)</label>
                 <input type="number" id="quantity" value="1000">
+                <div style="font-size: 0.85rem; color: #10b981; margin-top: 0.4rem; font-weight: 600;">
+                    Število pol: <span id="header-sheets-val" style="color: #f8fafc;">0</span>
+                </div>
             </div>
 
             <div class="header-group">
-                <label>Format stroja</label>
+                <label>Format tiskovne pole</label>
                 <select id="machine-format">
                     <option value="auto">Samodejno (B2 max)</option>
                     <option value="B2">B2 (698 x 498 mm)</option>
@@ -431,6 +444,9 @@
                             style="color: #60a5fa;">-</strong></div>
                     <div style="font-size: 0.9rem; color: #94a3b8;">Izkoristek: <strong id="res-usage-mini"
                             style="color: #60a5fa;">-</strong></div>
+                    <button onclick="printFormat()" title="Natisni izris"
+                        style="background: rgba(59, 130, 246, 0.8); border: none; padding: 0.3rem 0.8rem; border-radius: 8px; color: white; margin-left: 1rem; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">🖨️
+                        Natisni</button>
                 </div>
             </div>
 
@@ -478,25 +494,104 @@
             <div class="calc-grid">
                 <!-- 1. Papir -->
                 <div class="calc-section">
-                    <h3>1. Material (Papir)</h3>
-                    <div class="form-group">
-                        <label>Cena papirja</label>
-                        <div class="input-group">
-                            <input type="number" id="calc-paper-price" value="1.50" step="0.01">
-                            <select id="calc-paper-unit">
-                                <option value="kg">na kg</option>
-                                <option value="1000">na 1000 pol</option>
-                                <option value="1">na 1 polo</option>
+                    <h3>1. Material (Papir & Podkarton)</h3>
+                    <!-- Papir option -->
+                    <div class="form-group" style="margin-bottom: 0.5rem;">
+                        <label
+                            style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: bold;">
+                            <input type="checkbox" id="calc-paper-active" checked onchange="togglePaperRow()">
+                            Osnovni material: Papir
+                        </label>
+                    </div>
+
+                    <div id="paper-options" style="background: rgba(0,0,0,0.02); padding: 0.8rem; border-radius: 8px;">
+                        <div class="form-group">
+                            <label>Cena papirja</label>
+                            <div class="input-group">
+                                <input type="number" id="calc-paper-price" value="1.50" step="0.01"
+                                    onchange="calculatePrice()">
+                                <select id="calc-paper-unit" onchange="calculatePrice()">
+                                    <option value="ton">na tono</option>
+                                    <option value="1000">na 1000 pol</option>
+                                    <option value="1">na 1 polo</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Gramatura (g/m²)</label>
+                            <input type="number" id="calc-paper-weight" value="135" onchange="calculatePrice()">
+                        </div>
+                        <div class="form-group">
+                            <label>Dobavni format materiala (iz česa se reže)</label>
+                            <select id="calc-paper-supply-type" style="width: 100%; margin-bottom: 0.5rem;"
+                                onchange="togglePaperSupplyCustom(); calculatePrice();">
+                                <option value="700x1000">B1 (700 x 1000 mm)</option>
+                                <option value="720x1020">B1+ (720 x 1020 mm)</option>
+                                <option value="640x900">A1+ (640 x 900 mm)</option>
+                                <option value="610x860">A1 (610 x 860 mm)</option>
+                                <option value="450x640">A2+ (450 x 640 mm)</option>
+                                <option value="500x700">B2 (500 x 700 mm)</option>
+                                <option value="print">Format za tisk (brez razreza)</option>
+                                <option value="custom">Po meri (vnos širine in višine)...</option>
                             </select>
+                            <div id="paper-supply-custom-group" style="display: none;" class="input-group">
+                                <input type="number" id="calc-paper-supply-w" value="700" placeholder="Širina mm"
+                                    onchange="calculatePrice()">
+                                <input type="number" id="calc-paper-supply-h" value="1000" placeholder="Višina mm"
+                                    onchange="calculatePrice()">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Odpadna makulatura (št. pol) - <small>Samodejno izračunano</small></label>
+                            <input type="number" id="calc-paper-waste" value="320" onchange="calculatePrice()">
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Gramatura (g/m²)</label>
-                        <input type="number" id="calc-paper-weight" value="135">
-                    </div>
-                    <div class="form-group">
-                        <label>Odpadna makulatura (št. pol) - <small>Samodejno izračunano</small></label>
-                        <input type="number" id="calc-paper-waste" value="320" onchange="calculatePrice()">
+
+                    <!-- Podkarton option -->
+                    <div class="form-group" style="margin-top: 1rem; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+                        <label
+                            style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: bold; margin-bottom: 0.5rem;">
+                            <input type="checkbox" id="calc-cardboard-active" onchange="toggleCardboardRow()">
+                            Dodatni material: Podkarton
+                        </label>
+
+                        <div id="cardboard-options"
+                            style="display: none; background: rgba(0,0,0,0.02); padding: 0.8rem; border-radius: 8px;">
+                            <div class="form-group">
+                                <label>Cena podkartona</label>
+                                <div class="input-group">
+                                    <input type="number" id="calc-cardboard-price" value="0.20" step="0.01"
+                                        onchange="calculatePrice()">
+                                    <select id="calc-cardboard-unit" onchange="calculatePrice()">
+                                        <option value="sheet">na 1 polo</option>
+                                        <option value="1000">na 1000 pol</option>
+                                        <option value="ton">na tono</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Gramatura podkartona (g/m²)</label>
+                                <input type="number" id="calc-cardboard-weight" value="300" onchange="calculatePrice()">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Dobavni format podkartona (iz česa se reže)</label>
+                                <select id="calc-cb-supply-type" style="width: 100%; margin-bottom: 0.5rem;"
+                                    onchange="toggleCbSupplyCustom(); calculatePrice();">
+                                    <option value="700x1000">B1 (700 x 1000 mm)</option>
+                                    <option value="720x1020">B1+ (720 x 1020 mm)</option>
+                                    <option value="640x900">A1+ (640 x 900 mm)</option>
+                                    <option value="500x700">B2 (500 x 700 mm)</option>
+                                    <option value="print">Format za tisk (brez razreza)</option>
+                                    <option value="custom">Po meri (vnos širine in višine)...</option>
+                                </select>
+                                <div id="cb-supply-custom-group" style="display: none;" class="input-group">
+                                    <input type="number" id="calc-cb-supply-w" value="700" placeholder="Širina mm"
+                                        onchange="calculatePrice()">
+                                    <input type="number" id="calc-cb-supply-h" value="1000" placeholder="Višina mm"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -830,16 +925,16 @@
                     style="background: rgba(245, 158, 11, 0.05); border-color: rgba(245, 158, 11, 0.3);">
                     <div class="form-group" style="margin:0;">
                         <label style="font-weight:bold;">RVC / Marža (%)</label>
-                        <input type="number" id="calc-margin" value="20" step="1" onchange="calculatePrice()">
+                        <input type="number" id="calc-margin" value="0" step="1" onchange="calculatePrice()">
                     </div>
                 </div>
 
-                <!-- 5. ARHIV PROJEKTOV -->
+                <!-- 5. ARHIV PONUDB -->
                 <div class="calc-section"
                     style="background: rgba(16, 185, 129, 0.05); border: 2px dashed rgba(16, 185, 129, 0.3);">
-                    <h3>5. Arhiv Projektov</h3>
+                    <h3>5. Arhiv Ponudb</h3>
                     <div class="form-group">
-                        <label>Ime projekta (za shranjevanje)</label>
+                        <label>Ime ponudbe (za shranjevanje)</label>
                         <input type="text" id="calc-project-name-2" placeholder="npr. Katalog Jesen 2024">
                     </div>
                     <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
@@ -854,9 +949,14 @@
                         <button onclick="document.getElementById('import-file-input').click()"
                             style="background: #64748b; width: 100%; padding: 0.7rem;">📤 Uvozi iz datoteke</button>
                     </div>
+                    <div style="margin-top: 0.5rem;">
+                        <input type="text" id="archive-searchbox" placeholder="Išči po arhivu (ime, naklada, mere...)"
+                            oninput="renderSavedProjects()"
+                            style="background: rgba(255,255,255,0.8); border: 1px solid #cbd5e1; padding: 0.5rem; width: 100%; border-radius: 4px; box-sizing: border-box; font-size: 0.9rem;">
+                    </div>
                     <div id="saved-projects-list"
                         style="margin-top: 1rem; border-top: 1px solid #ddd; padding-top: 0.5rem;">
-                        <p style="font-size: 0.8rem; color: #64748b;">Nimate shranjenih projektov.</p>
+                        <p style="font-size: 0.8rem; color: #64748b;">Nimate shranjenih ponudb.</p>
                     </div>
                 </div>
 
@@ -1041,6 +1141,7 @@
 
                 let sheetsNeeded = Math.ceil(q / bestLayout.count);
                 document.getElementById('res-sheets-needed').innerText = sheetsNeeded;
+                if (document.getElementById('header-sheets-val')) document.getElementById('header-sheets-val').innerText = sheetsNeeded;
 
                 let drawW = bestSheet.mode === 'L' ? bestSheet.w : bestSheet.h;
                 let drawH = bestSheet.mode === 'L' ? bestSheet.h : bestSheet.w;
@@ -1213,14 +1314,88 @@
                 let totalSheetsNeeded = sheetsNeeded + paperWasteSheets;
 
                 let paperCost = 0;
-                if (pUnit === "1") {
-                    paperCost = totalSheetsNeeded * pPrice;
-                } else if (pUnit === "1000") {
-                    paperCost = (totalSheetsNeeded / 1000) * pPrice;
-                } else if (pUnit === "kg") {
-                    let areaM2 = (drawW / 1000) * (drawH / 1000);
-                    let sheetKg = areaM2 * (pWeight / 1000);
-                    paperCost = totalSheetsNeeded * sheetKg * pPrice;
+
+                if (!document.getElementById('calc-paper-active') || document.getElementById('calc-paper-active').checked) {
+                    let pSupplyType = document.getElementById('calc-paper-supply-type') ? document.getElementById('calc-paper-supply-type').value : '700x1000';
+                    let pSupplyW, pSupplyH;
+                    if (pSupplyType === 'custom') {
+                        pSupplyW = parseFloat(document.getElementById('calc-paper-supply-w').value) || 700;
+                        pSupplyH = parseFloat(document.getElementById('calc-paper-supply-h').value) || 1000;
+                    } else if (pSupplyType === 'print') {
+                        pSupplyW = drawW;
+                        pSupplyH = drawH;
+                    } else {
+                        let parts = pSupplyType.split('x');
+                        pSupplyW = parseFloat(parts[0]) || 700;
+                        pSupplyH = parseFloat(parts[1]) || 1000;
+                    }
+
+                    let pYield1 = Math.floor(pSupplyW / drawW) * Math.floor(pSupplyH / drawH);
+                    let pYield2 = Math.floor(pSupplyW / drawH) * Math.floor(pSupplyH / drawW);
+                    let pYield = Math.max(pYield1, pYield2) || 1;
+
+                    let pParentSheetsNeeded = Math.ceil(totalSheetsNeeded / pYield);
+
+                    if (pUnit === "1") {
+                        paperCost = pParentSheetsNeeded * pPrice;
+                    } else if (pUnit === "1000") {
+                        paperCost = (pParentSheetsNeeded / 1000) * pPrice;
+                    } else if (pUnit === "kg") {
+                        let areaM2 = (pSupplyW / 1000) * (pSupplyH / 1000);
+                        let sheetKg = areaM2 * (pWeight / 1000);
+                        paperCost = pParentSheetsNeeded * sheetKg * pPrice;
+                    } else if (pUnit === "ton") {
+                        let areaM2 = (pSupplyW / 1000) * (pSupplyH / 1000);
+                        let sheetKg = areaM2 * (pWeight / 1000);
+                        let totalKg = pParentSheetsNeeded * sheetKg;
+                        paperCost = (totalKg / 1000) * pPrice;
+                    }
+                }
+
+                // Podkarton
+                if (document.getElementById('calc-cardboard-active') && document.getElementById('calc-cardboard-active').checked) {
+                    let cbPrice = parseFloat(document.getElementById('calc-cardboard-price').value) || 0;
+                    let cbUnit = document.getElementById('calc-cardboard-unit').value;
+                    let cbWeight = parseFloat(document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : 300) || 300;
+
+                    let cbSupplyType = document.getElementById('calc-cb-supply-type') ? document.getElementById('calc-cb-supply-type').value : '700x1000';
+                    let cbSupplyW, cbSupplyH;
+                    if (cbSupplyType === 'custom') {
+                        cbSupplyW = parseFloat(document.getElementById('calc-cb-supply-w').value) || 700;
+                        cbSupplyH = parseFloat(document.getElementById('calc-cb-supply-h').value) || 1000;
+                    } else if (cbSupplyType === 'print') {
+                        cbSupplyW = drawW;
+                        cbSupplyH = drawH;
+                    } else {
+                        let parts = cbSupplyType.split('x');
+                        cbSupplyW = parseFloat(parts[0]) || 700;
+                        cbSupplyH = parseFloat(parts[1]) || 1000;
+                    }
+
+                    let cbYield1 = Math.floor(cbSupplyW / drawW) * Math.floor(cbSupplyH / drawH);
+                    let cbYield2 = Math.floor(cbSupplyW / drawH) * Math.floor(cbSupplyH / drawW);
+                    let cbYield = Math.max(cbYield1, cbYield2) || 1;
+
+                    let cbParentSheetsNeeded = Math.ceil(totalSheetsNeeded / cbYield);
+
+                    let cbCost = 0;
+                    if (cbUnit === 'item') {
+                        cbCost = totalItemsForm * cbPrice;
+                    } else if (cbUnit === 'sheet') {
+                        cbCost = cbParentSheetsNeeded * cbPrice;
+                    } else if (cbUnit === '1000') {
+                        cbCost = (cbParentSheetsNeeded / 1000) * cbPrice;
+                    } else if (cbUnit === 'kg') {
+                        let areaM2 = (cbSupplyW / 1000) * (cbSupplyH / 1000);
+                        let sheetKg = areaM2 * (cbWeight / 1000);
+                        cbCost = cbParentSheetsNeeded * sheetKg * cbPrice;
+                    } else if (cbUnit === 'ton') {
+                        let areaM2 = (cbSupplyW / 1000) * (cbSupplyH / 1000);
+                        let sheetKg = areaM2 * (cbWeight / 1000);
+                        let totalKg = cbParentSheetsNeeded * sheetKg;
+                        cbCost = (totalKg / 1000) * cbPrice;
+                    }
+                    paperCost += cbCost;
                 }
 
                 // 2. PRIPRAVA IN PLOŠČE
@@ -1361,6 +1536,42 @@
                 if (sTotal) sTotal.innerText = totalPrice.toFixed(2) + " €";
                 if (sPerItem) sPerItem.innerText = perItemFinal.toFixed(3) + " €";
                 if (s1000) s1000.innerText = price1000.toFixed(2) + " €";
+
+                // Specifikacija v nogi
+                if (document.getElementById('sticky-spec-paper')) document.getElementById('sticky-spec-paper').innerText = paperCost.toFixed(2) + " €";
+                if (document.getElementById('sticky-spec-prep')) document.getElementById('sticky-spec-prep').innerText = totalPrepCost.toFixed(2) + " €";
+                if (document.getElementById('sticky-spec-print')) document.getElementById('sticky-spec-print').innerText = totalPrintCost.toFixed(2) + " €";
+                if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = totalFinishCost.toFixed(2) + " €";
+            }
+
+            function togglePaperRow() {
+                const cb = document.getElementById('calc-paper-active');
+                const options = document.getElementById('paper-options');
+                if (cb && options) {
+                    options.style.display = cb.checked ? 'block' : 'none';
+                    calculatePrice();
+                }
+            }
+
+            function togglePaperSupplyCustom() {
+                const sel = document.getElementById('calc-paper-supply-type');
+                const grp = document.getElementById('paper-supply-custom-group');
+                if (sel && grp) grp.style.display = (sel.value === 'custom') ? 'flex' : 'none';
+            }
+
+            function toggleCbSupplyCustom() {
+                const sel = document.getElementById('calc-cb-supply-type');
+                const grp = document.getElementById('cb-supply-custom-group');
+                if (sel && grp) grp.style.display = (sel.value === 'custom') ? 'flex' : 'none';
+            }
+
+            function toggleCardboardRow() {
+                const cb = document.getElementById('calc-cardboard-active');
+                const options = document.getElementById('cardboard-options');
+                if (cb && options) {
+                    options.style.display = cb.checked ? 'block' : 'none';
+                    calculatePrice();
+                }
             }
 
             function toggleFinishRow(type) {
@@ -1468,6 +1679,21 @@
                         ctx.setLineDash([]);
                     }
                 }
+
+                // Izpis tekstovnega formata pol in stavka na formi
+                ctx.save();
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.font = 'bold 12px Inter';
+                let text1 = `Format tiskovne pole: ${sheetW} x ${sheetH} mm`;
+                let text2 = `Format stavka na formi: ${origW} x ${origH} mm`;
+                let txtW = Math.max(ctx.measureText(text1).width, ctx.measureText(text2).width);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fillRect(8, 8, txtW + 10, 36);
+                ctx.fillStyle = '#0f172a';
+                ctx.fillText(text1, 12, 12);
+                ctx.fillText(text2, 12, 28);
+                ctx.restore();
 
                 // DIMENZIJSKE ČRTE (Izris formata papirja)
                 ctx.font = 'bold 12px Inter';
@@ -1661,7 +1887,7 @@
             function saveCurrentProject() {
                 let name = document.getElementById('calc-project-name').value.trim();
                 if (!name) {
-                    alert("Prosimo vnesite ime projekta!");
+                    alert("Prosimo vnesite ime ponudbe!");
                     return;
                 }
 
@@ -1669,6 +1895,8 @@
                     id: Date.now(),
                     name: name,
                     date: new Date().toLocaleString('sl-SI'),
+                    offerNumber: document.getElementById('calc-offer-number') ? document.getElementById('calc-offer-number').value : "",
+                    customerCode: document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "",
                     customer: document.getElementById('calc-customer').value,
                     materialCode: document.getElementById('calc-material-code').value,
                     inputs: {
@@ -1677,10 +1905,21 @@
                         item_h: document.getElementById('height').value,
                         quantity: document.getElementById('quantity').value,
                         bleed: document.getElementById('bleed').value,
+                        pActive: document.getElementById('calc-paper-active') ? document.getElementById('calc-paper-active').checked : true,
                         pPrice: document.getElementById('calc-paper-price').value,
                         pUnit: document.getElementById('calc-paper-unit').value,
                         pWeight: document.getElementById('calc-paper-weight').value,
+                        pSupplyType: document.getElementById('calc-paper-supply-type') ? document.getElementById('calc-paper-supply-type').value : '700x1000',
+                        pSupplyW: document.getElementById('calc-paper-supply-w') ? document.getElementById('calc-paper-supply-w').value : 700,
+                        pSupplyH: document.getElementById('calc-paper-supply-h') ? document.getElementById('calc-paper-supply-h').value : 1000,
                         pWaste: document.getElementById('calc-paper-waste').value,
+                        cbActive: document.getElementById('calc-cardboard-active') ? document.getElementById('calc-cardboard-active').checked : false,
+                        cbPrice: document.getElementById('calc-cardboard-price') ? document.getElementById('calc-cardboard-price').value : "",
+                        cbUnit: document.getElementById('calc-cardboard-unit') ? document.getElementById('calc-cardboard-unit').value : "",
+                        cbWeight: document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : "",
+                        cbSupplyType: document.getElementById('calc-cb-supply-type') ? document.getElementById('calc-cb-supply-type').value : '700x1000',
+                        cbSupplyW: document.getElementById('calc-cb-supply-w') ? document.getElementById('calc-cb-supply-w').value : 700,
+                        cbSupplyH: document.getElementById('calc-cb-supply-h') ? document.getElementById('calc-cb-supply-h').value : 1000,
                         platesPrice: document.getElementById('calc-plates-price').value,
                         prepPrice: document.getElementById('calc-prep-price').value,
                         changePrice: document.getElementById('calc-change-price').value,
@@ -1719,20 +1958,37 @@
                 document.getElementById('calc-project-name').value = "";
                 renderSavedProjects();
                 updateCustomerDatalist();
-                alert("Projekt '" + name + "' je shranjen v arhiv!");
+                alert("Ponudba '" + name + "' je shranjena v arhiv!");
             }
 
             function renderSavedProjects() {
                 const listDiv = document.getElementById('saved-projects-list');
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
 
+                const searchBox = document.getElementById('archive-searchbox');
+                const query = searchBox ? searchBox.value.toLowerCase().trim() : '';
+
                 if (arhiv.length === 0) {
                     listDiv.innerHTML = '<p style="font-size: 0.8rem; color: #64748b;">Nimate shranjenih projektov.</p>';
                     return;
                 }
 
+                // Filtriranje po vseh vrednostih (JSON stringify hack za iskanje po vseh parametrih hkrati)
+                let filteredArhiv = arhiv;
+                if (query) {
+                    filteredArhiv = arhiv.filter(proj => {
+                        const allDataString = JSON.stringify(proj).toLowerCase();
+                        return allDataString.includes(query);
+                    });
+                }
+
+                if (filteredArhiv.length === 0) {
+                    listDiv.innerHTML = '<p style="font-size: 0.8rem; color: #64748b;">Ni zadetkov.</p>';
+                    return;
+                }
+
                 let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
-                arhiv.forEach(proj => {
+                filteredArhiv.forEach(proj => {
                     html += `
                     <li style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">
                         <div style="cursor: pointer; flex: 1;" onclick="loadProject(${proj.id})">
@@ -1752,6 +2008,8 @@
                 if (!proj || !proj.inputs) return;
                 const inp = proj.inputs;
 
+                if (document.getElementById('calc-offer-number')) document.getElementById('calc-offer-number').value = proj.offerNumber || "";
+                if (document.getElementById('calc-customer-code')) document.getElementById('calc-customer-code').value = proj.customerCode || "";
                 document.getElementById('calc-customer').value = proj.customer || "";
                 document.getElementById('calc-material-code').value = proj.materialCode || "";
 
@@ -1760,10 +2018,31 @@
                 document.getElementById('height').value = inp.item_h;
                 document.getElementById('quantity').value = inp.quantity;
                 document.getElementById('bleed').value = inp.bleed;
+                if (document.getElementById('calc-paper-active') && inp.pActive !== undefined) document.getElementById('calc-paper-active').checked = inp.pActive;
                 document.getElementById('calc-paper-price').value = inp.pPrice;
                 document.getElementById('calc-paper-unit').value = inp.pUnit;
                 document.getElementById('calc-paper-weight').value = inp.pWeight;
+                if (document.getElementById('calc-paper-supply-type') && inp.pSupplyType) {
+                    document.getElementById('calc-paper-supply-type').value = inp.pSupplyType;
+                }
+                if (document.getElementById('calc-paper-supply-w') && inp.pSupplyW) document.getElementById('calc-paper-supply-w').value = inp.pSupplyW;
+                if (document.getElementById('calc-paper-supply-h') && inp.pSupplyH) document.getElementById('calc-paper-supply-h').value = inp.pSupplyH;
                 document.getElementById('calc-paper-waste').value = inp.pWaste;
+                if (typeof togglePaperSupplyCustom === 'function') togglePaperSupplyCustom();
+                if (typeof togglePaperRow === 'function') togglePaperRow();
+
+                if (document.getElementById('calc-cardboard-active')) document.getElementById('calc-cardboard-active').checked = inp.cbActive || false;
+                if (document.getElementById('calc-cardboard-price') && inp.cbPrice) document.getElementById('calc-cardboard-price').value = inp.cbPrice;
+                if (document.getElementById('calc-cardboard-unit') && inp.cbUnit) document.getElementById('calc-cardboard-unit').value = inp.cbUnit;
+                if (document.getElementById('calc-cardboard-weight') && inp.cbWeight) document.getElementById('calc-cardboard-weight').value = inp.cbWeight;
+
+                if (document.getElementById('calc-cb-supply-type') && inp.cbSupplyType) {
+                    document.getElementById('calc-cb-supply-type').value = inp.cbSupplyType;
+                }
+                if (document.getElementById('calc-cb-supply-w') && inp.cbSupplyW) document.getElementById('calc-cb-supply-w').value = inp.cbSupplyW;
+                if (document.getElementById('calc-cb-supply-h') && inp.cbSupplyH) document.getElementById('calc-cb-supply-h').value = inp.cbSupplyH;
+                if (typeof toggleCbSupplyCustom === 'function') toggleCbSupplyCustom();
+                if (typeof toggleCardboardRow === 'function') toggleCardboardRow();
                 document.getElementById('calc-plates-price').value = inp.platesPrice;
                 document.getElementById('calc-prep-price').value = inp.prepPrice;
                 document.getElementById('calc-change-price').value = inp.changePrice;
@@ -1774,7 +2053,7 @@
                 document.getElementById('calc-color-front').value = inp.colorFront;
                 document.getElementById('calc-color-back').value = inp.colorBack;
                 document.getElementById('calc-is-obrat').checked = inp.isObrat;
-                if (document.getElementById('calc-margin')) document.getElementById('calc-margin').value = inp.margin || 20;
+                if (document.getElementById('calc-margin')) document.getElementById('calc-margin').value = inp.margin || 0;
 
                 // Load Finishing
                 if (inp.finish) {
@@ -1847,11 +2126,11 @@
                 let proj = arhiv.find(p => p.id === id);
                 if (!proj) return;
                 loadProjectData(proj);
-                alert("Projekt '" + proj.name + "' je uspešno naložen!");
+                alert("Ponudba '" + proj.name + "' je uspešno naložena!");
             }
 
             function deleteProject(id) {
-                if (!confirm("Ali ste prepričani, da želite izbrisati ta projekt?")) return;
+                if (!confirm("Ali ste prepričani, da želite izbrisati to ponudbo?")) return;
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
                 arhiv = arhiv.filter(p => p.id !== id);
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
@@ -1865,6 +2144,8 @@
                     let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
                     const data = {
                         name: name,
+                        offerNumber: document.getElementById('calc-offer-number') ? document.getElementById('calc-offer-number').value : "",
+                        customerCode: document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "",
                         customer: document.getElementById('calc-customer').value,
                         materialCode: document.getElementById('calc-material-code').value,
                         timestamp: Date.now(),
@@ -1874,10 +2155,21 @@
                             item_h: document.getElementById('height').value,
                             quantity: document.getElementById('quantity').value,
                             bleed: document.getElementById('bleed').value,
+                            pActive: document.getElementById('calc-paper-active') ? document.getElementById('calc-paper-active').checked : true,
                             pPrice: document.getElementById('calc-paper-price').value,
                             pUnit: document.getElementById('calc-paper-unit').value,
                             pWeight: document.getElementById('calc-paper-weight').value,
+                            pSupplyType: document.getElementById('calc-paper-supply-type') ? document.getElementById('calc-paper-supply-type').value : '700x1000',
+                            pSupplyW: document.getElementById('calc-paper-supply-w') ? document.getElementById('calc-paper-supply-w').value : 700,
+                            pSupplyH: document.getElementById('calc-paper-supply-h') ? document.getElementById('calc-paper-supply-h').value : 1000,
                             pWaste: document.getElementById('calc-paper-waste').value,
+                            cbActive: document.getElementById('calc-cardboard-active') ? document.getElementById('calc-cardboard-active').checked : false,
+                            cbPrice: document.getElementById('calc-cardboard-price') ? document.getElementById('calc-cardboard-price').value : "",
+                            cbUnit: document.getElementById('calc-cardboard-unit') ? document.getElementById('calc-cardboard-unit').value : "",
+                            cbWeight: document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : "",
+                            cbSupplyType: document.getElementById('calc-cb-supply-type') ? document.getElementById('calc-cb-supply-type').value : '700x1000',
+                            cbSupplyW: document.getElementById('calc-cb-supply-w') ? document.getElementById('calc-cb-supply-w').value : 700,
+                            cbSupplyH: document.getElementById('calc-cb-supply-h') ? document.getElementById('calc-cb-supply-h').value : 1000,
                             platesPrice: document.getElementById('calc-plates-price').value,
                             prepPrice: document.getElementById('calc-prep-price').value,
                             changePrice: document.getElementById('calc-change-price').value,
@@ -1942,6 +2234,60 @@
                 };
                 reader.readAsText(file);
             }
+            function printFormat() {
+                const canvas = document.getElementById('canvas');
+                if (canvas.style.display === 'none') {
+                    alert("Prosim, najprej naredite izračun za prikaz in tisk formata.");
+                    return;
+                }
+
+                let sheetW = document.getElementById('res-size').innerText.split(' x ')[0] || '-';
+                let sheetH = document.getElementById('res-size').innerText.split(' x ')[1] || '-';
+                let origW = document.getElementById('width').value || '-';
+                let origH = document.getElementById('height').value || '-';
+
+                let printWin = window.open('', '', 'width=900,height=700');
+                if (!printWin) {
+                    alert("Pojavno okno (popup) je bilo blokirano. Prosim omogočite pojavna okna.");
+                    return;
+                }
+
+                printWin.document.write(`
+                    <html>
+                        <head>
+                            <title>Tiskovna Pola - Izpis</title>
+                            <style>
+                                body { font-family: 'Inter', sans-serif; padding: 20px; text-align: center; }
+                                h2 { margin-bottom: 10px; color: #1e293b; }
+                                .info { font-size: 16px; margin-bottom: 25px; color: #334155; display: inline-block; text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
+                                img { max-width: 100%; max-height: 80vh; height: auto; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+                                @media print {
+                                    button { display: none; }
+                                    body { padding: 0; }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <h2>Tiskovna Pola - Iztek postavitve</h2>
+                            <div class="info">
+                                <strong>Format tiskovne pole:</strong> ${sheetW} x ${sheetH} mm <br><br>
+                                <strong>Format stavka na formi:</strong> ${origW} x ${origH} mm
+                            </div>
+                            <br>
+                            <img src="${canvas.toDataURL()}" />
+                            <br><br>
+                            <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; background: #3b82f6; color: white; border: none; border-radius: 5px;">Natisni</button>
+                            <script>
+                                window.onload = function() {
+                                    setTimeout(() => { window.print(); window.close(); }, 800);
+                                };
+                            <\/script>
+                        </body>
+                    </html>
+                `);
+                printWin.document.close();
+            }
+
             // INITIAL CALLS
             applyMachineDefaults();
             renderSavedProjects();
@@ -1950,30 +2296,46 @@
         </script>
     </div>
 
-    <!-- LEPLJIVA VRSTICA S KONČNO CENO -->
-    <div class="sticky-footer">
-        <div class="sticky-price-item">
-            <div class="sticky-price-label">Naklada</div>
-            <div class="sticky-price-value" id="sticky-qty" style="color: #60a5fa;">-</div>
-        </div>
-        <div class="sticky-price-item">
-            <div class="sticky-price-label">Na kos</div>
-            <div class="sticky-price-value" id="sticky-price-per-item" style="font-size: 1.1rem; color: #34d399;">0.000
-                €</div>
-        </div>
-        <div class="sticky-price-item">
-            <div class="sticky-price-label">NA 1.000 KOS</div>
-            <div class="sticky-price-value" id="sticky-price-1000" style="font-size: 1.3rem; color: #fbbf24;">0.00 €
+    <!-- LEPLJIVA VRSTICA S KONČNO CENO IN SPECIFIKACIJO -->
+    <div class="sticky-footer" style="flex-direction: column; align-items: stretch; gap: 0.5rem; padding: 0.8rem 2rem;">
+
+        <!-- Zgornja vrstica - Specifikacija -->
+        <div
+            style="display: flex; gap: 1.5rem; justify-content: center; font-size: 0.85rem; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">
+            <div>Papir: <span id="sticky-spec-paper" style="color: #e2e8f0; font-weight: bold;">0.00 €</span></div>
+            <div>Priprava & Plošče: <span id="sticky-spec-prep" style="color: #e2e8f0; font-weight: bold;">0.00 €</span>
             </div>
+            <div>Tisk: <span id="sticky-spec-print" style="color: #e2e8f0; font-weight: bold;">0.00 €</span></div>
+            <div>Dodelava: <span id="sticky-spec-finish" style="color: #e2e8f0; font-weight: bold;">0.00 €</span></div>
         </div>
-        <div class="sticky-price-item">
-            <div class="sticky-price-label">SKUPAJ (brez DDV)</div>
-            <div class="sticky-price-value" id="sticky-price-total">0.00 €</div>
-        </div>
-        <div style="display:flex; gap:0.5rem;">
-            <button class="calculate-btn" onclick="saveCurrentProject()"
-                style="margin: 0; width: auto; background: #10b981; padding: 0.5rem 1.2rem; font-size:0.85rem;">💾
-                Shrani Projekt</button>
+
+        <!-- Spodnja vrstica - Glavni zneski -->
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div style="display: flex; gap: 2rem;">
+                <div class="sticky-price-item">
+                    <div class="sticky-price-label">Naklada</div>
+                    <div class="sticky-price-value" id="sticky-qty" style="color: #60a5fa;">-</div>
+                </div>
+                <div class="sticky-price-item">
+                    <div class="sticky-price-label">Na kos</div>
+                    <div class="sticky-price-value" id="sticky-price-per-item"
+                        style="font-size: 1.1rem; color: #34d399;">0.000 €</div>
+                </div>
+                <div class="sticky-price-item">
+                    <div class="sticky-price-label">NA 1.000 KOS</div>
+                    <div class="sticky-price-value" id="sticky-price-1000" style="font-size: 1.3rem; color: #fbbf24;">
+                        0.00 €</div>
+                </div>
+                <div class="sticky-price-item">
+                    <div class="sticky-price-label">SKUPAJ (brez DDV)</div>
+                    <div class="sticky-price-value" id="sticky-price-total">0.00 €</div>
+                </div>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+                <button class="calculate-btn" onclick="saveCurrentProject()"
+                    style="margin: 0; width: auto; background: #10b981; padding: 0.5rem 1.2rem; font-size:0.85rem;">💾
+                    Shrani Ponudbo</button>
+            </div>
         </div>
     </div>
 </body>
