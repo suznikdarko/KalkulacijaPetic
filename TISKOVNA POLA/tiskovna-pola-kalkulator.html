@@ -1234,6 +1234,11 @@
                 const itemW = w + 2 * b;
                 const itemH = h + 2 * b;
 
+                // Preberi ročni vnos stavkov (če obstaja)
+                const itemsInp = document.getElementById('items-per-sheet');
+                let targetCount = parseInt(itemsInp.value) || 0;
+                if (isManual) targetCount = 0; // Gumb "Izračunaj" vedno išče globalni maksimum
+
                 const sheets = [
                     { name: "SRA3 (450x320)", w: 450, h: 320 },
                     { name: "B3 (500x350)", w: 500, h: 350 },
@@ -1245,37 +1250,55 @@
 
                 let bestSheet = null;
                 let bestLayout = null;
+                let bestScore = -1;
+
+                const checkSheet = (s) => {
+                    let fitsSource = (sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w);
+                    let fitsMachine = true;
+                    if (profile && profile.maxW) {
+                        fitsMachine = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
+                    }
+                    if (!fitsSource || !fitsMachine) return;
+
+                    let currLayout = optimizeLayout(s.w, s.h, itemW, itemH, g, fMode);
+                    if (!currLayout) return;
+
+                    const y1 = Math.floor(sw / s.w) * Math.floor(sh / s.h);
+                    const y2 = Math.floor(sw / s.h) * Math.floor(sh / s.w);
+                    const sYield = Math.max(y1, y2, 1);
+
+                    // LOGIKA OPTIMIZACIJE:
+                    // Če imamo targetCount, so veljavne le razporeditve, kjer count >= targetCount.
+                    // Score je sYield * targetCount (ker želimo največ tiskovnih pol iz osnovne pole).
+                    let score;
+                    let isSatisfied = (targetCount > 0 && currLayout.count >= targetCount);
+
+                    if (targetCount > 0) {
+                        if (isSatisfied) {
+                            score = sYield * 1000000 + currLayout.count; // Prioritiziraj yield, nato max count
+                        } else {
+                            score = currLayout.count; // Fallback na max count če nič ne ustreza targetu
+                        }
+                    } else {
+                        score = sYield * currLayout.count;
+                    }
+
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestSheet = s;
+                        bestLayout = currLayout;
+                    }
+                };
 
                 if (mFormat === 'auto') {
-                    let bestScore = -1;
-                    for (let s of sheets) {
-                        let fitsSource = (sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w);
-                        let fitsMachine = true;
-                        if (profile && profile.maxW) {
-                            fitsMachine = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
-                        }
-                        if (fitsSource && fitsMachine) {
-                            let currLayout = optimizeLayout(s.w, s.h, itemW, itemH, g, fMode);
-                            if (currLayout) {
-                                const y1 = Math.floor(sw / s.w) * Math.floor(sh / s.h);
-                                const y2 = Math.floor(sw / s.h) * Math.floor(sh / s.w);
-                                const sYield = Math.max(y1, y2, 1);
-                                const score = sYield * currLayout.count;
-
-                                if (score > bestScore || (score === bestScore && currLayout.count > (bestLayout ? bestLayout.count : 0))) {
-                                    bestScore = score;
-                                    bestSheet = s;
-                                    bestLayout = currLayout;
-                                }
-                            }
-                        }
-                    }
+                    sheets.forEach(checkSheet);
                     if (!bestSheet) {
                         bestSheet = sheets.find(s => {
                             let fM = true;
                             if (profile && profile.maxW) fM = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
                             return ((sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w)) && fM;
                         }) || sheets[0];
+                        bestLayout = optimizeLayout(bestSheet.w, bestSheet.h, itemW, itemH, g, fMode);
                     }
                 } else {
                     bestSheet = sheets.find(s => s.name === mFormat) || sheets[0];
@@ -1301,7 +1324,6 @@
                 document.getElementById('res-sheet-mini').innerText = bestSheet.name;
                 document.getElementById('res-count-mini').innerText = bestLayout.count;
 
-                const itemsInp = document.getElementById('items-per-sheet');
                 if (isManual || itemsInp.value == "0" || itemsInp.value == "" || parseInt(itemsInp.value) === g_autoCount) {
                     itemsInp.value = bestLayout.count;
                     g_autoCount = bestLayout.count;
@@ -1309,9 +1331,7 @@
 
                 g_lastBestLayout = bestLayout;
 
-                // Vedno kliči update s TRENUTNO vrednostjo iz vnosnega polja (upošteva ročni vnos)
-                const currentCount = parseInt(document.getElementById('items-per-sheet').value) || bestLayout.count;
-
+                const currentCount = parseInt(itemsInp.value) || bestLayout.count;
                 let usage = (currentCount * itemW * itemH) / (bestSheet.w * bestSheet.h);
                 document.getElementById('res-usage').innerText = (usage * 100).toFixed(1) + "%";
                 document.getElementById('res-usage-mini').innerText = (usage * 100).toFixed(1) + "%";
@@ -1810,7 +1830,7 @@
             let manualCount = parseInt(document.getElementById('items-per-sheet').value) || 0;
             if (manualCount > 0) {
                 calculatePrice();
-                // Osveži še sliko
+                // Osveži še sliko (izven calculatePrice, če želimo biti sigurni)
                 if (g_lastBestLayout) {
                     let currentGripper = parseFloat(document.getElementById('gripper').value) || 0;
                     let currentBleed = parseFloat(document.getElementById('bleed').value) || 0;
@@ -1823,7 +1843,10 @@
                     let mFormat = document.getElementById('machine-format').value;
                     let sheet = sheets.find(s => s.name === mFormat) || { w: 700, h: 500 };
 
-                    drawAllLayouts(sheet.w, sheet.h, g_lastBestLayout, currentGripper, origW, origH, currentBleed, sW, sH);
+                    const currentCount = parseInt(document.getElementById('items-per-sheet').value) || g_lastBestLayout.count;
+                    const isOverride = currentCount !== g_lastBestLayout.count;
+
+                    drawAllLayouts(sheet.w, sheet.h, g_lastBestLayout, currentGripper, origW, origH, currentBleed, sW, sH, isOverride, currentCount);
                 }
             }
         }
