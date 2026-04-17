@@ -685,7 +685,7 @@
                     <div class="form-group">
                         <label>Cena papirja</label>
                         <div class="input-group">
-                            <input type="number" id="calc-paper-price" value="1.50" step="0.01">
+                            <input type="number" id="calc-paper-price" value="" step="0.01">
                             <select id="calc-paper-unit">
                                 <option value="ton">na tono</option>
                                 <option value="1000">na 1000 pol</option>
@@ -1481,6 +1481,7 @@
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
                         <span>Priprava stroja (${(d.print.prepTime * 60).toFixed(0)} min):</span> <span>${formatPrice(d.print.prepTime * d.print.mRate)}</span>
                         <span>Neto čas tiska (${(d.print.hours * 60).toFixed(0)} min):</span> <span>${formatPrice(d.print.hours * d.print.mRate)}</span>
+                        <span>Prijemalec (gripper):</span> <span style="color: #fbbf24; font-weight: bold;">${d.print.gripper} mm</span>
                         <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
                         <span style="font-style: italic;">Skupaj strojno delo:</span> <span style="font-weight: bold;">${formatPrice(d.print.cost)}</span>
                     </div>
@@ -1658,7 +1659,8 @@
                     hours: printHours,
                     prepTime: mPrepTime,
                     mRate: mRate,
-                    cost: totalPrintCost
+                    cost: totalPrintCost,
+                    gripper: parseFloat(document.getElementById('gripper').value) || 0
                 },
                 finish: {
                     items: [],
@@ -1935,6 +1937,7 @@
 
             // Gripper
             ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+            ctx.font = 'bold 10px Inter, sans-serif';
             if (layout && layout.gripEdge === 'W') {
                 ctx.fillRect(0, 0, gripper * scale, canvas.height);
                 ctx.strokeStyle = '#f43f5e';
@@ -1942,6 +1945,15 @@
                 ctx.moveTo(gripper * scale, 0);
                 ctx.lineTo(gripper * scale, canvas.height);
                 ctx.stroke();
+                
+                // Label for W gripper
+                ctx.save();
+                ctx.fillStyle = '#f43f5e';
+                ctx.translate(10, canvas.height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.textAlign = 'center';
+                ctx.fillText(`Prijemalec: ${gripper} mm`, 0, 0);
+                ctx.restore();
             } else {
                 ctx.fillRect(0, (canvas.height - gripper * scale), canvas.width, gripper * scale);
                 ctx.strokeStyle = '#f43f5e';
@@ -1949,6 +1961,11 @@
                 ctx.moveTo(0, canvas.height - gripper * scale);
                 ctx.lineTo(canvas.width, canvas.height - gripper * scale);
                 ctx.stroke();
+
+                // Label for H gripper
+                ctx.fillStyle = '#f43f5e';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Prijemalec: ${gripper} mm`, canvas.width / 2, canvas.height - (gripper * scale) / 2 + 4);
             }
 
             // Sheet dimension labels (Moved up so they always draw)
