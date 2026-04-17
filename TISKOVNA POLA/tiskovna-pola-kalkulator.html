@@ -516,7 +516,6 @@
                 <select id="machine-format" onchange="filterAvailableFormats(); calculate();">
                     <option value="auto">Samodejno (B2 max)</option>
                     <option value="B2">B2 (698 x 498 mm)</option>
-                    <option value="S4-format">S4 (518 x 348 mm)</option>
                     <option value="6 iz B1">6 iz B1 (349 x 332 mm)</option>
                     <option value="638x448">Izrez (638 x 448 mm)</option>
                     <option value="B3">B3 (498 x 348 mm)</option>
@@ -1063,7 +1062,6 @@
 
         const sheets = [
             { name: "B2", w: 698, h: 498 },
-            { name: "S4-format", w: 518, h: 348 },
             { name: "6 iz B1", w: 349, h: 332 },
             { name: "638x448", w: 638, h: 448 },
             { name: "B3", w: 498, h: 348 },
@@ -1096,7 +1094,7 @@
         };
 
         const machineProfiles = {
-            'S4': { rate: 120, speed: 5000, prep: 35, useDynamic: true, maxW: 518, maxH: 348, defaultFormat: 'S4-format' },
+            'S4': { rate: 120, speed: 5000, prep: 35, useDynamic: true, maxW: 518, maxH: 348, defaultFormat: 'B3' },
             'S8': { rate: 150, speed: 6000, prep: 45, useDynamic: true, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'CD': { rate: 180, speed: 8000, prep: 50, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'SM4+lak': { rate: 160, speed: 7000, prep: 55, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
@@ -1239,15 +1237,6 @@
                 let targetCount = parseInt(itemsInp.value) || 0;
                 if (isManual) targetCount = 0; // Gumb "Izračunaj" vedno išče globalni maksimum
 
-                const sheets = [
-                    { name: "SRA3 (450x320)", w: 450, h: 320 },
-                    { name: "B3 (500x350)", w: 500, h: 350 },
-                    { name: "B2 (700x500)", w: 700, h: 500 },
-                    { name: "B1 (1000x700)", w: 1000, h: 700 },
-                    { name: "A3+ (480x330)", w: 480, h: 330 },
-                    { name: "Digital (450x320)", w: 450, h: 320 }
-                ];
-
                 let bestSheet = null;
                 let bestLayout = null;
                 let bestScore = -1;
@@ -1268,16 +1257,18 @@
                     const sYield = Math.max(y1, y2, 1);
 
                     // LOGIKA OPTIMIZACIJE:
-                    // Če imamo targetCount, so veljavne le razporeditve, kjer count >= targetCount.
-                    // Score je sYield * targetCount (ker želimo največ tiskovnih pol iz osnovne pole).
                     let score;
                     let isSatisfied = (targetCount > 0 && currLayout.count >= targetCount);
 
                     if (targetCount > 0) {
                         if (isSatisfied) {
-                            score = sYield * 1000000 + currLayout.count; // Prioritiziraj yield, nato max count
+                            // 1. Prioriteta: sYield (koliko kosov dobimo iz velike pole)
+                            // 2. Prioriteta: Manjša površina strojnih pol (manj plošč, hitrejša priprava...)
+                            // 3. Prioriteta: Maksimalno število stavkov (rezerva)
+                            const sheetArea = s.w * s.h;
+                            score = (sYield * 10000000) + (1000000000000 / sheetArea) + currLayout.count;
                         } else {
-                            score = currLayout.count; // Fallback na max count če nič ne ustreza targetu
+                            score = currLayout.count;
                         }
                     } else {
                         score = sYield * currLayout.count;
@@ -1290,8 +1281,12 @@
                     }
                 };
 
+                // Uporabimo globalni seznam 'sheets' namesto lokalnega
                 if (mFormat === 'auto') {
-                    sheets.forEach(checkSheet);
+                    // Preverimo vse formate iz globalnega seznama
+                    for (let s of sheets) {
+                        checkSheet(s);
+                    }
                     if (!bestSheet) {
                         bestSheet = sheets.find(s => {
                             let fM = true;
