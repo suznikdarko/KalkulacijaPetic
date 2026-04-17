@@ -539,7 +539,7 @@
 
             <div class="header-group">
                 <label>Stavkov na polo (kos)</label>
-                <input type="number" id="items-per-sheet" value="0" onchange="updatePriceFromManualCount()">
+                <input type="number" id="items-per-sheet" value="0" oninput="updatePriceFromManualCount()">
             </div>
 
             <div class="header-group"
@@ -1105,6 +1105,7 @@
         let g_lastBestLayout = null;
         let g_manualLayout = null;
         let g_lastSheetW = 0, g_lastSheetH = 0, g_lastG = 0;
+        let g_autoCount = 0;
 
         function formatPrice(num, decimals = 2) {
             if (num == null || isNaN(num)) return "0,00";
@@ -1231,6 +1232,15 @@
                 const itemW = w + 2 * b;
                 const itemH = h + 2 * b;
 
+                const sheets = [
+                    { name: "SRA3 (450x320)", w: 450, h: 320 },
+                    { name: "B3 (500x350)", w: 500, h: 350 },
+                    { name: "B2 (700x500)", w: 700, h: 500 },
+                    { name: "B1 (1000x700)", w: 1000, h: 700 },
+                    { name: "A3+ (480x330)", w: 480, h: 330 },
+                    { name: "Digital (450x320)", w: 450, h: 320 }
+                ];
+
                 let bestSheet = null;
                 let bestLayout = null;
 
@@ -1288,16 +1298,27 @@
                 document.getElementById('res-count').innerText = bestLayout.count;
                 document.getElementById('res-sheet-mini').innerText = bestSheet.name;
                 document.getElementById('res-count-mini').innerText = bestLayout.count;
-                document.getElementById('items-per-sheet').value = bestLayout.count;
 
-                let usage = (bestLayout.count * itemW * itemH) / (bestSheet.w * bestSheet.h);
+                const itemsInp = document.getElementById('items-per-sheet');
+                if (isManual || itemsInp.value == "0" || itemsInp.value == "" || parseInt(itemsInp.value) === g_autoCount) {
+                    itemsInp.value = bestLayout.count;
+                    g_autoCount = bestLayout.count;
+                }
+
+                g_lastBestLayout = bestLayout;
+                
+                // Vedno kliči update s TRENUTNO vrednostjo iz vnosnega polja (upošteva ročni vnos)
+                const currentCount = parseInt(document.getElementById('items-per-sheet').value) || bestLayout.count;
+                
+                let usage = (currentCount * itemW * itemH) / (bestSheet.w * bestSheet.h);
                 document.getElementById('res-usage').innerText = (usage * 100).toFixed(1) + "%";
                 document.getElementById('res-usage-mini').innerText = (usage * 100).toFixed(1) + "%";
                 document.getElementById('res-size').innerText = bestSheet.w + " x " + bestSheet.h;
 
-                g_lastBestLayout = bestLayout;
-                drawAllLayouts(bestSheet.w, bestSheet.h, bestLayout, g, w, h, b, sw, sh);
-                updateWasteAndPrice(Math.ceil(q / bestLayout.count), q, bestSheet.w, bestSheet.h);
+                const isOverride = currentCount !== bestLayout.count;
+                drawAllLayouts(bestSheet.w, bestSheet.h, bestLayout, g, w, h, b, sw, sh, isOverride, currentCount);
+                
+                updateWasteAndPrice(Math.ceil(q / currentCount), q, bestSheet.w, bestSheet.h);
 
             } catch (e) { console.error(e); }
         }
@@ -1814,7 +1835,7 @@
             calculatePrice();
         }
 
-        function drawAllLayouts(sheetW, sheetH, layout, gripper, origW, origH, bleed, sourceW, sourceH) {
+        function drawAllLayouts(sheetW, sheetH, layout, gripper, origW, origH, bleed, sourceW, sourceH, isOverride = false, currentCount = 0) {
             g_lastSheetW = sheetW;
             g_lastSheetH = sheetH;
             g_lastG = gripper;
@@ -1824,7 +1845,7 @@
             document.getElementById('machine-dim-label').innerText = `${sheetW} x ${sheetH} mm`;
 
             drawSourceCanvas(sourceW, sourceH, sheetW, sheetH);
-            drawMachineCanvas(sheetW, sheetH, layout, gripper, origW, origH, bleed);
+            drawMachineCanvas(sheetW, sheetH, layout, gripper, origW, origH, bleed, isOverride, currentCount);
         }
 
         function drawSourceCanvas(sw, sh, mw, mh) {
@@ -1886,7 +1907,7 @@
             ctx.fillText(`Izkoristek: ${cols * rows}x`, 10, 20);
         }
 
-        function drawMachineCanvas(sheetW, sheetH, layout, gripper, origW, origH, bleed) {
+        function drawMachineCanvas(sheetW, sheetH, layout, gripper, origW, origH, bleed, isOverride = false, currentCount = 0) {
             const canvas = document.getElementById('canvas-machine');
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
@@ -1921,6 +1942,29 @@
                 ctx.moveTo(0, canvas.height - gripper * scale);
                 ctx.lineTo(canvas.width, canvas.height - gripper * scale);
                 ctx.stroke();
+            }
+
+            // Sheet dimension labels (Moved up so they always draw)
+            ctx.fillStyle = '#64748b';
+            ctx.font = '11px Inter';
+            ctx.fillText(`${sheetW} mm`, canvas.width / 2 - 20, canvas.height - 10);
+            ctx.save();
+            ctx.translate(15, canvas.height / 2 + 20);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText(`${sheetH} mm`, 0, 0);
+            ctx.restore();
+
+            // Overlay if manual override (Moved up)
+            if (isOverride) {
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.4)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('ROČNI POVOZ', canvas.width / 2, canvas.height / 2 - 10);
+                ctx.font = 'bold 14px Arial';
+                ctx.fillText('IZRIS NE USTREZA ŠTEVILU', canvas.width / 2, canvas.height / 2 + 15);
+                ctx.textAlign = 'left'; 
             }
 
             if (g_manualLayout) {
@@ -1958,13 +2002,23 @@
             const usableW = layout.gripEdge === 'W' ? sheetW - gripper : sheetW;
             const usableH = layout.gripEdge === 'H' ? sheetH - gripper : sheetH;
 
-            const gridTotalW = layout.cols * layout.itemW;
-            const gridTotalH = layout.rows * layout.itemH;
-            const startX = offsetX + (usableW - gridTotalW) / 2;
-            const startY = (usableH - gridTotalH) / 2;
+            const targetCount = currentCount || (layout.rows * layout.cols);
+            
+            // Calculate how many cols and rows we actually use for this specific count
+            let usedCols = Math.min(layout.cols, targetCount);
+            let usedRows = Math.ceil(targetCount / (usedCols || 1));
+            
+            const gridW = usedCols * layout.itemW;
+            const gridH = usedRows * layout.itemH;
+            const startX = offsetX + (usableW - gridW) / 2;
+            const startY = (usableH - gridH) / 2;
 
-            for (let r = 0; r < layout.rows; r++) {
-                for (let c = 0; c < layout.cols; c++) {
+            let drawnCount = 0;
+
+            for (let r = 0; r < usedRows; r++) {
+                for (let c = 0; c < usedCols; c++) {
+                    if (drawnCount >= targetCount) break;
+
                     const x = (startX + c * layout.itemW) * scale;
                     const y = (startY + r * layout.itemH) * scale;
 
@@ -1989,18 +2043,9 @@
                     if (layout.itemW * scale > 30 && layout.itemH * scale > 15) {
                         ctx.fillText(dimLabel, x + 3, y + 10);
                     }
+                    drawnCount++;
                 }
             }
-
-            // Sheet dimension labels
-            ctx.fillStyle = '#64748b';
-            ctx.font = '11px Inter';
-            ctx.fillText(`${sheetW} mm`, canvas.width / 2 - 20, canvas.height - 10);
-            ctx.save();
-            ctx.translate(15, canvas.height / 2 + 20);
-            ctx.rotate(-Math.PI / 2);
-            ctx.fillText(`${sheetH} mm`, 0, 0);
-            ctx.restore();
         }
 
         // INITIAL CALLS ON LOAD (MOVED TO BOTTOM)
