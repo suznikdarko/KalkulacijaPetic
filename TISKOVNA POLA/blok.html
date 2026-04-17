@@ -555,15 +555,11 @@
         <!-- SREDINA: VIZUALIZACIJA IN HITRI REZULTATI -->
         <div class="panel results">
             <div
-                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
                 <h2 style="margin: 0;">Optimalen Izkoristek Pol</h2>
                 <div id="quick-stats"
                     style="display: flex; gap: 1.5rem; background: rgba(30, 64, 175, 0.2); padding: 0.6rem 1.5rem; border-radius: 30px; border: 1px solid rgba(59, 130, 246, 0.3);">
                     <div style="font-size: 0.9rem; color: #94a3b8;">Format: <strong id="res-sheet-mini"
-                            style="color: #60a5fa;">-</strong></div>
-                    <div style="font-size: 0.9rem; color: #94a3b8;">Na polo: <strong id="res-count-mini"
-                            style="color: #60a5fa;">-</strong></div>
-                    <div style="font-size: 0.9rem; color: #94a3b8;">Izkoristek: <strong id="res-usage-mini"
                             style="color: #60a5fa;">-</strong></div>
                     <button onclick="printFormat()" title="Natisni izris"
                         style="background: rgba(59, 130, 246, 0.8); border: none; padding: 0.3rem 0.8rem; border-radius: 8px; color: white; margin-left: 1rem; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">🖨️
@@ -571,9 +567,55 @@
                 </div>
             </div>
 
-            <div class="canvas-container" id="canvas-wrapper" style="min-height: 500px;">
-                <div id="empty-state" class="empty-state">Vnesite dimenzije zgoraj in kliknite "Izračunaj"</div>
-                <canvas id="canvas" style="display:none;"></canvas>
+            <!-- Dual Layout Container -->
+            <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 2rem;">
+
+                <!-- LEAVES LAYOUT -->
+                <div
+                    style="flex: 1; min-width: 320px; background: rgba(30, 41, 59, 0.2); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3
+                            style="margin: 0; font-size: 1rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.05em;">
+                            📄 Postavitev Listov</h3>
+                        <div style="display: flex; gap: 0.8rem; font-size: 1.1rem;">
+                            <span id="res-count-leaves" title="Kosov na polo"
+                                style="color: #60a5fa; font-weight: 800;">-</span>
+                            <span style="color: #475569;">|</span>
+                            <span id="res-usage-leaves" title="Izkoristek"
+                                style="color: #94a3b8; font-size: 0.9rem;">-%</span>
+                        </div>
+                    </div>
+                    <div class="canvas-container" id="canvas-wrapper-leaves"
+                        style="min-height: 380px; position: relative; background: rgba(15, 23, 42, 0.4); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <div id="empty-state-leaves" class="empty-state">Vnesite dimenzije listov</div>
+                        <canvas id="canvas-leaves" style="display:none; max-width: 100%; height: auto;"></canvas>
+                    </div>
+                </div>
+
+                <!-- COVER LAYOUT -->
+                <div
+                    style="flex: 1; min-width: 320px; background: rgba(244, 63, 94, 0.05); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(244, 63, 94, 0.2);">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3
+                            style="margin: 0; font-size: 1rem; color: #f43f5e; text-transform: uppercase; letter-spacing: 0.05em;">
+                            📕 Postavitev Ovitka</h3>
+                        <div style="display: flex; gap: 0.8rem; font-size: 1.1rem;">
+                            <span id="res-count-cover" title="Kosov na polo"
+                                style="color: #f43f5e; font-weight: 800;">-</span>
+                            <span style="color: #475569;">|</span>
+                            <span id="res-usage-cover" title="Izkoristek"
+                                style="color: #94a3b8; font-size: 0.9rem;">-%</span>
+                        </div>
+                    </div>
+                    <div class="canvas-container" id="canvas-wrapper-cover"
+                        style="min-height: 380px; position: relative; background: rgba(15, 23, 42, 0.4); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <div id="empty-state-cover" class="empty-state">Vnesite dimenzije ovitka</div>
+                        <canvas id="canvas-cover" style="display:none; max-width: 100%; height: auto;"></canvas>
+                    </div>
+                </div>
+
             </div>
 
             <div class="calc-summary-grid" id="stats" style="display: none; margin-top: 2rem;">
@@ -1305,21 +1347,21 @@
                     return;
                 }
 
-                // Update UI
-                document.getElementById('empty-state').style.display = 'none';
+                // Update UI for Leaves
+                document.getElementById('empty-state-leaves').style.display = 'none';
                 document.getElementById('stats').style.display = 'grid';
 
                 let actualArea = bestLayout.count * (itemW * itemH);
                 let totalArea = bestSheet.w * bestSheet.h;
-                let highestUsage = actualArea / totalArea;
+                let usage = (actualArea / totalArea * 100).toFixed(1) + '%';
 
                 document.getElementById('res-sheet').innerText = bestSheet.name;
                 document.getElementById('res-count').innerText = bestLayout.count;
-                document.getElementById('res-usage').innerText = (highestUsage * 100).toFixed(1) + '%';
+                document.getElementById('res-usage').innerText = usage;
 
                 document.getElementById('res-sheet-mini').innerText = bestSheet.name;
-                document.getElementById('res-count-mini').innerText = bestLayout.count;
-                document.getElementById('res-usage-mini').innerText = (highestUsage * 100).toFixed(1) + '%';
+                document.getElementById('res-count-leaves').innerText = bestLayout.count;
+                document.getElementById('res-usage-leaves').innerText = usage;
 
                 let sheetsNeeded = Math.ceil(q / bestLayout.count);
                 document.getElementById('res-sheets-needed').innerText = sheetsNeeded;
@@ -1329,7 +1371,74 @@
                 let drawH = bestSheet.mode === 'L' ? bestSheet.h : bestSheet.w;
                 document.getElementById('res-size').innerText = `${drawW} x ${drawH}`;
 
-                drawCanvas(drawW, drawH, bestLayout, g, w, h, b, (targetCount > 0 && targetCount !== bestLayout.count), targetCount);
+                drawCanvas('canvas-leaves', drawW, drawH, bestLayout, g, w, h, b, (targetCount > 0 && targetCount !== bestLayout.count), targetCount);
+
+                // --- OPTIMIZATION FOR COVER ---
+                const cw = parseFloat(document.getElementById('calc-cover-w').value);
+                const ch = parseFloat(document.getElementById('calc-cover-h').value);
+                const cb = parseFloat(document.getElementById('calc-cover-bleed').value) || 0;
+                const cg = parseFloat(document.getElementById('calc-cover-gripper').value) || 0;
+
+                if (cw && ch && cw > 0 && ch > 0) {
+                    const cItemW = cw + (2 * cb);
+                    const cItemH = ch + (2 * cb);
+
+                    let cBestSheet = null;
+                    let cBestLayout = null;
+                    let cBestScore = -1;
+
+                    const checkCoverSheet = (sheet) => {
+                        let fitsSource = (sw >= sheet.w && sh >= sheet.h) || (sw >= sheet.h && sh >= sheet.w);
+                        if (!fitsSource) return;
+
+                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fMode);
+                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fMode);
+
+                        let bL = null, bM = 'L';
+                        if (l1 && l2) {
+                            if (l1.count >= l2.count) { bL = l1; bM = 'L'; }
+                            else { bL = l2; bM = 'P'; }
+                        } else if (l1) { bL = l1; bM = 'L'; }
+                        else if (l2) { bL = l2; bM = 'P'; }
+
+                        if (bL) {
+                            const y1 = Math.floor(sw / sheet.w) * Math.floor(sh / sheet.h);
+                            const y2 = Math.floor(sw / sheet.h) * Math.floor(sh / sheet.w);
+                            const sY = Math.max(y1, y2, 1);
+                            let score = sY * bL.count;
+                            if (score > cBestScore) {
+                                cBestScore = score;
+                                cBestSheet = { ...sheet, mode: bM };
+                                cBestLayout = bL;
+                            }
+                        }
+                    };
+
+                    if (mFormat === 'auto') sheets.forEach(checkCoverSheet);
+                    else {
+                        let s = sheets.find(s => s.name === mFormat);
+                        if (s) checkCoverSheet(s);
+                    }
+
+                    if (cBestSheet && cBestLayout) {
+                        document.getElementById('empty-state-cover').style.display = 'none';
+                        let cActualArea = cBestLayout.count * (cItemW * cItemH);
+                        let cTotalArea = cBestSheet.w * cBestSheet.h;
+                        let cUsage = (cActualArea / cTotalArea * 100).toFixed(1) + '%';
+
+                        document.getElementById('res-count-cover').innerText = cBestLayout.count;
+                        document.getElementById('res-usage-cover').innerText = cUsage;
+
+                        let cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
+                        let cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
+                        drawCanvas('canvas-cover', cDrawW, cDrawH, cBestLayout, cg, cw, ch, cb);
+                    }
+                } else {
+                    document.getElementById('empty-state-cover').style.display = 'flex';
+                    document.getElementById('canvas-cover').style.display = 'none';
+                    document.getElementById('res-count-cover').innerText = '-';
+                    document.getElementById('res-usage-cover').innerText = '-%';
+                }
 
                 setTimeout(() => {
                     updateWasteAndPrice(sheetsNeeded, q, drawW, drawH);
@@ -1765,15 +1874,16 @@
                 calculatePrice();
             }
 
-            function drawCanvas(sheetW, sheetH, layout, gripper, origW, origH, bleed, isManualMatch = false, manualTarget = 0) {
-                const canvas = document.getElementById('canvas');
+            function drawCanvas(canvasId, sheetW, sheetH, layout, gripper, origW, origH, bleed, isManualMatch = false, manualTarget = 0) {
+                const canvas = document.getElementById(canvasId);
                 const ctx = canvas.getContext('2d');
                 canvas.style.display = 'block';
 
-                const wrapper = document.getElementById('canvas-wrapper') || document.querySelector('.canvas-container');
-                let maxCanvasW = wrapper ? wrapper.clientWidth - 40 : 800;
-                if (maxCanvasW <= 0) maxCanvasW = 800;
-                const maxCanvasH = 600;
+                const wrapperId = (canvasId === 'canvas-leaves') ? 'canvas-wrapper-leaves' : 'canvas-wrapper-cover';
+                const wrapper = document.getElementById(wrapperId);
+                let maxCanvasW = wrapper ? wrapper.clientWidth - 30 : 400;
+                if (maxCanvasW <= 0) maxCanvasW = 400;
+                const maxCanvasH = 400;
                 const scale = Math.min(maxCanvasW / sheetW, maxCanvasH / sheetH) * 0.95;
 
                 canvas.width = sheetW * scale;
@@ -2666,56 +2776,82 @@
                 window.html2pdf().set(opt).from(element).save();
             }
             function printFormat() {
-                const canvas = document.getElementById('canvas');
-                if (canvas.style.display === 'none') {
+                const canvasLeaves = document.getElementById('canvas-leaves');
+                const canvasCover = document.getElementById('canvas-cover');
+
+                if (canvasLeaves.style.display === 'none' && canvasCover.style.display === 'none') {
                     alert("Prosim, najprej naredite izračun za prikaz in tisk formata.");
                     return;
                 }
 
                 let sheetW = document.getElementById('res-size').innerText.split(' x ')[0] || '-';
                 let sheetH = document.getElementById('res-size').innerText.split(' x ')[1] || '-';
-                let origW = document.getElementById('width').value || '-';
-                let origH = document.getElementById('height').value || '-';
 
-                let printWin = window.open('', '', 'width=900,height=700');
+                let printWin = window.open('', '', 'width=900,height=900');
                 if (!printWin) {
                     alert("Pojavno okno (popup) je bilo blokirano. Prosim omogočite pojavna okna.");
                     return;
                 }
 
-                printWin.document.write(`
+                let html = `
                     <html>
                         <head>
                             <title>Tiskovna Pola - Izpis</title>
                             <style>
                                 body { font-family: 'Inter', sans-serif; padding: 20px; text-align: center; }
-                                h2 { margin-bottom: 10px; color: #1e293b; }
-                                .info { font-size: 16px; margin-bottom: 25px; color: #334155; display: inline-block; text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
-                                img { max-width: 100%; max-height: 80vh; height: auto; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+                                h2 { margin-bottom: 20px; color: #1e293b; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
+                                .layout-block { margin-bottom: 40px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; }
+                                .info { font-size: 14px; margin-bottom: 15px; color: #334155; text-align: left; background: #f8fafc; padding: 12px; border-radius: 6px; }
+                                img { max-width: 100%; height: auto; border: 1px solid #cbd5e1; }
+                                h3 { margin-top: 0; color: #3b82f6; text-align: left; }
                                 @media print {
                                     button { display: none; }
                                     body { padding: 0; }
+                                    .layout-block { page-break-inside: avoid; border: none; }
                                 }
                             </style>
                         </head>
                         <body>
-                            <h2>Tiskovna Pola - Iztek postavitve</h2>
-                            <div class="info">
-                                <strong>Format tiskovne pole:</strong> ${sheetW} x ${sheetH} mm <br><br>
-                                <strong>Format stavka na formi:</strong> ${origW} x ${origH} mm
-                            </div>
-                            <br>
-                            <img src="${canvas.toDataURL()}" />
-                            <br><br>
+                            <h2>Izpis postavitve tiskovnih pol</h2>
+                            <p><strong>Format tiskarske pole:</strong> ${sheetW} x ${sheetH} mm</p>
+                `;
+
+                if (canvasLeaves.style.display !== 'none') {
+                    let w = document.getElementById('width').value;
+                    let h = document.getElementById('height').value;
+                    html += `
+                        <div class="layout-block">
+                            <h3>📄 Postavitev Listov</h3>
+                            <div class="info">Format rezanega kosa: ${w} x ${h} mm</div>
+                            <img src="${canvasLeaves.toDataURL()}" />
+                        </div>
+                    `;
+                }
+
+                if (canvasCover.style.display !== 'none') {
+                    let cw = document.getElementById('calc-cover-w').value;
+                    let ch = document.getElementById('calc-cover-h').value;
+                    html += `
+                        <div class="layout-block">
+                            <h3>📕 Postavitev Ovitka / Podkartona</h3>
+                            <div class="info">Format rezanega kosa: ${cw} x ${ch} mm</div>
+                            <img src="${canvasCover.toDataURL()}" />
+                        </div>
+                    `;
+                }
+
+                html += `
                             <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; background: #3b82f6; color: white; border: none; border-radius: 5px;">Natisni</button>
                             <script>
                                 window.onload = function() {
-                                    setTimeout(() => { window.print(); window.close(); }, 800);
+                                    setTimeout(() => { if(!window.location.search.includes('noprint')) window.print(); }, 800);
                                 };
                             <\/script>
                         </body>
                     </html>
-                `);
+                `;
+
+                printWin.document.write(html);
                 printWin.document.close();
             }
 
