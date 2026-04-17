@@ -549,6 +549,29 @@
                 </div>
             </div>
 
+            <div class="header-group"
+                style="grid-column: span 2; background: rgba(244, 63, 94, 0.05); padding: 12px; border-radius: 10px; border: 1px dashed rgba(244, 63, 94, 0.2); display: flex; gap: 1.25rem; align-items: stretch;">
+                <div style="flex: 2;">
+                    <label style="color: #f43f5e; font-weight: 700; margin-bottom: 0.6rem;">Osnovni format materiala
+                        ovitek (Š x V)</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="number" id="calc-source-cover-w" value="1000" placeholder="Š"
+                            style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(244, 63, 94, 0.2); padding: 0.6rem;"
+                            oninput="calculate();">
+                        <span style="color: #64748b; font-weight: bold;">×</span>
+                        <input type="number" id="calc-source-cover-h" value="700" placeholder="V"
+                            style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(244, 63, 94, 0.2); padding: 0.6rem;"
+                            oninput="calculate();">
+                    </div>
+                </div>
+                <div style="flex: 1;">
+                    <label style="color: #94a3b8; font-weight: 600; margin-bottom: 0.6rem;">Izkoristek</label>
+                    <input type="number" id="calc-source-cover-yield" value="2"
+                        style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(244, 63, 94, 0.1); padding: 0.6rem;"
+                        onchange="calculate();">
+                </div>
+            </div>
+
             <div class="header-group" style="grid-column: span 2; display: flex; gap: 0.5rem; align-items: flex-end;">
                 <button class="calculate-btn" onclick="calculate()"
                     style="margin: 0; padding: 0.8rem; flex: 1; background: #3b82f6;">Izračunaj</button>
@@ -666,7 +689,7 @@
                     style="background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.3);">
                     <h3>0. Podrobnosti Ponudbe (Metapodatki)</h3>
                     <div class="form-group">
-                        <label>NaročiloTenovis (Šifra naročila)</label>
+                        <label>Naročilo (Šifra naročila)</label>
                         <input type="text" id="calc-order-number" placeholder="npr. N 0112">
                     </div>
                     <div class="form-group">
@@ -1391,6 +1414,10 @@
                 const cb = parseFloat(document.getElementById('calc-cover-bleed').value) || 0;
                 const cg = parseFloat(document.getElementById('calc-cover-gripper').value) || 0;
 
+                // Vir materiala za ovitek
+                const swc = parseFloat(document.getElementById('calc-source-cover-w').value) || 1000;
+                const shc = parseFloat(document.getElementById('calc-source-cover-h').value) || 700;
+
                 if (cw && ch && cw > 0 && ch > 0) {
                     const cItemW = cw + (2 * cb);
                     const cItemH = ch + (2 * cb);
@@ -1400,7 +1427,7 @@
                     let cBestScore = -1;
 
                     const checkCoverSheet = (sheet) => {
-                        let fitsSource = (sw >= sheet.w && sh >= sheet.h) || (sw >= sheet.h && sh >= sheet.w);
+                        let fitsSource = (swc >= sheet.w && shc >= sheet.h) || (swc >= sheet.h && shc >= sheet.w);
                         if (!fitsSource) return;
 
                         let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fMode);
@@ -1414,8 +1441,8 @@
                         else if (l2) { bL = l2; bM = 'P'; }
 
                         if (bL) {
-                            const y1 = Math.floor(sw / sheet.w) * Math.floor(sh / sheet.h);
-                            const y2 = Math.floor(sw / sheet.h) * Math.floor(sh / sheet.w);
+                            const y1 = Math.floor(swc / sheet.w) * Math.floor(shc / sheet.h);
+                            const y2 = Math.floor(swc / sheet.h) * Math.floor(shc / sheet.w);
                             const sY = Math.max(y1, y2, 1);
                             let score = sY * bL.count;
                             if (score > cBestScore) {
@@ -2227,6 +2254,9 @@
                         coverGripper: document.getElementById('calc-cover-gripper').value,
                         coverQty: document.getElementById('calc-cover-qty').value,
                         coverDesc: document.getElementById('calc-cover-desc').value,
+                        sourceCoverW: document.getElementById('calc-source-cover-w').value,
+                        sourceCoverH: document.getElementById('calc-source-cover-h').value,
+                        sourceCoverYield: document.getElementById('calc-source-cover-yield').value,
                         pActive: document.getElementById('calc-paper-active') ? document.getElementById('calc-paper-active').checked : true,
                         pPrice: document.getElementById('calc-paper-price').value,
                         pUnit: document.getElementById('calc-paper-unit').value,
@@ -2406,6 +2436,9 @@
                 if (inp.coverGripper) document.getElementById('calc-cover-gripper').value = inp.coverGripper;
                 if (inp.coverQty) document.getElementById('calc-cover-qty').value = inp.coverQty;
                 if (inp.coverDesc) document.getElementById('calc-cover-desc').value = inp.coverDesc;
+                if (inp.sourceCoverW) document.getElementById('calc-source-cover-w').value = inp.sourceCoverW;
+                if (inp.sourceCoverH) document.getElementById('calc-source-cover-h').value = inp.sourceCoverH;
+                if (inp.sourceCoverYield) document.getElementById('calc-source-cover-yield').value = inp.sourceCoverYield;
 
                 // Load Finishing
                 if (inp.finish) {
@@ -2702,7 +2735,7 @@
                         </table>
 
                         <div class="title-row">
-                            Ponudba <span style="margin-left: 150px;">NaročiloTenovis: ${orderNo}</span>
+                            Ponudba <span style="margin-left: 150px;">Naročilo: ${orderNo}</span>
                         </div>
 
                         <div class="intro-text">
