@@ -460,7 +460,7 @@
                     <label>število blokov</label>
                     <input type="number" id="quantity" value="" oninput="calculate()">
                     <div style="font-size: 0.8rem; color: #10b981; margin-top: 0.32rem; font-weight: 600;">
-                        Število pol: <span id="header-sheets-val" style="color: #f8fafc;">0</span>
+                        Število pol (neto): <span id="header-sheets-val" style="color: #f8fafc;">0</span>
                     </div>
                 </div>
             </div>
@@ -490,6 +490,9 @@
                 <div style="flex: 1.2; min-width: 140px;">
                     <label>Material ovitek/podkarton</label>
                     <input type="text" id="calc-cover-desc" placeholder="npr. 300g GD2" onchange="calculate()">
+                    <div style="font-size: 0.8rem; color: #f43f5e; margin-top: 0.32rem; font-weight: 600;">
+                        Število pol (neto): <span id="header-cover-sheets-val" style="color: #f8fafc;">0</span>
+                    </div>
                 </div>
             </div>
 
@@ -612,6 +615,8 @@
                             <span style="color: #475569;">|</span>
                             <span id="res-usage-leaves" title="Izkoristek"
                                 style="color: #94a3b8; font-size: 0.9rem;">-%</span>
+                            <span style="color: #475569;">|</span>
+                            <span id="res-sheets-leaves-net" title="Število pol (neto)" style="color: #e2e8f0; font-size: 0.9rem;">- pol</span>
                         </div>
                     </div>
                     <div class="canvas-container" id="canvas-wrapper-leaves"
@@ -635,6 +640,8 @@
                             <span style="color: #475569;">|</span>
                             <span id="res-usage-cover" title="Izkoristek"
                                 style="color: #94a3b8; font-size: 0.9rem;">-%</span>
+                            <span style="color: #475569;">|</span>
+                            <span id="res-sheets-cover-net" title="Število pol (neto)" style="color: #e2e8f0; font-size: 0.9rem;">- pol</span>
                         </div>
                     </div>
                     <div class="canvas-container" id="canvas-wrapper-cover"
@@ -671,9 +678,13 @@
                     <div class="value" id="res-price-1000-stat">0.00 €</div>
                     <div class="label">Cena za 1000 kos</div>
                 </div>
-                <div class="stat-card full-width">
+                <div class="stat-card">
                     <div class="value" id="res-sheets-needed">0</div>
-                    <div class="label">Potrebno število pol za tisk</div>
+                    <div class="label">Pol za liste (neto)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="res-cover-sheets-needed">0</div>
+                    <div class="label">Pol za ovitek (neto)</div>
                 </div>
             </div>
         </div>
@@ -1397,9 +1408,10 @@
                 document.getElementById('res-usage-leaves').innerText = usage;
 
                 const leavesPerBlock = parseFloat(document.getElementById('calc-leaves').value) || 1;
-                let sheetsNeeded = Math.ceil((q * leavesPerBlock) / bestLayout.count);
-                document.getElementById('res-sheets-needed').innerText = sheetsNeeded;
-                if (document.getElementById('header-sheets-val')) document.getElementById('header-sheets-val').innerText = sheetsNeeded;
+                let sheetsNeededLeaves = Math.ceil((q * leavesPerBlock) / bestLayout.count);
+                document.getElementById('res-sheets-needed').innerText = sheetsNeededLeaves;
+                document.getElementById('res-sheets-leaves-net').innerText = sheetsNeededLeaves + ' pol';
+                if (document.getElementById('header-sheets-val')) document.getElementById('header-sheets-val').innerText = sheetsNeededLeaves;
 
                 let drawW = bestSheet.mode === 'L' ? bestSheet.w : bestSheet.h;
                 let drawH = bestSheet.mode === 'L' ? bestSheet.h : bestSheet.w;
@@ -1467,6 +1479,16 @@
                         document.getElementById('res-count-cover').innerText = cBestLayout.count;
                         document.getElementById('res-usage-cover').innerText = cUsage;
 
+                        let cQtyTotal = parseFloat(document.getElementById('calc-cover-qty').value) || 0;
+                        let sheetsNeededCover = Math.ceil(cQtyTotal / cBestLayout.count);
+                        document.getElementById('res-sheets-cover-net').innerText = sheetsNeededCover + ' pol';
+                        if (document.getElementById('res-cover-sheets-needed')) {
+                            document.getElementById('res-cover-sheets-needed').innerText = sheetsNeededCover;
+                        }
+                        if (document.getElementById('header-cover-sheets-val')) {
+                            document.getElementById('header-cover-sheets-val').innerText = sheetsNeededCover;
+                        }
+
                         let cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
                         let cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
                         drawCanvas('canvas-cover', cDrawW, cDrawH, cBestLayout, cg, cw, ch, cb);
@@ -1479,7 +1501,10 @@
                 }
 
                 setTimeout(() => {
-                    updateWasteAndPrice(sheetsNeeded, q, drawW, drawH);
+                    let cQtyTotal = parseFloat(document.getElementById('calc-cover-qty').value) || 0;
+                    let upsCover = cBestLayout ? cBestLayout.count : 1;
+                    let sheetsNeededCover = Math.ceil(cQtyTotal / upsCover);
+                    updateWasteAndPrice(sheetsNeededLeaves, sheetsNeededCover, q, drawW, drawH);
                 }, 50);
             }
 
@@ -1552,7 +1577,7 @@
                 updateWasteAndPrice();
             }
 
-            function updateWasteAndPrice(sheetsNeeded, totalItemsForm, drawW, drawH) {
+            function updateWasteAndPrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH) {
                 let front = parseInt(document.getElementById('calc-color-front').value) || 1;
                 let back = parseInt(document.getElementById('calc-color-back').value) || 0;
 
@@ -1593,25 +1618,28 @@
                 // Vizualno osveži vnosno polje za odpad, da to vidi uporabnik
                 document.getElementById('calc-paper-waste').value = autoWasteSheets;
 
-                // SAMODEJNA HITROST
                 let mType = document.getElementById('calc-machine-type').value;
                 let pWeight = parseFloat(document.getElementById('calc-paper-weight').value) || 100;
-                let totalGrossEstimated = (sheetsNeeded || 0) * (rule.passes || 1) + (rule.wasteImpressions || 0);
+                let totalNetSheets = (sheetsNeededLeaves || 0) + (sheetsNeededCover || 0);
+                let totalGrossEstimated = totalNetSheets * (rule.passes || 1) + (rule.wasteImpressions || 0);
                 let dynSpeed = getDynamicSpeed(pWeight, totalGrossEstimated, mType);
                 document.getElementById('calc-machine-speed').value = dynSpeed;
 
-                calculatePrice(sheetsNeeded, totalItemsForm, drawW, drawH);
+                calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH);
             }
 
-            function calculatePrice(sheetsNeeded, totalItemsForm, drawW, drawH) {
-                if (sheetsNeeded === undefined) {
-                    sheetsNeeded = parseInt(document.getElementById('res-sheets-needed').innerText) || 0;
+            function calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH) {
+                if (sheetsNeededLeaves === undefined) {
+                    sheetsNeededLeaves = parseInt(document.getElementById('res-sheets-needed').innerText) || 0;
+                }
+                if (sheetsNeededCover === undefined) {
+                    sheetsNeededCover = parseInt(document.getElementById('header-cover-sheets-val').innerText) || 0;
                 }
                 if (totalItemsForm === undefined) {
                     totalItemsForm = parseFloat(document.getElementById('quantity').value) || 0;
                 }
-                // Če še ni izračunano število pol, ne delaj izračuna cene (da ne javlja napak ob začetku)
-                if (!sheetsNeeded || sheetsNeeded === 0) return;
+                // Če še ni izračunano število pol, ne delaj izračuna cene
+                if (!sheetsNeededLeaves && !sheetsNeededCover) return;
 
                 if (drawW === undefined || drawH === undefined) {
                     let sizeStr = document.getElementById('res-size').innerText.split('x');
@@ -1639,7 +1667,8 @@
                 let pWeight = parseFloat(document.getElementById('calc-paper-weight').value) || 135;
 
                 let paperWasteSheets = parseInt(document.getElementById('calc-paper-waste').value) || 0;
-                let totalSheetsNeeded = sheetsNeeded + paperWasteSheets;
+                let totalSheetsNeededLeaves = sheetsNeededLeaves + paperWasteSheets;
+                let totalSheetsNeededCover = sheetsNeededCover + paperWasteSheets;
 
                 let paperCost = 0;
 
@@ -1662,7 +1691,7 @@
                     let pYield2 = Math.floor(pSupplyW / drawH) * Math.floor(pSupplyH / drawW);
                     let pYield = Math.max(pYield1, pYield2) || 1;
 
-                    let pParentSheetsNeeded = Math.ceil(totalSheetsNeeded / pYield);
+                    let pParentSheetsNeeded = Math.ceil(totalSheetsNeededLeaves / pYield);
 
                     if (pUnit === "1") {
                         paperCost = pParentSheetsNeeded * pPrice;
@@ -1704,7 +1733,7 @@
                     let cbYield2 = Math.floor(cbSupplyW / drawH) * Math.floor(cbSupplyH / drawW);
                     let cbYield = Math.max(cbYield1, cbYield2) || 1;
 
-                    let cbParentSheetsNeeded = Math.ceil(totalSheetsNeeded / cbYield);
+                    let cbParentSheetsNeeded = Math.ceil(totalSheetsNeededCover / cbYield);
 
                     let cbCost = 0;
                     if (cbUnit === 'item') {
@@ -1739,7 +1768,9 @@
                 let mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 10000;
                 let mPrepTime = (parseInt(document.getElementById('calc-machine-prep-time').value) || 30) / 60;
 
-                let printHours = (sheetsNeeded + paperWasteSheets) * mPasses / mSpeed;
+                // Tiska se vsota vseh pol (neto + odpad za oba dela)
+                let totalSheetsToPrint = sheetsNeededLeaves + sheetsNeededCover + paperWasteSheets;
+                let printHours = totalSheetsToPrint * mPasses / mSpeed;
                 let totalPrintCost = (printHours + mPrepTime) * mRate;
 
                 // 4. DODELAVA (NOVA LOGIKA)
