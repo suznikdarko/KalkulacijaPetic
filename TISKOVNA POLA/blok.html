@@ -1378,6 +1378,15 @@
                 let bestScore = -1;
 
                 const checkSheet = (sheet) => {
+                    // Preveri omejitev samega stroja (S4, S8...)
+                    let mTypeL = document.getElementById('calc-machine-type-leaves').value;
+                    let profileL = machineProfiles[mTypeL];
+                    if (profileL) {
+                        let machineFits = (sheet.w <= profileL.limitW && sheet.h <= profileL.limitH) || 
+                                          (sheet.h <= profileL.limitW && sheet.w <= profileL.limitH);
+                        if (!machineFits) return;
+                    }
+
                     // Preveri če gre v vir materiala
                     let fitsSource = (sw >= sheet.w && sh >= sheet.h) || (sw >= sheet.h && sh >= sheet.w);
                     if (!fitsSource) return;
@@ -1484,6 +1493,15 @@
                     let cBestScore = -1;
 
                     const checkCoverSheet = (sheet) => {
+                        // Preveri omejitev stroja za ovitek
+                        let mTypeC = document.getElementById('calc-machine-type-cover').value;
+                        let profileC = machineProfiles[mTypeC];
+                        if (profileC) {
+                            let machineFits = (sheet.w <= profileC.limitW && sheet.h <= profileC.limitH) || 
+                                              (sheet.h <= profileC.limitW && sheet.w <= profileC.limitH);
+                            if (!machineFits) return;
+                        }
+
                         let fitsSource = (swc >= sheet.w && shc >= sheet.h) || (swc >= sheet.h && shc >= sheet.w);
                         if (!fitsSource) return;
 
@@ -1571,12 +1589,12 @@
             };
 
             const machineProfiles = {
-                'S4': { rate: 120, speed: 10000, prep: 30, useDynamic: true, platePrice: 10.00, prepPrice: 25.00, changePrice: 10.00 },
-                'S8': { rate: 150, speed: 13000, prep: 45, useDynamic: true, platePrice: 15.00, prepPrice: 40.00, changePrice: 15.00 },
-                'CD': { rate: 180, speed: 14000, prep: 35, useDynamic: false, platePrice: 12.00, prepPrice: 35.00, changePrice: 12.00 },
-                'SM4+lak': { rate: 160, speed: 11000, prep: 40, useDynamic: false, platePrice: 11.00, prepPrice: 30.00, changePrice: 11.00 },
-                'CD UV': { rate: 280, speed: 10000, prep: 40, useDynamic: false, platePrice: 20.00, prepPrice: 50.00, changePrice: 20.00 },
-                'digital': { rate: 40, speed: 2000, prep: 5, useDynamic: false, platePrice: 0.00, prepPrice: 5.00, changePrice: 0.00, defaultFormat: 'Digital (480x320)' }
+                'S4': { rate: 120, speed: 10000, prep: 30, useDynamic: true, platePrice: 10.00, prepPrice: 25.00, changePrice: 10.00, limitW: 498, limitH: 348 },
+                'S8': { rate: 150, speed: 13000, prep: 45, useDynamic: true, platePrice: 15.00, prepPrice: 40.00, changePrice: 15.00, limitW: 718, limitH: 518 },
+                'CD': { rate: 180, speed: 14000, prep: 35, useDynamic: false, platePrice: 12.00, prepPrice: 35.00, changePrice: 12.00, limitW: 718, limitH: 518 },
+                'SM4+lak': { rate: 160, speed: 11000, prep: 40, useDynamic: false, platePrice: 11.00, prepPrice: 30.00, changePrice: 11.00, limitW: 718, limitH: 518 },
+                'CD UV': { rate: 280, speed: 10000, prep: 40, useDynamic: false, platePrice: 20.00, prepPrice: 50.00, changePrice: 20.00, limitW: 718, limitH: 518 },
+                'digital': { rate: 40, speed: 2000, prep: 5, useDynamic: false, platePrice: 0.00, prepPrice: 5.00, changePrice: 0.00, defaultFormat: 'Digital (480x320)', limitW: 480, limitH: 320 }
             };
 
             function getDynamicSpeed(weight, impressions, mType) {
@@ -1685,7 +1703,8 @@
                 if (!sheetsNeededLeaves && !sheetsNeededCover) return;
 
                 if (drawW === undefined || drawH === undefined) {
-                    let sizeStr = document.getElementById('res-size').innerText.split('x');
+                    let sizeText = document.getElementById('res-size').innerText;
+                    let sizeStr = sizeText.split('x');
                     if (sizeStr.length === 2) {
                         drawW = parseFloat(sizeStr[0]);
                         drawH = parseFloat(sizeStr[1]);
@@ -1694,24 +1713,28 @@
                     }
                 }
 
-                let front = parseInt(document.getElementById('calc-color-front').value) || 1;
-                let back = parseInt(document.getElementById('calc-color-back').value) || 0;
-                let isObrat = document.getElementById('calc-is-obrat').checked;
-                let colorMode = front + '/' + (isObrat ? 'OB' : back);
+                // 0. PRIDOBIVANJE PARAMETROV TISKA (TAKTAK NA ZAČETKU)
+                // Liste
+                let frontL = parseInt(document.getElementById('calc-color-front-leaves').value) || 0;
+                let backL = parseInt(document.getElementById('calc-color-back-leaves').value) || 0;
+                let isObratL = document.getElementById('calc-is-obrat-leaves').checked;
+                let wasteL = parseInt(document.getElementById('calc-paper-waste-leaves').value) || 0;
+                
+                // Ovitek
+                let frontC = parseInt(document.getElementById('calc-color-front-cover').value) || 0;
+                let backC = parseInt(document.getElementById('calc-color-back-cover').value) || 0;
+                let isObratC = document.getElementById('calc-is-obrat-cover').checked;
+                let wasteC = parseInt(document.getElementById('calc-paper-waste-cover').value) || 0;
 
-                let prepPasses = Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0);
-                let defaultWaste = (front + back) * 150;
-                let rule = prepRules[colorMode] || { passes: prepPasses, wasteImpressions: defaultWaste };
-                let mPasses = rule.passes;
+                // Skupne potrebe po polah (za material)
+                let totalSheetsNeededLeaves = sheetsNeededLeaves + wasteL;
+                let totalSheetsNeededCover = sheetsNeededCover + wasteC;
+                let totalSheetsNeeded = totalSheetsNeededLeaves + totalSheetsNeededCover;
 
                 // 1. MATERIAL
                 let pPrice = parseFloat(document.getElementById('calc-paper-price').value) || 0;
                 let pUnit = document.getElementById('calc-paper-unit').value;
                 let pWeight = parseFloat(document.getElementById('calc-paper-weight').value) || 135;
-
-                let paperWasteSheets = parseInt(document.getElementById('calc-paper-waste').value) || 0;
-                let totalSheetsNeededLeaves = sheetsNeededLeaves + paperWasteSheets;
-                let totalSheetsNeededCover = sheetsNeededCover + paperWasteSheets;
 
                 let paperCost = 0;
 
@@ -1799,9 +1822,6 @@
                 }
 
                 // 2. TISK - LISTI
-                let frontL = parseInt(document.getElementById('calc-color-front-leaves').value) || 0;
-                let backL = parseInt(document.getElementById('calc-color-back-leaves').value) || 0;
-                
                 let totalPrepCostL = 0;
                 let totalPrintCostL = 0;
 
@@ -1814,9 +1834,7 @@
                     let mRateL = parseFloat(document.getElementById('calc-machine-rate-leaves').value) || 0;
                     let mSpeedL = parseFloat(document.getElementById('calc-machine-speed-leaves').value) || 10000;
                     let mPrepTimeL = (parseInt(document.getElementById('calc-machine-prep-time-leaves').value) || 30) / 60;
-                    let wasteL = parseInt(document.getElementById('calc-paper-waste-leaves').value) || 0;
                     
-                    let isObratL = document.getElementById('calc-is-obrat-leaves').checked;
                     let mPassesL = Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0);
                     if (isObratL) mPassesL = Math.ceil(frontL / 4);
 
@@ -1824,11 +1842,7 @@
                     totalPrintCostL = (printHoursL + mPrepTimeL) * mRateL;
                 }
 
-
                 // 3. TISK - OVITEK
-                let frontC = parseInt(document.getElementById('calc-color-front-cover').value) || 0;
-                let backC = parseInt(document.getElementById('calc-color-back-cover').value) || 0;
-
                 let totalPrepCostC = 0;
                 let totalPrintCostC = 0;
 
@@ -1841,16 +1855,13 @@
                     let mRateC = parseFloat(document.getElementById('calc-machine-rate-cover').value) || 0;
                     let mSpeedC = parseFloat(document.getElementById('calc-machine-speed-cover').value) || 10000;
                     let mPrepTimeC = (parseInt(document.getElementById('calc-machine-prep-time-cover').value) || 30) / 60;
-                    let wasteC = parseInt(document.getElementById('calc-paper-waste-cover').value) || 0;
 
-                    let isObratC = document.getElementById('calc-is-obrat-cover').checked;
                     let mPassesC = Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0);
                     if (isObratC) mPassesC = Math.ceil(frontC / 4);
 
                     let printHoursC = (sheetsNeededCover + wasteC) * mPassesC / mSpeedC;
                     totalPrintCostC = (printHoursC + mPrepTimeC) * mRateC;
                 }
-
 
                 // Seštevek obeh tiskov
                 let totalPrepCost = totalPrepCostL + totalPrepCostC;
@@ -2554,17 +2565,8 @@
                 if (document.getElementById('calc-cb-supply-h') && inp.cbSupplyH) document.getElementById('calc-cb-supply-h').value = inp.cbSupplyH;
                 if (typeof toggleCbSupplyCustom === 'function') toggleCbSupplyCustom();
                 if (typeof toggleCardboardRow === 'function') toggleCardboardRow();
-                document.getElementById('calc-plates-price').value = inp.platesPrice;
-                document.getElementById('calc-prep-price').value = inp.prepPrice;
-                document.getElementById('calc-change-price').value = inp.changePrice;
-                document.getElementById('calc-machine-type').value = inp.machineType;
-                document.getElementById('calc-machine-rate').value = inp.machineRate;
-                document.getElementById('calc-machine-speed').value = inp.machineSpeed;
-                if (inp.machinePrepTime !== undefined) document.getElementById('calc-machine-prep-time').value = inp.machinePrepTime;
-                document.getElementById('calc-color-front').value = inp.colorFront;
-                document.getElementById('calc-color-back').value = inp.colorBack;
-                document.getElementById('calc-is-obrat').checked = inp.isObrat;
                 if (document.getElementById('calc-margin')) document.getElementById('calc-margin').value = inp.margin || 0;
+
 
                 // Load Header Extras
                 if (proj.preparedBy) document.getElementById('calc-prepared-by').value = proj.preparedBy;
