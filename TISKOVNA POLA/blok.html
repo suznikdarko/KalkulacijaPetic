@@ -694,37 +694,7 @@
 
             <div class="calc-grid">
                 <!-- 0. Detajli Ponudbe (Novo) -->
-                <div class="calc-section"
-                    style="background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.3);">
-                    <h3>0. Podrobnosti Ponudbe (Metapodatki)</h3>
-                    <div class="form-group">
-                        <label>Naročilo (Šifra naročila)</label>
-                        <input type="text" id="calc-order-number" placeholder="npr. N 0112">
-                    </div>
-                    <div class="form-group">
-                        <label>Številka artikla / Verzija</label>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <input type="text" id="calc-article-number" placeholder="npr. 87081" style="width: 60%;">
-                            <input type="text" id="calc-version" placeholder="npr. 27-02-25" style="width: 40%;">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Obseg / Papir opis (za ponudbo)</label>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <input type="text" id="calc-extent" placeholder="npr. 4 strani" style="width: 40%;">
-                            <input type="text" id="calc-paper-desc" placeholder="npr. 90g gloss" style="width: 60%;">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Dodatni opisi formatov (Odprt | Zaprt 1 | Zaprt 2)</label>
-                        <input type="text" id="calc-format-open" placeholder="Odprt: 273 x 308 mm"
-                            style="font-size: 0.8rem; margin-bottom: 0.3rem;">
-                        <input type="text" id="calc-format-closed-1" placeholder="Zaprt 1: 145 x 308 mm"
-                            style="font-size: 0.8rem; margin-bottom: 0.3rem;">
-                        <input type="text" id="calc-format-closed-2" placeholder="Zaprt 2: 145 x 149 mm"
-                            style="font-size: 0.8rem;">
-                    </div>
-                </div>
+
                 <!-- 1. Papir -->
                 <div class="calc-section">
                     <h3>1. Material (Papir & Podkarton)</h3>
@@ -774,9 +744,9 @@
                                     onchange="calculatePrice()">
                             </div>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label>Odpadna makulatura (št. pol) - <small>Samodejno izračunano</small></label>
-                            <input type="number" id="calc-paper-waste" value="320" onchange="calculatePrice()">
+                        <div class="form-group" style="margin-bottom: 0; display:none;">
+                            <label>Odpadna makulatura (št. pol)</label>
+                            <input type="number" id="calc-paper-waste" value="0">
                         </div>
                     </div>
 
@@ -793,7 +763,7 @@
                             <div class="form-group">
                                 <label>Cena podkartona</label>
                                 <div class="input-group">
-                                    <input type="number" id="calc-cardboard-price" value="0.20" step="0.01"
+                                    <input type="number" id="calc-cardboard-price" value="0.00" step="0.01"
                                         onchange="calculatePrice()">
                                     <select id="calc-cardboard-unit" onchange="calculatePrice()">
                                         <option value="sheet">na 1 polo</option>
@@ -829,33 +799,86 @@
                 </div>
 
                 <!-- 2. Priprava in Plošče -->
-                <div class="calc-section">
-                    <h3>2. Priprava in Plošče</h3>
-                    <div class="form-group">
-                        <label>Število plošč <small>(polno število)</small></label>
-                        <input type="number" id="calc-plates-num" value="4" onchange="calculatePrice()">
+                <!-- 2. TISK LISTI -->
+                <div class="calc-section" style="background: rgba(59, 130, 246, 0.03); border-color: rgba(59, 130, 246, 0.2);">
+                    <h3 style="color: #60a5fa;">2. Tisk Listov</h3>
+                    <div class="form-group" style="background: rgba(59, 130, 246, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                        <label>Izbira stroja (prednastavitve)</label>
+                        <select id="calc-machine-type-leaves" onchange="applyMachineDefaults('leaves')">
+                            <option value="S4" selected>S4</option>
+                            <option value="S8">S8</option>
+                            <option value="CD">CD</option>
+                            <option value="SM4+lak">SM4+lak</option>
+                            <option value="CD UV">CD UV</option>
+                            <option value="digital">Digitalni stroj</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>Cena na ploščo (€)</label>
-                        <input type="number" id="calc-plates-price" value="10.00" step="0.5">
+                        <label>Število barv (Lice / Hrbet)</label>
+                        <div class="input-group">
+                            <select id="calc-color-front-leaves" onchange="updateWasteAndPrice('leaves')">
+                                <option value="1">1 barva</option>
+                                <option value="2">2 barvi</option>
+                                <option value="3">3 barve</option>
+                                <option value="4" selected>4 barve</option>
+                            </select>
+                            <select id="calc-color-back-leaves" onchange="updateWasteAndPrice('leaves')">
+                                <option value="0" selected>0 (Brez)</option>
+                                <option value="1">1 barva</option>
+                                <option value="2">2 barvi</option>
+                                <option value="3">3 barve</option>
+                                <option value="4">4 barve</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" id="obrat-container-leaves" style="display: none; background: rgba(245, 158, 11, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3);">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0;">
+                            <input type="checkbox" id="calc-is-obrat-leaves" onchange="updateWasteAndPrice('leaves')" style="width: auto; margin: 0;">
+                            Tisk "na obrat" (OB)
+                        </label>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <div class="form-group">
+                            <label>Število plošč</label>
+                            <input type="number" id="calc-plates-num-leaves" value="4" onchange="calculatePrice()">
+                        </div>
+                        <div class="form-group">
+                            <label>Odpad (pol)</label>
+                            <input type="number" id="calc-paper-waste-leaves" value="320" onchange="calculatePrice()">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <div class="form-group">
+                            <label>Cena stroja (€/h)</label>
+                            <input type="number" id="calc-machine-rate-leaves" value="120.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Hitrost (pol/h)</label>
+                            <input type="number" id="calc-machine-speed-leaves" value="10000">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <div class="form-group">
+                            <label>Cena plošče (€)</label>
+                            <input type="number" id="calc-plates-price-leaves" value="10.00" step="0.5">
+                        </div>
+                        <div class="form-group">
+                            <label>Pavšal priprave (€)</label>
+                            <input type="number" id="calc-prep-price-leaves" value="25.00" step="1">
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label>Priprava tiska (pavšal €)</label>
-                        <input type="number" id="calc-prep-price" value="25.00" step="1">
-                    </div>
-                    <div class="form-group">
-                        <label>Menjava plošč (€ / kos - brez prve)</label>
-                        <input type="number" id="calc-change-price" value="10.00" step="1">
+                        <label>Čas priprave (min)</label>
+                        <input type="number" id="calc-machine-prep-time-leaves" value="30">
                     </div>
                 </div>
 
-                <!-- 3. Tisk (Stroj) -->
-                <div class="calc-section">
-                    <h3>3. Tisk (Stroj)</h3>
-                    <div class="form-group"
-                        style="background: rgba(59, 130, 246, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
-                        <label>Izbira stroja (prednastavitve)</label>
-                        <select id="calc-machine-type" onchange="applyMachineDefaults()">
+                <!-- 3. TISK OVITEK -->
+                <div class="calc-section" style="background: rgba(244, 63, 94, 0.03); border-color: rgba(244, 63, 94, 0.2);">
+                    <h3 style="color: #f43f5e;">3. Tisk Ovitka</h3>
+                    <div class="form-group" style="background: rgba(244, 63, 94, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(244, 63, 94, 0.3);">
+                        <label>Izbira stroja (ovitek)</label>
+                        <select id="calc-machine-type-cover" onchange="applyMachineDefaults('cover')">
                             <option value="S4">S4</option>
                             <option value="S8">S8</option>
                             <option value="CD">CD</option>
@@ -865,49 +888,61 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Urna postavka stroja (€/h)</label>
-                        <input type="number" id="calc-machine-rate" value="120.00" step="1">
-                    </div>
-                    <div class="form-group">
-                        <label>Hitrost tiska (pol / uro)</label>
-                        <input type="number" id="calc-machine-speed" value="10000" step="500">
-                    </div>
-                    <div class="form-group">
-                        <label>Število barv (Lice / Hrbet)</label>
+                        <label>Število barv (ovitek)</label>
                         <div class="input-group">
-                            <select id="calc-color-front" onchange="updateWasteAndPrice()">
+                            <select id="calc-color-front-cover" onchange="updateWasteAndPrice('cover')">
                                 <option value="1">1 barva</option>
                                 <option value="2">2 barvi</option>
                                 <option value="3">3 barve</option>
                                 <option value="4" selected>4 barve</option>
-                                <option value="5">5 barv</option>
-                                <option value="6">6 barv</option>
-                                <option value="7">7 barv</option>
                             </select>
-                            <select id="calc-color-back" onchange="updateWasteAndPrice()">
+                            <select id="calc-color-back-cover" onchange="updateWasteAndPrice('cover')">
                                 <option value="0" selected>0 (Brez)</option>
                                 <option value="1">1 barva</option>
                                 <option value="2">2 barvi</option>
-                                <option value="3">3 barve</option>
                                 <option value="4">4 barve</option>
-                                <option value="5">5 barv</option>
-                                <option value="6">6 barv</option>
-                                <option value="7">7 barv</option>
                             </select>
                         </div>
                     </div>
-                    <div class="form-group" id="obrat-container"
-                        style="display: none; background: rgba(245, 158, 11, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3);">
-                        <label
-                            style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0;">
-                            <input type="checkbox" id="calc-is-obrat" onchange="updateWasteAndPrice()"
-                                style="width: auto; margin: 0;">
-                            Tisk "na obrat" (OB) - ista plošča za obe strani
+                    <div class="form-group" id="obrat-container-cover" style="display: none; background: rgba(245, 158, 11, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3);">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0;">
+                            <input type="checkbox" id="calc-is-obrat-cover" onchange="updateWasteAndPrice('cover')" style="width: auto; margin: 0;">
+                            Tisk "na obrat"
                         </label>
                     </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <div class="form-group">
+                            <label>Število plošč</label>
+                            <input type="number" id="calc-plates-num-cover" value="4" onchange="calculatePrice()">
+                        </div>
+                        <div class="form-group">
+                            <label>Odpad (pol)</label>
+                            <input type="number" id="calc-paper-waste-cover" value="320" onchange="calculatePrice()">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <div class="form-group">
+                            <label>Cena stroja (€/h)</label>
+                            <input type="number" id="calc-machine-rate-cover" value="120.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Hitrost (pol/h)</label>
+                            <input type="number" id="calc-machine-speed-cover" value="10000">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <div class="form-group">
+                            <label>Cena plošče (€)</label>
+                            <input type="number" id="calc-plates-price-cover" value="10.00" step="0.5">
+                        </div>
+                        <div class="form-group">
+                            <label>Pavšal priprave (€)</label>
+                            <input type="number" id="calc-prep-price-cover" value="25.00" step="1">
+                        </div>
+                    </div>
                     <div class="form-group">
-                        <label>Čas priprave stroja za tisk (minuti)</label>
-                        <input type="number" id="calc-machine-prep-time" value="30" step="5">
+                        <label>Čas priprave (min)</label>
+                        <input type="number" id="calc-machine-prep-time-cover" value="30">
                     </div>
                 </div>
 
@@ -1501,10 +1536,8 @@
                 }
 
                 setTimeout(() => {
-                    let cQtyTotal = parseFloat(document.getElementById('calc-cover-qty').value) || 0;
-                    let upsCover = cBestLayout ? cBestLayout.count : 1;
-                    let sheetsNeededCover = Math.ceil(cQtyTotal / upsCover);
-                    updateWasteAndPrice(sheetsNeededLeaves, sheetsNeededCover, q, drawW, drawH);
+                    updateWasteAndPrice('leaves');
+                    updateWasteAndPrice('cover');
                 }, 50);
             }
 
@@ -1527,12 +1560,12 @@
             };
 
             const machineProfiles = {
-                'S4': { rate: 120, speed: 10000, prep: 30, useDynamic: true },
-                'S8': { rate: 150, speed: 13000, prep: 45, useDynamic: true },
-                'CD': { rate: 180, speed: 14000, prep: 35, useDynamic: false },
-                'SM4+lak': { rate: 160, speed: 11000, prep: 40, useDynamic: false },
-                'CD UV': { rate: 280, speed: 10000, prep: 40, useDynamic: false },
-                'digital': { rate: 40, speed: 2000, prep: 5, useDynamic: false, defaultFormat: 'Digital (480x320)' }
+                'S4': { rate: 120, speed: 10000, prep: 30, useDynamic: true, platePrice: 10.00, prepPrice: 25.00, changePrice: 10.00 },
+                'S8': { rate: 150, speed: 13000, prep: 45, useDynamic: true, platePrice: 15.00, prepPrice: 40.00, changePrice: 15.00 },
+                'CD': { rate: 180, speed: 14000, prep: 35, useDynamic: false, platePrice: 12.00, prepPrice: 35.00, changePrice: 12.00 },
+                'SM4+lak': { rate: 160, speed: 11000, prep: 40, useDynamic: false, platePrice: 11.00, prepPrice: 30.00, changePrice: 11.00 },
+                'CD UV': { rate: 280, speed: 10000, prep: 40, useDynamic: false, platePrice: 20.00, prepPrice: 50.00, changePrice: 20.00 },
+                'digital': { rate: 40, speed: 2000, prep: 5, useDynamic: false, platePrice: 0.00, prepPrice: 5.00, changePrice: 0.00, defaultFormat: 'Digital (480x320)' }
             };
 
             function getDynamicSpeed(weight, impressions, mType) {
@@ -1563,69 +1596,68 @@
                 return Math.round(speed);
             }
 
-            function applyMachineDefaults() {
-                let mType = document.getElementById('calc-machine-type').value;
+            function applyMachineDefaults(comp = 'leaves') {
+                let mType = document.getElementById('calc-machine-type-' + comp).value;
                 let profile = machineProfiles[mType];
                 if (profile) {
-                    document.getElementById('calc-machine-rate').value = profile.rate;
-                    document.getElementById('calc-machine-speed').value = profile.speed;
-                    document.getElementById('calc-machine-prep-time').value = profile.prep;
-                    if (profile.defaultFormat) {
+                    document.getElementById('calc-machine-rate-' + comp).value = profile.rate;
+                    document.getElementById('calc-machine-speed-' + comp).value = profile.speed;
+                    document.getElementById('calc-machine-prep-time-' + comp).value = profile.prep;
+                    if (document.getElementById('calc-plates-price-' + comp)) document.getElementById('calc-plates-price-' + comp).value = profile.platePrice;
+                    if (document.getElementById('calc-prep-price-' + comp)) document.getElementById('calc-prep-price-' + comp).value = profile.prepPrice;
+                    // changePrice can be hidden or applied if needed
+                    
+                    if (profile.defaultFormat && comp === 'leaves') {
                         document.getElementById('machine-format').value = profile.defaultFormat;
                     }
                 }
-                updateWasteAndPrice();
+                updateWasteAndPrice(comp);
             }
 
-            function updateWasteAndPrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH) {
-                let front = parseInt(document.getElementById('calc-color-front').value) || 1;
-                let back = parseInt(document.getElementById('calc-color-back').value) || 0;
+            function updateWasteAndPrice(comp = 'leaves') {
+                let front = parseInt(document.getElementById('calc-color-front-' + comp).value) || 1;
+                let back = parseInt(document.getElementById('calc-color-back-' + comp).value) || 0;
 
-                // Prikaz in branje checkboxa za OBRAT
-                let obratContainer = document.getElementById('obrat-container');
+                let obratContainer = document.getElementById('obrat-container-' + comp);
                 if (back > 0) {
-                    obratContainer.style.display = 'block';
+                    if (obratContainer) obratContainer.style.display = 'block';
                 } else {
-                    obratContainer.style.display = 'none';
-                    document.getElementById('calc-is-obrat').checked = false; // reset
+                    if (obratContainer) {
+                        obratContainer.style.display = 'none';
+                        document.getElementById('calc-is-obrat-' + comp).checked = false;
+                    }
                 }
-                let isObrat = document.getElementById('calc-is-obrat').checked;
+                let isObrat = document.getElementById('calc-is-obrat-' + comp) ? document.getElementById('calc-is-obrat-' + comp).checked : false;
 
                 let colorMode = front + '/' + (isObrat ? 'OB' : back);
 
-                // Samodejen izračun plošč
                 let totalPlates;
                 if (isObrat) {
-                    // Ista plošča se uporabi za spredaj in zadaj (vzamemo večjo številko ene od strani)
                     totalPlates = Math.max(front, back);
                 } else {
-                    // Vsaka stran potrebuje svoje plošče
                     totalPlates = front + back;
                 }
-                // SEDAJ PRIKAŽEMO POLNO ŠTEVILO (brez odbitka)
-                document.getElementById('calc-plates-num').value = totalPlates;
+                document.getElementById('calc-plates-num-' + comp).value = totalPlates;
 
-                // Določitev prehodov (predpostavka 4-barvnega stroja)
                 let prepPasses = Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0);
-
-                // Nastavitev odpada po matrici ali z generično formulo
                 let defaultWaste = (front + back) * 150;
                 let rule = prepRules[colorMode] || { passes: prepPasses, wasteImpressions: defaultWaste };
 
-                // Koliko FIZIČNEGA papirja zahteva nastavljeni odpad
                 let autoWasteSheets = Math.ceil(rule.wasteImpressions / rule.passes);
+                document.getElementById('calc-paper-waste-' + comp).value = autoWasteSheets;
 
-                // Vizualno osveži vnosno polje za odpad, da to vidi uporabnik
-                document.getElementById('calc-paper-waste').value = autoWasteSheets;
-
-                let mType = document.getElementById('calc-machine-type').value;
+                let mType = document.getElementById('calc-machine-type-' + comp).value;
                 let pWeight = parseFloat(document.getElementById('calc-paper-weight').value) || 100;
-                let totalNetSheets = (sheetsNeededLeaves || 0) + (sheetsNeededCover || 0);
-                let totalGrossEstimated = totalNetSheets * (rule.passes || 1) + (rule.wasteImpressions || 0);
-                let dynSpeed = getDynamicSpeed(pWeight, totalGrossEstimated, mType);
-                document.getElementById('calc-machine-speed').value = dynSpeed;
+                
+                // For dynamic speed we use total component sheets
+                let compSheets = (comp === 'leaves') ? (parseInt(document.getElementById('res-sheets-needed').innerText) || 0) 
+                                                  : (parseInt(document.getElementById('header-cover-sheets-val').innerText) || 0);
 
-                calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH);
+                let totalGrossEstimated = compSheets * (rule.passes || 1) + (rule.wasteImpressions || 0);
+                let dynSpeed = getDynamicSpeed(pWeight, totalGrossEstimated, mType);
+                document.getElementById('calc-machine-speed-' + comp).value = dynSpeed;
+
+                calculatePrice();
             }
 
             function calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH) {
@@ -1755,23 +1787,50 @@
                     paperCost += cbCost;
                 }
 
-                // 2. PRIPRAVA IN PLOŠČE
-                let platesNum = front + (isObrat ? 0 : back);
-                let platesPrice = parseFloat(document.getElementById('calc-plates-price').value) || 0;
-                let prepPrice = parseFloat(document.getElementById('calc-prep-price').value) || 0;
-                let changePrice = parseFloat(document.getElementById('calc-change-price').value) || 0;
-                let numberOfChanges = Math.max(0, platesNum - 1);
-                let totalPrepCost = (platesNum * platesPrice) + prepPrice + (numberOfChanges * changePrice);
+                // 2. TISK - LISTI
+                let platesNumL = parseInt(document.getElementById('calc-plates-num-leaves').value) || 0;
+                let platesPriceL = parseFloat(document.getElementById('calc-plates-price-leaves').value) || 0;
+                let prepPriceL = parseFloat(document.getElementById('calc-prep-price-leaves').value) || 0;
+                let totalPrepCostL = (platesNumL * platesPriceL) + prepPriceL;
 
-                // 3. TISK
-                let mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 0;
-                let mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 10000;
-                let mPrepTime = (parseInt(document.getElementById('calc-machine-prep-time').value) || 30) / 60;
+                let mRateL = parseFloat(document.getElementById('calc-machine-rate-leaves').value) || 0;
+                let mSpeedL = parseFloat(document.getElementById('calc-machine-speed-leaves').value) || 10000;
+                let mPrepTimeL = (parseInt(document.getElementById('calc-machine-prep-time-leaves').value) || 30) / 60;
+                let wasteL = parseInt(document.getElementById('calc-paper-waste-leaves').value) || 0;
+                
+                let frontL = parseInt(document.getElementById('calc-color-front-leaves').value) || 1;
+                let backL = parseInt(document.getElementById('calc-color-back-leaves').value) || 0;
+                let isObratL = document.getElementById('calc-is-obrat-leaves').checked;
+                let mPassesL = Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0);
+                if (isObratL) mPassesL = Math.ceil(frontL / 4);
 
-                // Tiska se vsota vseh pol (neto + odpad za oba dela)
-                let totalSheetsToPrint = sheetsNeededLeaves + sheetsNeededCover + paperWasteSheets;
-                let printHours = totalSheetsToPrint * mPasses / mSpeed;
-                let totalPrintCost = (printHours + mPrepTime) * mRate;
+                let printHoursL = (sheetsNeededLeaves + wasteL) * mPassesL / mSpeedL;
+                let totalPrintCostL = (printHoursL + mPrepTimeL) * mRateL;
+
+                // 3. TISK - OVITEK
+                let platesNumC = parseInt(document.getElementById('calc-plates-num-cover').value) || 0;
+                let platesPriceC = parseFloat(document.getElementById('calc-plates-price-cover').value) || 0;
+                let prepPriceC = parseFloat(document.getElementById('calc-prep-price-cover').value) || 0;
+                let totalPrepCostC = (platesNumC * platesPriceC) + prepPriceC;
+
+                let mRateC = parseFloat(document.getElementById('calc-machine-rate-cover').value) || 0;
+                let mSpeedC = parseFloat(document.getElementById('calc-machine-speed-cover').value) || 10000;
+                let mPrepTimeC = (parseInt(document.getElementById('calc-machine-prep-time-cover').value) || 30) / 60;
+                let wasteC = parseInt(document.getElementById('calc-paper-waste-cover').value) || 0;
+
+                let frontC = parseInt(document.getElementById('calc-color-front-cover').value) || 1;
+                let backC = parseInt(document.getElementById('calc-color-back-cover').value) || 0;
+                let isObratC = document.getElementById('calc-is-obrat-cover').checked;
+                let mPassesC = Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0);
+                if (isObratC) mPassesC = Math.ceil(frontC / 4);
+
+                let printHoursC = (sheetsNeededCover + wasteC) * mPassesC / mSpeedC;
+                let totalPrintCostC = (printHoursC + mPrepTimeC) * mRateC;
+
+                // Seštevek obeh tiskov
+                let totalPrepCost = totalPrepCostL + totalPrepCostC;
+                let totalPrintCost = totalPrintCostL + totalPrintCostC;
+
 
                 // 4. DODELAVA (NOVA LOGIKA)
                 let totalFinishCost = 0;
@@ -2251,17 +2310,10 @@
                     offerNumber: document.getElementById('calc-offer-number').value,
                     customerCode: document.getElementById('calc-customer-code').value,
                     customer: document.getElementById('calc-customer').value,
-                    orderNumber: document.getElementById('calc-order-number').value,
-                    articleNumber: document.getElementById('calc-article-number').value,
-                    version: document.getElementById('calc-version').value,
                     custEmail: document.getElementById('calc-cust-email').value,
                     custAddress: document.getElementById('calc-cust-address').value,
                     preparedBy: document.getElementById('calc-prepared-by').value,
-                    formatOpen: document.getElementById('calc-format-open').value,
-                    formatClosed1: document.getElementById('calc-format-closed-1').value,
-                    formatClosed2: document.getElementById('calc-format-closed-2').value,
-                    extent: document.getElementById('calc-extent').value,
-                    paperDesc: document.getElementById('calc-paper-desc').value,
+
                     leavesMaterial: document.getElementById('calc-leaves-material').value,
                     materialCode: document.getElementById('calc-material-code').value,
                     inputs: {
@@ -2294,7 +2346,7 @@
                         pSupplyType: document.getElementById('calc-paper-supply-type') ? document.getElementById('calc-paper-supply-type').value : '700x1000',
                         pSupplyW: document.getElementById('calc-paper-supply-w') ? document.getElementById('calc-paper-supply-w').value : 700,
                         pSupplyH: document.getElementById('calc-paper-supply-h') ? document.getElementById('calc-paper-supply-h').value : 1000,
-                        pWaste: document.getElementById('calc-paper-waste').value,
+                        pWaste: document.getElementById('calc-paper-waste-leaves').value,
                         cbActive: document.getElementById('calc-cardboard-active') ? document.getElementById('calc-cardboard-active').checked : false,
                         cbPrice: document.getElementById('calc-cardboard-price') ? document.getElementById('calc-cardboard-price').value : "",
                         cbUnit: document.getElementById('calc-cardboard-unit') ? document.getElementById('calc-cardboard-unit').value : "",
@@ -2302,17 +2354,35 @@
                         cbSupplyType: document.getElementById('calc-cb-supply-type') ? document.getElementById('calc-cb-supply-type').value : '700x1000',
                         cbSupplyW: document.getElementById('calc-cb-supply-w') ? document.getElementById('calc-cb-supply-w').value : 700,
                         cbSupplyH: document.getElementById('calc-cb-supply-h') ? document.getElementById('calc-cb-supply-h').value : 1000,
-                        platesPrice: document.getElementById('calc-plates-price').value,
-                        prepPrice: document.getElementById('calc-prep-price').value,
-                        changePrice: document.getElementById('calc-change-price').value,
-                        machineType: document.getElementById('calc-machine-type').value,
-                        machineRate: document.getElementById('calc-machine-rate').value,
-                        machineSpeed: document.getElementById('calc-machine-speed').value,
-                        machinePrepTime: document.getElementById('calc-machine-prep-time').value,
-                        colorFront: document.getElementById('calc-color-front').value,
-                        colorBack: document.getElementById('calc-color-back').value,
-                        isObrat: document.getElementById('calc-is-obrat').checked,
+                        
+                        // Leaves Print
+                        mTypeL: document.getElementById('calc-machine-type-leaves').value,
+                        mRateL: document.getElementById('calc-machine-rate-leaves').value,
+                        mSpeedL: document.getElementById('calc-machine-speed-leaves').value,
+                        mPrepL: document.getElementById('calc-machine-prep-time-leaves').value,
+                        frontL: document.getElementById('calc-color-front-leaves').value,
+                        backL: document.getElementById('calc-color-back-leaves').value,
+                        obratL: document.getElementById('calc-is-obrat-leaves').checked,
+                        platesNumL: document.getElementById('calc-plates-num-leaves').value,
+                        platesPriceL: document.getElementById('calc-plates-price-leaves').value,
+                        prepPriceL: document.getElementById('calc-prep-price-leaves').value,
+                        wasteL: document.getElementById('calc-paper-waste-leaves').value,
+
+                        // Cover Print
+                        mTypeC: document.getElementById('calc-machine-type-cover').value,
+                        mRateC: document.getElementById('calc-machine-rate-cover').value,
+                        mSpeedC: document.getElementById('calc-machine-speed-cover').value,
+                        mPrepC: document.getElementById('calc-machine-prep-time-cover').value,
+                        frontC: document.getElementById('calc-color-front-cover').value,
+                        backC: document.getElementById('calc-color-back-cover').value,
+                        obratC: document.getElementById('calc-is-obrat-cover').checked,
+                        platesNumC: document.getElementById('calc-plates-num-cover').value,
+                        platesPriceC: document.getElementById('calc-plates-price-cover').value,
+                        prepPriceC: document.getElementById('calc-prep-price-cover').value,
+                        wasteC: document.getElementById('calc-paper-waste-cover').value,
+
                         margin: document.getElementById('calc-margin').value,
+
                         // Finishing fields
                         finish: {
                             cilinder: { active: document.getElementById('f-cilinder-active').checked, prep: document.getElementById('f-cilinder-prep').value, rate: document.getElementById('f-cilinder-rate').value },
@@ -2393,17 +2463,11 @@
                 if (document.getElementById('calc-offer-number')) document.getElementById('calc-offer-number').value = proj.offerNumber || "";
                 if (document.getElementById('calc-customer-code')) document.getElementById('calc-customer-code').value = proj.customerCode || "";
                 document.getElementById('calc-customer').value = proj.customer || "";
-
-                if (document.getElementById('calc-order-number')) document.getElementById('calc-order-number').value = proj.orderNumber || "";
-                if (document.getElementById('calc-article-number')) document.getElementById('calc-article-number').value = proj.articleNumber || "";
-                if (document.getElementById('calc-version')) document.getElementById('calc-version').value = proj.version || "";
                 if (document.getElementById('calc-cust-email')) document.getElementById('calc-cust-email').value = proj.custEmail || "";
                 if (document.getElementById('calc-cust-address')) document.getElementById('calc-cust-address').value = proj.custAddress || "";
-                if (document.getElementById('calc-format-open')) document.getElementById('calc-format-open').value = proj.formatOpen || "";
-                if (document.getElementById('calc-format-closed-1')) document.getElementById('calc-format-closed-1').value = proj.formatClosed1 || "";
-                if (document.getElementById('calc-format-closed-2')) document.getElementById('calc-format-closed-2').value = proj.formatClosed2 || "";
-                if (document.getElementById('calc-extent')) document.getElementById('calc-extent').value = proj.extent || "";
-                if (document.getElementById('calc-paper-desc')) document.getElementById('calc-paper-desc').value = proj.paperDesc || "";
+                if (document.getElementById('calc-prepared-by')) document.getElementById('calc-prepared-by').value = proj.preparedBy || "";
+
+
                 if (document.getElementById('calc-leaves-material')) document.getElementById('calc-leaves-material').value = proj.leavesMaterial || "";
 
                 document.getElementById('calc-material-code').value = proj.materialCode || "";
@@ -2422,11 +2486,38 @@
                 }
                 if (document.getElementById('calc-paper-supply-w') && inp.pSupplyW) document.getElementById('calc-paper-supply-w').value = inp.pSupplyW;
                 if (document.getElementById('calc-paper-supply-h') && inp.pSupplyH) document.getElementById('calc-paper-supply-h').value = inp.pSupplyH;
-                document.getElementById('calc-paper-waste').value = inp.pWaste;
+                if (document.getElementById('calc-paper-waste-leaves') && inp.pWaste) document.getElementById('calc-paper-waste-leaves').value = inp.pWaste;
                 if (typeof togglePaperSupplyCustom === 'function') togglePaperSupplyCustom();
                 if (typeof togglePaperRow === 'function') togglePaperRow();
+                
+                // Load Leaves Print
+                if (inp.mTypeL) document.getElementById('calc-machine-type-leaves').value = inp.mTypeL;
+                if (inp.mRateL) document.getElementById('calc-machine-rate-leaves').value = inp.mRateL;
+                if (inp.mSpeedL) document.getElementById('calc-machine-speed-leaves').value = inp.mSpeedL;
+                if (inp.mPrepL) document.getElementById('calc-machine-prep-time-leaves').value = inp.mPrepL;
+                if (inp.frontL) document.getElementById('calc-color-front-leaves').value = inp.frontL;
+                if (inp.backL) document.getElementById('calc-color-back-leaves').value = inp.backL;
+                if (inp.obratL !== undefined) document.getElementById('calc-is-obrat-leaves').checked = inp.obratL;
+                if (inp.platesNumL) document.getElementById('calc-plates-num-leaves').value = inp.platesNumL;
+                if (inp.platesPriceL) document.getElementById('calc-plates-price-leaves').value = inp.platesPriceL;
+                if (inp.prepPriceL) document.getElementById('calc-prep-price-leaves').value = inp.prepPriceL;
+                if (inp.wasteL) document.getElementById('calc-paper-waste-leaves').value = inp.wasteL;
+
+                // Load Cover Print
+                if (inp.mTypeC) document.getElementById('calc-machine-type-cover').value = inp.mTypeC;
+                if (inp.mRateC) document.getElementById('calc-machine-rate-cover').value = inp.mRateC;
+                if (inp.mSpeedC) document.getElementById('calc-machine-speed-cover').value = inp.mSpeedC;
+                if (inp.mPrepC) document.getElementById('calc-machine-prep-time-cover').value = inp.mPrepC;
+                if (inp.frontC) document.getElementById('calc-color-front-cover').value = inp.frontC;
+                if (inp.backC) document.getElementById('calc-color-back-cover').value = inp.backC;
+                if (inp.obratC !== undefined) document.getElementById('calc-is-obrat-cover').checked = inp.obratC;
+                if (inp.platesNumC) document.getElementById('calc-plates-num-cover').value = inp.platesNumC;
+                if (inp.platesPriceC) document.getElementById('calc-plates-price-cover').value = inp.platesPriceC;
+                if (inp.prepPriceC) document.getElementById('calc-prep-price-cover').value = inp.prepPriceC;
+                if (inp.wasteC) document.getElementById('calc-paper-waste-cover').value = inp.wasteC;
 
                 if (document.getElementById('calc-cardboard-active')) document.getElementById('calc-cardboard-active').checked = inp.cbActive || false;
+
                 if (document.getElementById('calc-cardboard-price') && inp.cbPrice) document.getElementById('calc-cardboard-price').value = inp.cbPrice;
                 if (document.getElementById('calc-cardboard-unit') && inp.cbUnit) document.getElementById('calc-cardboard-unit').value = inp.cbUnit;
                 if (document.getElementById('calc-cardboard-weight') && inp.cbWeight) document.getElementById('calc-cardboard-weight').value = inp.cbWeight;
