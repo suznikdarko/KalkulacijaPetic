@@ -450,18 +450,20 @@
                 <datalist id="customer-list"></datalist>
             </div>
 
-            <div class="header-group">
-                <label for="calc-quote-number">Številka ponudbe</label>
-                <input type="text" id="calc-quote-number" placeholder="npr. 0481/26">
-            </div>
-
-            <div class="header-group">
-                <label for="calc-customer-code">Šifra stranke</label>
-                <input type="text" id="calc-customer-code" placeholder="npr. 123456" style="margin-bottom: 0.5rem;">
-                <input type="hidden" id="calc-cust-id" value="">
-
-                <label>Šifra izdelka</label>
-                <input type="text" id="calc-material-code" placeholder="npr. PAP-135-MAT">
+            <div class="header-group" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div>
+                    <label for="calc-quote-number">Številka ponudbe</label>
+                    <input type="text" id="calc-quote-number" placeholder="npr. 0481/26">
+                </div>
+                <div>
+                    <label for="calc-customer-code">Šifra stranke</label>
+                    <input type="text" id="calc-customer-code" placeholder="npr. 123456">
+                    <input type="hidden" id="calc-cust-id" value="">
+                </div>
+                <div>
+                    <label>Šifra izdelka</label>
+                    <input type="text" id="calc-material-code" placeholder="npr. PAP-135-MAT">
+                </div>
             </div>
 
             <div class="header-group">
@@ -514,7 +516,6 @@
                 <select id="machine-format" onchange="filterAvailableFormats(); calculate();">
                     <option value="auto">Samodejno (B2 max)</option>
                     <option value="B2">B2 (698 x 498 mm)</option>
-                    <option value="S4-format">S4 (518 x 348 mm)</option>
                     <option value="6 iz B1">6 iz B1 (349 x 332 mm)</option>
                     <option value="638x448">Izrez (638 x 448 mm)</option>
                     <option value="B3">B3 (498 x 348 mm)</option>
@@ -684,7 +685,7 @@
                     <div class="form-group">
                         <label>Cena papirja</label>
                         <div class="input-group">
-                            <input type="number" id="calc-paper-price" value="1.50" step="0.01">
+                            <input type="number" id="calc-paper-price" value="" step="0.01" placeholder="Vnesite ceno">
                             <select id="calc-paper-unit">
                                 <option value="ton">na tono</option>
                                 <option value="1000">na 1000 pol</option>
@@ -1061,7 +1062,6 @@
 
         const sheets = [
             { name: "B2", w: 698, h: 498 },
-            { name: "S4-format", w: 518, h: 348 },
             { name: "6 iz B1", w: 349, h: 332 },
             { name: "638x448", w: 638, h: 448 },
             { name: "B3", w: 498, h: 348 },
@@ -1094,7 +1094,7 @@
         };
 
         const machineProfiles = {
-            'S4': { rate: 120, speed: 5000, prep: 35, useDynamic: true, maxW: 518, maxH: 348, defaultFormat: 'S4-format' },
+            'S4': { rate: 120, speed: 5000, prep: 35, useDynamic: true, maxW: 518, maxH: 348, defaultFormat: 'B3' },
             'S8': { rate: 150, speed: 6000, prep: 45, useDynamic: true, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'CD': { rate: 180, speed: 8000, prep: 50, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'SM4+lak': { rate: 160, speed: 7000, prep: 55, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
@@ -1232,41 +1232,60 @@
                 const itemW = w + 2 * b;
                 const itemH = h + 2 * b;
 
-                const sheets = [
-                    { name: "SRA3 (450x320)", w: 450, h: 320 },
-                    { name: "B3 (500x350)", w: 500, h: 350 },
-                    { name: "B2 (700x500)", w: 700, h: 500 },
-                    { name: "B1 (1000x700)", w: 1000, h: 700 },
-                    { name: "A3+ (480x330)", w: 480, h: 330 },
-                    { name: "Digital (450x320)", w: 450, h: 320 }
-                ];
+                // Preberi ročni vnos stavkov (če obstaja)
+                const itemsInp = document.getElementById('items-per-sheet');
+                let targetCount = parseInt(itemsInp.value) || 0;
+                if (isManual) targetCount = 0; // Gumb "Izračunaj" vedno išče globalni maksimum
 
                 let bestSheet = null;
                 let bestLayout = null;
+                let bestScore = -1;
 
+                const checkSheet = (s) => {
+                    let fitsSource = (sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w);
+                    let fitsMachine = true;
+                    if (profile && profile.maxW) {
+                        fitsMachine = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
+                    }
+                    if (!fitsSource || !fitsMachine) return;
+
+                    let currLayout = optimizeLayout(s.w, s.h, itemW, itemH, g, fMode);
+                    if (!currLayout) return;
+
+                    const y1 = Math.floor(sw / s.w) * Math.floor(sh / s.h);
+                    const y2 = Math.floor(sw / s.h) * Math.floor(sh / s.w);
+                    const sYield = Math.max(y1, y2, 1);
+
+                    // LOGIKA OPTIMIZACIJE:
+                    let score;
+                    let isSatisfied = (targetCount > 0 && currLayout.count >= targetCount);
+
+                    if (targetCount > 0) {
+                        if (isSatisfied) {
+                            // 1. Prioriteta: sYield (koliko kosov dobimo iz velike pole) - Zelo velika teža
+                            // 2. Prioriteta: Manjša površina strojnih pol (manj plošč, hitrejša priprava...)
+                            // 3. Prioriteta: Maksimalno število stavkov (rezerva)
+                            const sheetArea = s.w * s.h;
+                            score = (sYield * 1000000000) + (1000000000000 / sheetArea) + currLayout.count;
+                        } else {
+                            score = currLayout.count;
+                        }
+                    } else {
+                        score = sYield * currLayout.count;
+                    }
+
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestSheet = s;
+                        bestLayout = currLayout;
+                    }
+                };
+
+                // Uporabimo globalni seznam 'sheets' namesto lokalnega
                 if (mFormat === 'auto') {
-                    let bestScore = -1;
+                    // Preverimo vse formate iz globalnega seznama
                     for (let s of sheets) {
-                        let fitsSource = (sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w);
-                        let fitsMachine = true;
-                        if (profile && profile.maxW) {
-                            fitsMachine = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
-                        }
-                        if (fitsSource && fitsMachine) {
-                            let currLayout = optimizeLayout(s.w, s.h, itemW, itemH, g, fMode);
-                            if (currLayout) {
-                                const y1 = Math.floor(sw / s.w) * Math.floor(sh / s.h);
-                                const y2 = Math.floor(sw / s.h) * Math.floor(sh / s.w);
-                                const sYield = Math.max(y1, y2, 1);
-                                const score = sYield * currLayout.count;
-
-                                if (score > bestScore || (score === bestScore && currLayout.count > (bestLayout ? bestLayout.count : 0))) {
-                                    bestScore = score;
-                                    bestSheet = s;
-                                    bestLayout = currLayout;
-                                }
-                            }
-                        }
+                        checkSheet(s);
                     }
                     if (!bestSheet) {
                         bestSheet = sheets.find(s => {
@@ -1274,6 +1293,7 @@
                             if (profile && profile.maxW) fM = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
                             return ((sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w)) && fM;
                         }) || sheets[0];
+                        bestLayout = optimizeLayout(bestSheet.w, bestSheet.h, itemW, itemH, g, fMode);
                     }
                 } else {
                     bestSheet = sheets.find(s => s.name === mFormat) || sheets[0];
@@ -1299,7 +1319,6 @@
                 document.getElementById('res-sheet-mini').innerText = bestSheet.name;
                 document.getElementById('res-count-mini').innerText = bestLayout.count;
 
-                const itemsInp = document.getElementById('items-per-sheet');
                 if (isManual || itemsInp.value == "0" || itemsInp.value == "" || parseInt(itemsInp.value) === g_autoCount) {
                     itemsInp.value = bestLayout.count;
                     g_autoCount = bestLayout.count;
@@ -1307,9 +1326,7 @@
 
                 g_lastBestLayout = bestLayout;
 
-                // Vedno kliči update s TRENUTNO vrednostjo iz vnosnega polja (upošteva ročni vnos)
-                const currentCount = parseInt(document.getElementById('items-per-sheet').value) || bestLayout.count;
-
+                const currentCount = parseInt(itemsInp.value) || bestLayout.count;
                 let usage = (currentCount * itemW * itemH) / (bestSheet.w * bestSheet.h);
                 document.getElementById('res-usage').innerText = (usage * 100).toFixed(1) + "%";
                 document.getElementById('res-usage-mini').innerText = (usage * 100).toFixed(1) + "%";
@@ -1464,6 +1481,7 @@
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
                         <span>Priprava stroja (${(d.print.prepTime * 60).toFixed(0)} min):</span> <span>${formatPrice(d.print.prepTime * d.print.mRate)}</span>
                         <span>Neto čas tiska (${(d.print.hours * 60).toFixed(0)} min):</span> <span>${formatPrice(d.print.hours * d.print.mRate)}</span>
+                        <span>Prijemalec (gripper):</span> <span style="color: #fbbf24; font-weight: bold;">${d.print.gripper} mm</span>
                         <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
                         <span style="font-style: italic;">Skupaj strojno delo:</span> <span style="font-weight: bold;">${formatPrice(d.print.cost)}</span>
                     </div>
@@ -1641,7 +1659,8 @@
                     hours: printHours,
                     prepTime: mPrepTime,
                     mRate: mRate,
-                    cost: totalPrintCost
+                    cost: totalPrintCost,
+                    gripper: parseFloat(document.getElementById('gripper').value) || 0
                 },
                 finish: {
                     items: [],
@@ -1807,22 +1826,12 @@
         function updatePriceFromManualCount() {
             let manualCount = parseInt(document.getElementById('items-per-sheet').value) || 0;
             if (manualCount > 0) {
-                calculatePrice();
-                // Osveži še sliko
-                if (g_lastBestLayout) {
-                    let currentGripper = parseFloat(document.getElementById('gripper').value) || 0;
-                    let currentBleed = parseFloat(document.getElementById('bleed').value) || 0;
-                    let origW = parseFloat(document.getElementById('width').value) || 0;
-                    let origH = parseFloat(document.getElementById('height').value) || 0;
-
-                    let sW = parseFloat(document.getElementById('calc-source-w').value) || 1000;
-                    let sH = parseFloat(document.getElementById('calc-source-h').value) || 700;
-
-                    let mFormat = document.getElementById('machine-format').value;
-                    let sheet = sheets.find(s => s.name === mFormat) || { w: 700, h: 500 };
-
-                    drawAllLayouts(sheet.w, sheet.h, g_lastBestLayout, currentGripper, origW, origH, currentBleed, sW, sH);
+                // Samodejno preklopimo na 'auto' format, da sistem najde najboljšo polo za to število
+                const mFormatEl = document.getElementById('machine-format');
+                if (mFormatEl.value !== 'auto') {
+                    mFormatEl.value = 'auto';
                 }
+                calculatePrice();
             }
         }
 
@@ -1928,6 +1937,7 @@
 
             // Gripper
             ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+            ctx.font = 'bold 10px Inter, sans-serif';
             if (layout && layout.gripEdge === 'W') {
                 ctx.fillRect(0, 0, gripper * scale, canvas.height);
                 ctx.strokeStyle = '#f43f5e';
@@ -1935,6 +1945,15 @@
                 ctx.moveTo(gripper * scale, 0);
                 ctx.lineTo(gripper * scale, canvas.height);
                 ctx.stroke();
+                
+                // Label for W gripper
+                ctx.save();
+                ctx.fillStyle = '#f43f5e';
+                ctx.translate(10, canvas.height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.textAlign = 'center';
+                ctx.fillText(`Prijemalec: ${gripper} mm`, 0, 0);
+                ctx.restore();
             } else {
                 ctx.fillRect(0, (canvas.height - gripper * scale), canvas.width, gripper * scale);
                 ctx.strokeStyle = '#f43f5e';
@@ -1942,6 +1961,11 @@
                 ctx.moveTo(0, canvas.height - gripper * scale);
                 ctx.lineTo(canvas.width, canvas.height - gripper * scale);
                 ctx.stroke();
+
+                // Label for H gripper
+                ctx.fillStyle = '#f43f5e';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Prijemalec: ${gripper} mm`, canvas.width / 2, canvas.height - (gripper * scale) / 2 + 4);
             }
 
             // Sheet dimension labels (Moved up so they always draw)
@@ -1954,16 +1978,33 @@
             ctx.fillText(`${sheetH} mm`, 0, 0);
             ctx.restore();
 
-            // Overlay if manual override (Moved up)
+            // Prikaz opozorila za ročni vnos (namesto roza barve)
             if (isOverride) {
-                ctx.fillStyle = 'rgba(239, 68, 68, 0.4)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 24px Arial';
+                // Glow obroba
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+                // Elegantna značka (Glassmorphism effect)
+                ctx.save();
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.9)';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                const badgeWidth = 120;
+                const badgeHeight = 24;
+                const bx = (canvas.width - badgeWidth) / 2;
+                const by = 10;
+                
+                // Narišemo zaobljen pravokotnik
+                ctx.beginPath();
+                ctx.roundRect(bx, by, badgeWidth, badgeHeight, 6);
+                ctx.fill();
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px Inter, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('ROČNI POVOZ', canvas.width / 2, canvas.height / 2 - 10);
-                ctx.font = 'bold 14px Arial';
-                ctx.fillText('IZRIS NE USTREZA ŠTEVILU', canvas.width / 2, canvas.height / 2 + 15);
+                ctx.fillText('ROČNI VNOS', canvas.width / 2, by + 15);
+                ctx.restore();
                 ctx.textAlign = 'left';
             }
 
@@ -1986,13 +2027,15 @@
                     ctx.strokeRect(x + (item.bleed * scale), y + (item.bleed * scale), innerW, innerH);
                     ctx.setLineDash([]);
 
-                    // Add Dimensions
+                    // Add Dimensions (Centered)
                     ctx.fillStyle = '#1e3a8a';
                     ctx.font = 'bold 9px Arial';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     const dimLabel = `${Math.round(item.w - 2 * item.bleed)}x${Math.round(item.h - 2 * item.bleed)}`;
                     ctx.fillText(dimLabel, x + iw / 2, y + ih / 2);
+                    
+                    // Reset alignment for next items
                     ctx.textAlign = 'left';
                     ctx.textBaseline = 'alphabetic';
                 });
@@ -2008,22 +2051,38 @@
 
             const targetCount = currentCount || (layout.rows * layout.cols);
 
-            // Calculate how many cols and rows we actually use for this specific count
-            let usedCols = Math.min(layout.cols, targetCount);
-            let usedRows = Math.ceil(targetCount / (usedCols || 1));
+            // Poiščemo najbolj uravnoteženo mrežo (cols/rows) za to število
+            let bestC = Math.min(layout.cols, targetCount);
+            let bestR = Math.ceil(targetCount / (bestC || 1));
+            
+            for (let tempC = 1; tempC <= layout.cols; tempC++) {
+                let tempR = Math.ceil(targetCount / tempC);
+                if (tempR <= layout.rows) {
+                    const diff = Math.abs(tempC - tempR);
+                    const bestDiff = Math.abs(bestC - bestR);
+                    if (diff < bestDiff || (diff === bestDiff && tempC < bestC)) {
+                        bestC = tempC;
+                        bestR = tempR;
+                    }
+                }
+            }
+            
+            let usedCols = bestC;
+            let usedRows = bestR;
 
-            const gridW = usedCols * layout.itemW;
             const gridH = usedRows * layout.itemH;
-            const startX = offsetX + (usableW - gridW) / 2;
             const startY = (usableH - gridH) / 2;
 
             let drawnCount = 0;
 
             for (let r = 0; r < usedRows; r++) {
-                for (let c = 0; c < usedCols; c++) {
-                    if (drawnCount >= targetCount) break;
+                // Izračunamo število elementov v tej vrstici za centriranje
+                const itemsInRow = Math.min(usedCols, targetCount - drawnCount);
+                const rowGridW = itemsInRow * layout.itemW;
+                const rowStartX = offsetX + (usableW - rowGridW) / 2;
 
-                    const x = (startX + c * layout.itemW) * scale;
+                for (let c = 0; c < itemsInRow; c++) {
+                    const x = (rowStartX + c * layout.itemW) * scale;
                     const y = (startY + r * layout.itemH) * scale;
 
                     ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
@@ -2036,21 +2095,23 @@
                     const innerH = (layout.rot ? origW : origH);
                     ctx.setLineDash([2, 3]);
                     ctx.strokeStyle = '#1e3a8a';
-                    ctx.strokeRect((startX + c * layout.itemW + bleed) * scale, (startY + r * layout.itemH + bleed) * scale, innerW * scale, innerH * scale);
+                    ctx.strokeRect(x + (bleed * scale), y + (bleed * scale), innerW * scale, innerH * scale);
                     ctx.setLineDash([]);
 
-                    // Add Dimensions
+                    // Add Dimensions (Centered)
                     ctx.fillStyle = '#1e3a8a';
                     ctx.font = 'bold 9px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
                     const dimLabel = `${origW}x${origH}`;
                     // Only draw if it fits somewhat
                     if (layout.itemW * scale > 30 && layout.itemH * scale > 15) {
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
                         ctx.fillText(dimLabel, x + (layout.itemW * scale) / 2, y + (layout.itemH * scale) / 2);
-                        ctx.textAlign = 'left';
-                        ctx.textBaseline = 'alphabetic';
                     }
+                    
+                    // Reset for next
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'alphabetic';
                     drawnCount++;
                 }
             }
