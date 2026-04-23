@@ -737,6 +737,21 @@
                         <label>Menjava plošč (€ / kos - brez prve)</label>
                         <input type="number" id="calc-change-price" value="10.00" step="1" onchange="calculatePrice()">
                     </div>
+                    <div class="form-group"
+                        style="padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 5px;">
+                        <label>Vrsta mutacije</label>
+                        <select id="calc-mut-type" onchange="calculatePrice()">
+                            <option value="">Brez mutacij</option>
+                            <option value="Mutacija po prvi strani (1/0)">Mutacija po prvi strani (1/0)</option>
+                            <option value="Mutacija po drugi strani (0/1)">Mutacija po drugi strani (0/1)</option>
+                            <option value="Mutacija obojestransko (1/1)">Mutacija obojestransko (1/1)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Št. dodatnih plošč za mutacijo</label>
+                        <input type="number" id="calc-mut-plates" value="0" min="0" step="1"
+                            onchange="calculatePrice()">
+                    </div>
                 </div>
 
                 <!-- 3. Tisk (Stroj) -->
@@ -1351,7 +1366,8 @@
             const front = parseInt(document.getElementById('calc-color-front').value) || 0;
             const back = parseInt(document.getElementById('calc-color-back').value) || 0;
             const isObrat = document.getElementById('calc-is-obrat').checked;
-            const totalPlates = front + (isObrat ? 0 : back);
+            const mutPlates = parseInt(document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : 0) || 0;
+            const totalPlates = front + (isObrat ? 0 : back) + mutPlates;
             document.getElementById('calc-plates-num').value = totalPlates;
 
             if (profile) {
@@ -2314,6 +2330,8 @@
                 custAddress: document.getElementById('calc-cust-address').value,
                 deliveryAddress: document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : "",
                 custEmail: document.getElementById('calc-cust-email').value,
+                mutType: document.getElementById('calc-mut-type') ? document.getElementById('calc-mut-type').value : "",
+                mutPlates: document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : 0,
                 custId: document.getElementById('calc-cust-id').value,
                 quoteNum: document.getElementById('calc-quote-number').value,
                 customerCode: document.getElementById('calc-customer-code').value,
@@ -2479,6 +2497,10 @@
                 document.getElementById('calc-delivery-address').value = proj.deliveryAddress || "";
             }
             document.getElementById('calc-cust-email').value = proj.custEmail || "";
+            if (document.getElementById('calc-mut-type')) {
+                document.getElementById('calc-mut-type').value = proj.mutType || "";
+                document.getElementById('calc-mut-plates').value = proj.mutPlates || 0;
+            }
             document.getElementById('calc-cust-id').value = proj.custId || "";
             document.getElementById('calc-quote-number').value = proj.quoteNum || "";
             document.getElementById('calc-customer-code').value = proj.customerCode || "";
@@ -2695,6 +2717,8 @@
             const front = document.getElementById('calc-color-front').value;
             const back = document.getElementById('calc-color-back').value;
             const isObrat = document.getElementById('calc-is-obrat').checked;
+            const mutType = document.getElementById('calc-mut-type') ? document.getElementById('calc-mut-type').value : '';
+            const mutPlates = document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : '0';
 
             let printColorStr = front + "/" + (isObrat ? back + " (OB)" : back);
             if (front === "4" && back === "0") printColorStr += " – color";
@@ -2910,6 +2934,10 @@
                                         <tr>
                                             <td class="lbl" style="width: 90px;">Tisk:</td><td>${printColorStr}</td>
                                         </tr>
+                                        ${mutType && mutType !== "Brez mutacij" ? `
+                                        <tr>
+                                            <td class="lbl" style="width: 90px;">Mutacija:</td><td>${mutType} (${mutPlates} dodatn. plošč)</td>
+                                        </tr>` : ''}
                                         <tr>
                                             <td class="lbl" style="width: 90px;">Dodel.:</td><td>${dodelText}</td>
                                         </tr>
