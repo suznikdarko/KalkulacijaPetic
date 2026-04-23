@@ -766,7 +766,7 @@
                         style="margin-top: 0.5rem; background: rgba(16, 185, 129, 0.1); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.3);">
                         <label
                             style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; color: #34d399; margin: 0; font-weight: 600;">
-                            <input type="checkbox" id="calc-is-obrat" onchange="updateWasteAndPrice()"
+                            <input type="checkbox" id="calc-is-obrat" onchange="calculate()"
                                 style="width: 20px; height: 20px; margin: 0; cursor: pointer;">
                             ♻️ Uporabi iste plošče za obe strani (Obračanje / OB)
                         </label>
@@ -2057,49 +2057,73 @@
             const gridH = usedRows * layout.itemH;
             const startY = (usableH - gridH) / 2;
 
-            let drawnCount = 0;
-
             // Izračunamo fiksen X za celoten grid, da se ohrani simetrična poravnava stolpcev za razrez
             const gridW = usedCols * layout.itemW;
             const startX = offsetX + (usableW - gridW) / 2;
 
-            for (let r = 0; r < usedRows; r++) {
-                const itemsInRow = Math.min(usedCols, targetCount - drawnCount);
+            let slotsToDraw = [];
+            const isObratChecked = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
 
-                for (let c = 0; c < itemsInRow; c++) {
-                    const x = (startX + c * layout.itemW) * scale;
-                    const y = (startY + r * layout.itemH) * scale;
+            if (isObratChecked) {
+                let midC = Math.floor(usedCols / 2);
+                let hasCenter = usedCols % 2 !== 0;
 
-                    ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
-                    ctx.strokeStyle = '#3b82f6';
-                    ctx.lineWidth = 1;
-                    ctx.fillRect(x, y, layout.itemW * scale, layout.itemH * scale);
-                    ctx.strokeRect(x, y, layout.itemW * scale, layout.itemH * scale);
-
-                    const innerW = (layout.rot ? origH : origW);
-                    const innerH = (layout.rot ? origW : origH);
-                    ctx.setLineDash([2, 3]);
-                    ctx.strokeStyle = '#1e3a8a';
-                    ctx.strokeRect(x + (bleed * scale), y + (bleed * scale), innerW * scale, innerH * scale);
-                    ctx.setLineDash([]);
-
-                    // Add Dimensions (Centered)
-                    ctx.fillStyle = '#1e3a8a';
-                    ctx.font = 'bold 9px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    const dimLabel = `${origW}x${origH}`;
-                    // Only draw if it fits somewhat
-                    if (layout.itemW * scale > 30 && layout.itemH * scale > 15) {
-                        ctx.fillText(dimLabel, x + (layout.itemW * scale) / 2, y + (layout.itemH * scale) / 2);
+                for (let r = 0; r < usedRows; r++) {
+                    // Gradimo pare od sredine navzven
+                    for (let c = midC - 1; c >= 0; c--) {
+                        slotsToDraw.push({ c: c, r: r });
+                        slotsToDraw.push({ c: usedCols - 1 - c, r: r });
                     }
-
-                    // Reset for next
-                    ctx.textAlign = 'left';
-                    ctx.textBaseline = 'alphabetic';
-                    drawnCount++;
+                }
+                if (hasCenter) {
+                    for (let r = 0; r < usedRows; r++) {
+                        slotsToDraw.push({ c: midC, r: r });
+                    }
+                }
+                slotsToDraw = slotsToDraw.slice(0, targetCount);
+            } else {
+                let tempCount = 0;
+                for (let r = 0; r < usedRows; r++) {
+                    const itemsInRow = Math.min(usedCols, targetCount - tempCount);
+                    for (let c = 0; c < itemsInRow; c++) {
+                        slotsToDraw.push({ c: c, r: r });
+                    }
+                    tempCount += itemsInRow;
                 }
             }
+
+            slotsToDraw.forEach(slot => {
+                const x = (startX + slot.c * layout.itemW) * scale;
+                const y = (startY + slot.r * layout.itemH) * scale;
+
+                ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 1;
+                ctx.fillRect(x, y, layout.itemW * scale, layout.itemH * scale);
+                ctx.strokeRect(x, y, layout.itemW * scale, layout.itemH * scale);
+
+                const innerW = (layout.rot ? origH : origW);
+                const innerH = (layout.rot ? origW : origH);
+                ctx.setLineDash([2, 3]);
+                ctx.strokeStyle = '#1e3a8a';
+                ctx.strokeRect(x + (bleed * scale), y + (bleed * scale), innerW * scale, innerH * scale);
+                ctx.setLineDash([]);
+
+                // Add Dimensions (Centered)
+                ctx.fillStyle = '#1e3a8a';
+                ctx.font = 'bold 9px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const dimLabel = `${origW}x${origH}`;
+                // Only draw if it fits somewhat
+                if (layout.itemW * scale > 30 && layout.itemH * scale > 15) {
+                    ctx.fillText(dimLabel, x + (layout.itemW * scale) / 2, y + (layout.itemH * scale) / 2);
+                }
+
+                // Reset for next
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'alphabetic';
+            });
         }
 
         // INITIAL CALLS ON LOAD (MOVED TO BOTTOM)
