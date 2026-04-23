@@ -1174,6 +1174,7 @@
         }
 
         function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceMode) {
+            const isObrat = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
             let best = null;
             const configs = [
                 { w: itemW, h: itemH, rot: false, edge: 'H', c: Math.floor(sheetW / itemW), r: Math.floor((sheetH - gripper) / itemH) },
@@ -1182,7 +1183,16 @@
             configs.forEach(cfg => {
                 if (forceMode === 'landscape' && cfg.rot) return;
                 if (forceMode === 'portrait' && !cfg.rot) return;
+
                 let count = cfg.c * cfg.r;
+
+                if (isObrat) {
+                    // Preverimo katera obratna postavitev prinese največ stavkov brez prelivanja fronte in hrbta čez sredino.
+                    let maxColsEven = Math.floor(cfg.c / 2) * 2;
+                    let maxRowsEven = Math.floor(cfg.r / 2) * 2;
+                    count = Math.max(maxColsEven * cfg.r, cfg.c * maxRowsEven);
+                }
+
                 if (count > 0 && (!best || count > best.count)) {
                     best = { count, cols: cfg.c, rows: cfg.r, itemW: cfg.w, itemH: cfg.h, rot: cfg.rot, gripEdge: cfg.edge };
                 }
@@ -2039,11 +2049,19 @@
             let bestC = Math.min(layout.cols, targetCount);
             let bestR = Math.ceil(targetCount / (bestC || 1));
 
+            const isObratChecked = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
+
             for (let tempC = 1; tempC <= layout.cols; tempC++) {
                 let tempR = Math.ceil(targetCount / tempC);
                 if (tempR <= layout.rows) {
-                    const diff = Math.abs(tempC - tempR);
-                    const bestDiff = Math.abs(bestC - bestR);
+                    let diff = Math.abs(tempC - tempR);
+                    let bestDiff = Math.abs(bestC - bestR);
+
+                    if (isObratChecked) {
+                        if (bestC % 2 !== 0) bestDiff += 1000;
+                        if (tempC % 2 !== 0) diff += 1000;
+                    }
+
                     if (diff < bestDiff || (diff === bestDiff && tempC > bestC)) {
                         bestC = tempC;
                         bestR = tempR;
@@ -2062,7 +2080,6 @@
             const startX = offsetX + (usableW - gridW) / 2;
 
             let slotsToDraw = [];
-            const isObratChecked = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
 
             if (isObratChecked) {
                 let midC = Math.floor(usedCols / 2);
