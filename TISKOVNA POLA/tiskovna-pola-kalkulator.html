@@ -922,19 +922,23 @@
                                 </div>
                             </div>
 
-                            <!-- Ročno delo / Tuje -->
+                            <!-- Ročno delo -->
                             <div class="finish-item" id="row-finish-extra">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
                                     <input type="checkbox" id="f-extra-active" onchange="toggleFinishRow('extra')">
-                                    Ostalo (Ročno/Tuja)
+                                    Ročno delo
                                 </label>
-                                <div class="form-group" style="margin:0;">
-                                    <label><small>Ročno delo (€)</small></label>
-                                    <input type="number" id="f-extra-manual" value="0.00" onchange="calculatePrice()">
-                                </div>
-                                <div class="form-group" style="margin:0;">
-                                    <label><small>Tuja usluga (€)</small></label>
-                                    <input type="number" id="f-extra-external" value="0.00" onchange="calculatePrice()">
+                                <div class="form-group" style="margin:0; display:flex; gap:0.5rem;">
+                                    <div style="flex:1;">
+                                        <label><small>Izdelkov / uro</small></label>
+                                        <input type="number" id="f-extra-speed" value="500" min="1" step="1"
+                                            onchange="calculatePrice()">
+                                    </div>
+                                    <div style="flex:1;">
+                                        <label><small>Postavka (€/h)</small></label>
+                                        <input type="number" id="f-extra-rate" value="20.00"
+                                            onchange="calculatePrice()">
+                                    </div>
                                 </div>
                             </div>
 
@@ -1636,7 +1640,9 @@
                 totalFinishCost += (parseFloat(document.getElementById('f-lepljenje-prep').value) || 0) + (qty / 1000) * (parseFloat(document.getElementById('f-lepljenje-per1000').value) || 0);
             }
             if (document.getElementById('f-extra-active').checked) {
-                totalFinishCost += (parseFloat(document.getElementById('f-extra-manual').value) || 0) + (parseFloat(document.getElementById('f-extra-external').value) || 0);
+                const spd = parseFloat(document.getElementById('f-extra-speed').value) || 1;
+                const rte = parseFloat(document.getElementById('f-extra-rate').value) || 20;
+                totalFinishCost += (qty / spd) * rte;
             }
             if (document.getElementById('f-tool-active').checked) {
                 totalFinishCost += (parseFloat(document.getElementById('f-tool-cost').value) || 0);
@@ -1747,13 +1753,14 @@
                 });
             }
             if (document.getElementById('f-extra-active').checked) {
-                let eMan = (parseFloat(document.getElementById('f-extra-manual').value) || 0);
-                let eExt = (parseFloat(document.getElementById('f-extra-external').value) || 0);
-                let eCost = eMan + eExt;
+                const spd = parseFloat(document.getElementById('f-extra-speed').value) || 1;
+                const rte = parseFloat(document.getElementById('f-extra-rate').value) || 20;
+                const hrs = qty / spd;
+                let eMan = hrs * rte;
                 details.finish.items.push({
-                    name: 'Ostalo (Ročno/Tuja)',
-                    cost: eCost,
-                    breakdown: eMan > 0 ? `Ročno delo: ${formatPrice(eMan)} | Tuja usluga: ${formatPrice(eExt)}` : `Tuja usluga: ${formatPrice(eExt)}`
+                    name: `Ročno delo (Norma: ${spd} kos/h)`,
+                    cost: eMan,
+                    breakdown: `Čas: ${hrs.toFixed(2)} h po ${formatPrice(rte)}/h = ${formatPrice(eMan)}`
                 });
             }
             if (document.getElementById('f-tool-active').checked) {
@@ -2368,7 +2375,7 @@
                         noz: { active: document.getElementById('f-noz-active').checked, time: document.getElementById('f-noz-time').value, rate: document.getElementById('f-noz-rate').value },
                         sivanje: { active: document.getElementById('f-sivanje-active').checked, prep: document.getElementById('f-sivanje-prep').value, per1000: document.getElementById('f-sivanje-per1000').value },
                         lepljenje: { active: document.getElementById('f-lepljenje-active').checked, prep: document.getElementById('f-lepljenje-prep').value, per1000: document.getElementById('f-lepljenje-per1000').value },
-                        extra: { active: document.getElementById('f-extra-active').checked, manual: document.getElementById('f-extra-manual').value, external: document.getElementById('f-extra-external').value },
+                        extra: { active: document.getElementById('f-extra-active').checked, speed: document.getElementById('f-extra-speed').value, rate: document.getElementById('f-extra-rate').value },
                         tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
                         uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
                         lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type').value, sides: document.getElementById('f-lam-sides').value, per1000: document.getElementById('f-lam-per1000').value, prep: document.getElementById('f-lam-prep').value },
@@ -2566,8 +2573,8 @@
                 }
                 if (f.extra) {
                     document.getElementById('f-extra-active').checked = f.extra.active;
-                    document.getElementById('f-extra-manual').value = f.extra.manual;
-                    document.getElementById('f-extra-external').value = f.extra.external;
+                    if (f.extra.speed) document.getElementById('f-extra-speed').value = f.extra.speed;
+                    if (f.extra.rate) document.getElementById('f-extra-rate').value = f.extra.rate;
                     toggleFinishRow('extra');
                 }
                 if (f.tool) {
@@ -2658,7 +2665,7 @@
                             noz: { active: document.getElementById('f-noz-active').checked, time: document.getElementById('f-noz-time').value, rate: document.getElementById('f-noz-rate').value },
                             sivanje: { active: document.getElementById('f-sivanje-active').checked, prep: document.getElementById('f-sivanje-prep').value, per1000: document.getElementById('f-sivanje-per1000').value },
                             lepljenje: { active: document.getElementById('f-lepljenje-active').checked, prep: document.getElementById('f-lepljenje-prep').value, per1000: document.getElementById('f-lepljenje-per1000').value },
-                            extra: { active: document.getElementById('f-extra-active').checked, manual: document.getElementById('f-extra-manual').value, external: document.getElementById('f-extra-external').value },
+                            extra: { active: document.getElementById('f-extra-active').checked, speed: document.getElementById('f-extra-speed').value, rate: document.getElementById('f-extra-rate').value },
                             tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
                             uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
                             lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type').value, sides: document.getElementById('f-lam-sides').value, per1000: document.getElementById('f-lam-per1000').value, prep: document.getElementById('f-lam-prep').value },
