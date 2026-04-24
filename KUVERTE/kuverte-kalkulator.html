@@ -877,37 +877,87 @@
         function drawCanvas(sw, sh, layout) {
             const canvas = document.getElementById('canvas');
             const ctx = canvas.getContext('2d');
-            const scale = Math.min(600 / sw, 400 / sh) * 0.9;
-            canvas.width = sw * scale;
-            canvas.height = sh * scale;
 
-            ctx.fillStyle = '#f8fafc';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Fiksna velikost platna za prikaz kuverte
+            canvas.width = 600;
+            canvas.height = 350;
 
-            // Gripper
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.1)';
-            ctx.fillRect(0, 0, gripper * scale, canvas.height);
+            // Zbrišemo prejšnji izris
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Item (samo 1 kuverta, centrirana na preostali prostor)
-            ctx.fillStyle = 'rgba(245, 158, 11, 0.3)';
-            ctx.strokeStyle = '#d97706';
-            ctx.lineWidth = 2;
-
-            const availableW = canvas.width - (gripper * scale);
-            const x = (gripper * scale) + (availableW - (layout.itemW * scale)) / 2;
-            const y = (canvas.height - (layout.itemH * scale)) / 2;
-
-            ctx.fillRect(x, y, layout.itemW * scale, layout.itemH * scale);
-            ctx.strokeRect(x, y, layout.itemW * scale, layout.itemH * scale);
-
-            // Dimenzije
-            ctx.fillStyle = '#0f172a';
-            ctx.font = 'bold 16px Inter';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
+            const envType = document.getElementById('envelope-preset').value;
             const wText = Math.round(layout.itemW - 2 * bleed);
             const hText = Math.round(layout.itemH - 2 * bleed);
-            ctx.fillText(`${wText} x ${hText}`, x + layout.itemW * scale / 2, y + layout.itemH * scale / 2);
+
+            // Izračun povečave za optimalen prikaz kuverte
+            const padding = 40;
+            const availableW = canvas.width - (padding * 2);
+            const availableH = canvas.height - (padding * 2);
+            const scale = Math.min(availableW / wText, availableH / hText);
+
+            const wScaled = wText * scale;
+            const hScaled = hText * scale;
+
+            const x = (canvas.width - wScaled) / 2;
+            const y = (canvas.height - hScaled) / 2;
+
+            // Senca
+            ctx.shadowColor = 'rgba(0,0,0,0.4)';
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetX = 5;
+            ctx.shadowOffsetY = 5;
+
+            // Osnova kuverte
+            ctx.fillStyle = '#f8fafc'; // Bela/svetla
+            ctx.fillRect(x, y, wScaled, hScaled);
+
+            // Odstrani senco za ostale elemente
+            ctx.shadowColor = 'transparent';
+
+            // Rob kuverte
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, wScaled, hScaled);
+
+            // Zaklopec (vizualno ponazoritev zapiranja kuverte - zgornji rob do sredine)
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + wScaled / 2, y + Math.min(hScaled * 0.3, 40 * scale));
+            ctx.lineTo(x + wScaled, y);
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Risanje oken, če obstajajo
+            // Standardno okno pri Amerikanki je 90x45, odmik z leve/desne 20mm in od spodaj 20mm
+            if (envType === 'Amerikanka_LO') {
+                const winW = 90 * scale;
+                const winH = 45 * scale;
+                const winX = x + (20 * scale);
+                const winY = y + hScaled - (20 * scale) - winH;
+
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.15)'; // Prosojno modro okence
+                ctx.fillRect(winX, winY, winW, winH);
+                ctx.strokeStyle = '#60a5fa';
+                ctx.strokeRect(winX, winY, winW, winH);
+            } else if (envType === 'Amerikanka_DO') {
+                const winW = 90 * scale;
+                const winH = 45 * scale;
+                const winX = x + wScaled - (20 * scale) - winW;
+                const winY = y + hScaled - (20 * scale) - winH;
+
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
+                ctx.fillRect(winX, winY, winW, winH);
+                ctx.strokeStyle = '#60a5fa';
+                ctx.strokeRect(winX, winY, winW, winH);
+            }
+
+            // Besedilo z dimenzijo na sredini
+            ctx.fillStyle = '#334155';
+            ctx.font = 'bold 18px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${wText} x ${hText} mm`, x + wScaled / 2, y + hScaled / 2);
         }
 
         calculate();
