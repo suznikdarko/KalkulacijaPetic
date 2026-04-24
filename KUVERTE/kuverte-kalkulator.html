@@ -259,14 +259,38 @@
     <div class="container">
         <!-- GLAVA Z VNOSI -->
         <div class="header-panel">
-            <div class="header-group" style="grid-column: span 2;">
+            <div class="header-group" style="grid-column: span 2; position: relative;">
                 <label for="calc-project-name">Projekt / Ime ponudbe</label>
-                <input type="text" id="calc-project-name" placeholder="Vnesite ime ponudbe">
+                <div style="display: flex; gap: 0.2rem;">
+                    <input type="text" id="calc-project-name" placeholder="Vnesite ime ponudbe" style="flex: 1;">
+                    <button onclick="toggleProjectsDropdown()"
+                        style="width: auto; background: #64748b; border: none; border-radius: 8px; color: white; cursor: pointer; padding: 0 10px; font-size: 0.8rem; font-weight: bold;">MOJI
+                        PROJEKTI ▼</button>
+                </div>
+                <div id="projects-dropdown-list"
+                    style="display: none; position: absolute; top: 100%; right: 0; width: 400px; background: #0f172a; border: 1px solid #3b82f6; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 1000; max-height: 400px; overflow-y: auto;">
+                    <div
+                        style="padding: 10px; background: #1e293b; position: sticky; top: 0; border-bottom: 1px solid #3b82f6; z-index: 2;">
+                        <input type="text" id="project-search-input" placeholder="Išči po imenu ali stranki..."
+                            style="width: 100%; padding: 6px; border-radius: 4px; border: none; font-size: 0.9rem;"
+                            oninput="renderSavedProjects()">
+                    </div>
+                    <div id="projects-list-content"></div>
+                </div>
             </div>
 
-            <div class="header-group" style="grid-column: span 2;">
+            <div class="header-group" style="grid-column: span 2; position: relative;">
                 <label for="calc-customer">Stranka</label>
-                <input type="text" id="calc-customer" placeholder="Ime stranke">
+                <div style="display: flex; gap: 0.2rem;">
+                    <input type="text" id="calc-customer" list="customer-list" placeholder="Ime stranke"
+                        style="flex: 1;">
+                    <button onclick="toggleCustomerDropdown()"
+                        style="width: 35px; background: #3b82f6; border: none; border-radius: 8px; color: white; cursor: pointer;">▼</button>
+                </div>
+                <datalist id="customer-list"></datalist>
+                <div id="cust-dropdown-list"
+                    style="display: none; position: absolute; top: 100%; right: 0; width: 250px; background: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 1000; max-height: 300px; overflow-y: auto;">
+                </div>
             </div>
 
             <div class="header-group" style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -328,7 +352,7 @@
                         <option value="B4">B4 (Flat: 353x500 mm)</option>
                     </select>
                 </div>
-                <div style="flex: 1;">
+                <div style="flex: 2;">
                     <label>Dimenzije (ŠxV mm)</label>
                     <div style="display: flex; gap: 0.4rem; align-items: center;">
                         <input type="number" id="width" value="229" onchange="calculate()">
@@ -336,16 +360,11 @@
                         <input type="number" id="height" value="162" onchange="calculate()">
                     </div>
                 </div>
-                <div style="flex: 1;">
-                    <label>Naklada (kos)</label>
-                    <input type="number" id="quantity" value="1000" onchange="calculate()">
-                </div>
             </div>
 
             <div class="header-group">
-                <label>Stroj (Vedno S4)</label>
-                <input type="text" value="Heidelberg S4 (B2)" disabled
-                    style="background: rgba(15,23,42,0.9); border-color: #475569;">
+                <label>Stroj</label>
+                <input type="text" value="S4" disabled style="background: rgba(15,23,42,0.9); border-color: #475569;">
             </div>
 
             <div class="header-group" style="display: flex; align-items: flex-end;">
@@ -356,7 +375,7 @@
         <!-- VISUAL PANEL -->
         <div class="panel results">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h2>Izkoristek na B2 Poli</h2>
+                <h2>Izkoristek na B3 Poli</h2>
                 <div id="quick-stats" style="color: var(--text-muted); font-size: 0.9rem;">
                     Na polo: <strong id="res-count-mini" style="color: var(--accent-color);">-</strong> |
                     Izkoristek: <strong id="res-usage-mini" style="color: var(--accent-color);">-</strong>
@@ -376,7 +395,7 @@
                 </div>
                 <div class="stat-card">
                     <div class="value" id="res-sheets-needed">0</div>
-                    <div class="label">Potrebno pol (B2)</div>
+                    <div class="label">Potrebno pol (B3)</div>
                 </div>
                 <div class="stat-card">
                     <div class="value" id="res-price-per-item">0.000 €</div>
@@ -505,6 +524,9 @@
             <button class="calculate-btn" onclick="calculate()"
                 style="margin: 0; width: auto; background: #10b981; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">✨
                 Osveži Izračun</button>
+            <button class="calculate-btn" onclick="saveCurrentProject()"
+                style="margin: 0; width: auto; background: #8b5cf6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">💾
+                V Arhiv</button>
             <button class="calculate-btn" onclick="printQuote()"
                 style="margin: 0; width: auto; background: #3b82f6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">🖨️
                 Natisni Ponudbo</button>
@@ -690,7 +712,7 @@
             setTimeout(() => { printWindow.print(); }, 500);
         }
 
-        const sheetB2 = { w: 698, h: 498, name: "B2" };
+        const sheetB3 = { w: 498, h: 348, name: "B3" };
         const gripper = 10;
         const bleed = 2;
 
@@ -731,7 +753,10 @@
             const heightInput = parseFloat(document.getElementById('height').value);
             const w = widthInput + (2 * bleed);
             const h = heightInput + (2 * bleed);
-            const q = parseFloat(document.getElementById('quantity').value);
+
+            const qStr = document.getElementById('calc-quantities').value || "1000";
+            const qList = qStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
+            const q = qList.length > 0 ? qList[0] : 1000;
 
             // Samodejna prilagoditev hitrosti
             const speedInput = document.getElementById('calc-machine-speed');
@@ -744,13 +769,13 @@
                 }
             }
 
-            let layout = optimizeLayout(sheetB2.w, sheetB2.h, w, h, gripper);
+            let layout = optimizeLayout(sheetB3.w, sheetB3.h, w, h, gripper);
             if (!layout) {
-                alert("Format je prevelik za B2 polo!");
+                alert("Format je prevelik za B3 polo!");
                 return;
             }
 
-            const usage = (layout.count * w * h) / (sheetB2.w * sheetB2.h);
+            const usage = (layout.count * w * h) / (sheetB3.w * sheetB3.h);
             const sheetsNeeded = Math.ceil(q / layout.count);
 
             document.getElementById('res-count').innerText = layout.count;
@@ -760,7 +785,7 @@
             document.getElementById('res-sheets-needed').innerText = sheetsNeeded;
             document.getElementById('sticky-qty').innerText = q;
 
-            drawCanvas(sheetB2.w, sheetB2.h, layout);
+            drawCanvas(sheetB3.w, sheetB3.h, layout);
             calculatePrice();
         }
 
@@ -886,6 +911,276 @@
         }
 
         calculate();
+
+        // --- ARHIV IN STRANKE ---
+        var STORAGE_KEY = 'kuverte_kalkulator_arhiv';
+
+        function toggleCustomerDropdown() {
+            var list = document.getElementById('cust-dropdown-list');
+            if (list.style.display === 'block') {
+                list.style.display = 'none';
+            } else {
+                renderCustomerList();
+                list.style.display = 'block';
+            }
+        }
+
+        function renderCustomerList() {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY);
+                var arhiv = [];
+                if (raw) arhiv = JSON.parse(raw);
+                var customers = [];
+                for (var i = 0; i < arhiv.length; i++) {
+                    var p = arhiv[i];
+                    if (p && p.customer) {
+                        var c = p.customer.trim();
+                        if (c && customers.indexOf(c) === -1) customers.push(c);
+                    }
+                }
+                customers.sort();
+
+                var listDiv = document.getElementById('cust-dropdown-list');
+                if (!listDiv) return;
+                listDiv.innerHTML = "";
+
+                if (customers.length === 0) {
+                    listDiv.innerHTML = '<div style="padding: 10px; color: #94a3b8; font-size: 0.8rem;">Arhiv strank je prazen.</div>';
+                    return;
+                }
+
+                for (var j = 0; j < customers.length; j++) {
+                    var item = document.createElement('div');
+                    item.style.padding = "8px 12px";
+                    item.style.cursor = "pointer";
+                    item.style.borderBottom = "1px solid #334155";
+                    item.style.fontSize = "0.9rem";
+                    item.innerText = customers[j];
+                    item.onclick = (function (name) {
+                        return function () {
+                            document.getElementById('calc-customer').value = name;
+                            document.getElementById('cust-dropdown-list').style.display = 'none';
+                            handleCustomerUpdate(name);
+                        };
+                    })(customers[j]);
+                    item.onmouseover = function () { this.style.background = "#334155"; };
+                    item.onmouseout = function () { this.style.background = "transparent"; };
+                    listDiv.appendChild(item);
+                }
+            } catch (e) { console.error("Napaka renderCustomerList: " + e.message); }
+        }
+
+        function updateCustomerDatalist() {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY);
+                var arhiv = raw ? JSON.parse(raw) : [];
+                var customers = [];
+                for (var i = 0; i < arhiv.length; i++) {
+                    if (arhiv[i].customer && customers.indexOf(arhiv[i].customer.trim()) === -1) {
+                        customers.push(arhiv[i].customer.trim());
+                    }
+                }
+                customers.sort();
+
+                var dl = document.getElementById('customer-list');
+                if (dl) {
+                    dl.innerHTML = "";
+                    for (var j = 0; j < customers.length; j++) {
+                        var opt = document.createElement('option');
+                        opt.value = customers[j];
+                        dl.appendChild(opt);
+                    }
+                }
+                renderCustomerList();
+            } catch (e) { }
+        }
+
+        function handleCustomerUpdate(val) {
+            try {
+                if (!val) return;
+                var search = val.trim().toLowerCase();
+                var raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                var arhiv = JSON.parse(raw);
+                for (var i = 0; i < arhiv.length; i++) {
+                    var p = arhiv[i];
+                    if (p.customer && p.customer.trim().toLowerCase() === search) {
+                        if (p.materialCode && p.materialCode.trim().length > 1) {
+                            var target = document.getElementById('calc-material-code');
+                            if (target && (!target.value || target.value.indexOf("npr.") !== -1)) {
+                                target.value = p.materialCode;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (e) { }
+        }
+
+        document.getElementById('calc-customer').addEventListener('input', function (e) { handleCustomerUpdate(e.target.value); });
+
+        function saveCurrentProject() {
+            let name = document.getElementById('calc-project-name').value.trim();
+            if (!name) { alert("Prosimo vnesite ime projekta!"); return; }
+
+            const data = {
+                id: Date.now(),
+                name: name,
+                date: new Date().toLocaleString('sl-SI'),
+                customer: document.getElementById('calc-customer').value,
+                custAddress: document.getElementById('calc-cust-address').value,
+                deliveryAddress: document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : "",
+                custEmail: document.getElementById('calc-cust-email').value,
+                quoteNum: document.getElementById('calc-quote-number').value,
+                customerCode: document.getElementById('calc-customer-code').value,
+                preparedBy: document.getElementById('calc-prepared-by').value,
+                materialCode: document.getElementById('calc-material-code').value,
+                inputs: {
+                    item_w: document.getElementById('width').value,
+                    item_h: document.getElementById('height').value,
+                    envelopePreset: document.getElementById('envelope-preset').value,
+                    quantities: document.getElementById('calc-quantities').value,
+                    qtyOrdered: document.getElementById('calc-qty-ordered').value,
+                    mPrice: document.getElementById('calc-material-price').value,
+                    packaging: document.getElementById('calc-packaging').value,
+                    margin: document.getElementById('calc-margin').value,
+                    colorsFront: document.getElementById('calc-colors-front').value,
+                    colorsBack: document.getElementById('calc-colors-back').value,
+                    mRate: document.getElementById('calc-machine-rate').value,
+                    mSpeed: document.getElementById('calc-machine-speed').value,
+                    plateDod: document.getElementById('calc-plate-price').value,
+                    persCount: document.getElementById('calc-personalization').value,
+                    manualWork: document.getElementById('calc-manual-work').value
+                },
+                results: {
+                    total: document.getElementById('sticky-price-total-bottom').innerText,
+                    perItem: document.getElementById('sticky-price-per-item').innerText,
+                    sheets: document.getElementById('res-sheets-needed').innerText
+                }
+            };
+
+            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            arhiv.push(data);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
+
+            document.getElementById('calc-project-name').value = "";
+            renderSavedProjects();
+            updateCustomerDatalist();
+            alert("Projekt '" + name + "' je shranjen v arhiv!");
+        }
+
+        function loadProjectData(proj) {
+            if (!proj || !proj.inputs) return;
+            const inp = proj.inputs;
+
+            document.getElementById('calc-customer').value = proj.customer || "";
+            document.getElementById('calc-cust-address').value = proj.custAddress || "";
+            if (document.getElementById('calc-delivery-address')) document.getElementById('calc-delivery-address').value = proj.deliveryAddress || "";
+            document.getElementById('calc-cust-email').value = proj.custEmail || "";
+            document.getElementById('calc-quote-number').value = proj.quoteNum || "";
+            document.getElementById('calc-customer-code').value = proj.customerCode || "";
+            if (proj.preparedBy) document.getElementById('calc-prepared-by').value = proj.preparedBy;
+            document.getElementById('calc-material-code').value = proj.materialCode || "";
+
+            document.getElementById('width').value = inp.item_w || 230;
+            document.getElementById('height').value = inp.item_h || 110;
+            document.getElementById('envelope-preset').value = inp.envelopePreset || "custom";
+            document.getElementById('calc-quantities').value = inp.quantities || "1000";
+            document.getElementById('calc-qty-ordered').value = inp.qtyOrdered || "0";
+            document.getElementById('calc-material-price').value = inp.mPrice || "25.00";
+            document.getElementById('calc-packaging').value = inp.packaging || "500";
+            document.getElementById('calc-margin').value = inp.margin || "0";
+            document.getElementById('calc-colors-front').value = inp.colorsFront || "0";
+            document.getElementById('calc-colors-back').value = inp.colorsBack || "0";
+            document.getElementById('calc-machine-rate').value = inp.mRate || "120";
+            document.getElementById('calc-machine-speed').value = inp.mSpeed || "10000";
+            document.getElementById('calc-plate-price').value = inp.plateDod || "10";
+            document.getElementById('calc-personalization').value = inp.persCount || "0";
+            document.getElementById('calc-manual-work').value = inp.manualWork || "0";
+
+            if (proj.name) document.getElementById('calc-project-name').value = proj.name;
+
+            calculate();
+        }
+
+        function toggleProjectsDropdown() {
+            const list = document.getElementById('projects-dropdown-list');
+            if (list.style.display === 'block') {
+                list.style.display = 'none';
+            } else {
+                renderSavedProjects();
+                list.style.display = 'block';
+                const clist = document.getElementById('cust-dropdown-list');
+                if (clist) clist.style.display = 'none';
+            }
+        }
+
+        function renderSavedProjects() {
+            const listContent = document.getElementById('projects-list-content');
+            if (!listContent) return;
+
+            const searchInput = document.getElementById('project-search-input');
+            const filter = searchInput ? searchInput.value.toLowerCase().trim() : "";
+
+            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            if (arhiv.length === 0) {
+                listContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem;">Arhiv je prazen.</div>';
+                return;
+            }
+
+            arhiv.sort((a, b) => b.id - a.id);
+            let filtered = filter ? arhiv.filter(proj => {
+                const name = (proj.name || "").toLowerCase();
+                const customer = (proj.customer || "").toLowerCase();
+                return name.includes(filter) || customer.includes(filter);
+            }) : arhiv;
+
+            if (filtered.length === 0) {
+                listContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem;">Ni zadetkov.</div>';
+                return;
+            }
+
+            let html = "";
+            filtered.forEach(proj => {
+                const custDisplay = proj.customer ? `<div style="font-size: 0.7rem; color: #6ee7b7;">${proj.customer}</div>` : "";
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                        <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProject(${proj.id}); toggleProjectsDropdown();">
+                            <div style="font-weight: bold; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
+                                ${proj.name}
+                            </div>
+                            ${custDisplay}
+                            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${proj.date} | ${proj.results ? proj.results.total : '-'}</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; margin-left: 10px;">
+                             <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 1rem;" title="Briši">✕</button>
+                        </div>
+                    </div>`;
+            });
+            listContent.innerHTML = html;
+        }
+
+        function loadProject(id) {
+            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            let proj = arhiv.find(p => p.id === id);
+            if (!proj) return;
+            loadProjectData(proj);
+            alert("Projekt '" + proj.name + "' je uspešno naložen!");
+        }
+
+        function deleteProject(id) {
+            if (!confirm("Ali ste prepričani, da želite izbrisati ta projekt?")) return;
+            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            arhiv = arhiv.filter(p => p.id !== id);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
+            renderSavedProjects();
+            updateCustomerDatalist();
+        }
+
+        window.onload = function () {
+            updateCustomerDatalist();
+            calculate();
+        };
     </script>
 </body>
 
