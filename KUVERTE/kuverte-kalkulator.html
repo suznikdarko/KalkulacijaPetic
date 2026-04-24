@@ -507,17 +507,13 @@
         }
 
         function optimizeLayout(sheetW, sheetH, itemW, itemH, grip) {
-            // Very simplified optimization for B2
-            let cols1 = Math.floor((sheetW - grip) / itemW);
-            let rows1 = Math.floor(sheetH / itemH);
-            let count1 = cols1 * rows1;
-
-            let cols2 = Math.floor((sheetW - grip) / itemH);
-            let rows2 = Math.floor(sheetH / itemW);
-            let count2 = cols2 * rows2;
-
-            if (count1 >= count2 && count1 > 0) return { count: count1, cols: cols1, rows: rows1, itemW, itemH };
-            if (count2 > count1) return { count: count2, cols: cols2, rows: rows2, itemW: itemH, itemH: itemW };
+            // Kuverte se tiskajo posamezno (1 na tiskovni prehod)
+            if (itemW <= sheetW && itemH <= sheetH) {
+                return { count: 1, cols: 1, rows: 1, itemW, itemH };
+            }
+            if (itemH <= sheetW && itemW <= sheetH) {
+                return { count: 1, cols: 1, rows: 1, itemW: itemH, itemH: itemW };
+            }
             return null;
         }
 
@@ -608,15 +604,26 @@
             ctx.fillStyle = 'rgba(239, 68, 68, 0.1)';
             ctx.fillRect(0, 0, gripper * scale, canvas.height);
 
-            // Items
+            // Item (samo 1 kuverta, centrirana na preostali prostor)
             ctx.fillStyle = 'rgba(245, 158, 11, 0.3)';
             ctx.strokeStyle = '#d97706';
-            for (let r = 0; r < layout.rows; r++) {
-                for (let c = 0; c < layout.cols; c++) {
-                    ctx.fillRect((gripper + c * layout.itemW) * scale, (r * layout.itemH) * scale, layout.itemW * scale, layout.itemH * scale);
-                    ctx.strokeRect((gripper + c * layout.itemW) * scale, (r * layout.itemH) * scale, layout.itemW * scale, layout.itemH * scale);
-                }
-            }
+            ctx.lineWidth = 2;
+
+            const availableW = canvas.width - (gripper * scale);
+            const x = (gripper * scale) + (availableW - (layout.itemW * scale)) / 2;
+            const y = (canvas.height - (layout.itemH * scale)) / 2;
+
+            ctx.fillRect(x, y, layout.itemW * scale, layout.itemH * scale);
+            ctx.strokeRect(x, y, layout.itemW * scale, layout.itemH * scale);
+
+            // Dimenzije
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 16px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const wText = Math.round(layout.itemW - 2 * bleed);
+            const hText = Math.round(layout.itemH - 2 * bleed);
+            ctx.fillText(`${wText} x ${hText}`, x + layout.itemW * scale / 2, y + layout.itemH * scale / 2);
         }
 
         calculate();
