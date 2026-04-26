@@ -45,12 +45,12 @@
 
         .container {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+            grid-template-columns: minmax(0, 1fr) 350px minmax(0, 1.2fr);
             grid-template-areas:
-                "header header"
-                "visual calc";
+                "header header header"
+                "visual spec calc";
             gap: 1rem;
-            max-width: 1600px;
+            max-width: 1800px;
             width: 100%;
             margin: 0 auto;
         }
@@ -86,10 +86,32 @@
             grid-area: calc;
         }
 
+        .details-panel {
+            grid-area: spec;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            overflow-y: auto;
+            max-height: 85vh;
+        }
+
+        @media (max-width: 1400px) {
+            .container {
+                grid-template-columns: 1fr 1fr;
+                grid-template-areas:
+                    "header header"
+                    "visual spec"
+                    "calc calc";
+            }
+        }
+
         @media (max-width: 1100px) {
             .container {
                 grid-template-columns: 1fr;
-                grid-template-areas: "header" "visual" "calc";
+                grid-template-areas: "header" "visual" "spec" "calc";
             }
         }
 
@@ -404,6 +426,24 @@
             </div>
         </div>
 
+        <!-- DETAILS PANEL -->
+        <div class="panel details-panel">
+            <h2 style="margin-bottom: 1rem;">Podrobna Specifikacija</h2>
+            <div id="detailed-spec-container">
+                <h3
+                    style="margin: 0 0 1rem 0; font-size: 1.1rem; color: var(--accent-color); display: flex; align-items: center; gap: 0.5rem;">
+                    📋 Faze dela
+                </h3>
+                <div id="detailed-spec-content"
+                    style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.9rem; text-align: left;">
+                    <!-- Vsebina se generira v JS -->
+                    <div style="color: var(--text-muted); text-align: center; padding: 20px;">
+                        Pritisnite "Izračunaj" za prikaz specifikacije.
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- CALCULATION PANEL -->
         <div class="panel calculation">
             <h2>Specifikacije in Kalkulacija Kuvert</h2>
@@ -459,6 +499,11 @@
                     <div class="form-group">
                         <label>Dodatna plošča (€/kos) [Base: 25€ + dod.]</label>
                         <input type="number" id="calc-plate-price" value="10.00" onchange="calculatePrice()">
+                    </div>
+                    <div class="form-group">
+                        <label>Menjava barve (€) [vsi < 4 barve]</label>
+                                <input type="number" id="calc-color-change-price" value="20.00"
+                                    onchange="calculatePrice()">
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                         <div class="form-group">
@@ -569,28 +614,14 @@
             const manualWork = parseFloat(document.getElementById('calc-manual-work').value) || 0;
             const margin = parseFloat(document.getElementById('calc-margin').value) || 0;
             const totalColors = parseFloat(cFront) + parseFloat(cBack);
-
             let priceRowsHTML = '';
             qList.forEach(q => {
-                const totalQ = q + qo;
-                const materialCost = (totalQ / 1000) * mPrice;
-                let platesCost = 0;
-                if (totalColors > 0) platesCost = 25 + (totalColors - 1) * plateDod;
-                let printCost = 0;
-                if (mSpeed > 0) printCost = (totalQ / mSpeed) * mRate;
-                const persCost = persCount * 0.03;
-                let manualCost = 0;
-                if (manualWork > 0) manualCost = (totalQ / manualWork) * 20;
-
-                const totalBase = materialCost + platesCost + printCost + persCost + manualCost;
-                const finalTotal = totalBase * (1 + margin / 100);
-                const pricePerItem = finalTotal / q;
-
+                const res = calculateForSingleQty(q);
                 priceRowsHTML += `
                     <tr>
                         <td style="font-weight: bold;">${q.toLocaleString('sl-SI')} kos</td>
-                        <td>${pricePerItem.toFixed(4).replace('.', ',')} €</td>
-                        <td style="font-weight: bold; text-align: right;">${finalTotal.toFixed(2).replace('.', ',')} €</td>
+                        <td>${res.pricePerItem.toFixed(4).replace('.', ',')} €</td>
+                        <td style="font-weight: bold; text-align: right;">${res.finalTotal.toFixed(2).replace('.', ',')} €</td>
                     </tr>
                 `;
             });
@@ -716,6 +747,149 @@
         const gripper = 10;
         const bleed = 2;
 
+        function formatPrice(val, decimals = 2) {
+            return val.toFixed(decimals).replace('.', ',') + " €";
+        }
+
+        function calculateForSingleQty(q) {
+            const qo = parseFloat(document.getElementById('calc-qty-ordered').value) || 0;
+            const mPrice = parseFloat(document.getElementById('calc-material-price').value) || 0;
+            const cFront = parseFloat(document.getElementById('calc-colors-front').value) || 0;
+            const cBack = parseFloat(document.getElementById('calc-colors-back').value) || 0;
+            const mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 120;
+            const mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 10000;
+            const plateDod = parseFloat(document.getElementById('calc-plate-price').value) || 10;
+            const changePriceBase = parseFloat(document.getElementById('calc-color-change-price').value) || 20;
+
+            const persCount = parseFloat(document.getElementById('calc-personalization').value) || 0;
+            const manualWork = parseFloat(document.getElementById('calc-manual-work').value) || 0;
+            const margin = parseFloat(document.getElementById('calc-margin').value) || 0;
+
+            const totalQ = q + qo;
+            const materialCost = (totalQ / 1000) * mPrice;
+
+            const totalColors = cFront + cBack;
+            let platesCost = 0;
+            if (totalColors > 0) {
+                platesCost = 25 + (totalColors - 1) * plateDod;
+            }
+
+            // Menjava barve logic
+            let colorChangeCost = 0;
+            let changesFront = 0;
+            let changesBack = 0;
+            if (cFront > 1 && cFront < 4) {
+                changesFront = cFront - 1;
+                colorChangeCost += changesFront * changePriceBase;
+            }
+            if (cBack > 1 && cBack < 4) {
+                changesBack = cBack - 1;
+                colorChangeCost += changesBack * changePriceBase;
+            }
+
+            let printCost = 0;
+            if (mSpeed > 0) {
+                printCost = (totalQ / mSpeed) * mRate;
+            }
+
+            const persCost = persCount * 0.03;
+            let manualCost = 0;
+            if (manualWork > 0) {
+                manualCost = (totalQ / manualWork) * 20;
+            }
+            const additionalCost = persCost + manualCost;
+
+            const totalBase = materialCost + platesCost + colorChangeCost + printCost + additionalCost;
+            const finalTotal = totalBase * (1 + margin / 100);
+            const pricePerItem = finalTotal / q;
+
+            return {
+                qty: q,
+                totalQ,
+                materialCost,
+                platesCost,
+                colorChangeCost,
+                printCost,
+                additionalCost,
+                totalBase,
+                finalTotal,
+                pricePerItem,
+                details: {
+                    material: { cost: materialCost, q: totalQ },
+                    plates: { cost: platesCost, count: totalColors },
+                    colorChange: { cost: colorChangeCost, changesFront, changesBack, priceBase: changePriceBase },
+                    print: { cost: printCost, speed: mSpeed, rate: mRate },
+                    additional: { cost: additionalCost, persCost, manualCost },
+                    margin: { percent: margin, amount: finalTotal - totalBase }
+                }
+            };
+        }
+
+        function renderDetailedSpec(details) {
+            const content = document.getElementById('detailed-spec-content');
+            if (!content) return;
+
+            let html = `
+                <div style="padding: 10px; background: rgba(59, 130, 246, 0.05); border-radius: 8px;">
+                    <div style="font-weight: bold; color: #60a5fa; margin-bottom: 5px;">1. Material</div>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                        <span>Osnova (${details.material.q.toLocaleString()} kos):</span> <span>${formatPrice(details.material.cost)}</span>
+                    </div>
+                </div>
+
+                <div style="padding: 10px; background: rgba(167, 139, 250, 0.05); border-radius: 8px;">
+                    <div style="font-weight: bold; color: #a78bfa; margin-bottom: 5px;">2. Plošče</div>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                        <span>Plošče (${details.plates.count} kos):</span> <span>${formatPrice(details.plates.cost)}</span>
+                    </div>
+                </div>
+
+                ${details.colorChange.cost > 0 ? `
+                <div style="padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 8px;">
+                    <div style="font-weight: bold; color: #f59e0b; margin-bottom: 5px;">3. Menjava Barve</div>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                        ${details.colorChange.changesFront > 0 ? `<span>Lice (${details.colorChange.changesFront}x):</span> <span>${formatPrice(details.colorChange.changesFront * details.colorChange.priceBase)}</span>` : ''}
+                        ${details.colorChange.changesBack > 0 ? `<span>Hrbet (${details.colorChange.changesBack}x):</span> <span>${formatPrice(details.colorChange.changesBack * details.colorChange.priceBase)}</span>` : ''}
+                        <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
+                        <span style="font-style: italic;">Skupaj menjava:</span> <span style="font-weight: bold;">${formatPrice(details.colorChange.cost)}</span>
+                    </div>
+                </div>
+                ` : ''}
+
+                <div style="padding: 10px; background: rgba(16, 185, 129, 0.05); border-radius: 8px;">
+                    <div style="font-weight: bold; color: #10b981; margin-bottom: 5px;">4. Tisk</div>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                        <span>Strojno delo:</span> <span>${formatPrice(details.print.cost)}</span>
+                        <small style="grid-column: 1/-1; color: #94a3b8;">Hitrost: ${details.print.speed} kos/h | Urna post.: ${details.print.rate}€/h</small>
+                    </div>
+                </div>
+
+                ${details.additional.cost > 0 ? `
+                <div style="padding: 10px; background: rgba(236, 72, 153, 0.05); border-radius: 8px;">
+                    <div style="font-weight: bold; color: #ec4899; margin-bottom: 5px;">5. Dodatno / Dodelava</div>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                        ${details.additional.persCost > 0 ? `<span>Personalizacija:</span> <span>${formatPrice(details.additional.persCost)}</span>` : ''}
+                        ${details.additional.manualCost > 0 ? `<span>Ročno delo:</span> <span>${formatPrice(details.additional.manualCost)}</span>` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${details.margin.amount > 0 ? `
+                <div style="padding: 10px; border-top: 1px dashed rgba(255,255,255,0.1); margin-top: 5px;">
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                        <span>Pribitek / Marža (${details.margin.percent}%):</span> <span>${formatPrice(details.margin.amount)}</span>
+                    </div>
+                </div>
+                ` : ''}
+
+                <div style="padding: 10px; border-top: 2px solid #10b981; margin-top: 5px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 1rem; font-weight: bold; color: #10b981;">SKUPAJ (brez DDV):</span>
+                    <span style="font-size: 1.25rem; font-weight: 800; color: #10b981;">${formatPrice(details.finalTotal)}</span>
+                </div>
+            `;
+            content.innerHTML = html;
+        }
+
         const envelopePresets = {
             'Amerikanka_LO': { w: 230, h: 110 },
             'Amerikanka_DO': { w: 230, h: 110 },
@@ -794,83 +968,34 @@
             const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
             if (qList.length === 0) qList.push(1000);
 
-            const qo = parseFloat(document.getElementById('calc-qty-ordered').value) || 0;
-            const mPrice = parseFloat(document.getElementById('calc-material-price').value) || 0;
-            const cFront = parseFloat(document.getElementById('calc-colors-front').value) || 0;
-            const cBack = parseFloat(document.getElementById('calc-colors-back').value) || 0;
-            const totalColors = cFront + cBack;
-
-            const mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 120;
-            const mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 10000;
-            const plateDod = parseFloat(document.getElementById('calc-plate-price').value) || 10;
-
-            const persCount = parseFloat(document.getElementById('calc-personalization').value) || 0;
-            const manualWork = parseFloat(document.getElementById('calc-manual-work').value) || 0;
-            const margin = parseFloat(document.getElementById('calc-margin').value) || 0;
-
             let tbodyHtml = '';
-            let firstTotal = 0;
-            let firstQ = qList[0];
+            let firstResult = null;
 
             qList.forEach((q, index) => {
-                const totalQ = q + qo;
-
-                // 1. Material
-                const materialCost = (totalQ / 1000) * mPrice;
-
-                // 2. Plošče
-                let platesCost = 0;
-                if (totalColors > 0) {
-                    platesCost = 25 + (totalColors - 1) * plateDod;
-                }
-
-                // 3. Tisk
-                let printCost = 0;
-                if (mSpeed > 0) {
-                    printCost = (totalQ / mSpeed) * mRate;
-                }
-
-                // 4. Dodatno
-                const persCost = persCount * 0.03;
-                let manualCost = 0;
-                if (manualWork > 0) {
-                    manualCost = (totalQ / manualWork) * 20; // 20€/h
-                }
-                const additionalCost = persCost + manualCost;
-
-                // Skupaj
-                const totalBase = materialCost + platesCost + printCost + additionalCost;
-                const finalTotal = totalBase * (1 + margin / 100);
-                const pricePerItem = finalTotal / q;
-
-                if (index === 0) {
-                    firstTotal = finalTotal;
-                }
+                const res = calculateForSingleQty(q);
+                if (index === 0) firstResult = res;
 
                 tbodyHtml += `
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
                         <td style="padding: 0.5rem; text-align: left; font-weight: bold; color: var(--item-color-blue);">${q.toLocaleString()}</td>
-                        <td style="padding: 0.5rem;">${materialCost.toFixed(2)} €</td>
-                        <td style="padding: 0.5rem;">${platesCost.toFixed(2)} €</td>
-                        <td style="padding: 0.5rem;">${printCost.toFixed(2)} €</td>
-                        <td style="padding: 0.5rem;">${additionalCost.toFixed(2)} €</td>
-                        <td style="padding: 0.5rem; font-weight: bold; color: var(--accent-color);">${finalTotal.toFixed(2)} €</td>
-                        <td style="padding: 0.5rem; color: #10b981; font-weight: bold;">${pricePerItem.toFixed(4)} €</td>
+                        <td style="padding: 0.5rem;">${res.materialCost.toFixed(2)} €</td>
+                        <td style="padding: 0.5rem;">${res.platesCost.toFixed(2)} €</td>
+                        <td style="padding: 0.5rem;">${(res.printCost + res.colorChangeCost).toFixed(2)} €</td>
+                        <td style="padding: 0.5rem;">${res.additionalCost.toFixed(2)} €</td>
+                        <td style="padding: 0.5rem; font-weight: bold; color: var(--accent-color);">${res.finalTotal.toFixed(2)} €</td>
+                        <td style="padding: 0.5rem; color: #10b981; font-weight: bold;">${res.pricePerItem.toFixed(4)} €</td>
                     </tr>
                 `;
             });
 
             document.getElementById('results-tbody').innerHTML = tbodyHtml;
 
-            // Update sticky footer with the first quantity
-            document.getElementById('sticky-qty').innerText = firstQ.toLocaleString();
-            document.getElementById('sticky-price-total-bottom').innerText = firstTotal.toFixed(2) + " €";
-            document.getElementById('sticky-price-per-item').innerText = (firstTotal / firstQ).toFixed(4) + " €";
-
-            // Sync with header quantity so the layout continues to display correctly
-            const headerQ = document.getElementById('quantity');
-            if (headerQ && parseFloat(headerQ.value) !== firstQ) {
-                headerQ.value = firstQ;
+            if (firstResult) {
+                renderDetailedSpec(firstResult.details);
+                // Update sticky footer
+                document.getElementById('sticky-qty').innerText = firstResult.qty.toLocaleString();
+                document.getElementById('sticky-price-total-bottom').innerText = firstResult.finalTotal.toFixed(2) + " €";
+                document.getElementById('sticky-price-per-item').innerText = firstResult.pricePerItem.toFixed(4) + " €";
             }
         }
 
@@ -1099,6 +1224,7 @@
                     mRate: document.getElementById('calc-machine-rate').value,
                     mSpeed: document.getElementById('calc-machine-speed').value,
                     plateDod: document.getElementById('calc-plate-price').value,
+                    colorChangePrice: document.getElementById('calc-color-change-price').value,
                     persCount: document.getElementById('calc-personalization').value,
                     manualWork: document.getElementById('calc-manual-work').value
                 },
@@ -1145,6 +1271,7 @@
             document.getElementById('calc-machine-rate').value = inp.mRate || "120";
             document.getElementById('calc-machine-speed').value = inp.mSpeed || "10000";
             document.getElementById('calc-plate-price').value = inp.plateDod || "10";
+            if (inp.colorChangePrice) document.getElementById('calc-color-change-price').value = inp.colorChangePrice;
             document.getElementById('calc-personalization').value = inp.persCount || "0";
             document.getElementById('calc-manual-work').value = inp.manualWork || "0";
 
