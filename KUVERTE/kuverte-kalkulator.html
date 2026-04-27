@@ -785,9 +785,13 @@
             const materialCost = (totalQ / 1000) * mPrice;
 
             const totalColors = cFront + cBack;
+            // Izračun plošč: (št.barv × cena plošče) + 25€ priprava + ((št.barv - 1) × cena plošče)
             let platesCost = 0;
             if (totalColors > 0) {
-                platesCost = 25 + (totalColors - 1) * plateDod;
+              const platesPrice = totalColors * plateDod;      // Cena vseh plošč (npr. 4 × 10€ = 40€)
+              const prepPrice = 25;                             // Priprava tiska (25€)
+              const changePrice = (totalColors - 1) * plateDod; // Menjava plošč po ceni plošče (npr. 3 × 10€ = 30€)
+              platesCost = platesPrice + prepPrice + changePrice;
             }
 
             // Menjava barve logic
@@ -830,10 +834,7 @@
                 totalBase,
                 finalTotal,
                 pricePerItem,
-                details: {
-                    material: { cost: materialCost, q: totalQ },
-                    plates: { cost: platesCost, count: totalColors },
-                    colorChange: { cost: colorChangeCost, changesFront, changesBack, priceBase: changePriceBase },
+                details: { material: { cost: materialCost, q: totalQ }, plates: { cost: platesCost, count: totalColors, platesPrice: totalColors * plateDod, prepPrice: 25, changePrice: totalColors > 0 ? (totalColors - 1) * plateDod : 0, plateDod: plateDod }, colorChange: { cost: colorChangeCost, changesFront, changesBack, priceBase: changePriceBase },
                     print: { cost: printCost, speed: mSpeed, rate: mRate },
                     additional: { cost: additionalCost, persCost, manualCost },
                     margin: { percent: margin, amount: finalTotal - totalBase }
@@ -854,9 +855,13 @@
                 </div>
 
                 <div style="padding: 10px; background: rgba(167, 139, 250, 0.05); border-radius: 8px;">
-                    <div style="font-weight: bold; color: #a78bfa; margin-bottom: 5px;">2. Plošče</div>
-                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                        <span>Plošče (${details.plates.count} kos):</span> <span>${formatPrice(details.plates.cost)}</span>
+                  <div style="font-weight: bold; color: #a78bfa; margin-bottom: 5px;">2. Priprava in Plošče</div>
+                  <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                    <span>Plošče (${details.plates.count} kos × ${formatPrice(details.plates.plateDod, 2).replace(' €', '')}):</span> <span>${formatPrice(details.plates.platesPrice)}</span>
+                    <span>Priprava tiska:</span> <span>${formatPrice(details.plates.prepPrice)}</span>
+                    ${details.plates.changePrice > 0 ? `<span>Menjava plošč (${details.plates.count > 1 ? details.plates.count - 1 : 0}x po ${formatPrice(details.plates.plateDod, 2).replace(' €', '')}):</span> <span>${formatPrice(details.plates.changePrice)}</span>` : ''}
+                    <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
+                    <span style="font-weight: bold;">Skupaj priprava in plošče:</span> <span style="font-weight: bold ;">${formatPrice(details.plates.cost)}</span>
                     </div>
                 </div>
 
