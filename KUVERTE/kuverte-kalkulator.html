@@ -439,12 +439,11 @@
                     style="margin: 0 0 1rem 0; font-size: 1.1rem; color: var(--accent-color); display: flex; align-items: center; gap: 0.5rem;">
                     📋 Faze dela
                 </h3>
-                <div id="detailed-spec-content"
-                    style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.9rem; text-align: left;">
-                    <!-- Vsebina se generira v JS -->
-                    <div style="color: var(--text-muted); text-align: center; padding: 20px;">
-                        Pritisnite "Izračunaj" za prikaz specifikacije.
-                    </div>
+                <div id="detailed-spec-content" style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.9rem; text-align: left;">
+                  <!-- Vsebina se generira v JS -->
+                  <div style="color: var(--text-muted); text-align: center; padding: 20px;">
+                    Izračun bo prikazan tukaj...
+                  </div>
                 </div>
             </div>
         </div>
@@ -888,28 +887,29 @@
             };
         }
 
-        function renderDetailedSpec(details) {
-            const content = document.getElementById('detailed-spec-content');
-            if (!content) return;
-
-            let html = `
-                <div style="padding: 10px; background: rgba(59, 130, 246, 0.05); border-radius: 8px;">
-                    <div style="font-weight: bold; color: #60a5fa; margin-bottom: 5px;">1. Material</div>
-                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                        <span>Osnova (${details.material.q.toLocaleString()} kos):</span> <span>${formatPrice(details.material.cost)}</span>
-                    </div>
-                </div>
-
-                <div style="padding: 10px; background: rgba(167, 139, 250, 0.05); border-radius: 8px;">
-                  <div style="font-weight: bold; color: #a78bfa; margin-bottom: 5px;">2. Priprava in Plošče</div>
-                  <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                    <span>Plošče (${details.plates.count} kos × ${formatPrice(details.plates.plateDod, 2).replace(' €', '')}):</span> <span>${formatPrice(details.plates.platesPrice)}</span>
-                    <span>Priprava tiska:</span> <span>${formatPrice(details.plates.prepPrice)}</span>
-                    ${details.plates.colorChangePrice > 0 ? `<span>Menjava barve (${details.plates.count > 1 ? details.plates.count - 1 : 0}x po ${formatPrice(details.plates.changePriceBase, 2).replace(' €', '')}):</span> <span>${formatPrice(details.plates.colorChangePrice)}</span>` : ''}
-                    <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
-                    <span style="font-weight: bold;">Skupaj priprava in plošče:</span> <span style="font-weight: bold ;">${formatPrice(details.plates.cost)}</span>
-                    </div>
-                </div>
+        function renderDetailedSpec(details, q) {
+          const content = document.getElementById('detailed-spec-content');
+          if (!content) return;
+  
+          let html = `
+            <div style="padding: 10px; background: rgba(59, 130, 246, 0.05); border-radius: 8px;">
+              <div style="font-weight: bold; color: #60a5fa; margin-bottom: 5px;">1. Material</div>
+              <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                <span>Osnova (${details.material.q.toLocaleString()} kos × ${(details.material.cost / details.material.q * 1000).toFixed(4)}€/1000):</span> <span>${formatPrice(details.material.cost)}</span>
+              </div>
+            </div>
+    
+            <div style="padding: 10px; background: rgba(167, 139, 250, 0.05); border-radius: 8px;">
+              <div style="font-weight: bold; color: #a78bfa; margin-bottom: 5px;">2. Priprava in Plošče</div>
+              <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                <span>Plošče (${details.plates.plateCount} kos × ${formatPrice(details.plates.plateDod, 2).replace(' €', '')}):</span> <span>${formatPrice(details.plates.platesPrice)}</span>
+                <span>Priprava tiska:</span> <span>${formatPrice(details.plates.prepPrice)}</span>
+                ${details.plates.platesChangeCount > 0 ? `<span>Menjava plošč (${details.plates.platesChangeCount} × ${formatPrice(details.plates.platesChangePrice, 2).replace(' €', '')}):</span> <span>${formatPrice(details.plates.platesChangeCost)}</span>` : ''}
+                ${details.plates.colorChangePrice > 0 ? `<span>Menjava barve (${details.plates.count > 1 ? details.plates.count - 1 : 0} × ${formatPrice(details.plates.changePriceBase, 2).replace(' €', '')}):</span> <span>${formatPrice(details.plates.colorChangePrice)}</span>` : ''}
+                <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
+                <span style="font-weight: bold;">Skupaj priprava in plošče:</span> <span style="font-weight: bold;">${formatPrice(details.plates.cost)}</span>
+              </div>
+            </div>
 
                 ${details.colorChange.cost > 0 ? `
                 <div style="padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 8px;">
@@ -1078,14 +1078,14 @@
             });
 
             document.getElementById('results-tbody').innerHTML = tbodyHtml;
-
-            if (firstResult) {
-                renderDetailedSpec(firstResult.details);
+  
+              if (firstResult) {
+                renderDetailedSpec(firstResult.details, firstResult.qty);
                 // Update sticky footer
                 document.getElementById('sticky-qty').innerText = firstResult.qty.toLocaleString();
                 document.getElementById('sticky-price-total-bottom').innerText = firstResult.finalTotal.toFixed(2) + " €";
                 document.getElementById('sticky-price-per-item').innerText = firstResult.pricePerItem.toFixed(4) + " €";
-            }
+              }
         }
 
         function drawCanvas(sw, sh, layout) {
