@@ -452,9 +452,9 @@
                 <div class="calc-section">
                     <h3>1. Osnovni Podatki</h3>
                     <div class="form-group">
-                        <label>Naklade (loči z vejico za več opcij)</label>
-                        <input type="text" id="calc-quantities" value="1000" onchange="calculatePrice()">
-                    </div>
+                              <label>Naklade (loči z vejico za več opcij)</label>
+                              <input type="text" id="calc-quantities" value="" placeholder="Vnesite naklado (npr. 1000)" onchange="calculatePrice()">
+                            </div>
                     <div class="form-group">
                         <label>Naročene (dodatno tisk)</label>
                         <input type="number" id="calc-qty-ordered" value="0" onchange="calculatePrice()">
@@ -785,26 +785,26 @@
             const materialCost = (totalQ / 1000) * mPrice;
 
             const totalColors = cFront + cBack;
-            // Izračun plošč: (št.barv × cena plošče) + 25€ priprava + ((št.barv - 1) × cena plošče)
+            // Izračun plošč: (št.barv × cena plošče) + 25€ priprava + če(<4 barve: (št.barv-1) × menjava barve)
             let platesCost = 0;
-            if (totalColors > 0) {
-              const platesPrice = totalColors * plateDod;      // Cena vseh plošč (npr. 4 × 10€ = 40€)
-              const prepPrice = 25;                             // Priprava tiska (25€)
-              const changePrice = (totalColors - 1) * plateDod; // Menjava plošč po ceni plošče (npr. 3 × 10€ = 30€)
-              platesCost = platesPrice + prepPrice + changePrice;
-            }
-
-            // Menjava barve logic
             let colorChangeCost = 0;
+            if (totalColors > 0) {
+              const platesPrice = totalColors * plateDod;       // Cena vseh plošč (št.barv × 10€)
+              const prepPrice = 25;                              // Priprava tiska (25€)
+              // Menjava barve SAMO če je manj kot 4 barve
+              if (totalColors < 4) {
+                colorChangeCost = (totalColors - 1) * changePriceBase; // (št.barv-1) × 20€
+              }
+              platesCost = platesPrice + prepPrice + colorChangeCost;
+            }
+            // Posamezne menjave za prikaz (za specifikacijo)
             let changesFront = 0;
             let changesBack = 0;
             if (cFront > 1 && cFront < 4) {
-                changesFront = cFront - 1;
-                colorChangeCost += changesFront * changePriceBase;
+              changesFront = cFront - 1;
             }
             if (cBack > 1 && cBack < 4) {
-                changesBack = cBack - 1;
-                colorChangeCost += changesBack * changePriceBase;
+              changesBack = cBack - 1;
             }
 
             let printCost = 0;
@@ -834,7 +834,7 @@
                 totalBase,
                 finalTotal,
                 pricePerItem,
-                details: { material: { cost: materialCost, q: totalQ }, plates: { cost: platesCost, count: totalColors, platesPrice: totalColors * plateDod, prepPrice: 25, changePrice: totalColors > 0 ? (totalColors - 1) * plateDod : 0, plateDod: plateDod }, colorChange: { cost: colorChangeCost, changesFront, changesBack, priceBase: changePriceBase },
+                details: { material: { cost: materialCost, q: totalQ }, plates: { cost: platesCost, count: totalColors, platesPrice: totalColors * plateDod, prepPrice: 25, colorChangePrice: totalColors > 0 && totalColors < 4 ? (totalColors - 1) * changePriceBase : 0, plateDod: plateDod, changePriceBase: changePriceBase }, colorChange: { cost: 0, changesFront, changesBack, priceBase: changePriceBase },
                     print: { cost: printCost, speed: mSpeed, rate: mRate },
                     additional: { cost: additionalCost, persCost, manualCost },
                     margin: { percent: margin, amount: finalTotal - totalBase }
@@ -859,7 +859,7 @@
                   <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
                     <span>Plošče (${details.plates.count} kos × ${formatPrice(details.plates.plateDod, 2).replace(' €', '')}):</span> <span>${formatPrice(details.plates.platesPrice)}</span>
                     <span>Priprava tiska:</span> <span>${formatPrice(details.plates.prepPrice)}</span>
-                    ${details.plates.changePrice > 0 ? `<span>Menjava plošč (${details.plates.count > 1 ? details.plates.count - 1 : 0}x po ${formatPrice(details.plates.plateDod, 2).replace(' €', '')}):</span> <span>${formatPrice(details.plates.changePrice)}</span>` : ''}
+                    ${details.plates.colorChangePrice > 0 ? `<span>Menjava barve (${details.plates.count > 1 ? details.plates.count - 1 : 0}x po ${formatPrice(details.plates.changePriceBase, 2).replace(' €', '')}):</span> <span>${formatPrice(details.plates.colorChangePrice)}</span>` : ''}
                     <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
                     <span style="font-weight: bold;">Skupaj priprava in plošče:</span> <span style="font-weight: bold ;">${formatPrice(details.plates.cost)}</span>
                     </div>
@@ -944,14 +944,28 @@
         }
 
         function calculate() {
-            const widthInput = parseFloat(document.getElementById('width').value);
-            const heightInput = parseFloat(document.getElementById('height').value);
-            const w = widthInput + (2 * bleed);
-            const h = heightInput + (2 * bleed);
-
-            const qStr = document.getElementById('calc-quantities').value || "1000";
-            const qList = qStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
-            const q = qList.length > 0 ? qList[0] : 1000;
+          const widthInput = parseFloat(document.getElementById('width').value);
+          const heightInput = parseFloat(document.getElementById('height').value);
+          const w = widthInput + (2 * bleed);
+          const h = heightInput + (2 * bleed);
+          const qStr = document.getElementById('calc-quantities').value.trim();
+          const qtyInput = document.getElementById('calc-quantities');
+          if (!qStr) {
+            qtyInput.style.animation = 'none';
+            qtyInput.offsetHeight; // trigger reflow
+            qtyInput.style.animation = 'blinkRequired 0.8s ease-in-out 2';
+            qtyInput.focus();
+            return;
+          }
+          const qList = qStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
+          if (qList.length === 0) {
+            qtyInput.style.animation = 'none';
+            qtyInput.offsetHeight; // trigger reflow
+            qtyInput.style.animation = 'blinkRequired 0.8s ease-in-out 2';
+            qtyInput.focus();
+            return;
+          }
+          const q = qList[0];
 
             // Samodejna prilagoditev hitrosti
             const speedInput = document.getElementById('calc-machine-speed');
@@ -985,9 +999,14 @@
         }
 
         function calculatePrice() {
-            const quantitiesStr = document.getElementById('calc-quantities').value || "1000";
-            const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
-            if (qList.length === 0) qList.push(1000);
+          const quantitiesStr = document.getElementById('calc-quantities').value.trim();
+          if (!quantitiesStr) {
+            document.getElementById('results-tbody').innerHTML = '';
+            document.getElementById('detailed-spec-content').innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">Vnesite naklado za prikaz izračuna.</div>';
+            return;
+          }
+          const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
+          if (qList.length === 0) return;
 
             let tbodyHtml = '';
             let firstResult = null;
