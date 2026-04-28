@@ -575,12 +575,20 @@
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                         <div class="form-group">
-                            <label>Personalizacija (št. kos) [0,03€/kos]</label>
-                            <input type="number" id="calc-personalization" value="0" onchange="calculate()">
+                            <label>Personalizacija (št. kos)</label>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" id="calc-use-personalization" onchange="calculate()"
+                                    style="width: 20px; height: 20px; flex-shrink: 0; cursor: pointer;">
+                                <input type="number" id="calc-personalization" value="0" onchange="calculate()">
+                            </div>
                         </div>
                         <div class="form-group">
-                            <label>Ročna dela (kos/h) [20€/h]</label>
-                            <input type="number" id="calc-manual-work" value="0" onchange="calculate()">
+                            <label>Ročna dela (kos/h)</label>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" id="calc-use-manual-work" onchange="calculate()"
+                                    style="width: 20px; height: 20px; flex-shrink: 0; cursor: pointer;">
+                                <input type="number" id="calc-manual-work" value="0" onchange="calculate()">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -834,6 +842,9 @@
             const persCount = parseFloat(document.getElementById('calc-personalization').value) || 0;
             const manualWork = parseFloat(document.getElementById('calc-manual-work').value) || 0;
             const margin = parseFloat(document.getElementById('calc-margin').value) || 0;
+            const usePers = document.getElementById('calc-use-personalization').checked;
+            const useManual = document.getElementById('calc-use-manual-work').checked;
+
 
             const totalQ = q + qo;
             const materialCost = (totalQ / 1000) * mPrice;
@@ -855,9 +866,9 @@
                 printCost = (totalQ / mSpeed) * mRate;
             }
 
-            const persCost = persCount * 0.03;
+            const persCost = usePers ? (persCount * 0.03) : 0;
             let manualCost = 0;
-            if (manualWork > 0) {
+            if (useManual && manualWork > 0) {
                 manualCost = (totalQ / manualWork) * 20;
             }
             const additionalCost = persCost + manualCost;
@@ -1312,7 +1323,9 @@
                     plateCount: document.getElementById('calc-plate-count').value,
                     colorChangePrice: document.getElementById('calc-color-change-price').value,
                     persCount: document.getElementById('calc-personalization').value,
-                    manualWork: document.getElementById('calc-manual-work').value
+                    manualWork: document.getElementById('calc-manual-work').value,
+                    usePers: document.getElementById('calc-use-personalization').checked,
+                    useManual: document.getElementById('calc-use-manual-work').checked
                 },
                 results: {
                     total: document.getElementById('sticky-price-total-bottom').innerText,
@@ -1361,6 +1374,8 @@
             if (inp.colorChangePrice) document.getElementById('calc-color-change-price').value = inp.colorChangePrice;
             document.getElementById('calc-personalization').value = inp.persCount || "0";
             document.getElementById('calc-manual-work').value = inp.manualWork || "0";
+            document.getElementById('calc-use-personalization').checked = inp.usePers || false;
+            document.getElementById('calc-use-manual-work').checked = inp.useManual || false;
 
             if (proj.name) document.getElementById('calc-project-name').value = proj.name;
 
