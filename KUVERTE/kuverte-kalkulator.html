@@ -660,9 +660,9 @@
             <button class="calculate-btn" onclick="saveCurrentProject()"
                 style="margin: 0; width: auto; background: #8b5cf6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">💾
                 V Arhiv</button>
-            <button class="calculate-btn" onclick="printQuote()"
-                style="margin: 0; width: auto; background: #3b82f6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">🖨️
-                Natisni Ponudbo</button>
+            <button class="calculate-btn" onclick="openQuotePreview()"
+                style="margin: 0; width: auto; background: #3b82f6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">📝
+                Ponudba (Print/Word)</button>
         </div>
     </div>
 
@@ -684,32 +684,30 @@
             const cBack = document.getElementById('calc-colors-back').value || "0";
             let printColorStr = cFront + " / " + cBack;
 
-            // Dodelava (Personalizacija)
-            let dodelParts = [];
+            // Dodelava (Personalizacija, Ročna dela) - Only these trigger the "Dodelava" row
+            let finishingParts = [];
+            const usePers = document.getElementById('calc-use-personalization').checked;
             const persCount = parseFloat(document.getElementById('calc-personalization').value) || 0;
-            if (persCount > 0) dodelParts.push('Personalizacija (' + persCount.toLocaleString('sl-SI') + ' kos)');
-            const dodelText = dodelParts.length > 0 ? dodelParts.join(', ') : '/';
+            if (usePers && persCount > 0) finishingParts.push('Personalizacija (' + persCount.toLocaleString('sl-SI') + ' kos)');
 
-            const quantitiesStr = document.getElementById('calc-quantities').value || "1000";
+            const useManual = document.getElementById('calc-use-manual-work').checked;
+            if (useManual) finishingParts.push('Ročna dela');
+
+            const dodelText = finishingParts.length > 0 ? finishingParts.join(', ') : '';
+
+
+            const quantitiesStr = document.getElementById('calc-quantities').value || "";
             const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
             if (qList.length === 0) qList.push(1000);
 
-            const qo = parseFloat(document.getElementById('calc-qty-ordered').value) || 0;
-            const mPrice = parseFloat(document.getElementById('calc-material-price').value) || 0;
-            const mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 120;
-            const mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 10000;
-            const plateDod = parseFloat(document.getElementById('calc-plate-price').value) || 10;
-            const manualWork = parseFloat(document.getElementById('calc-manual-work').value) || 0;
-            const margin = parseFloat(document.getElementById('calc-margin').value) || 0;
-            const totalColors = parseFloat(cFront) + parseFloat(cBack);
             let priceRowsHTML = '';
             qList.forEach(q => {
                 const res = calculateForSingleQty(q);
                 priceRowsHTML += `
                     <tr>
-                        <td style="font-weight: bold;">${q.toLocaleString('sl-SI')} kos</td>
-                        <td>${res.pricePerItem.toFixed(4).replace('.', ',')} €</td>
-                        <td style="font-weight: bold; text-align: right;">${res.finalTotal.toFixed(2).replace('.', ',')} €</td>
+                        <td style="font-weight: bold; border-bottom: 1px solid #eee;">${formatQty(q)} kos</td>
+                        <td style="border-bottom: 1px solid #eee;">${res.pricePerItem.toFixed(4).replace('.', ',')} €</td>
+                        <td style="font-weight: bold; text-align: right; border-bottom: 1px solid #eee;">${res.finalTotal.toFixed(2).replace('.', ',')} €</td>
                     </tr>
                 `;
             });
@@ -722,113 +720,214 @@
                     <meta charset="utf-8">
                     <title>Ponudba - ${projectName}</title>
                     <style>
-                        body { font-family: 'Arial', sans-serif; padding: 40px; color: #000; line-height: 1.2; font-size: 12px; }
-                        .info-table { border-collapse: collapse; margin-left: auto; margin-right: 0; }
-                        .info-table td { padding: 2px 0 2px 15px; text-align: right; }
-                        .info-table td:first-child { font-weight: normal; color: #555; }
-                        .info-table td:last-child { font-weight: bold; }
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; line-height: 1.4; font-size: 12px; background: #fff; }
+                        .header-line { border-bottom: 3px solid #f99c26; margin-bottom: 20px; padding-bottom: 15px; }
+                        .brand-name { color: #f99c26; font-size: 42px; font-weight: 900; font-style: italic; line-height: 0.8; }
+                        .brand-sub { color: #8c8f91; font-size: 24px; font-weight: 300; font-style: italic; margin-bottom: 5px; }
                         
-                        h1 { font-size: 16px; font-weight: bold; margin-top: 15px; margin-bottom: 2px; letter-spacing: 1px; }
-                        .spec-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; }
-                        .spec-table td { padding: 4px 0; vertical-align: top; }
-                        .spec-table .lbl { width: 150px; font-weight: bold; }
+                        .info-grid { display: flex; justify-content: space-between; margin-bottom: 30px; }
+                        .customer-box { width: 50%; }
+                        .meta-box { width: 40%; text-align: right; }
+                        .meta-table { border-collapse: collapse; margin-left: auto; }
+                        .meta-table td { padding: 3px 0 3px 15px; }
+                        .meta-table td:first-child { color: #666; text-transform: uppercase; font-size: 10px; }
+                        .meta-table td:last-child { font-weight: bold; font-size: 13px; }
+
+                        h1 { font-size: 24px; color: #1e293b; margin: 0 0 10px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+                        .spec-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+                        .spec-row { display: flex; margin-bottom: 8px; }
+                        .spec-label { width: 140px; font-weight: bold; color: #64748b; font-size: 11px; text-transform: uppercase; }
+                        .spec-value { flex: 1; font-weight: 600; color: #1e293b; font-size: 13px; }
+
+                        .price-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        .price-table th { background: #1e293b; color: #fff; padding: 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+                        .price-table th:last-child { text-align: right; }
+                        .price-table td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+                        .price-table td:last-child { text-align: right; }
                         
-                        .price-table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 15px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000; }
-                        .price-table th { padding: 6px; border-bottom: 1px solid #000; font-weight: normal; font-size: 11px; text-align: center; }
-                        .price-table td { padding: 8px; }
+                        .footer-notes { margin-top: 40px; font-size: 10px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: justify; }
+                        .signature-section { margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+                        .prepared-by { font-style: italic; color: #1e293b; font-weight: bold; border-top: 1px solid #94a3b8; padding-top: 5px; min-width: 200px; text-align: center; }
                         
-                        .notes { margin-top: 15px; text-align: justify; font-size: 10px; line-height: 1.2; color: #444; }
-                        .signature { margin-top: 15px; font-size: 11px; font-style: italic; }
+                        @media print {
+                            body { padding: 0; }
+                            .no-print { display: none; }
+                        }
                     </style>
                 </head>
                 <body>
-                    <table style="width: 100%; margin-bottom: 20px; border-bottom: 2px solid #f99c26; padding-bottom: 10px;" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td style="width: 32%; vertical-align: top;">
-                                <div style="color: #8c8f91; font-size: 26px; font-weight: 300; font-style: italic; line-height: 0.9;">tiskarna</div>
-                                <div style="color: #f99c26; font-size: 48px; font-weight: 900; font-style: italic; line-height: 0.7; padding-left: 20px;">petrič</div>
-                            </td>
-                            <td style="width: 25%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 10px; color: #8c8f91; font-style: italic;">
-                                <strong>Tiskarna Petrič d.o.o.</strong><br>
-                                Tovarniška cesta 8<br>
-                                3210 Slovenske Konjice<br>
-                                ID za DDV: SI50694014
-                            </td>
-                            <td style="width: 20%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 10px; color: #8c8f91; font-style: italic;">
-                                T: 03 757 25 56<br>
-                                F: 03 757 25 63<br>
-                                Mat. št.: 6889433
-                            </td>
-                            <td style="width: 23%; vertical-align: bottom; border-left: 2px solid #f99c26; padding-left: 15px; padding-bottom: 5px; font-size: 20px; font-weight: bold; color: #f99c26; font-style: italic;">
-                                vse stiska
-                            </td>
-                        </tr>
-                    </table>
-                    <table style="width: 100%; margin-bottom: 10px;" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td style="width: 50%; vertical-align: top;">
-                                <span style="font-size: 14px;"><strong>${customer}</strong></span><br>
-                                ${custAddress ? custAddress.replace(/\\n/g, '<br>') : ''}
-                            </td>
-                            <td style="width: 50%; vertical-align: top;" align="right">
-                                <table class="info-table" cellpadding="0" cellspacing="0">
-                                    <tr><td>Datum</td><td>${date}</td></tr>
-                                    <tr><td>Šifra stranke</td><td>${customerCode}</td></tr>
-                                    <tr><td>Ponudba</td><td>${quoteNum}</td></tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                    <h1>Ponudba</h1>
-                    <p>Zahvaljujemo se Vam za Vaše povpraševanje in Vam ponujamo naslednje:</p>
+                    <div class="header-line">
+                        <table style="width: 100%;">
+                            <tr>
+                                <td style="width: 40%;">
+                                    <div class="brand-sub">tiskarna</div>
+                                    <div class="brand-name" style="padding-left: 15px;">petrič</div>
+                                </td>
+                                <td style="width: 30%; border-left: 1px solid #f99c26; padding-left: 20px; font-size: 10px; color: #64748b;">
+                                    <strong>Tiskarna Petrič d.o.o.</strong><br>
+                                    Tovarniška cesta 8<br>
+                                    3210 Slovenske Konjice<br>
+                                    T: 03 757 25 56 | F: 03 757 25 63
+                                </td>
+                                <td style="width: 30%; border-left: 1px solid #f99c26; padding-left: 20px; font-size: 10px; color: #64748b;">
+                                    ID za DDV: SI50694014<br>
+                                    Mat. št.: 6889433<br>
+                                    E: info@tiskarnapetric.si
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
 
-                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px;" cellpadding="0" cellspacing="0">
+                    <div class="info-grid">
+                        <div class="customer-box">
+                            <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 5px;">Prejemnik:</div>
+                            <div style="font-size: 16px; font-weight: bold; color: #1e293b;">${customer}</div>
+                            <div style="font-size: 13px; color: #475569; margin-top: 5px;">${custAddress ? custAddress.replace(/\\n/g, '<br>') : ''}</div>
+                        </div>
+                        <div class="meta-box">
+                            <table class="meta-table">
+                                <tr><td>Datum:</td><td>${date}</td></tr>
+                                <tr><td>Šifra stranke:</td><td>${customerCode}</td></tr>
+                                <tr><td>Ponudba št.:</td><td>${quoteNum}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <h1>Ponudba za tisk</h1>
+                    <p style="color: #475569; margin-bottom: 20px;">Zahvaljujemo se Vam za povpraševanje. Na podlagi vaših zahtev vam posredujemo naslednjo ponudbo:</p>
+
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;" cellpadding="0" cellspacing="0">
                         <tr>
-                            <td style="width: 15%; vertical-align: top; border-right: 1px solid #ddd; padding-right: 5px;">
-                                <span style="font-size: 8px; color: #555; text-transform: uppercase;">Šifra izdelka:</span><br>
-                                <span style="font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; margin-top: 5px; display: block;">${materialCode}</span>
+                            <td style="width: 15%; vertical-align: top; border-right: 1px solid #e2e8f0; padding-right: 15px;">
+                                <div style="font-size: 9px; color: #64748b; text-transform: uppercase; margin-bottom: 5px;">Šifra izdelka:</div>
+                                <div style="font-size: 16px; font-weight: bold; color: #1e293b; border: 1px solid #e2e8f0; padding: 10px; background: #f8fafc; text-align: center; border-radius: 4px;">${materialCode}</div>
                             </td>
-                            <td style="width: 85%; vertical-align: top; padding-left: 10px;">
-                                <table class="spec-table" style="margin-top: 0; margin-bottom: 0;">
-                                    <tr>
-                                        <td class="lbl" style="width: 90px;">Izdelek:</td><td>${projectName}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="lbl" style="width: 90px;">Format:</td><td>${envType} (${w} x ${h} mm)</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="lbl" style="width: 90px;">Tisk (Lice/Hrbet):</td><td>${printColorStr}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="lbl" style="width: 90px;">Dodel.:</td><td>${dodelText}</td>
-                                    </tr>
-                                </table>
+                            <td style="width: 85%; vertical-align: top; padding-left: 20px;">
+                                <div class="spec-container" style="margin-bottom: 0;">
+                                    <div class="spec-row">
+                                        <div class="spec-label">Projekt:</div>
+                                        <div class="spec-value">${projectName}</div>
+                                    </div>
+                                    <div class="spec-row">
+                                        <div class="spec-label">Format:</div>
+                                        <div class="spec-value">${envType}</div>
+                                    </div>
+                                    <div class="spec-row">
+                                        <div class="spec-label">Tisk:</div>
+                                        <div class="spec-value">${printColorStr} barv</div>
+                                    </div>
+                                    ${finishingParts.length > 0 ? `
+                                    <div class="spec-row">
+                                        <div class="spec-label">Dodelava:</div>
+                                        <div class="spec-value">${dodelText}</div>
+                                    </div>
+                                    ` : ''}
+                                </div>
                             </td>
                         </tr>
                     </table>
+
                     <table class="price-table">
-                        <tr>
-                            <th>Naklada</th>
-                            <th>Cena/Kom.</th>
-                            <th style="text-align: right;">Cena skupno:</th>
-                        </tr>
-                        ${priceRowsHTML}
+                        <thead>
+                            <tr>
+                                <th>Količina (naklada)</th>
+                                <th>Cena na kos</th>
+                                <th>Skupni znesek (brez DDV)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${priceRowsHTML}
+                        </tbody>
                     </table>
-                    <p class="notes">
-                        Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.
-                    </p>
-                    <div class="signature">Kalkulacijo pripravil: ${preparedBy}</div>
+
+                    <div class="footer-notes">
+                        Ponudba velja 30 dni od dneva izdaje. Vse cene so v EUR in ne vključujejo DDV (22%). 
+                        Rok izdelave po dogovoru, običajno 3-5 delovnih dni od potrditve predogleda. 
+                        Rok plačila je 30 dni po prejemu računa, razen če je dogovorjeno drugače. 
+                        Tiskarna Petrič d.o.o. si pridržuje pravico do spremembe cen v primeru bistvenih sprememb cen surovin na trgu.
+                    </div>
+
+                    <div class="signature-section">
+                        <div style="color: #64748b; font-size: 10px;">
+                            Žig podjetja (ni obvezen pri elektronskem pošiljanju)
+                        </div>
+                        <div class="prepared-by">
+                            Kalkulacijo pripravil: ${preparedBy}
+                        </div>
+                    </div>
                 </body>
                 </html>
             `;
         }
 
-        function printQuote() {
-            const printWindow = window.open('', '', 'width=800,height=900');
-            printWindow.document.write(getQuoteHTML());
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => { printWindow.print(); }, 500);
+        function exportToWord() {
+            const html = getQuoteHTML();
+            const projectName = document.getElementById('calc-project-name').value || 'Ponudba';
+            const fileName = projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.doc';
+
+            const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
+                "xmlns:w='urn:schemas-microsoft-com:office:word' " +
+                "xmlns='http://www.w3.org/TR/REC-html40'>" +
+                "<head><meta charset='utf-8'></head><body>";
+            const footer = "</body></html>";
+            const sourceHTML = header + html + footer;
+
+            const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+            const fileDownload = document.createElement("a");
+            document.body.appendChild(fileDownload);
+            fileDownload.href = source;
+            fileDownload.download = fileName;
+            fileDownload.click();
+            document.body.removeChild(fileDownload);
+        }
+
+        function openQuotePreview() {
+            const quoteHTML = getQuoteHTML();
+            const previewWindow = window.open('', '', 'width=900,height=900');
+
+            const toolbarHTML = `
+                <div id="preview-toolbar" style="background: #1e293b; padding: 15px; display: flex; gap: 10px; justify-content: center; position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid #f99c26;">
+                    <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                        <span>🖨️</span> Natisni Ponudbo
+                    </button>
+                    <button id="btn-word" style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                        <span>📝</span> Shrani v Word
+                    </button>
+                    <button onclick="window.close()" style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                        Zapri
+                    </button>
+                </div>
+                <style>
+                    @media print { #preview-toolbar { display: none !important; } body { padding: 0 !important; } }
+                </style>
+            `;
+
+            previewWindow.document.write(toolbarHTML + quoteHTML);
+
+            // Add Word export logic to the new window
+            const script = previewWindow.document.createElement('script');
+            script.text = `
+                document.getElementById('btn-word').onclick = function() {
+                    const content = document.body.innerHTML;
+                    // Remove the toolbar from the content
+                    const cleanContent = content.split('</style>')[1]; 
+                    
+                    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
+                    const footer = "</body></html>";
+                    const sourceHTML = header + cleanContent + footer;
+                    
+                    const blob = new Blob(['\\ufeff', sourceHTML], { type: 'application/msword' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'Ponudba.doc';
+                    link.click();
+                    URL.revokeObjectURL(url);
+                };
+            `;
+            previewWindow.document.body.appendChild(script);
+            previewWindow.document.close();
         }
 
         const sheetB3 = { w: 500, h: 350, name: "B3" };
@@ -933,7 +1032,7 @@
             <div style="padding: 10px; background: rgba(59, 130, 246, 0.05); border-radius: 8px;">
               <div style="font-weight: bold; color: #60a5fa; margin-bottom: 5px;">1. Material</div>
               <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                <span>Osnova (${details.material.q.toLocaleString()} kos × ${(details.material.cost / details.material.q * 1000).toFixed(4)}€/1000):</span> <span>${formatPrice(details.material.cost)}</span>
+                <span>Osnova (${formatQty(details.material.q)} kos × ${(details.material.cost / details.material.q * 1000).toFixed(4)}€/1000):</span> <span>${formatPrice(details.material.cost)}</span>
               </div>
             </div>
     
@@ -1025,6 +1124,10 @@
             return null;
         }
 
+        function formatQty(val) {
+            return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
         function calculate() {
             const widthVal = parseFloat(document.getElementById('width').value) || 0;
             const heightVal = parseFloat(document.getElementById('height').value) || 0;
@@ -1071,8 +1174,8 @@
             document.getElementById('res-count-mini').innerText = layout.count;
             document.getElementById('res-usage').innerText = (usage * 100).toFixed(1) + '%';
             document.getElementById('res-usage-mini').innerText = (usage * 100).toFixed(1) + '%';
-            document.getElementById('res-sheets-needed').innerText = sheetsNeeded;
-            document.getElementById('sticky-qty').innerText = q;
+            document.getElementById('res-sheets-needed').innerText = formatQty(sheetsNeeded);
+            document.getElementById('sticky-qty').innerText = formatQty(q);
 
             drawCanvas(sheetB3.w, sheetB3.h, layout);
             calculatePrice();
@@ -1109,7 +1212,7 @@
 
                 tbodyHtml += `
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <td style="padding: 0.5rem; text-align: left; font-weight: bold; color: var(--item-color-blue);">${q.toLocaleString()}</td>
+                        <td style="padding: 0.5rem; text-align: left; font-weight: bold; color: var(--item-color-blue);">${formatQty(q)}</td>
                         <td style="padding: 0.5rem;">${res.materialCost.toFixed(2)} €</td>
                         <td style="padding: 0.5rem;">${res.platesCost.toFixed(2)} €</td>
                         <td style="padding: 0.5rem;">${(res.printCost + res.colorChangeCost).toFixed(2)} €</td>
@@ -1125,7 +1228,7 @@
             if (firstResult) {
                 renderDetailedSpec(firstResult.details, firstResult.qty);
                 // Update sticky footer
-                document.getElementById('sticky-qty').innerText = firstResult.qty.toLocaleString();
+                document.getElementById('sticky-qty').innerText = formatQty(firstResult.qty);
                 document.getElementById('sticky-price-total-bottom').innerText = firstResult.finalTotal.toFixed(2) + " €";
                 document.getElementById('sticky-price-per-item').innerText = firstResult.pricePerItem.toFixed(4) + " €";
 
