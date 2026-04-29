@@ -657,68 +657,260 @@
             <button class="calculate-btn" onclick="calculate()"
                 style="margin: 0; width: auto; background: #10b981; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">✨
                 Osveži Izračun</button>
+            <button class="calculate-btn" onclick="addToBasket()"
+                style="margin: 0; width: auto; background: #f59e0b; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">🛒
+                Dodaj v Ponudbo</button>
             <button class="calculate-btn" onclick="saveCurrentProject()"
                 style="margin: 0; width: auto; background: #8b5cf6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">💾
                 V Arhiv</button>
-            <button class="calculate-btn" onclick="openQuotePreview()"
+            <button class="calculate-btn" onclick="openQuotePreview()" id="btn-open-quote"
                 style="margin: 0; width: auto; background: #3b82f6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">📝
-                Ponudba (Print/Word)</button>
+                Pripravi Ponudbo <span id="basket-count-badge"
+                    style="background: white; color: #3b82f6; padding: 2px 6px; border-radius: 10px; font-size: 0.75rem; margin-left: 5px; display: none;">0</span></button>
+        </div>
+    </div>
+
+    <!-- Basket Section -->
+    <div id="basket-container" style="display: none; margin: 20px auto; max-width: 1400px; padding: 0 20px;">
+        <div class="card"
+            style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; color: #f99c26; display: flex; align-items: center; gap: 10px;">🛒 Izdelki v
+                    ponudbi</h3>
+                <button onclick="clearBasket()"
+                    style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">Izprazni
+                    vse</button>
+            </div>
+            <div id="basket-items-list" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Items will be injected here -->
+            </div>
         </div>
     </div>
 
     <script>
-        function getQuoteHTML() {
-            const projectName = document.getElementById('calc-project-name').value || 'Tisk Kuvert';
-            const quoteNum = document.getElementById('calc-quote-number').value || '/';
-            const customer = document.getElementById('calc-customer').value || '';
-            const custAddress = document.getElementById('calc-cust-address').value || '';
-            const materialCode = document.getElementById('calc-material-code').value || '/';
-            const customerCode = document.getElementById('calc-customer-code').value || '/';
-            const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
+        let quoteBasket = [];
 
+        function addToBasket() {
+            const projectName = document.getElementById('calc-project-name').value || 'Tisk Kuvert';
+            const materialCode = document.getElementById('calc-material-code').value || '/';
             const w = document.getElementById('width').value;
             const h = document.getElementById('height').value;
             const envType = document.getElementById('envelope-preset').options[document.getElementById('envelope-preset').selectedIndex].text;
-
             const cFront = document.getElementById('calc-colors-front').value || "0";
             const cBack = document.getElementById('calc-colors-back').value || "0";
-            let printColorStr = cFront + " / " + cBack;
+            const quantitiesStr = document.getElementById('calc-quantities').value || "";
+            const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
 
-            // Dodelava (Personalizacija, Ročna dela) - Only these trigger the "Dodelava" row
+            if (qList.length === 0) {
+                alert("Prosimo vnesite vsaj eno količino!");
+                return;
+            }
+
             let finishingParts = [];
             const usePers = document.getElementById('calc-use-personalization').checked;
             const persCount = parseFloat(document.getElementById('calc-personalization').value) || 0;
-            if (usePers && persCount > 0) finishingParts.push('Personalizacija (' + persCount.toLocaleString('sl-SI') + ' kos)');
-
+            if (usePers && persCount > 0) finishingParts.push('Personalizacija (' + formatQty(persCount) + ' kos)');
             const useManual = document.getElementById('calc-use-manual-work').checked;
             if (useManual) finishingParts.push('Ročna dela');
 
-            const dodelText = finishingParts.length > 0 ? finishingParts.join(', ') : '';
+            const item = {
+                id: Date.now(),
+                projectName,
+                materialCode,
+                format: envType,
+                dim: `${w} x ${h} mm`,
+                colors: `${cFront} / ${cBack}`,
+                finishing: finishingParts.join(', '),
+                quantities: qList.map(q => {
+                    const res = calculateForSingleQty(q);
+                    return {
+                        q: q,
+                        pricePerItem: res.pricePerItem,
+                        finalTotal: res.finalTotal
+                    };
+                })
+            };
 
+            quoteBasket.push(item);
+            renderBasket();
 
-            const quantitiesStr = document.getElementById('calc-quantities').value || "";
-            const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
-            if (qList.length === 0) qList.push(1000);
+            // Show toast or alert on the button
+            const btn = document.querySelector('button[onclick="addToBasket()"]');
+            if (btn) {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = "✅ Dodano!";
+                setTimeout(() => { btn.innerHTML = originalText; }, 1500);
+            }
+        }
 
-            let priceRowsHTML = '';
-            qList.forEach(q => {
-                const res = calculateForSingleQty(q);
-                priceRowsHTML += `
-                    <tr>
-                        <td style="font-weight: bold; border-bottom: 1px solid #eee;">${formatQty(q)} kos</td>
-                        <td style="border-bottom: 1px solid #eee;">${res.pricePerItem.toFixed(4).replace('.', ',')} €</td>
-                        <td style="font-weight: bold; text-align: right; border-bottom: 1px solid #eee;">${res.finalTotal.toFixed(2).replace('.', ',')} €</td>
-                    </tr>
+        function removeFromBasket(id) {
+            quoteBasket = quoteBasket.filter(item => item.id !== id);
+            renderBasket();
+        }
+
+        function clearBasket() {
+            if (confirm("Ali ste prepričani, da želite izprazniti celotno ponudbo?")) {
+                quoteBasket = [];
+                renderBasket();
+            }
+        }
+
+        function renderBasket() {
+            const container = document.getElementById('basket-container');
+            const list = document.getElementById('basket-items-list');
+            const badge = document.getElementById('basket-count-badge');
+
+            if (quoteBasket.length === 0) {
+                container.style.display = 'none';
+                badge.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'block';
+            badge.style.display = 'inline-block';
+            badge.innerText = quoteBasket.length;
+
+            let html = "";
+            quoteBasket.forEach(item => {
+                html += `
+                    <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: center;">
+                        <div>
+                            <div style="font-weight: bold; color: #f8fafc; font-size: 0.95rem;">${item.projectName} <span style="font-weight: normal; color: #94a3b8; font-size: 0.8rem; margin-left: 10px;">[${item.materialCode}]</span></div>
+                            <div style="font-size: 0.8rem; color: #cbd5e1; margin-top: 3px;">
+                                ${item.format} | ${item.colors} barv ${item.finishing ? ' | ' + item.finishing : ''}
+                            </div>
+                            <div style="display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;">
+                                ${item.quantities.map(q => `<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${formatQty(q.q)} kos</span>`).join('')}
+                            </div>
+                        </div>
+                        <button onclick="removeFromBasket(${item.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.2rem; padding: 5px;" title="Odstrani">✕</button>
+                    </div>
                 `;
             });
+            list.innerHTML = html;
+        }
 
+        function getQuoteHTML() {
+            const quoteNum = document.getElementById('calc-quote-number').value || '/';
+            const customer = document.getElementById('calc-customer').value || '';
+            const custAddress = document.getElementById('calc-cust-address').value || '';
+            const customerCode = document.getElementById('calc-customer-code').value || '/';
+            const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
             const date = new Date().toLocaleDateString('sl-SI');
+
+            // Glavno ime projekta za naslov dokumenta
+            let mainProjectTitle = document.getElementById('calc-project-name').value || 'Tisk Kuvert';
+
+            let itemsToRender = [];
+
+            if (quoteBasket.length > 0) {
+                itemsToRender = quoteBasket;
+                if (quoteBasket.length > 1) {
+                    mainProjectTitle = "Skupna ponudba (" + quoteBasket.length + " pozicij)";
+                } else {
+                    mainProjectTitle = quoteBasket[0].projectName;
+                }
+            } else {
+                // Če je košarica prazna, vzamemo trenutne podatke s platna
+                const projectName = document.getElementById('calc-project-name').value || 'Tisk Kuvert';
+                const materialCode = document.getElementById('calc-material-code').value || '/';
+                const w = document.getElementById('width').value;
+                const h = document.getElementById('height').value;
+                const envType = document.getElementById('envelope-preset').options[document.getElementById('envelope-preset').selectedIndex].text;
+                const cFront = document.getElementById('calc-colors-front').value || "0";
+                const cBack = document.getElementById('calc-colors-back').value || "0";
+                const quantitiesStr = document.getElementById('calc-quantities').value || "";
+                const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
+                if (qList.length === 0) qList.push(1000);
+
+                let finishingParts = [];
+                const usePers = document.getElementById('calc-use-personalization').checked;
+                const persCount = parseFloat(document.getElementById('calc-personalization').value) || 0;
+                if (usePers && persCount > 0) finishingParts.push('Personalizacija (' + formatQty(persCount) + ' kos)');
+                const useManual = document.getElementById('calc-use-manual-work').checked;
+                if (useManual) finishingParts.push('Ročna dela');
+
+                itemsToRender.push({
+                    projectName,
+                    materialCode,
+                    format: envType,
+                    dim: `${w} x ${h} mm`,
+                    colors: `${cFront} / ${cBack}`,
+                    finishing: finishingParts.join(', '),
+                    quantities: qList.map(q => {
+                        const res = calculateForSingleQty(q);
+                        return { q, pricePerItem: res.pricePerItem, finalTotal: res.finalTotal };
+                    })
+                });
+            }
+
+            let allItemsHTML = '';
+            itemsToRender.forEach((item, idx) => {
+                let priceRowsHTML = '';
+                item.quantities.forEach(q => {
+                    priceRowsHTML += `
+                        <tr>
+                            <td style="font-weight: bold; border-bottom: 1px solid #eee;">${formatQty(q.q)} kos</td>
+                            <td style="border-bottom: 1px solid #eee;">${q.pricePerItem.toFixed(4).replace('.', ',')} €</td>
+                            <td style="font-weight: bold; text-align: right; border-bottom: 1px solid #eee;">${q.finalTotal.toFixed(2).replace('.', ',')} €</td>
+                        </tr>
+                    `;
+                });
+
+                allItemsHTML += `
+                    <div style="margin-bottom: 30px; ${idx < itemsToRender.length - 1 ? 'border-bottom: 2px dashed #e2e8f0; padding-bottom: 30px;' : ''}">
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="width: 15%; vertical-align: top; border-right: 1px solid #e2e8f0; padding-right: 15px;">
+                                    <div style="font-size: 9px; color: #64748b; text-transform: uppercase; margin-bottom: 5px;">Šifra izdelka:</div>
+                                    <div style="font-size: 16px; font-weight: bold; color: #1e293b; border: 1px solid #e2e8f0; padding: 10px; background: #f8fafc; text-align: center; border-radius: 4px;">${item.materialCode}</div>
+                                </td>
+                                <td style="width: 85%; vertical-align: top; padding-left: 20px;">
+                                    <div class="spec-container" style="margin-bottom: 0;">
+                                        <div class="spec-row">
+                                            <div class="spec-label">Projekt:</div>
+                                            <div class="spec-value">${item.projectName}</div>
+                                        </div>
+                                        <div class="spec-row">
+                                            <div class="spec-label">Format:</div>
+                                            <div class="spec-value">${item.format}</div>
+                                        </div>
+                                        <div class="spec-row">
+                                            <div class="spec-label">Tisk:</div>
+                                            <div class="spec-value">${item.colors} barv</div>
+                                        </div>
+                                        ${item.finishing ? `
+                                        <div class="spec-row">
+                                            <div class="spec-label">Dodelava:</div>
+                                            <div class="spec-value">${item.finishing}</div>
+                                        </div>
+                                        ` : ''}
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <table class="price-table">
+                            <thead>
+                                <tr>
+                                    <th>Količina (naklada)</th>
+                                    <th>Cena na kos</th>
+                                    <th style="text-align: right;">Skupni znesek (brez DDV)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${priceRowsHTML}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            });
 
             return `
                 <html>
                 <head>
                     <meta charset="utf-8">
-                    <title>Ponudba - ${projectName}</title>
+                    <title>Ponudba - ${mainProjectTitle}</title>
                     <style>
                         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; line-height: 1.4; font-size: 12px; background: #fff; }
                         .header-line { border-bottom: 3px solid #f99c26; margin-bottom: 20px; padding-bottom: 15px; }
@@ -796,49 +988,8 @@
                     <h1>Ponudba za tisk</h1>
                     <p style="color: #475569; margin-bottom: 20px;">Zahvaljujemo se Vam za povpraševanje. Na podlagi vaših zahtev vam posredujemo naslednjo ponudbo:</p>
 
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td style="width: 15%; vertical-align: top; border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                                <div style="font-size: 9px; color: #64748b; text-transform: uppercase; margin-bottom: 5px;">Šifra izdelka:</div>
-                                <div style="font-size: 16px; font-weight: bold; color: #1e293b; border: 1px solid #e2e8f0; padding: 10px; background: #f8fafc; text-align: center; border-radius: 4px;">${materialCode}</div>
-                            </td>
-                            <td style="width: 85%; vertical-align: top; padding-left: 20px;">
-                                <div class="spec-container" style="margin-bottom: 0;">
-                                    <div class="spec-row">
-                                        <div class="spec-label">Projekt:</div>
-                                        <div class="spec-value">${projectName}</div>
-                                    </div>
-                                    <div class="spec-row">
-                                        <div class="spec-label">Format:</div>
-                                        <div class="spec-value">${envType}</div>
-                                    </div>
-                                    <div class="spec-row">
-                                        <div class="spec-label">Tisk:</div>
-                                        <div class="spec-value">${printColorStr} barv</div>
-                                    </div>
-                                    ${finishingParts.length > 0 ? `
-                                    <div class="spec-row">
-                                        <div class="spec-label">Dodelava:</div>
-                                        <div class="spec-value">${dodelText}</div>
-                                    </div>
-                                    ` : ''}
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
+                    ${allItemsHTML}
 
-                    <table class="price-table">
-                        <thead>
-                            <tr>
-                                <th>Količina (naklada)</th>
-                                <th>Cena na kos</th>
-                                <th>Skupni znesek (brez DDV)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${priceRowsHTML}
-                        </tbody>
-                    </table>
 
                     <div class="footer-notes">
                         Ponudba velja 30 dni od dneva izdaje. Vse cene so v EUR in ne vključujejo DDV (22%). 
