@@ -671,6 +671,25 @@
                 <!-- Vsebina se generira v JS -->
             </div>
 
+            <!-- KOŠARICA ZA VEČ ELEMENTOV (Prestali iz vizualizacije v specifikacijo za boljšo vidnost) -->
+            <div id="basket-container" style="display: none; margin-bottom: 2rem; background: rgba(30, 41, 59, 0.5); border: 1px solid var(--glass-border); border-radius: 12px; overflow: hidden;">
+                <div style="padding: 10px 15px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa;">🛒 KOŠARICA ZA PONUDBO</h3>
+                    <button onclick="clearBasket()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.7rem;">Počisti</button>
+                </div>
+                <div id="basket-items-list" style="padding: 10px; max-height: 400px; overflow-y: auto;">
+                    <!-- Items here -->
+                </div>
+                <div style="padding: 10px; background: rgba(15, 23, 42, 0.4); display: flex; gap: 8px; border-top: 1px solid var(--glass-border);">
+                    <button onclick="printQuote()" style="flex: 1; background: #3b82f6; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                        🖨️ PONUDBA
+                    </button>
+                    <button onclick="exportQuoteWord()" style="flex: 1; background: #2b5797; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                        📄 WORD
+                    </button>
+                </div>
+            </div>
+
             <div id="detailed-spec-container" style="display: none;">
                 <h3
                     style="margin: 0 0 1rem 0; font-size: 1.1rem; color: var(--accent-color); display: flex; align-items: center; gap: 0.5rem;">
@@ -1059,14 +1078,132 @@
                 </div>
             </div>
 
-            <!-- DODATNO OKNO ZA ROČNO POSTAVITEV IN NJEN IZRAČUN -->
-            <div id="manual-price-list"
-                style="display: none; background: rgba(30, 64, 175, 0.2); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem; border: 1px solid rgba(59, 130, 246, 0.3);">
-            </div>
+
         </div>
     </div>
 
     <script>
+        let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
+        renderBasket();
+
+        // Osveževanje košarice med zavihki
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'petric_quote_basket') {
+                quoteBasket = JSON.parse(e.newValue) || [];
+                renderBasket();
+            }
+        });
+
+        function addToBasket() {
+            try {
+                // Prepričaj se, da je izračun posodobljen
+                calculate();
+
+                const projectName = document.getElementById('calc-project-name').value || 'Brez imena';
+                const qtyStr = document.getElementById('quantity').value || '0';
+                const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+                
+                if (qtyArr.length === 0) {
+                    alert("Prosimo vnesite vsaj eno naklado.");
+                    return;
+                }
+
+                // Pripravimo podatke za vsako naklado
+                const results = [];
+                qtyArr.forEach(q => {
+                    const res = calculateForSingleQty(q);
+                    if (res) results.push(res);
+                });
+
+                if (results.length === 0) {
+                    alert("Napaka pri izračunu cen. Preverite vnose.");
+                    return;
+                }
+
+                const basketItem = {
+                    id: Date.now(),
+                    type: 'Tiskovna pola',
+                    name: projectName,
+                    customer: document.getElementById('calc-customer').value || '',
+                    materialCode: document.getElementById('calc-material-code').value || '/',
+                    spec: {
+                        format: document.getElementById('width').value + ' x ' + document.getElementById('height').value + ' mm',
+                        paper: document.getElementById('calc-paper-weight').value + 'g ' + (document.getElementById('calc-paper-type').value || ''),
+                        colors: document.getElementById('calc-color-front').value + '/' + document.getElementById('calc-color-back').value + (document.getElementById('calc-is-obrat').checked ? ' (OB)' : '')
+                    },
+                    quantities: results.map(r => ({
+                        qty: r.qty,
+                        priceTotal: r.totalPrice,
+                        pricePerUnit: r.perItemFinal
+                    }))
+                };
+
+                quoteBasket.push(basketItem);
+                localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+                renderBasket();
+                
+                // Povratna informacija uporabniku
+                const btn = document.querySelector('button[onclick="addToBasket()"]');
+                if (btn) {
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = "✅ DODANO";
+                    setTimeout(() => { btn.innerHTML = originalText; }, 1500);
+                } else {
+                    alert("Dodano v košarico!");
+                }
+            } catch (e) {
+                console.error("addToBasket error:", e);
+                alert("Napaka pri dodajanju v košarico: " + e.message);
+            }
+        }
+
+        function removeFromBasket(id) {
+            quoteBasket = quoteBasket.filter(item => item.id !== id);
+            localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+            renderBasket();
+        }
+
+        function clearBasket() {
+            if (confirm("Izbrišem vse elemente iz košarice?")) {
+                quoteBasket = [];
+                localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+                renderBasket();
+            }
+        }
+
+        function renderBasket() {
+            try {
+                const container = document.getElementById('basket-items-list');
+                const basketContainer = document.getElementById('basket-container');
+                if (!container || !basketContainer) return;
+                
+                if (!quoteBasket || quoteBasket.length === 0) {
+                    container.innerHTML = '<div style="padding: 10px; color: #94a3b8; font-size: 0.8rem; text-align: center;">Košarica je prazna.</div>';
+                    basketContainer.style.display = 'none';
+                    return;
+                }
+
+                basketContainer.style.display = 'block';
+                container.innerHTML = quoteBasket.map(item => {
+                    if (!item || !item.spec || !item.quantities) return '';
+                    return `
+                    <div style="padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-start; border-left: 3px solid #3b82f6;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: bold; color: white; font-size: 0.9rem;">${item.name}</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8;">${item.type} | ${item.spec.format}</div>
+                            <div style="margin-top: 4px;">
+                                ${item.quantities.map(q => `<span style="font-size: 0.7rem; background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 5px; border-radius: 4px; margin-right: 4px;">${formatQty(q.qty)}: ${formatPrice(q.priceTotal)}</span>`).join('')}
+                            </div>
+                        </div>
+                        <button onclick="removeFromBasket(${item.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 5px; font-size: 1rem;">✕</button>
+                    </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("renderBasket error:", e);
+            }
+        }
+
         window.onerror = function (msg, url, lineNo, columnNo, error) {
             console.error("ERROR:", msg, "at line", lineNo);
             return false;
@@ -2700,308 +2837,228 @@
 
         // --- TISKANJE PONUDBE ---
         function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false) {
-            const projectName = document.getElementById('calc-project-name').value || 'Tiskovina';
+            const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
+            const date = new Date().toLocaleDateString('sl-SI');
             const quoteNum = document.getElementById('calc-quote-number').value || '/';
-            const docTitle = isInternal ? "Montažni list / Delovni nalog" : "Ponudba";
             const customer = document.getElementById('calc-customer').value || '';
+            const customerCode = document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : '/';
             const custAddress = document.getElementById('calc-cust-address').value || '';
             const deliveryAddress = document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '';
             const custEmail = document.getElementById('calc-cust-email').value || '';
-            const materialCode = document.getElementById('calc-material-code').value || '/';
-            const customerCode = document.getElementById('calc-customer-code').value || '/';
-            const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
 
-            const w = document.getElementById('width').value;
-            const h = document.getElementById('height').value;
-            const bleed = document.getElementById('bleed').value;
-            const qty = document.getElementById('quantity').value;
-            const sheetSize = document.getElementById('res-size').innerText;
-            const sheetName = document.getElementById('res-sheet').innerText;
-            const machineFormat = document.getElementById('machine-format').value;
-            const paperWeight = document.getElementById('calc-paper-weight').value;
-            const paperType = document.getElementById('calc-paper-type').value || '';
+            // Če imamo košarico in ne tiskamo internega dokumenta, tiskamo vse elemente
+            let itemsToPrint = [];
+            if (!isInternal && quoteBasket.length > 0) {
+                itemsToPrint = quoteBasket;
+            } else {
+                // Če je košarica prazna ali tiskamo interno, vzamemo trenutni izračun
+                const projectName = document.getElementById('calc-project-name').value || 'Tiskovina';
+                const qtyStr = document.getElementById('quantity').value || '0';
+                const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+                
+                const results = [];
+                qtyArr.forEach(q => results.push(calculateForSingleQty(q)));
 
-            const front = document.getElementById('calc-color-front').value;
-            const back = document.getElementById('calc-color-back').value;
-            const isObrat = document.getElementById('calc-is-obrat').checked;
-            const mutType = document.getElementById('calc-mut-type') ? document.getElementById('calc-mut-type').value : '';
-            const mutPlates = document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : '0';
-
-            let printColorStr = front + "/" + (isObrat ? back + " (OB)" : back);
-            if (front === "4" && back === "0") printColorStr += " – color";
-            else if (front === "4" && back === "4") printColorStr += " – obojestransko color";
-
-            // Dodelava string
-            let dodelParts = [];
-            if (document.getElementById('f-cilinder-active').checked) dodelParts.push('Cilinder/Izsek');
-            if (document.getElementById('f-zgibanje-active').checked) dodelParts.push('Zgibanje (' + document.getElementById('f-zgibanje-folds').value + 'x)');
-            if (document.getElementById('f-sivanje-active').checked) dodelParts.push('Šivanje');
-            if (document.getElementById('f-lepljenje-active').checked) dodelParts.push('Lepljenje');
-            if (document.getElementById('f-lam-active').checked) {
-                const lType = document.getElementById('f-lam-type').value;
-                const lSides = document.getElementById('f-lam-sides').value === '2' ? 'obojestransko' : 'enostransko';
-                dodelParts.push('Plastifikacija ' + lType + ' ' + lSides);
-            }
-            if (document.getElementById('f-uv-active').checked) dodelParts.push('UV lak');
-            if (document.getElementById('f-delivery-active').checked) {
-                const dKm = parseFloat(document.getElementById('f-delivery-km').value) || 0;
-                const dFixed = parseFloat(document.getElementById('f-delivery-fixed').value) || 0;
-                if (dKm > 0) dodelParts.push('Dostava (' + dKm + ' km)');
-                else if (dFixed > 0) dodelParts.push('Dostava');
-                else dodelParts.push('Dostava');
-            }
-
-            const dodelText = dodelParts.length > 0 ? dodelParts.join(', ') : '/';
-
-            const qStr = document.getElementById('quantity').value || "0";
-            const qArr = qStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
-
-            let priceRowsHTML = '';
-            qArr.forEach(q => {
-                const r = calculateForSingleQty(q);
-                priceRowsHTML += `
-                        <tr>
-                            <td style="font-weight: bold;">${formatQty(r.qty)} kos</td>
-                            <td>${formatPrice(r.perItemFinal, 3)}</td>
-                            <td style="font-weight: bold; text-align: right;">${formatPrice(r.totalPrice, 2)}</td>
-                        </tr>
-                    `;
-            });
-
-            const date = new Date().toLocaleDateString('sl-SI');
-
-            let dimensionDisplay = `${w} x ${h} mm (+${bleed} mm bleed)`;
-            let totalItemsCountStr = '';
-            let internalPriceBreakdownHTML = '';
-
-            if (g_manualLayout) {
-                const countsByDim = {};
-                g_manualLayout.items.forEach(it => {
-                    const key = `${it.w - 2 * it.bleed} x ${it.h - 2 * it.bleed}`;
-                    countsByDim[key] = (countsByDim[key] || 0) + 1;
-                });
-
-                const q_val = qArr.length > 0 ? qArr[0] : 0;
-                const r_ref = calculateForSingleQty(q_val);
-                const sheetsNeeded = r_ref.sheetsNeeded;
-
-                dimensionDisplay = Object.entries(countsByDim).map(([dim, count]) => `${count}x ${dim} mm`).join('<br>');
-                if (bleed > 0) dimensionDisplay += `<br>(+${bleed} mm bleed)`;
-
-                totalItemsCountStr = Object.entries(countsByDim).map(([dim, count]) => {
-                    const total = count * sheetsNeeded;
-                    return `<strong>Skupaj (${dim}):</strong> ${formatQty(total)} kos`;
-                }).join('<br>');
-
-                if (r_ref.itemBreakdown) {
-                    internalPriceBreakdownHTML = `<div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
-                            <strong style="font-size: 11px;">PRERAČUN CENE PO DIMENZIJAH:</strong><br>` +
-                        r_ref.itemBreakdown.map(ib => `
-                                <div style="font-size: 10px; margin-top: 4px;">
-                                    ${ib.dim}: <strong>${formatPrice(ib.perItem, 3)}/kos</strong> (${formatPrice(ib.per1000, 2)}/1.000)
-                                </div>
-                            `).join('') + `</div>`;
-                }
+                itemsToPrint = [{
+                    name: projectName,
+                    type: 'Tiskovna pola',
+                    customer: customer,
+                    materialCode: document.getElementById('calc-material-code').value,
+                    spec: {
+                        format: document.getElementById('width').value + ' x ' + document.getElementById('height').value + ' mm',
+                        paper: document.getElementById('calc-paper-weight').value + 'g ' + (document.getElementById('calc-paper-type').value || ''),
+                        colors: document.getElementById('calc-color-front').value + '/' + document.getElementById('calc-color-back').value + (document.getElementById('calc-is-obrat').checked ? ' (OB)' : '')
+                    },
+                    quantities: results.map(r => ({
+                        qty: r.qty,
+                        priceTotal: r.totalPrice,
+                        pricePerUnit: r.perItemFinal
+                    })),
+                    // Dodatni podatki za interno tiskovino
+                    internal: {
+                        w: document.getElementById('width').value,
+                        h: document.getElementById('height').value,
+                        bleed: document.getElementById('bleed').value,
+                        sheetSize: document.getElementById('res-size').innerText,
+                        sheetName: document.getElementById('res-sheet').innerText
+                    }
+                }];
             }
 
             const htmlHeader = isWord ? `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>` : `<html>`;
 
             if (isInternal) {
+                const item = itemsToPrint[0];
+                let dimensionDisplay = `${item.internal.w} x ${item.internal.h} mm (+${item.internal.bleed} mm bleed)`;
+                let totalItemsCountStr = '';
+                
+                if (g_manualLayout) {
+                    const countsByDim = {};
+                    g_manualLayout.items.forEach(it => {
+                        const key = `${it.w - 2 * it.bleed} x ${it.h - 2 * it.bleed}`;
+                        countsByDim[key] = (countsByDim[key] || 0) + 1;
+                    });
+                    dimensionDisplay = Object.entries(countsByDim).map(([dim, count]) => `${count}x ${dim} mm`).join('<br>');
+                    if (item.internal.bleed > 0) dimensionDisplay += `<br>(+${item.internal.bleed} mm bleed)`;
+                }
+
                 return `
-                        ${htmlHeader}
-                        <head>
-                            <meta charset="utf-8">
-                            <title>MONTAŽA - ${projectName}</title>
-                            <style>
-                                body { font-family: 'Arial', sans-serif; padding: 40px; color: #000; text-align: center; }
-                                h1 { font-size: 28px; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
-                                .info { font-size: 20px; margin-bottom: 30px; line-height: 1.5; }
-                                .schema-box { border: 1px solid #000; padding: 20px; display: inline-block; background: #fff; }
-                                .footer { margin-top: 50px; font-size: 12px; color: #666; font-style: italic; }
-                            </style>
-                        </head>
-                        <body>
-                            <h1>MONTAŽNI LIST</h1>
-                            <div class="info">
-                                <strong>STRANKA:</strong> ${customer}<br>
-                                <strong>IZDELEK:</strong> ${projectName}<br>
-                                <div style="margin: 10px 0; border: 1px dashed #ccc; padding: 10px; display: inline-block; text-align: left;">
-                                    <strong>DIMENZIJE NA POLI:</strong><br>
-                                    ${dimensionDisplay}
-                                </div><br>
-                                ${totalItemsCountStr ? `<div style="margin-bottom: 10px; color: #1e40af;">${totalItemsCountStr}</div>` : ''}
-                                ${internalPriceBreakdownHTML}
-                                <strong>TISKOVNA POLA:</strong> ${sheetName} (${sheetSize} mm)<br>
-                                <strong>MATERIAL:</strong> ${paperWeight} g/m² ${paperType}<br>
-                                <strong>ŠIFRA:</strong> ${materialCode || '/'}
-                            </div>
-                            
-                            <div class="schema-box">
-                                <div style="font-size: 12px; font-weight: bold; margin-bottom: 10px; text-align: left;">SHEMA RAZDELITVE:</div>
-                                <img src="${canvasImage}" style="max-width: 100%; height: auto; max-height: 600px;">
-                            </div>
-                            
-                            <div class="footer">
-                                Datum: ${date} | Pripravil: ${preparedBy}<br>
-                                <span style="color: red; font-weight: bold; font-size: 14px;">INTERNI DOKUMENT - TISKARNA PETRIČ</span>
-                            </div>
-                        </body>
-                        </html>
-                    `;
+                    ${htmlHeader}
+                    <head><meta charset="utf-8"><title>MONTAŽA</title><style>body { font-family: 'Arial', sans-serif; padding: 40px; color: #000; text-align: center; } h1 { font-size: 28px; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; } .info { font-size: 20px; margin-bottom: 30px; line-height: 1.5; } .schema-box { border: 1px solid #000; padding: 20px; display: inline-block; background: #fff; } .footer { margin-top: 50px; font-size: 12px; color: #666; font-style: italic; }</style></head>
+                    <body>
+                        <h1>MONTAŽNI LIST</h1>
+                        <div class="info">
+                            <strong>STRANKA:</strong> ${customer}<br>
+                            <strong>IZDELEK:</strong> ${item.name}<br>
+                            <div style="margin: 10px 0; border: 1px dashed #ccc; padding: 10px; display: inline-block; text-align: left;">
+                                <strong>DIMENZIJE NA POLI:</strong><br>${dimensionDisplay}
+                            </div><br>
+                            <strong>TISKOVNA POLA:</strong> ${item.internal.sheetName} (${item.internal.sheetSize} mm)<br>
+                            <strong>MATERIAL:</strong> ${item.spec.paper}<br>
+                            <strong>ŠIFRA:</strong> ${item.materialCode || '/'}
+                        </div>
+                        <div class="schema-box">
+                            <div style="font-size: 12px; font-weight: bold; margin-bottom: 10px; text-align: left;">SHEMA RAZDELITVE:</div>
+                            <img src="${canvasImage}" style="max-width: 100%; height: auto; max-height: 600px;">
+                        </div>
+                        <div class="footer">Datum: ${date} | Pripravil: ${preparedBy}<br><span style="color: red; font-weight: bold; font-size: 14px;">INTERNI DOKUMENT - TISKARNA PETRIČ</span></div>
+                    </body></html>`;
             }
 
-            return `
-                    ${htmlHeader}
-                    <head>
-                        <meta charset="utf-8">
-                        <title>${docTitle} - ${projectName}</title>
-                        <style>
-                            body { font-family: 'Arial', sans-serif; padding: ${isWord ? '20px' : '40px'}; color: #000; line-height: 1.2; font-size: 12px; }
-                            .address-block { margin-top: 15px; font-size: 12px; line-height: 1.2; color: #333; }
-                            .info-table { border-collapse: collapse; margin-left: auto; margin-right: 0; }
-                            .info-table td { padding: 2px 0 2px 15px; text-align: right; }
-                            .info-table td:first-child { font-weight: normal; color: #555; }
-                            .info-table td:last-child { font-weight: bold; }
-                            
-                            h1 { font-size: 16px; font-weight: bold; margin-top: 15px; margin-bottom: 2px; letter-spacing: 1px; }
-                            .spec-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; }
-                            .spec-table td { padding: 4px 0; vertical-align: top; }
-                            .spec-table .lbl { width: 150px; font-weight: bold; }
-                            
-                            .price-table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 15px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000; }
-                            .price-table th { padding: 6px; border-bottom: 1px solid #000; font-weight: normal; font-size: 11px; text-align: center; }
-                            .price-table td { padding: 8px; }
-                            
-                            .notes { margin-top: 15px; text-align: justify; font-size: 10px; line-height: 1.2; color: #444; }
-                            .signature { margin-top: 15px; font-size: 11px; font-style: italic; }
-                        </style>
-                    </head>
-                    <body>
-                        <table style="width: 100%; margin-bottom: 20px; border-bottom: 2px solid #f99c26; padding-bottom: 10px;" cellpadding="0" cellspacing="0">
-                            <tr>
-                                <td style="width: 32%; vertical-align: top;">
-                                    <div style="color: #8c8f91; font-size: 26px; font-weight: 300; font-style: italic; line-height: 0.9;">tiskarna</div>
-                                    <div style="color: #f99c26; font-size: 48px; font-weight: 900; font-style: italic; line-height: 0.7; padding-left: 20px;">petrič</div>
-                                </td>
-                                <td style="width: 25%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 10px; color: #8c8f91; font-style: italic;">
-                                    <strong>Tiskarna Petrič d.o.o.</strong><br>
-                                    Tovarniška cesta 8<br>
-                                    3210 Slovenske Konjice<br>
-                                    ID za DDV: SI50694014
-                                </td>
-                                <td style="width: 20%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 10px; color: #8c8f91; font-style: italic;">
-                                    T: 03 757 25 56<br>
-                                    F: 03 757 25 63<br>
-                                    Mat. št.: 6889433
-                                </td>
-                                <td style="width: 23%; vertical-align: bottom; border-left: 2px solid #f99c26; padding-left: 15px; padding-bottom: 5px; font-size: 20px; font-weight: bold; color: #f99c26; font-style: italic;">
-                                    vse stiska
-                                </td>
-                            </tr>
-                        </table>
-                        <table style="width: 100%; margin-bottom: 10px;" cellpadding="0" cellspacing="0">
-                            <tr>
-                                <td style="width: 50%; vertical-align: top;">
-                                    <span style="font-size: 14px;"><strong>${customer}</strong></span><br>
-                                    ${custAddress ? custAddress.replace(/\n/g, '<br>') + '<br>' : ''}
-                                    ${custEmail ? custEmail + '<br>' : ''}
-                                    ${deliveryAddress ? '<br><strong>Dostava na naslov:</strong><br>' + deliveryAddress.replace(/\n/g, '<br>') : ''}
-                                </td>
-                                <td style="width: 50%; vertical-align: top;" align="right">
-                                    <table class="info-table" cellpadding="0" cellspacing="0">
-                                        <tr><td>Datum</td><td>${date}</td></tr>
-                                        <tr><td>Šifra stranke</td><td>${customerCode}</td></tr>
-                                        <tr><td>Ponudba</td><td>${quoteNum}</td></tr>
-                                    </table>
-                                </td>
-                            </tr>
-                        </table>
-                        <h1>${docTitle}</h1>
-                        <p>Zahvaljujemo se Vam za Vaše povpraševanje in Vam ponujamo naslednje:</p>
+            // GENERATE MULTI-ITEM QUOTE
+            let itemsHtml = itemsToPrint.map(item => {
+                let priceRowsHTML = (item.quantities && Array.isArray(item.quantities)) ? item.quantities.map(q => `
+                    <tr>
+                        <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} kos</td>
+                        <td style="padding: 4px;">${formatPrice(q.pricePerUnit, 3)}</td>
+                        <td style="font-weight: bold; text-align: right; padding: 4px;">${formatPrice(q.priceTotal, 2)}</td>
+                    </tr>
+                `).join('') : '<tr><td colspan="3" style="padding:4px; color:red;">Manjkajoči podatki o ceni</td></tr>';
 
-                        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px;" cellpadding="0" cellspacing="0">
+                return `
+                    <div style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+                        <table style="width: 100%; border-collapse: collapse;" cellpadding="0" cellspacing="0">
                             <tr>
-                                <!-- Šifra artikla na levi -->
                                 <td style="width: 15%; vertical-align: top; border-right: 1px solid #ddd; padding-right: 5px;">
                                     <span style="font-size: 8px; color: #555; text-transform: uppercase;">Šifra izdelka:</span><br>
-                                    <span style="font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; margin-top: 5px; display: block;">${materialCode}</span>
+                                    <span style="font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; margin-top: 5px; display: block;">${item.materialCode || '/'}</span>
                                 </td>
-                                <!-- Specifikacije na desni -->
                                 <td style="width: 85%; vertical-align: top; padding-left: 10px;">
-                                    <table class="spec-table" style="margin-top: 0; margin-bottom: 0;">
-                                        <tr>
-                                            <td class="lbl" style="width: 90px;">Izdelek:</td><td>${projectName}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="lbl" style="width: 90px;">Format:</td><td>${w} x ${h} mm</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="lbl" style="width: 90px;">Papir:</td><td>${paperWeight} g/m² ${paperType}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="lbl" style="width: 90px;">Tisk:</td><td>${printColorStr}</td>
-                                        </tr>
-                                        ${mutType && mutType !== "Brez mutacij" ? `
-                                        <tr>
-                                            <td class="lbl" style="width: 90px;">Mutacija:</td><td>${mutType} (${mutPlates} dodatn. plošč)</td>
-                                        </tr>` : ''}
-                                        <tr>
-                                            <td class="lbl" style="width: 90px;">Dodel.:</td><td>${dodelText}</td>
-                                        </tr>
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <tr><td style="width: 90px; font-weight: bold;">Izdelek:</td><td>${item.name || '/'}</td></tr>
+                                        <tr><td style="font-weight: bold;">Format:</td><td>${(item.spec && item.spec.format) ? item.spec.format : '/'}</td></tr>
+                                        ${(item.spec && item.spec.paper) ? `<tr><td style="font-weight: bold;">Papir:</td><td>${item.spec.paper}</td></tr>` : ''}
+                                        <tr><td style="font-weight: bold;">Tisk:</td><td>${(item.spec && item.spec.colors) ? item.spec.colors : '/'}</td></tr>
+                                        ${(item.spec && item.spec.finishing) ? `<tr><td style="font-weight: bold;">Dodel.:</td><td>${item.spec.finishing}</td></tr>` : ''}
                                     </table>
                                 </td>
                             </tr>
                         </table>
-                        <table class="price-table">
-                            <tr>
-                                <th>Naklada</th>
-                                <th>Cena/Kom.</th>
-                                <th style="text-align: right;">Cena skupno:</th>
-                            </tr>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000;">
+                            <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">Naklada</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">Cena/Kom.</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">Cena skupno:</th></tr>
                             ${priceRowsHTML}
                         </table>
-                        <p><strong>Predloga:</strong> Naročnik dostavi visokoresolucijski PDF z dodatkom za obrez!</p>
-                        <p class="notes">
-                            Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.
-                        </p>
-                        <div class="signature">Kalkulacijo pripravil: ${preparedBy}</div>
-                    </body>
-                    </html>
+                    </div>
                 `;
+            }).join('');
+
+            return `
+                ${htmlHeader}
+                <head><meta charset="utf-8"><title>Ponudba</title>
+                <style>
+                    body { font-family: 'Arial', sans-serif; padding: ${isWord ? '10px' : '30px'}; color: #000; line-height: 1.1; font-size: 11px; }
+                    .info-table { border-collapse: collapse; margin-left: auto; margin-right: 0; }
+                    .info-table td { padding: 1px 0 1px 15px; text-align: right; }
+                    .info-table td:first-child { font-weight: normal; color: #555; }
+                    .info-table td:last-child { font-weight: bold; }
+                    h1 { font-size: 14px; font-weight: bold; margin-top: 10px; margin-bottom: 5px; letter-spacing: 1px; border-bottom: 1px solid #000; padding-bottom: 3px; }
+                    .notes { margin-top: 10px; text-align: justify; font-size: 9px; line-height: 1.1; color: #444; }
+                </style>
+                </head>
+                <body>
+                    <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #f99c26; padding-bottom: 5px;" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="width: 32%; vertical-align: top;">
+                                <div style="color: #8c8f91; font-size: 22px; font-weight: 300; font-style: italic; line-height: 0.9;">tiskarna</div>
+                                <div style="color: #f99c26; font-size: 40px; font-weight: 900; font-style: italic; line-height: 0.7; padding-left: 20px;">petrič</div>
+                            </td>
+                            <td style="width: 25%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 9px; color: #8c8f91; font-style: italic;"><strong>Tiskarna Petrič d.o.o.</strong><br>Tovarniška cesta 8<br>3210 Slovenske Konjice<br>ID za DDV: SI50694014</td>
+                            <td style="width: 20%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 9px; color: #8c8f91; font-style: italic;">T: 03 757 25 56<br>F: 03 757 25 63<br>Mat. št.: 6889433</td>
+                            <td style="width: 23%; vertical-align: bottom; border-left: 2px solid #f99c26; padding-left: 15px; padding-bottom: 5px; font-size: 18px; font-weight: bold; color: #f99c26; font-style: italic;">vse stiska</td>
+                        </tr>
+                    </table>
+                    <table style="width: 100%; margin-bottom: 5px;" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="width: 50%; vertical-align: top;"><span style="font-size: 13px;"><strong>${customer}</strong></span><br>${custAddress ? custAddress.replace(/\n/g, '<br>') + '<br>' : ''}${custEmail ? custEmail + '<br>' : ''}${deliveryAddress ? '<br><strong>Dostava na naslov:</strong><br>' + deliveryAddress.replace(/\n/g, '<br>') : ''}</td>
+                            <td style="width: 50%; vertical-align: top;" align="right"><table class="info-table" cellpadding="0" cellspacing="0"><tr><td>Datum</td><td>${date}</td></tr><tr><td>Šifra stranke</td><td>${customerCode}</td></tr><tr><td>Ponudba</td><td>${quoteNum}</td></tr></table></td>
+                        </tr>
+                    </table>
+                    <h1>PONUDBA</h1>
+                    <p style="margin: 5px 0;">Zahvaljujemo se Vam za Vaše povpraševanje in Vam ponujamo naslednje:</p>
+                    ${itemsHtml}
+                    <p style="margin: 5px 0;"><strong>Predloga:</strong> Naročnik dostavi visokoresolucijski PDF z dodatkom za obrez!</p>
+                    <p class="notes">Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.</p>
+                    <div style="margin-top: 10px; font-size: 10px; font-style: italic;">Kalkulacijo pripravil: ${preparedBy}</div>
+                </body></html>`;
         }
 
         function printQuote() {
-            const printWindow = window.open('', '', 'width=800,height=900');
-            printWindow.document.write(getQuoteHTML(false, '', false));
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => { printWindow.print(); }, 500);
+            try {
+                const html = getQuoteHTML(false, '', false);
+                const printWindow = window.open('', '', 'width=800,height=900');
+                if (!printWindow) {
+                    alert("Prosimo omogočite pojavna okna (pop-ups) za ta zavihek.");
+                    return;
+                }
+                printWindow.document.write(html);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => { printWindow.print(); }, 500);
+            } catch (e) {
+                alert("Napaka pri pripravi ponudbe: " + e.message);
+                console.error(e);
+            }
         }
 
         function printProductionOrder() {
-            const canvas = document.getElementById('canvas-machine');
-            let canvasImage = '';
-            if (canvas && canvas.style.display !== 'none') {
-                canvasImage = canvas.toDataURL('image/png');
+            try {
+                const canvas = document.getElementById('canvas-machine');
+                let canvasImage = '';
+                if (canvas && canvas.style.display !== 'none') {
+                    canvasImage = canvas.toDataURL('image/png');
+                }
+                const html = getQuoteHTML(false, canvasImage, true);
+                const printWindow = window.open('', '', 'width=800,height=900');
+                if (!printWindow) {
+                    alert("Prosimo omogočite pojavna okna (pop-ups) za ta zavihek.");
+                    return;
+                }
+                printWindow.document.write(html);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => { printWindow.print(); }, 500);
+            } catch (e) {
+                alert("Napaka pri pripravi montažnega lista: " + e.message);
+                console.error(e);
             }
-            const printWindow = window.open('', '', 'width=800,height=900');
-            printWindow.document.write(getQuoteHTML(false, canvasImage, true));
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => { printWindow.print(); }, 500);
         }
 
         function exportQuoteWord() {
-            const htmlContent = getQuoteHTML(true, '', false);
-            const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            const projectName = document.getElementById('calc-project-name').value || 'Ponudba';
-            link.href = url;
-            link.download = "Ponudba_" + projectName.replace(/\s+/g, '_') + ".doc";
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(url); }, 100);
+            try {
+                const htmlContent = getQuoteHTML(true, '', false);
+                const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                const projectName = document.getElementById('calc-project-name').value || 'Ponudba';
+                link.href = url;
+                link.download = "Ponudba_" + projectName.replace(/\s+/g, '_') + ".doc";
+                document.body.appendChild(link);
+                link.click();
+                setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(url); }, 100);
+            } catch (e) {
+                alert("Napaka pri pripravi Word dokumenta: " + e.message);
+                console.error(e);
+            }
         }
 
         function handleFileSelect(event) {
@@ -3252,6 +3309,7 @@
             applyMachineDefaults();
             renderSavedProjects();
             updateCustomerDatalist();
+            renderBasket();
             setTimeout(calculate, 200); // Give it a moment to stabilize
         } catch (e) {
             console.error("Startup failed:", e);
@@ -3305,29 +3363,32 @@
             <div class="sticky-price-value" id="sticky-price-total">0.00 €</div>
         </div>
         <div style="display:flex; gap:0.5rem; flex-wrap: wrap;">
+            <button class="calculate-btn" onclick="printQuote()"
+                style="margin: 0; width: auto; background: #3b82f6; padding: 0.6rem 2rem; font-size:1.1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);">🖨️
+                PONUDBA</button>
+            <button class="calculate-btn" onclick="exportQuoteWord()"
+                style="margin: 0; width: auto; background: #2b5797; padding: 0.6rem 2rem; font-size:1.1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(43, 87, 151, 0.4);">📄
+                WORD</button>
+            <button class="calculate-btn" onclick="addToBasket()"
+                style="margin: 0; width: auto; background: #f59e0b; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);">
+                🛒 DODAJ</button>
             <button class="calculate-btn" onclick="calculate(true)"
-                style="margin: 0; width: auto; background: var(--accent); padding: 0.5rem 2rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px var(--accent-glow);">
+                style="margin: 0; width: auto; background: #10b981; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold;">
                 ✨ IZRAČUNAJ</button>
             <button class="calculate-btn" onclick="saveCurrentProject()"
-                style="margin: 0; width: auto; background: #10b981; padding: 0.5rem 1.2rem; font-size:0.85rem;">💾
+                style="margin: 0; width: auto; background: #8b5cf6; padding: 0.5rem 1.2rem; font-size:0.85rem;">💾
                 Arhiv</button>
             <button class="calculate-btn" onclick="exportToFile()"
                 style="margin: 0; width: auto; background: #6366f1; padding: 0.5rem 1.2rem; font-size:0.85rem;">📁
-                V mapo (JSON)</button>
-            <button class="calculate-btn" onclick="printQuote()"
-                style="margin: 0; width: auto; background: #3b82f6; padding: 0.5rem 1.2rem; font-size:0.85rem;">🖨️
-                Ponudba</button>
+                JSON</button>
             <button class="calculate-btn" onclick="printProductionOrder()"
                 style="margin: 0; width: auto; background: #818cf8; padding: 0.5rem 1.2rem; font-size:0.85rem;"
                 title="Internal Montaža">🛠️
                 Montažni list</button>
-            <button class="calculate-btn" onclick="exportQuoteWord()"
-                style="margin: 0; width: auto; background: #2563eb; padding: 0.5rem 1.2rem; font-size:0.85rem;">📝
-                V Word</button>
         </div>
         <div id="debug-log" style="display: none;"></div>
     </div>
-    <!-- MODAL ZA ROČNO POSTAVITEV -->
+    <!-- MANUAL EDITOR MODAL (Original) -->
     <div id="manual-editor-modal"
         style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; backdrop-filter: blur(8px); flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
         <div
@@ -3423,124 +3484,5 @@
             </div>
         </div>
     </div>
-
-
-
-    <style>
-        .manual-box {
-            position: absolute;
-            background: rgba(59, 130, 246, 0.2);
-            border: 2px solid #3b82f6;
-            cursor: move;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            color: #1e3a8a;
-            font-weight: bold;
-            box-sizing: border-box;
-            user-select: none;
-            transition: box-shadow 0.2s, border-color 0.2s;
-        }
-
-        .manual-box:hover {
-            background: rgba(59, 130, 246, 0.3);
-            border-color: #60a5fa;
-            z-index: 100;
-        }
-
-        .manual-box.selected {
-            border-color: #fbbf24;
-            background: rgba(251, 191, 36, 0.25);
-            box-shadow: 0 0 15px rgba(251, 191, 36, 0.4);
-            z-index: 101;
-        }
-
-        .manual-box-bleed {
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            border: 1px dotted rgba(59, 130, 246, 0.4);
-            pointer-events: none;
-        }
-    </style>
-    <!-- MANUAL EDITOR MODAL -->
-    <div id="manual-editor-modal"
-        style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.95); z-index: 9999; flex-direction: row; font-family: 'Inter', sans-serif;">
-
-        <!-- LEFT: CANVAS AREA -->
-        <div
-            style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
-            <div id="manual-canvas-container"
-                style="position: relative; background: white; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
-                <div id="manual-sheet"
-                    style="position: absolute; top: 0; left: 0; bottom: 0; right: 0; overflow: hidden;">
-                    <!-- Boxes will be injected here -->
-                </div>
-                <div id="manual-gripper"
-                    style="position: absolute; background: rgba(239, 68, 68, 0.2); pointer-events: none;"></div>
-            </div>
-        </div>
-
-        <!-- RIGHT: CONTROLS AREA -->
-        <div
-            style="width: 350px; background: #1e293b; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5);">
-            <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <h3 style="color: white; margin: 0 0 1rem 0; background: none; -webkit-text-fill-color: white;">Ročna
-                    postavitev</h3>
-                <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 1rem;">
-                    Bližnjice:<br>
-                    <strong>Miška:</strong> Primi in vleci (Drag & Drop)<br>
-                    <strong>Dvojni klik:</strong> Rotacija<br>
-                    <strong>R:</strong> Rotiraj označeno<br>
-                    <strong>Delete:</strong> Izbriši označeno<br>
-                    <strong>Enter:</strong> Potrdi in zapri
-                </p>
-                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                    <div style="flex: 1;">
-                        <label style="color: #cbd5e1; font-size: 0.8rem; margin-bottom: 4px; display: block;">Širina
-                            (mm)</label>
-                        <input type="number" id="manual-add-w"
-                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
-                    </div>
-                    <div style="flex: 1;">
-                        <label style="color: #cbd5e1; font-size: 0.8rem; margin-bottom: 4px; display: block;">Višina
-                            (mm)</label>
-                        <input type="number" id="manual-add-h"
-                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
-                    </div>
-                </div>
-                <button onclick="addManualBox()"
-                    style="width: 100%; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-bottom: 0.5rem;">+
-                    DODAJ ELEMENT</button>
-                <div style="display: flex; gap: 0.5rem;">
-                    <button onclick="clearManualLayout()"
-                        style="flex: 1; padding: 8px; background: transparent; color: #f43f5e; border: 1px solid #f43f5e; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">Počisti
-                        vse</button>
-                    <button onclick="removeSelectedBox()"
-                        style="flex: 1; padding: 8px; background: transparent; color: #fbbf24; border: 1px solid #fbbf24; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">Izbriši
-                        označeno</button>
-                </div>
-            </div>
-
-            <div style="flex: 1; overflow-y: auto; padding: 1.5rem;">
-                <h4 style="color: white; margin: 0 0 1rem 0; font-size: 0.9rem;">Elementi na poli (<span
-                        id="manual-item-count">0</span>)</h4>
-                <div id="manual-items-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
-                    <!-- List items will be injected here -->
-                </div>
-            </div>
-
-            <div style="padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 1rem;">
-                <button onclick="closeManualEditor()"
-                    style="flex: 1; padding: 12px; background: transparent; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-weight: bold; cursor: pointer;">Prekliči</button>
-                <button onclick="applyManualLayout()"
-                    style="flex: 2; padding: 12px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">POTRDI</button>
-            </div>
-        </div>
-    </div>
 </body>
-
 </html>

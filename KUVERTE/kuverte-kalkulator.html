@@ -688,7 +688,16 @@
     </div>
 
     <script>
-        let quoteBasket = [];
+        let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
+        renderBasket();
+
+        // Osveževanje košarice med zavihki
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'petric_quote_basket') {
+                quoteBasket = JSON.parse(e.newValue) || [];
+                renderBasket();
+            }
+        });
 
         function addToBasket() {
             const projectName = document.getElementById('calc-project-name').value || 'Tisk Kuvert';
@@ -699,7 +708,7 @@
             const cFront = document.getElementById('calc-colors-front').value || "0";
             const cBack = document.getElementById('calc-colors-back').value || "0";
             const quantitiesStr = document.getElementById('calc-quantities').value || "";
-            const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
+            const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, ''))).filter(n => !isNaN(n) && n > 0);
 
             if (qList.length === 0) {
                 alert("Prosimo vnesite vsaj eno količino!");
@@ -715,23 +724,27 @@
 
             const item = {
                 id: Date.now(),
-                projectName,
-                materialCode,
-                format: envType,
-                dim: `${w} x ${h} mm`,
-                colors: `${cFront} / ${cBack}`,
-                finishing: finishingParts.join(', '),
+                type: 'Kuverte',
+                name: projectName,
+                customer: document.getElementById('calc-customer').value || '',
+                materialCode: materialCode,
+                spec: {
+                    format: envType + ' (' + w + ' x ' + h + ' mm)',
+                    colors: cFront + ' / ' + cBack,
+                    finishing: finishingParts.join(', ')
+                },
                 quantities: qList.map(q => {
                     const res = calculateForSingleQty(q);
                     return {
-                        q: q,
-                        pricePerItem: res.pricePerItem,
-                        finalTotal: res.finalTotal
+                        qty: q,
+                        pricePerUnit: res.pricePerItem,
+                        priceTotal: res.finalTotal
                     };
                 })
             };
 
             quoteBasket.push(item);
+            localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
             renderBasket();
 
             // Show toast or alert on the button
@@ -745,12 +758,14 @@
 
         function removeFromBasket(id) {
             quoteBasket = quoteBasket.filter(item => item.id !== id);
+            localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
             renderBasket();
         }
 
         function clearBasket() {
             if (confirm("Ali ste prepričani, da želite izprazniti celotno ponudbo?")) {
                 quoteBasket = [];
+                localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
                 renderBasket();
             }
         }
@@ -775,12 +790,12 @@
                 html += `
                     <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: center;">
                         <div>
-                            <div style="font-weight: bold; color: #f8fafc; font-size: 0.95rem;">${item.projectName} <span style="font-weight: normal; color: #94a3b8; font-size: 0.8rem; margin-left: 10px;">[${item.materialCode}]</span></div>
+                            <div style="font-weight: bold; color: #f8fafc; font-size: 0.95rem;">${item.name} <span style="font-weight: normal; color: #94a3b8; font-size: 0.8rem; margin-left: 10px;">[${item.materialCode}]</span></div>
                             <div style="font-size: 0.8rem; color: #cbd5e1; margin-top: 3px;">
-                                ${item.format} | ${item.colors} barv ${item.finishing ? ' | ' + item.finishing : ''}
+                                ${item.type} | ${item.spec.format} | ${item.spec.colors} ${item.spec.finishing ? ' | ' + item.spec.finishing : ''}
                             </div>
-                            <div style="display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;">
-                                ${item.quantities.map(q => `<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${formatQty(q.q)} kos</span>`).join('')}
+<div style="display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;">
+                                ${item.quantities.map(q => `<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${formatQty(q.qty)}: ${formatPrice(q.priceTotal)}</span>`).join('')}
                             </div>
                         </div>
                         <button onclick="removeFromBasket(${item.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.2rem; padding: 5px;" title="Odstrani">✕</button>
@@ -790,28 +805,21 @@
             list.innerHTML = html;
         }
 
-        function getQuoteHTML() {
+        function getQuoteHTML(isWord = false) {
             const quoteNum = document.getElementById('calc-quote-number').value || '/';
             const customer = document.getElementById('calc-customer').value || '';
             const custAddress = document.getElementById('calc-cust-address').value || '';
             const customerCode = document.getElementById('calc-customer-code').value || '/';
             const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
             const date = new Date().toLocaleDateString('sl-SI');
-
-            // Glavno ime projekta za naslov dokumenta
-            let mainProjectTitle = document.getElementById('calc-project-name').value || 'Tisk Kuvert';
+            const custEmail = document.getElementById('calc-cust-email') ? document.getElementById('calc-cust-email').value : '';
+            const deliveryAddress = document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '';
 
             let itemsToRender = [];
 
             if (quoteBasket.length > 0) {
                 itemsToRender = quoteBasket;
-                if (quoteBasket.length > 1) {
-                    mainProjectTitle = "Skupna ponudba (" + quoteBasket.length + " pozicij)";
-                } else {
-                    mainProjectTitle = quoteBasket[0].projectName;
-                }
             } else {
-                // Če je košarica prazna, vzamemo trenutne podatke s platna
                 const projectName = document.getElementById('calc-project-name').value || 'Tisk Kuvert';
                 const materialCode = document.getElementById('calc-material-code').value || '/';
                 const w = document.getElementById('width').value;
@@ -820,7 +828,7 @@
                 const cFront = document.getElementById('calc-colors-front').value || "0";
                 const cBack = document.getElementById('calc-colors-back').value || "0";
                 const quantitiesStr = document.getElementById('calc-quantities').value || "";
-                const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
+                const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, ''))).filter(n => !isNaN(n) && n > 0);
                 if (qList.length === 0) qList.push(1000);
 
                 let finishingParts = [];
@@ -831,32 +839,23 @@
                 if (useManual) finishingParts.push('Ročna dela');
 
                 itemsToRender.push({
-                    projectName,
+                    name: projectName,
+                    type: 'Kuverte',
                     materialCode,
-                    format: envType,
-                    dim: `${w} x ${h} mm`,
-                    colors: `${cFront} / ${cBack}`,
-                    finishing: finishingParts.join(', '),
+                    spec: {
+                        format: envType + ' (' + w + ' x ' + h + ' mm)',
+                        colors: cFront + ' / ' + cBack,
+                        finishing: finishingParts.join(', ')
+                    },
                     quantities: qList.map(q => {
                         const res = calculateForSingleQty(q);
-                        return { q, pricePerItem: res.pricePerItem, finalTotal: res.finalTotal };
+                        return { qty: q, pricePerUnit: res.pricePerItem, priceTotal: res.finalTotal };
                     })
                 });
             }
 
             let allItemsHTML = '';
             itemsToRender.forEach((item, idx) => {
-                let priceRowsHTML = '';
-                item.quantities.forEach(q => {
-                    priceRowsHTML += `
-                        <tr>
-                            <td style="font-weight: bold; border-bottom: 1px solid #eee;">${formatQty(q.q)} kos</td>
-                            <td style="border-bottom: 1px solid #eee;">${q.pricePerItem.toFixed(4).replace('.', ',')} €</td>
-                            <td style="font-weight: bold; text-align: right; border-bottom: 1px solid #eee;">${q.finalTotal.toFixed(2).replace('.', ',')} €</td>
-                        </tr>
-                    `;
-                });
-
                 allItemsHTML += `
                     <div style="margin-bottom: 15px; ${idx < itemsToRender.length - 1 ? 'border-bottom: 2px dashed #e2e8f0; padding-bottom: 15px;' : ''}">
                         <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;" cellpadding="0" cellspacing="0">
@@ -866,83 +865,47 @@
                                     <div style="font-size: 16px; font-weight: bold; color: #1e293b; border: 1px solid #e2e8f0; padding: 10px; background: #f8fafc; text-align: center; border-radius: 4px;">${item.materialCode}</div>
                                 </td>
                                 <td style="width: 85%; vertical-align: top; padding-left: 20px;">
-                                    <div class="spec-container" style="margin-bottom: 0;">
-                                        <div class="spec-row">
-                                            <div class="spec-label">Projekt:</div>
-                                            <div class="spec-value">${item.projectName}</div>
-                                        </div>
-                                        <div class="spec-row">
-                                            <div class="spec-label">Format:</div>
-                                            <div class="spec-value">${item.format}</div>
-                                        </div>
-                                        <div class="spec-row">
-                                            <div class="spec-label">Tisk:</div>
-                                            <div class="spec-value">${item.colors} barv</div>
-                                        </div>
-                                        ${item.finishing ? `
-                                        <div class="spec-row">
-                                            <div class="spec-label">Dodelava:</div>
-                                            <div class="spec-value">${item.finishing}</div>
-                                        </div>
-                                        ` : ''}
-                                    </div>
+                                    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                                        <tr><td style="width: 90px; font-weight: bold;">Izdelek:</td><td>${item.name || '/'}</td></tr>
+                                        <tr><td style="font-weight: bold;">Format:</td><td>${(item.spec && item.spec.format) ? item.spec.format : '/'}</td></tr>
+                                        <tr><td style="font-weight: bold;">Tisk:</td><td>${(item.spec && item.spec.colors) ? item.spec.colors : '/'}</td></tr>
+                                        ${(item.spec && item.spec.paper) ? `<tr><td style="font-weight: bold;">Papir:</td><td>${item.spec.paper}</td></tr>` : ''}
+                                        ${(item.spec && item.spec.finishing) ? `<tr><td style="font-weight: bold;">Dodel.:</td><td>${item.spec.finishing}</td></tr>` : ''}
+                                    </table>
                                 </td>
                             </tr>
                         </table>
-
-                        <table class="price-table">
-                            <thead>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000;">
+                            <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">Naklada</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">Cena/Kom.</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">Cena skupno:</th></tr>
+                            ${(item.quantities && Array.isArray(item.quantities)) ? item.quantities.map(q => `
                                 <tr>
-                                    <th>Količina (naklada)</th>
-                                    <th>Cena na kos</th>
-                                    <th style="text-align: right;">Skupni znesek (brez DDV)</th>
+                                    <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} kos</td>
+                                    <td style="padding: 4px;">${formatPrice(q.pricePerUnit, 3)}</td>
+                                    <td style="font-weight: bold; text-align: right; padding: 4px;">${formatPrice(q.priceTotal, 2)}</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                ${priceRowsHTML}
-                            </tbody>
+                            `).join('') : '<tr><td colspan="3" style="padding:4px; color:red;">Manjkajoči podatki o ceni</td></tr>'}
                         </table>
                     </div>
                 `;
             });
-
             return `
                 <html>
                 <head>
-                    <meta charset="utf-8">
-                    <title>Ponudba - ${mainProjectTitle}</title>
                     <style>
-                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; line-height: 1.4; font-size: 12px; background: #fff; }
-                        .header-line { border-bottom: 3px solid #f99c26; margin-bottom: 15px; padding-bottom: 10px; }
-                        .brand-name { color: #f99c26; font-size: 42px; font-weight: 900; font-style: italic; line-height: 0.8; }
-                        .brand-sub { color: #8c8f91; font-size: 24px; font-weight: 300; font-style: italic; margin-bottom: 5px; }
-                        
-                        .info-grid { display: flex; justify-content: space-between; margin-bottom: 15px; }
-                        .customer-box { width: 50%; }
-                        .meta-box { width: 40%; text-align: right; }
-                        .meta-table { border-collapse: collapse; margin-left: auto; }
-                        .meta-table td { padding: 2px 0 2px 15px; }
-                        .meta-table td:first-child { color: #666; text-transform: uppercase; font-size: 10px; }
-                        .meta-table td:last-child { font-weight: bold; font-size: 13px; }
-
-                        h1 { font-size: 24px; color: #1e293b; margin: 0 0 10px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
-                        .spec-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
-                        .spec-row { display: flex; margin-bottom: 3px; }
-                        .spec-label { width: 140px; font-weight: bold; color: #64748b; font-size: 11px; text-transform: uppercase; }
-                        .spec-value { flex: 1; font-weight: 600; color: #1e293b; font-size: 13px; }
-
-                        .price-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                        .price-table th { background: #1e293b; color: #fff; padding: 6px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-                        .price-table th:last-child { text-align: right; }
-                        .price-table td { padding: 5px 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
-                        .price-table td:last-child { text-align: right; }
-                        
-                        .footer-notes { margin-top: 20px; font-size: 10px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px; text-align: justify; }
-                        .signature-section { margin-top: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
-                        .prepared-by { font-style: italic; color: #1e293b; font-weight: bold; border-top: 1px solid #94a3b8; padding-top: 5px; min-width: 200px; text-align: center; }
-                        
+                        body { font-family: sans-serif; padding: 40px; }
+                        h1 { color: #1e293b; font-size: 24px; border-bottom: 2px solid #f99c26; padding-bottom: 10px; }
+                        .header-line { border-bottom: 2px solid #f99c26; margin-bottom: 20px; padding-bottom: 10px; }
+                        .brand-name { font-size: 32px; font-weight: bold; color: #f99c26; text-transform: uppercase; }
+                        .brand-sub { font-size: 12px; color: #64748b; letter-spacing: 2px; }
+                        .info-grid { display: flex; justify-content: space-between; margin-bottom: 30px; }
+                        .customer-box { width: 60%; }
+                        .meta-box { width: 30%; font-size: 12px; }
+                        .meta-table { width: 100%; border-collapse: collapse; }
+                        .meta-table td { padding: 2px 5px; }
+                        .footer-notes { font-size: 9px; color: #64748b; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+                        .signature-section { margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; }
+                        .prepared-by { font-weight: bold; }
                         @media print {
-                            body { padding: 0; }
                             .no-print { display: none; }
                         }
                     </style>
@@ -1011,25 +974,40 @@
             `;
         }
 
-        function exportToWord() {
-            const html = getQuoteHTML();
-            const projectName = document.getElementById('calc-project-name').value || 'Ponudba';
-            const fileName = projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.doc';
+        function printQuote() {
+            try {
+                const html = getQuoteHTML(false);
+                const printWindow = window.open('', '', 'width=800,height=900');
+                if (!printWindow) {
+                    alert("Prosimo omogočite pojavna okna (pop-ups) za ta zavihek.");
+                    return;
+                }
+                printWindow.document.write(html);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => { printWindow.print(); }, 500);
+            } catch (e) {
+                alert("Napaka pri pripravi ponudbe: " + e.message);
+                console.error(e);
+            }
+        }
 
-            const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
-                "xmlns:w='urn:schemas-microsoft-com:office:word' " +
-                "xmlns='http://www.w3.org/TR/REC-html40'>" +
-                "<head><meta charset='utf-8'></head><body>";
-            const footer = "</body></html>";
-            const sourceHTML = header + html + footer;
-
-            const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
-            const fileDownload = document.createElement("a");
-            document.body.appendChild(fileDownload);
-            fileDownload.href = source;
-            fileDownload.download = fileName;
-            fileDownload.click();
-            document.body.removeChild(fileDownload);
+        function exportQuoteWord() {
+            try {
+                const htmlContent = getQuoteHTML(true);
+                const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                const projectName = document.getElementById('calc-project-name').value || 'Ponudba';
+                link.href = url;
+                link.download = "Ponudba_" + projectName.replace(/\s+/g, '_') + ".doc";
+                document.body.appendChild(link);
+                link.click();
+                setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(url); }, 100);
+            } catch (e) {
+                alert("Napaka pri pripravi Word dokumenta: " + e.message);
+                console.error(e);
+            }
         }
 
         function openQuotePreview() {
@@ -1769,6 +1747,7 @@
 
         window.onload = function () {
             updateCustomerDatalist();
+            renderBasket();
             calculate();
         };
     </script>
