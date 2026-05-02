@@ -522,7 +522,7 @@
 
             <div class="header-group">
                 <label>Naklade (loči z vejico za več opcij)</label>
-                <input type="text" id="quantity" value="1.000" oninput="formatInputQty(this); calculate()">
+                <input type="text" id="quantity" value="0" oninput="formatInputQty(this); calculate()">
             </div>
 
             <div class="header-group">
@@ -1109,6 +1109,7 @@
     <script>
         let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
         renderBasket();
+        updateWarnings();
 
         // Osveževanje košarice med zavihki
         window.addEventListener('storage', (e) => {
@@ -1393,7 +1394,35 @@
             calculate();
         }
 
+        function updateWarnings() {
+            const qtyBox = document.getElementById('quantity');
+            const qVal = qtyBox ? qtyBox.value.trim() : "";
+            if (qtyBox) {
+                if (qVal === '' || qVal === '0') {
+                    qtyBox.style.animation = 'blinkRequired 1.5s infinite';
+                } else {
+                    qtyBox.style.animation = 'none';
+                }
+            }
+            
+            const front = parseInt(document.getElementById('calc-color-front').value) || 0;
+            const back = parseInt(document.getElementById('calc-color-back').value) || 0;
+            const colorFrontEl = document.getElementById('calc-color-front');
+            const colorBackEl = document.getElementById('calc-color-back');
+            
+            if (colorFrontEl && colorBackEl) {
+                if (front === 0 && back === 0) {
+                    colorFrontEl.style.animation = 'blinkRequired 1.5s infinite';
+                    colorBackEl.style.animation = 'blinkRequired 1.5s infinite';
+                } else {
+                    colorFrontEl.style.animation = 'none';
+                    colorBackEl.style.animation = 'none';
+                }
+            }
+        }
+
         function calculate(isManual = false) {
+            updateWarnings();
             try {
                 const w = parseFloat(document.getElementById('width').value) || 0;
                 const h = parseFloat(document.getElementById('height').value) || 0;
@@ -1531,27 +1560,6 @@
             const front = parseInt(document.getElementById('calc-color-front').value) || 0;
             const back = parseInt(document.getElementById('calc-color-back').value) || 0;
             
-            const qtyBox = document.getElementById('quantity');
-            const qVal = qtyBox ? qtyBox.value.trim() : "";
-            if (qtyBox) {
-                if (qVal === '' || qVal === '0') {
-                    qtyBox.style.animation = 'blinkRequired 1.5s infinite';
-                } else {
-                    qtyBox.style.animation = 'none';
-                }
-            }
-            
-            const colorFrontEl = document.getElementById('calc-color-front');
-            const colorBackEl = document.getElementById('calc-color-back');
-            if (colorFrontEl && colorBackEl) {
-                if (front === 0 && back === 0) {
-                    colorFrontEl.style.animation = 'blinkRequired 1.5s infinite';
-                    colorBackEl.style.animation = 'blinkRequired 1.5s infinite';
-                } else {
-                    colorFrontEl.style.animation = 'none';
-                    colorBackEl.style.animation = 'none';
-                }
-            }
             const isObrat = document.getElementById('calc-is-obrat').checked;
             const mutPlates = parseInt(document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : 0) || 0;
             const totalPlates = front + (isObrat ? 0 : back) + mutPlates;
