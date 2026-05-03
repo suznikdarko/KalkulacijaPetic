@@ -987,6 +987,19 @@
                                 </div>
                             </div>
 
+                            <!-- Špiraljenje -->
+                            <div class="finish-item" id="row-finish-spiral">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-spiral-active" onchange="toggleFinishRow('spiral')">
+                                    Špiraljenje
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena po kosu (€)</small></label>
+                                    <input type="number" id="f-spiral-price" value="0.00" step="0.01"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
+
                             <!-- Ročno delo -->
                             <div class="finish-item" id="row-finish-extra">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
@@ -1199,6 +1212,7 @@
             if (document.getElementById('f-noz-active').checked) list.push('Razrez (Nož)');
             if (document.getElementById('f-sivanje-active').checked) list.push('Šivanje');
             if (document.getElementById('f-lepljenje-active').checked) list.push('Lepljenje');
+            if (document.getElementById('f-spiral-active').checked) list.push('Špiraljenje');
             if (document.getElementById('f-extra-active').checked) list.push('Dodatno delo');
             if (document.getElementById('f-tool-active').checked) list.push('Orodje');
             if (document.getElementById('f-uv-active').checked) list.push('UV lak');
@@ -1920,6 +1934,9 @@
             if (document.getElementById('f-lepljenje-active').checked) {
                 totalFinishCost += (parseFloat(document.getElementById('f-lepljenje-prep').value) || 0) + (qty / 1000) * (parseFloat(document.getElementById('f-lepljenje-per1000').value) || 0);
             }
+            if (document.getElementById('f-spiral-active').checked) {
+                totalFinishCost += qty * (parseFloat(document.getElementById('f-spiral-price').value) || 0);
+            }
             if (document.getElementById('f-extra-active').checked) {
                 const spd = parseFloat(document.getElementById('f-extra-speed').value) || 1;
                 const rte = parseFloat(document.getElementById('f-extra-rate').value) || 20;
@@ -2035,6 +2052,16 @@
                     breakdown: `Priprava: ${formatPrice(lPrep)} | Delo: ${qty} kos (${formatPrice(lWork)})`
                 });
             }
+            if (document.getElementById('f-spiral-active').checked) {
+                let sPrice = parseFloat(document.getElementById('f-spiral-price').value) || 0;
+                let sCost = qty * sPrice;
+                details.finish.items.push({
+                    name: 'Špiraljenje',
+                    cost: sCost,
+                    breakdown: `${formatQty(qty)} kos * ${formatPrice(sPrice)}/kos`
+                });
+            }
+
             if (document.getElementById('f-extra-active').checked) {
                 const spd = parseFloat(document.getElementById('f-extra-speed').value) || 1;
                 const rte = parseFloat(document.getElementById('f-extra-rate').value) || 20;
@@ -2677,6 +2704,7 @@
                         noz: { active: document.getElementById('f-noz-active').checked, time: document.getElementById('f-noz-time').value, rate: document.getElementById('f-noz-rate').value },
                         sivanje: { active: document.getElementById('f-sivanje-active').checked, prep: document.getElementById('f-sivanje-prep').value, per1000: document.getElementById('f-sivanje-per1000').value },
                         lepljenje: { active: document.getElementById('f-lepljenje-active').checked, prep: document.getElementById('f-lepljenje-prep').value, per1000: document.getElementById('f-lepljenje-per1000').value },
+                        spiral: { active: document.getElementById('f-spiral-active').checked, price: document.getElementById('f-spiral-price').value },
                         extra: { active: document.getElementById('f-extra-active').checked, speed: document.getElementById('f-extra-speed').value, rate: document.getElementById('f-extra-rate').value },
                         tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
                         uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
@@ -2874,6 +2902,11 @@
                     document.getElementById('f-lepljenje-per1000').value = f.lepljenje.per1000;
                     toggleFinishRow('lepljenje');
                 }
+                if (f.spiral) {
+                    document.getElementById('f-spiral-active').checked = f.spiral.active;
+                    document.getElementById('f-spiral-price').value = f.spiral.price || 0;
+                    toggleFinishRow('spiral');
+                }
                 if (f.extra) {
                     document.getElementById('f-extra-active').checked = f.extra.active;
                     if (f.extra.speed) document.getElementById('f-extra-speed').value = f.extra.speed;
@@ -2972,6 +3005,8 @@
                             noz: { active: document.getElementById('f-noz-active').checked, time: document.getElementById('f-noz-time').value, rate: document.getElementById('f-noz-rate').value },
                             sivanje: { active: document.getElementById('f-sivanje-active').checked, prep: document.getElementById('f-sivanje-prep').value, per1000: document.getElementById('f-sivanje-per1000').value },
                             lepljenje: { active: document.getElementById('f-lepljenje-active').checked, prep: document.getElementById('f-lepljenje-prep').value, per1000: document.getElementById('f-lepljenje-per1000').value },
+                            spiral: { active: document.getElementById('f-spiral-active').checked, price: document.getElementById('f-spiral-price').value },
+                            spiral: { active: document.getElementById('f-spiral-active').checked, price: document.getElementById('f-spiral-price').value },
                             extra: { active: document.getElementById('f-extra-active').checked, speed: document.getElementById('f-extra-speed').value, rate: document.getElementById('f-extra-rate').value },
                             tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
                             uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
