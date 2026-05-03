@@ -1033,27 +1033,34 @@
                                     <input type="number" id="f-lam-prep" value="20.00" onchange="calculatePrice()">
                                 </div>
                             </div>
-                            <!-- Dostava -->
-                            <div class="finish-item" id="row-finish-delivery">
-                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                    <input type="checkbox" id="f-delivery-active"
-                                        onchange="toggleFinishRow('delivery')">
-                                    Dostava
-                                </label>
-                                <div class="form-group" style="margin:0;">
-                                    <label><small>KM / Pavšal (€)</small></label>
-                                    <div style="display:flex; gap:0.2rem;">
-                                        <input type="number" id="f-delivery-km" value="0" placeholder="km"
-                                            onchange="calculatePrice()" style="width: 50%;">
-                                        <input type="number" id="f-delivery-fixed" value="0.00" placeholder="€"
-                                            onchange="calculatePrice()" style="width: 50%;">
-                                    </div>
-                                </div>
-                                <div class="form-group" style="margin:0;">
-                                    <label><small>Cena/km (€)</small></label>
-                                    <input type="number" id="f-delivery-rate" value="0.70" onchange="calculatePrice()">
-                                </div>
-                            </div>
+                             <!-- Dostava in Pošta -->
+                             <div class="finish-item" id="row-finish-delivery" style="grid-template-columns: 120px 1fr;">
+                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                     <input type="checkbox" id="f-delivery-active" onchange="toggleFinishRow('delivery')">
+                                     Dostava / Pošta
+                                 </label>
+                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem;">
+                                     <div class="form-group" style="margin:0;">
+                                         <label><small>KM / Pavšal (€)</small></label>
+                                         <div style="display:flex; gap:0.2rem;">
+                                             <input type="number" id="f-delivery-km" value="0" placeholder="km" onchange="calculatePrice()" style="width: 50%;">
+                                             <input type="number" id="f-delivery-fixed" value="0.00" placeholder="€" onchange="calculatePrice()" style="width: 50%;">
+                                         </div>
+                                     </div>
+                                     <div class="form-group" style="margin:0;">
+                                         <label><small>Cena/km (€)</small></label>
+                                         <input type="number" id="f-delivery-rate" value="0.70" onchange="calculatePrice()">
+                                     </div>
+                                     <div class="form-group" style="margin:0;">
+                                         <label><small>Št. dostav (Pošta)</small></label>
+                                         <input type="number" id="f-post-count" value="0" placeholder="Št." onchange="calculatePrice()">
+                                     </div>
+                                     <div class="form-group" style="margin:0;">
+                                         <label><small>Cena/dostavo (€)</small></label>
+                                         <input type="number" id="f-post-price-per" value="0.00" step="0.01" placeholder="€" onchange="calculatePrice()">
+                                     </div>
+                                 </div>
+                             </div>
                         </div>
                     </div>
                 </div>
@@ -1107,6 +1114,19 @@
     </div>
 
     <script>
+        function logDebug(msg, isError = false) {
+            console.log(msg);
+            const logDiv = document.getElementById('debug-log');
+            if (logDiv) {
+                const entry = document.createElement('div');
+                entry.style.color = isError ? '#f87171' : '#94a3b8';
+                entry.style.fontSize = '0.7rem';
+                entry.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                entry.style.padding = '2px 0';
+                entry.innerText = new Date().toLocaleTimeString() + ": " + msg;
+                logDiv.prepend(entry);
+            }
+        }
         let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
         renderBasket();
         updateWarnings();
@@ -1848,7 +1868,9 @@
                 let dKm = parseFloat(document.getElementById('f-delivery-km').value) || 0;
                 let dRate = parseFloat(document.getElementById('f-delivery-rate').value) || 0;
                 let dFixed = parseFloat(document.getElementById('f-delivery-fixed').value) || 0;
-                totalFinishCost += (dKm * dRate) + dFixed;
+                let pCount = parseFloat(document.getElementById('f-post-count').value) || 0;
+                let pPricePer = parseFloat(document.getElementById('f-post-price-per').value) || 0;
+                totalFinishCost += (dKm * dRate) + dFixed + (pCount * pPricePer);
             }
 
             let subtotal = paperCost + totalPrepCost + totalPrintCost + totalFinishCost;
@@ -1989,11 +2011,19 @@
                 let dKm = parseFloat(document.getElementById('f-delivery-km').value) || 0;
                 let dRate = parseFloat(document.getElementById('f-delivery-rate').value) || 0;
                 let dFixed = parseFloat(document.getElementById('f-delivery-fixed').value) || 0;
-                let dCost = (dKm * dRate) + dFixed;
+                let pCount = parseFloat(document.getElementById('f-post-count').value) || 0;
+                let pPricePer = parseFloat(document.getElementById('f-post-price-per').value) || 0;
+                let totalD = (dKm * dRate) + dFixed + (pCount * pPricePer);
+                
+                let breakdown = [];
+                if (dKm > 0) breakdown.push(`Razdalja: ${dKm} km (${formatPrice(dKm * dRate)})`);
+                if (dFixed > 0) breakdown.push(`Pavšal: ${formatPrice(dFixed)}`);
+                if (pCount > 0) breakdown.push(`${pCount}x pošta (${formatPrice(pPricePer)}/dost)`);
+
                 details.finish.items.push({
-                    name: 'Dostava',
-                    cost: dCost,
-                    breakdown: dKm > 0 ? `Razdalja: ${dKm} km (${formatPrice(dKm * dRate)}) | Pavšal: ${formatPrice(dFixed)}` : `Pavšal: ${formatPrice(dFixed)}`
+                    name: 'Dostava / Pošta',
+                    cost: totalD,
+                    breakdown: breakdown.join(' | ') || 'Brez stroškov'
                 });
             }
 
@@ -2570,7 +2600,8 @@
                         tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
                         uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
                         lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type').value, sides: document.getElementById('f-lam-sides').value, per1000: document.getElementById('f-lam-per1000').value, prep: document.getElementById('f-lam-prep').value },
-                        delivery: { active: document.getElementById('f-delivery-active').checked, km: document.getElementById('f-delivery-km').value, fixed: document.getElementById('f-delivery-fixed').value, rate: document.getElementById('f-delivery-rate').value }
+                        delivery: { active: document.getElementById('f-delivery-active').checked, km: document.getElementById('f-delivery-km').value, fixed: document.getElementById('f-delivery-fixed').value, rate: document.getElementById('f-delivery-rate').value },
+                        post: { active: document.getElementById('f-post-active').checked, count: document.getElementById('f-post-count').value, pricePer: document.getElementById('f-post-price-per').value }
                     }
                 },
                 results: {
@@ -2792,6 +2823,10 @@
                     document.getElementById('f-delivery-km').value = f.delivery.km;
                     document.getElementById('f-delivery-fixed').value = f.delivery.fixed;
                     document.getElementById('f-delivery-rate').value = f.delivery.rate;
+                    if (f.post) {
+                        document.getElementById('f-post-count').value = f.post.count || 0;
+                        document.getElementById('f-post-price-per').value = f.post.pricePer || 0;
+                    }
                     toggleFinishRow('delivery');
                 }
             }
@@ -2860,7 +2895,8 @@
                             tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
                             uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
                             lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type').value, sides: document.getElementById('f-lam-sides').value, per1000: document.getElementById('f-lam-per1000').value, prep: document.getElementById('f-lam-prep').value },
-                            delivery: { active: document.getElementById('f-delivery-active').checked, km: document.getElementById('f-delivery-km').value, fixed: document.getElementById('f-delivery-fixed').value, rate: document.getElementById('f-delivery-rate').value }
+                            delivery: { active: document.getElementById('f-delivery-active').checked, km: document.getElementById('f-delivery-km').value, fixed: document.getElementById('f-delivery-fixed').value, rate: document.getElementById('f-delivery-rate').value },
+                            post: { active: document.getElementById('f-post-active').checked, count: document.getElementById('f-post-count').value, pricePer: document.getElementById('f-post-price-per').value }
                         }
                     }
                 };
