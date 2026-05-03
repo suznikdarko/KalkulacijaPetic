@@ -183,6 +183,13 @@
             box-shadow: 0 0 0 3px var(--accent-glow);
         }
 
+        input.has-content,
+        select.has-content,
+        textarea.has-content {
+            background-color: rgba(16, 185, 129, 0.15) !important;
+            border-color: rgba(16, 185, 129, 0.4) !important;
+        }
+
         button.calculate-btn {
             width: 100%;
             padding: 1rem;
@@ -1146,6 +1153,33 @@
                 logDiv.prepend(entry);
             }
         }
+
+        // Funkcija za vizualno označevanje polj z vsebino
+        function updateInputStyles(el) {
+            if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'SELECT' && el.tagName !== 'TEXTAREA')) return;
+
+            let hasValue = false;
+            const val = el.value.trim();
+
+            if (el.type === 'checkbox') {
+                hasValue = false; // Checkboxov ne barvamo
+            } else if (el.tagName === 'SELECT') {
+                hasValue = val !== "" && val !== "auto";
+            } else {
+                const num = parseFloat(val);
+                // Barvamo če ni prazno, ni "0", ni "0.00" in je številka različna od 0
+                hasValue = val !== "" && val !== "0" && val !== "0.00" && !isNaN(num) && num !== 0;
+            }
+
+            if (hasValue) {
+                el.classList.add('has-content');
+            } else {
+                el.classList.remove('has-content');
+            }
+        }
+
+        document.addEventListener('input', (e) => updateInputStyles(e.target));
+        document.addEventListener('change', (e) => updateInputStyles(e.target));
         let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
         renderBasket();
         updateWarnings();
