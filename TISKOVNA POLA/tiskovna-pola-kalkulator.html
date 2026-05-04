@@ -1060,12 +1060,9 @@
                                     </div>
                                 </div>
                                 <div class="form-group" style="margin:0;">
-                                    <label><small>Cena/1000 pol (€)</small></label>
-                                    <input type="number" id="f-lam-per1000" value="50.00" onchange="calculatePrice()">
-                                </div>
-                                <div class="form-group" style="margin:0;">
-                                    <label><small>Priprava (€)</small></label>
-                                    <input type="number" id="f-lam-prep" value="20.00" onchange="calculatePrice()">
+                                    <label><small>Cena na polo (€)</small></label>
+                                    <input type="number" id="f-lam-per1000" value="0.000" onchange="calculatePrice()"
+                                        step="0.001">
                                 </div>
                             </div>
                             <!-- Dostava (Pošta) -->
@@ -1525,6 +1522,34 @@
             }
         }
 
+        function getLaminationPricePerSheet(w, h, type) {
+            let area = w * h;
+            let formatClass = 'B1';
+            if (area <= 100000) formatClass = 'B4';
+            else if (area <= 200000) formatClass = 'B3';
+            else if (area <= 400000) formatClass = 'B2';
+            else formatClass = 'B1';
+
+            let basePrice = 0;
+            if (type === 'sijaj') {
+                if (formatClass === 'B1') basePrice = 0.132;
+                else if (formatClass === 'B2') basePrice = 0.074;
+                else if (formatClass === 'B3') basePrice = 0.049;
+                else if (formatClass === 'B4') basePrice = 0.037;
+            } else if (type === 'mat') {
+                if (formatClass === 'B1') basePrice = 0.234;
+                else if (formatClass === 'B2') basePrice = 0.112;
+                else if (formatClass === 'B3') basePrice = 0.074;
+                else if (formatClass === 'B4') basePrice = 0.049;
+            } else if (type === 'soft' || type === 'anti') {
+                if (formatClass === 'B1') basePrice = 0.234 * 2;
+                else if (formatClass === 'B2') basePrice = 0.112 * 2;
+                else if (formatClass === 'B3') basePrice = 0.074 * 2;
+                else if (formatClass === 'B4') basePrice = 0.049 * 2;
+            }
+            return basePrice;
+        }
+
         function calculate(isManual = false) {
             updateWarnings();
             try {
@@ -1620,6 +1645,13 @@
                     const y1 = Math.floor(sw / bestSheet.w) * Math.floor(sh / bestSheet.h);
                     const y2 = Math.floor(sw / bestSheet.h) * Math.floor(sh / bestSheet.w);
                     document.getElementById('calc-source-yield').value = Math.max(y1, y2, 1);
+
+                    // Posodobi ceno plastifikacije glede na format tiskovne pole
+                    const lamType = document.getElementById('f-lam-type').value;
+                    const lamPricePerSheet = getLaminationPricePerSheet(bestSheet.w, bestSheet.h, lamType);
+                    if (lamPricePerSheet > 0) {
+                        document.getElementById('f-lam-per1000').value = lamPricePerSheet.toFixed(4);
+                    }
                 }
 
                 if (!bestLayout) {
@@ -1949,7 +1981,7 @@
                 totalFinishCost += (parseFloat(document.getElementById('f-uv-prep').value) || 0) + (totalSheetsNeeded / 1000) * (parseFloat(document.getElementById('f-uv-per1000').value) || 0);
             }
             if (document.getElementById('f-lam-active').checked) {
-                totalFinishCost += (parseFloat(document.getElementById('f-lam-prep').value) || 0) + (totalSheetsNeeded / 1000) * (parseFloat(document.getElementById('f-lam-per1000').value) || 0) * (parseInt(document.getElementById('f-lam-sides').value) || 1);
+                totalFinishCost += sheetsNeeded * (parseFloat(document.getElementById('f-lam-per1000').value) || 0) * (parseInt(document.getElementById('f-lam-sides').value) || 1);
             }
             if (document.getElementById('f-delivery-active').checked) {
                 let pCount = parseFloat(document.getElementById('f-post-count').value) || 0;
@@ -2093,15 +2125,14 @@
                 });
             }
             if (document.getElementById('f-lam-active').checked) {
-                let lPrep = (parseFloat(document.getElementById('f-lam-prep').value) || 0);
                 let lP1000 = (parseFloat(document.getElementById('f-lam-per1000').value) || 0);
                 let lSides = (parseInt(document.getElementById('f-lam-sides').value) || 1);
-                let lWork = (totalSheetsNeeded / 1000) * lP1000 * lSides;
-                let lCost = lPrep + lWork;
+                let lWork = sheetsNeeded * lP1000 * lSides;
+                let lCost = lWork;
                 details.finish.items.push({
                     name: `Plastifikacija (${lSides}/0)`,
                     cost: lCost,
-                    breakdown: `Priprava: ${formatPrice(lPrep)} | Delo: ${totalSheetsNeeded} pol (${formatPrice(lWork)})`
+                    breakdown: `Delo: ${sheetsNeeded} pol (${formatPrice(lWork)})`
                 });
             }
             if (document.getElementById('f-delivery-active').checked) {
