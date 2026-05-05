@@ -778,13 +778,12 @@
                     <!-- Podkarton option -->
                     <div class="form-group" style="margin-top: 1rem; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
                         <label
-                            style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: bold; margin-bottom: 0.5rem;">
-                            <input type="checkbox" id="calc-cardboard-active" onchange="toggleCardboardRow()">
+                            style="display: flex; align-items: center; gap: 0.5rem; font-weight: bold; margin-bottom: 0.5rem;">
                             Dodatni material: Podkarton
                         </label>
 
                         <div id="cardboard-options"
-                            style="display: none; background: rgba(0,0,0,0.02); padding: 0.8rem; border-radius: 8px;">
+                            style="display: block; background: rgba(0,0,0,0.02); padding: 0.8rem; border-radius: 8px;">
                             <div class="form-group">
                                 <label>Cena podkartona</label>
                                 <div class="input-group">
@@ -1214,6 +1213,35 @@
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Priprava (€)</small></label>
                                     <input type="number" id="f-lam-prep" value="20.00" onchange="calculatePrice()">
+                                </div>
+                            </div>
+
+                            <!-- Dostava -->
+                            <div class="finish-item" id="row-finish-delivery">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-delivery-active"
+                                        onchange="toggleFinishRow('delivery')">
+                                    Dostava (Pošta)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>KM</small></label>
+                                    <input type="number" id="f-delivery-km" value="0" onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena/KM (€)</small></label>
+                                    <input type="number" id="f-delivery-rate" value="0.70" onchange="calculatePrice()">
+                                </div>
+                            </div>
+
+                            <div class="finish-item" id="row-finish-del-fixed">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-del-fixed-active"
+                                        onchange="toggleFinishRow('del-fixed')">
+                                    Dostava (Fiksno)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Fiksni strošek (€)</small></label>
+                                    <input type="number" id="f-del-fixed-cost" value="0.00" onchange="calculatePrice()">
                                 </div>
                             </div>
                         </div>
@@ -1853,9 +1881,9 @@
                     }
                 }
 
-                // Podkarton
-                if (document.getElementById('calc-cardboard-active') && document.getElementById('calc-cardboard-active').checked) {
-                    let cbPrice = parseFloat(document.getElementById('calc-cardboard-price').value) || 0;
+                // Podkarton (obračunamo, če je vnesena cena)
+                let cbPrice = parseFloat(document.getElementById('calc-cardboard-price').value) || 0;
+                if (cbPrice > 0) {
                     let cbUnit = document.getElementById('calc-cardboard-unit').value;
                     let cbWeight = parseFloat(document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : 300) || 300;
 
@@ -2032,6 +2060,18 @@
                     totalFinishCost += lamPrep + (totalSheetsNeeded / 1000) * lamPer1 * lamSides;
                 }
 
+                // Dostava (KM)
+                if (document.getElementById('f-delivery-active').checked) {
+                    let dKm = parseFloat(document.getElementById('f-delivery-km').value) || 0;
+                    let dRate = parseFloat(document.getElementById('f-delivery-rate').value) || 0;
+                    totalFinishCost += dKm * dRate;
+                }
+
+                // Dostava (Fiksno)
+                if (document.getElementById('f-del-fixed-active').checked) {
+                    totalFinishCost += parseFloat(document.getElementById('f-del-fixed-cost').value) || 0;
+                }
+
                 // 5. SKUPAJ IN RVC
                 let subtotal = paperCost + totalPrepCost + totalPrintCost + totalFinishCost;
                 let marginPercent = parseFloat(document.getElementById('calc-margin').value) || 0;
@@ -2091,14 +2131,7 @@
                 if (sel && grp) grp.style.display = (sel.value === 'custom') ? 'flex' : 'none';
             }
 
-            function toggleCardboardRow() {
-                const cb = document.getElementById('calc-cardboard-active');
-                const options = document.getElementById('cardboard-options');
-                if (cb && options) {
-                    options.style.display = cb.checked ? 'block' : 'none';
-                    calculatePrice();
-                }
-            }
+            // toggleCardboardRow removed as section is always visible.
 
             function toggleFinishRow(type) {
                 const row = document.getElementById('row-finish-' + type);
@@ -2455,7 +2488,7 @@
                         pSupplyW: document.getElementById('calc-paper-supply-w') ? document.getElementById('calc-paper-supply-w').value : 700,
                         pSupplyH: document.getElementById('calc-paper-supply-h') ? document.getElementById('calc-paper-supply-h').value : 1000,
                         pWaste: document.getElementById('calc-paper-waste-leaves').value,
-                        cbActive: document.getElementById('calc-cardboard-active') ? document.getElementById('calc-cardboard-active').checked : false,
+                        cbActive: true,
                         cbPrice: document.getElementById('calc-cardboard-price') ? document.getElementById('calc-cardboard-price').value : "",
                         cbUnit: document.getElementById('calc-cardboard-unit') ? document.getElementById('calc-cardboard-unit').value : "",
                         cbWeight: document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : "",
@@ -2501,7 +2534,9 @@
                             extra: { active: document.getElementById('f-extra-active').checked, manual: document.getElementById('f-extra-manual').value, external: document.getElementById('f-extra-external').value },
                             tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
                             uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
-                            lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type').value, sides: document.getElementById('f-lam-sides').value, per1000: document.getElementById('f-lam-per1000').value, prep: document.getElementById('f-lam-prep').value }
+                            lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type').value, sides: document.getElementById('f-lam-sides').value, per1000: document.getElementById('f-lam-per1000').value, prep: document.getElementById('f-lam-prep').value },
+                            delivery: { active: document.getElementById('f-delivery-active').checked, km: document.getElementById('f-delivery-km').value, rate: document.getElementById('f-delivery-rate').value },
+                            delFixed: { active: document.getElementById('f-del-fixed-active').checked, cost: document.getElementById('f-del-fixed-cost').value }
                         }
                     },
                     results: {
@@ -2624,7 +2659,7 @@
                 if (inp.prepPriceC) document.getElementById('calc-prep-price-cover').value = inp.prepPriceC;
                 if (inp.wasteC) document.getElementById('calc-paper-waste-cover').value = inp.wasteC;
 
-                if (document.getElementById('calc-cardboard-active')) document.getElementById('calc-cardboard-active').checked = inp.cbActive || false;
+                // Podkarton active checkbox was removed, section is always visible.
 
                 if (document.getElementById('calc-cardboard-price') && inp.cbPrice) document.getElementById('calc-cardboard-price').value = inp.cbPrice;
                 if (document.getElementById('calc-cardboard-unit') && inp.cbUnit) document.getElementById('calc-cardboard-unit').value = inp.cbUnit;
@@ -2636,7 +2671,7 @@
                 if (document.getElementById('calc-cb-supply-w') && inp.cbSupplyW) document.getElementById('calc-cb-supply-w').value = inp.cbSupplyW;
                 if (document.getElementById('calc-cb-supply-h') && inp.cbSupplyH) document.getElementById('calc-cb-supply-h').value = inp.cbSupplyH;
                 if (typeof toggleCbSupplyCustom === 'function') toggleCbSupplyCustom();
-                if (typeof toggleCardboardRow === 'function') toggleCardboardRow();
+                // Removed toggleCardboardRow call as section is always open.
                 if (document.getElementById('calc-margin')) document.getElementById('calc-margin').value = inp.margin || 0;
 
 
@@ -2717,6 +2752,17 @@
                         document.getElementById('f-lam-per1000').value = f.lam.per1000;
                         document.getElementById('f-lam-prep').value = f.lam.prep;
                         toggleFinishRow('lam');
+                    }
+                    if (f.delivery) {
+                        document.getElementById('f-delivery-active').checked = f.delivery.active;
+                        document.getElementById('f-delivery-km').value = f.delivery.km;
+                        document.getElementById('f-delivery-rate').value = f.delivery.rate;
+                        toggleFinishRow('delivery');
+                    }
+                    if (f.delFixed) {
+                        document.getElementById('f-del-fixed-active').checked = f.delFixed.active;
+                        document.getElementById('f-del-fixed-cost').value = f.delFixed.cost;
+                        toggleFinishRow('del-fixed');
                     }
                 }
 
