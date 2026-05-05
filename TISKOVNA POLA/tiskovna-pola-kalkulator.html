@@ -1423,8 +1423,60 @@
                 document.getElementById('calc-machine-rate').value = profile.rate;
                 document.getElementById('calc-machine-speed').value = profile.speed;
                 document.getElementById('calc-machine-prep-time').value = profile.prep;
-                if (profile.defaultFormat) {
-                    document.getElementById('machine-format').value = profile.defaultFormat;
+
+                // Try to find the best format for this machine based on item dimensions
+                const itemW = parseFloat(document.getElementById('width').value) || 0;
+                const itemH = parseFloat(document.getElementById('height').value) || 0;
+                const bleed = parseFloat(document.getElementById('bleed').value) || 0;
+                const gripper = parseFloat(document.getElementById('gripper').value) || 10;
+                const sw = parseFloat(document.getElementById('calc-source-w').value) || 9999;
+                const sh = parseFloat(document.getElementById('calc-source-h').value) || 9999;
+                const fMode = document.getElementById('item-orientation').value;
+
+                if (itemW > 0 && itemH > 0) {
+                    const iW = itemW + 2 * bleed;
+                    const iH = itemH + 2 * bleed;
+                    let bestSheetName = null;
+                    let bestCount = -1;
+                    let bestArea = Infinity;
+
+                    sheets.forEach(sheet => {
+                        // Check machine size limit
+                        const fitsMachine = !profile.maxW ||
+                            (sheet.w <= profile.maxW && sheet.h <= profile.maxH) ||
+                            (sheet.h <= profile.maxW && sheet.w <= profile.maxH);
+                        // Check source paper size
+                        const fitsSource = (sw >= sheet.w && sh >= sheet.h) || (sw >= sheet.h && sh >= sheet.w);
+                        if (!fitsMachine || !fitsSource) return;
+
+                        // Calculate max items per sheet (try both orientations)
+                        const configs = [
+                            Math.floor(sheet.w / iW) * Math.floor((sheet.h - gripper) / iH),
+                            Math.floor(sheet.w / iH) * Math.floor((sheet.h - gripper) / iW)
+                        ];
+                        const count = Math.max(...configs);
+                        if (count <= 0) return;
+
+                        const area = sheet.w * sheet.h;
+                        // Primary: maximize items per sheet
+                        // Tiebreaker: prefer smallest sheet area (least paper waste)
+                        if (count > bestCount || (count === bestCount && area < bestArea)) {
+                            bestCount = count;
+                            bestArea = area;
+                            bestSheetName = sheet.name;
+                        }
+                    });
+
+                    if (bestSheetName) {
+                        document.getElementById('machine-format').value = bestSheetName;
+                    } else if (profile.defaultFormat) {
+                        document.getElementById('machine-format').value = profile.defaultFormat;
+                    }
+                } else {
+                    // No item dimensions yet — fall back to machine's default format
+                    if (profile.defaultFormat) {
+                        document.getElementById('machine-format').value = profile.defaultFormat;
+                    }
                 }
             }
             filterAvailableFormats();
