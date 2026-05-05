@@ -1472,16 +1472,22 @@
                 { w: itemH, h: itemW, rot: true, edge: 'H', c: Math.floor(sheetW / itemH), r: Math.floor((sheetH - gripper) / itemW) }
             ];
             configs.forEach(cfg => {
-                if (forceMode === 'landscape' && cfg.rot) return;
-                if (forceMode === 'portrait' && !cfg.rot) return;
+                let isPlacedLandscape = cfg.w >= cfg.h;
+                if (forceMode === 'landscape' && !isPlacedLandscape) return;
+                if (forceMode === 'portrait' && isPlacedLandscape && cfg.w !== cfg.h) return;
 
                 let count = cfg.c * cfg.r;
 
                 if (isObrat) {
-                    // Preverimo katera obratna postavitev prinese največ stavkov brez prelivanja fronte in hrbta čez sredino.
+                    // Za obračanje potrebujemo sodo število stavkov v eni od smeri
                     let maxColsEven = Math.floor(cfg.c / 2) * 2;
                     let maxRowsEven = Math.floor(cfg.r / 2) * 2;
-                    count = Math.max(maxColsEven * cfg.r, cfg.c * maxRowsEven);
+                    let obratCount = Math.max(maxColsEven * cfg.r, cfg.c * maxRowsEven);
+                    if (obratCount > 0) {
+                        count = obratCount;
+                    } else {
+                        count = 0; // Ne moremo obračati, če ni vsaj 2 stavkov
+                    }
                 }
 
                 if (count > 0 && (!best || count > best.count)) {
