@@ -767,7 +767,8 @@
                         </div>
                         <div class="form-group">
                             <label>Gramatura (g/m²)</label>
-                            <input type="number" id="calc-paper-weight" value="135" onchange="calculatePrice()">
+                            <input type="number" id="calc-paper-weight" value="" placeholder="Izberite..."
+                                onchange="calculatePrice()">
                         </div>
                         <div class="form-group" style="margin-bottom: 0; display:none;">
                             <label>Odpadna makulatura (št. pol)</label>
@@ -798,7 +799,8 @@
                             </div>
                             <div class="form-group">
                                 <label>Gramatura podkartona (g/m²)</label>
-                                <input type="number" id="calc-cardboard-weight" value="300" onchange="calculatePrice()">
+                                <input type="number" id="calc-cardboard-weight" value="" placeholder="Izberite..."
+                                    onchange="calculatePrice()">
                             </div>
                         </div>
                     </div>
@@ -825,16 +827,18 @@
                         <label>Število barv (Lice / Hrbet)</label>
                         <div class="input-group">
                             <select id="calc-color-front-leaves" onchange="updateWasteAndPrice('leaves')">
+                                <option value="" selected disabled>Izberite...</option>
                                 <option value="0">0 barv</option>
                                 <option value="1">1 barva</option>
                                 <option value="2">2 barvi</option>
                                 <option value="3">3 barve</option>
-                                <option value="4" selected>4 barve</option>
+                                <option value="4">4 barve</option>
                                 <option value="5">5 barv</option>
                                 <option value="6">6 barv</option>
                             </select>
                             <select id="calc-color-back-leaves" onchange="updateWasteAndPrice('leaves')">
-                                <option value="0" selected>0 (Brez)</option>
+                                <option value="" selected disabled>Izberite...</option>
+                                <option value="0">0 (Brez)</option>
                                 <option value="1">1 barva</option>
                                 <option value="2">2 barvi</option>
                                 <option value="3">3 barve</option>
@@ -845,7 +849,7 @@
                         </div>
                     </div>
                     <div class="form-group" id="obrat-container-leaves"
-                        style="display: none; background: rgba(245, 158, 11, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3);">
+                        style="background: rgba(245, 158, 11, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3);">
                         <label
                             style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0;">
                             <input type="checkbox" id="calc-is-obrat-leaves" onchange="updateWasteAndPrice('leaves')"
@@ -911,16 +915,18 @@
                         <label>Število barv (ovitek)</label>
                         <div class="input-group">
                             <select id="calc-color-front-cover" onchange="updateWasteAndPrice('cover')">
+                                <option value="" selected disabled>Izberite...</option>
                                 <option value="0">0 barv</option>
                                 <option value="1">1 barva</option>
                                 <option value="2">2 barvi</option>
                                 <option value="3">3 barve</option>
-                                <option value="4" selected>4 barve</option>
+                                <option value="4">4 barve</option>
                                 <option value="5">5 barv</option>
                                 <option value="6">6 barv</option>
                             </select>
                             <select id="calc-color-back-cover" onchange="updateWasteAndPrice('cover')">
-                                <option value="0" selected>0 (Brez)</option>
+                                <option value="" selected disabled>Izberite...</option>
+                                <option value="0">0 (Brez)</option>
                                 <option value="1">1 barva</option>
                                 <option value="2">2 barvi</option>
                                 <option value="3">3 barve</option>
@@ -931,7 +937,7 @@
                         </div>
                     </div>
                     <div class="form-group" id="obrat-container-cover"
-                        style="display: none; background: rgba(245, 158, 11, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3);">
+                        style="background: rgba(245, 158, 11, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3);">
                         <label
                             style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0;">
                             <input type="checkbox" id="calc-is-obrat-cover" onchange="updateWasteAndPrice('cover')"
@@ -1771,13 +1777,18 @@
                 let back = parseInt(document.getElementById('calc-color-back-' + comp).value) || 0;
 
                 let obratContainer = document.getElementById('obrat-container-' + comp);
+                // "Na obrat" opcija je zdaj vedno vidna po želji uporabnika
+                if (obratContainer) obratContainer.style.display = 'block';
+
                 if (back > 0) {
-                    if (obratContainer) obratContainer.style.display = 'block';
-                } else {
-                    if (obratContainer) {
-                        obratContainer.style.display = 'none';
-                        document.getElementById('calc-is-obrat-' + comp).checked = false;
+                    // Samodejno predlagaj "na obrat", če sta sprednja in zadnja stran enaki (npr. 1/1, 4/4)
+                    let obratCb = document.getElementById('calc-is-obrat-' + comp);
+                    if (front === back && obratCb && !obratCb.checked && front > 0) {
+                        obratCb.checked = true;
                     }
+                } else {
+                    // Če ni tiska zadaj, ne izključimo nujno obrata, če ga uporabnik želi (vendar običajno nima smisla)
+                    // Pustimo mu možnost, da sam izbere.
                 }
                 let isObrat = document.getElementById('calc-is-obrat-' + comp) ? document.getElementById('calc-is-obrat-' + comp).checked : false;
 
@@ -2564,9 +2575,11 @@
                 const query = searchBox ? searchBox.value.toLowerCase().trim() : '';
 
                 if (arhiv.length === 0) {
-                    listDiv.innerHTML = '<p style="font-size: 0.8rem; color: #64748b;">Nimate shranjenih projektov.</p>';
+                    listDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem;">Arhiv je prazen.</div>';
                     return;
                 }
+
+                arhiv.sort((a, b) => b.id - a.id); // Najnovejši zgoraj
 
                 // Filtriranje po vseh vrednostih (JSON stringify hack za iskanje po vseh parametrih hkrati)
                 let filteredArhiv = arhiv;
@@ -2578,24 +2591,42 @@
                 }
 
                 if (filteredArhiv.length === 0) {
-                    listDiv.innerHTML = '<p style="font-size: 0.8rem; color: #64748b;">Ni zadetkov.</p>';
+                    listDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem;">Ni zadetkov za ta iskalni niz.</div>';
                     return;
                 }
 
-                let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
+                let html = "";
                 filteredArhiv.forEach(proj => {
+                    const codeDisplay = proj.materialCode ? `<span style="color:#60a5fa; margin-left:5px;">[${proj.materialCode}]</span>` : "";
+                    const custDisplay = proj.customer ? `<div style="font-size: 0.7rem; color: #6ee7b7;">${proj.customer}</div>` : "";
+                    let totalVal = "-";
+                    if (proj.results && proj.results.total) totalVal = proj.results.total;
+
                     html += `
-                    <li style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">
-                        <div style="cursor: pointer; flex: 1;" onclick="loadProject(${proj.id})">
-                            <strong>${proj.name}</strong><br>
-                            <small>${proj.date} | ${proj.results.total}</small>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row">
+                            <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProject(${proj.id});">
+                                <div style="font-weight: bold; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
+                                    ${proj.name || 'Brez imena'} ${codeDisplay}
+                                </div>
+                                ${custDisplay}
+                                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${proj.date || ''} | ${totalVal}</div>
+                            </div>
+                            <div style="display: flex; gap: 6px; margin-left: 10px;">
+                                 <button onclick="exportSingleProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #3b82f6; cursor: pointer; padding: 4px; font-size: 0.9rem;" title="Izvozi">📥</button>
+                                 <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 1rem;" title="Briši">✕</button>
+                            </div>
                         </div>
-                        <button onclick="deleteProject(${proj.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 0.2rem 0.5rem;">✕</button>
-                    </li>
-                `;
+                        `;
                 });
-                html += '</ul>';
+
                 listDiv.innerHTML = html;
+
+                // Dodaj hover efekte dinamično
+                const rows = listDiv.querySelectorAll('.project-item-row');
+                rows.forEach(r => {
+                    r.onmouseover = function () { this.style.background = "rgba(255,255,255,0.05)"; };
+                    r.onmouseout = function () { this.style.background = "transparent"; };
+                });
             }
 
             // Pomožna funkcija za nalaganje podatkov v polja (skupna za Arhiv in File Import)
@@ -3175,45 +3206,58 @@
     </div>
 
     <!-- LEPLJIVA VRSTICA S KONČNO CENO IN SPECIFIKACIJO -->
-    <div class="sticky-footer" style="flex-direction: column; align-items: stretch; gap: 0.5rem; padding: 0.8rem 2rem;">
-
-        <!-- Zgornja vrstica - Specifikacija -->
+    <div class="sticky-footer" style="flex-wrap: wrap; gap: 1rem;">
+        <!-- FAZE DELA (RAZČLENITEV STROŠKOV) -->
         <div
-            style="display: flex; gap: 1.5rem; justify-content: center; font-size: 0.85rem; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">
-            <div>Papir: <span id="sticky-spec-paper" style="color: #e2e8f0; font-weight: bold;">0.00 €</span></div>
-            <div>Priprava & Plošče: <span id="sticky-spec-prep" style="color: #e2e8f0; font-weight: bold;">0.00 €</span>
+            style="display: flex; gap: 1.2rem; margin-right: auto; padding-right: 1.5rem; border-right: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap;">
+            <div class="sticky-price-item">
+                <div class="sticky-price-label">Papir</div>
+                <div class="sticky-price-value" id="sticky-spec-paper" style="font-size: 0.95rem; color: #94a3b8;">0.00
+                    €
+                </div>
             </div>
-            <div>Tisk: <span id="sticky-spec-print" style="color: #e2e8f0; font-weight: bold;">0.00 €</span></div>
-            <div>Dodelava: <span id="sticky-spec-finish" style="color: #e2e8f0; font-weight: bold;">0.00 €</span></div>
+            <div class="sticky-price-item">
+                <div class="sticky-price-label">Priprava</div>
+                <div class="sticky-price-value" id="sticky-spec-prep" style="font-size: 0.95rem; color: #94a3b8;">0.00 €
+                </div>
+            </div>
+            <div class="sticky-price-item">
+                <div class="sticky-price-label">Tisk</div>
+                <div class="sticky-price-value" id="sticky-spec-print" style="font-size: 0.95rem; color: #94a3b8;">0.00
+                    €
+                </div>
+            </div>
+            <div class="sticky-price-item">
+                <div class="sticky-price-label">Dodelava</div>
+                <div class="sticky-price-value" id="sticky-spec-finish" style="font-size: 0.95rem; color: #94a3b8;">0.00
+                    €
+                </div>
+            </div>
         </div>
 
-        <!-- Spodnja vrstica - Glavni zneski -->
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <div style="display: flex; gap: 2rem;">
-                <div class="sticky-price-item">
-                    <div class="sticky-price-label">Naklada</div>
-                    <div class="sticky-price-value" id="sticky-qty" style="color: #60a5fa;">-</div>
-                </div>
-                <div class="sticky-price-item">
-                    <div class="sticky-price-label">Na kos</div>
-                    <div class="sticky-price-value" id="sticky-price-per-item"
-                        style="font-size: 1.1rem; color: #34d399;">0.000 €</div>
-                </div>
-                <div class="sticky-price-item">
-                    <div class="sticky-price-label">NA 1.000 KOS</div>
-                    <div class="sticky-price-value" id="sticky-price-1000" style="font-size: 1.3rem; color: #fbbf24;">
-                        0.00 €</div>
-                </div>
-                <div class="sticky-price-item">
-                    <div class="sticky-price-label">SKUPAJ (brez DDV)</div>
-                    <div class="sticky-price-value" id="sticky-price-total">0.00 €</div>
-                </div>
+        <div class="sticky-price-item">
+            <div class="sticky-price-label">Naklada</div>
+            <div class="sticky-price-value" id="sticky-qty" style="color: #60a5fa;">-</div>
+        </div>
+        <div class="sticky-price-item">
+            <div class="sticky-price-label">Na kos</div>
+            <div class="sticky-price-value" id="sticky-price-per-item" style="font-size: 1.1rem; color: #34d399;">0.000
+                €</div>
+        </div>
+        <div class="sticky-price-item">
+            <div class="sticky-price-label">NA 1.000 KOS</div>
+            <div class="sticky-price-value" id="sticky-price-1000" style="font-size: 1.3rem; color: #fbbf24;">0.00 €
             </div>
-            <div style="display:flex; gap:0.5rem;">
-                <button class="calculate-btn" onclick="saveCurrentProject()"
-                    style="margin: 0; width: auto; background: #10b981; padding: 0.5rem 1.2rem; font-size:0.85rem;">💾
-                    Shrani Ponudba</button>
-            </div>
+        </div>
+        <div class="sticky-price-item">
+            <div class="sticky-price-label">SKUPAJ (brez DDV)</div>
+            <div class="sticky-price-value" id="sticky-price-total">0.00 €</div>
+        </div>
+
+        <div style="display:flex; gap:0.5rem; margin-left: 1rem;">
+            <button class="calculate-btn" onclick="saveCurrentProject()"
+                style="margin: 0; width: auto; background: #10b981; padding: 0.5rem 1.2rem; font-size:0.85rem;">💾
+                Shrani Ponudbo</button>
         </div>
     </div>
     </div>
