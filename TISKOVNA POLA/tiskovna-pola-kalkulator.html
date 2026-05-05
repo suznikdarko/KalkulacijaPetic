@@ -865,7 +865,8 @@
 
                     <div class="form-group">
                         <label>Čas priprave stroja za tisk (minuti)</label>
-                        <input type="number" id="calc-machine-prep-time" value="45" step="5">
+                        <input type="number" id="calc-machine-prep-time" value="10" step="5"
+                            onchange="calculatePrice()">
                     </div>
                 </div>
 
@@ -1376,11 +1377,11 @@
         };
 
         const machineProfiles = {
-            'S4': { rate: 120, speed: 4500, prep: 35, useDynamic: true, maxW: 518, maxH: 348, defaultFormat: 'B3' },
-            'S8': { rate: 150, speed: 5400, prep: 45, useDynamic: true, maxW: 698, maxH: 498, defaultFormat: 'B2' },
-            'CD': { rate: 180, speed: 7200, prep: 50, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
-            'SM4+lak': { rate: 160, speed: 6300, prep: 55, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
-            'CD UV': { rate: 280, speed: 5400, prep: 60, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
+            'S4': { rate: 120, speed: 4500, prep: 10, useDynamic: true, maxW: 518, maxH: 348, defaultFormat: 'B3' },
+            'S8': { rate: 150, speed: 5400, prep: 10, useDynamic: true, maxW: 698, maxH: 498, defaultFormat: 'B2' },
+            'CD': { rate: 180, speed: 7200, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
+            'SM4+lak': { rate: 160, speed: 6300, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
+            'CD UV': { rate: 280, speed: 5400, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'digital': { rate: 40, speed: 1800, prep: 10, useDynamic: false, defaultFormat: 'Digital (480x320)', maxW: 480, maxH: 320 }
         };
 
@@ -1714,18 +1715,8 @@
             const totalPlates = front + (isObrat ? 0 : back) + mutPlates;
             document.getElementById('calc-plates-num').value = totalPlates;
 
-            if (profile) {
-                document.getElementById('calc-machine-rate').value = profile.rate;
-                document.getElementById('calc-machine-speed').value = profile.speed;
-
-                // Samodejni izračun časa priprave: 5 min na ploščo + 5 min osnove (npr. 4 plošče = 25 min)
-                if (mType !== 'digital') {
-                    const suggestedPrep = (totalPlates * 5) + 5;
-                    document.getElementById('calc-machine-prep-time').value = suggestedPrep;
-                } else {
-                    document.getElementById('calc-machine-prep-time').value = profile.prep;
-                }
-            }
+            // Odstranjeno prisilno prepisovanje rate, speed in prep-time iz updateWasteAndPrice,
+            // tako da lahko uporabnik ročno vnese čas priprave in se ta ne povozi pri vsakem izračunu.
 
             const qStr = document.getElementById('quantity').value || "0";
             const qArr = qStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
@@ -1842,7 +1833,7 @@
                 <div style="padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 8px;">
                     <div style="font-weight: bold; color: #f59e0b; margin-bottom: 5px;">3. Tisk (Strojno delo)</div>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                        <span>Priprava stroja (${(d.print.prepTime * 60).toFixed(0)} min):</span> <span>${formatPrice(d.print.prepTime * d.print.mRate)}</span>
+                        ${d.print.prepTime > 0 ? `<span>Priprava stroja (${(d.print.prepTime * 60).toFixed(0)} min):</span> <span>${formatPrice(d.print.prepTime * d.print.mRate)}</span>` : ''}
                         <span>Neto čas tiska (${(d.print.hours * 60).toFixed(0)} min):</span> <span>${formatPrice(d.print.hours * d.print.mRate)}</span>
                         <span>Prijemalec (gripper):</span> <span style="color: #fbbf24; font-weight: bold;">${d.print.gripper} mm</span>
                         <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
@@ -1953,7 +1944,8 @@
 
             let mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 0;
             let mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 10000;
-            let mPrepTime = (parseInt(document.getElementById('calc-machine-prep-time').value) || 30) / 60;
+            let mPrepInp = document.getElementById('calc-machine-prep-time').value;
+            let mPrepTime = (mPrepInp === "" ? 10 : parseFloat(mPrepInp)) / 60;
 
             let printHours = (sheetsNeeded + paperWasteSheets) * mPasses / mSpeed;
             let totalPrintCost = (printHours + mPrepTime) * mRate;
