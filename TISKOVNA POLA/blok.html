@@ -1080,13 +1080,19 @@
 
                 <!-- 3b. Podrobna Specifikacija -->
                 <div id="detailed-spec-container" class="calc-section"
-                    style="display: none; background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.3);">
-                    <h3 style="color: #60a5fa;">📋 Podrobna tehnična specifikacija</h3>
-                    <div id="detailed-spec-content"
-                        style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 0.75rem;">
-                        <!-- Dinamična vsebina -->
+                    style="background: rgba(30, 41, 59, 0.3); border-color: var(--glass-border); min-height: 200px;">
+                    <h3
+                        style="color: #60a5fa; border-bottom: 1px solid rgba(96, 165, 250, 0.2); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                        📋 Tehnična Specifikacija & Razčlenitev Stroškov
+                    </h3>
+                    <div id="detailed-spec-content">
+                        <!-- Tukaj se dinamično generira vsebina iz renderDetailedSpec() -->
+                        <div style="text-align: center; color: #94a3b8; padding: 2rem;">
+                            Vnesite podatke za izračun specifikacije...
+                        </div>
                     </div>
                 </div>
+
 
                 <!-- 4. Dodelava -->
                 <div class="calc-section" style="grid-column: 1 / -1;">
@@ -1420,20 +1426,6 @@
                     </div>
                 </div>
 
-                <!-- 5. TEHNIČNA SPECIFIKACIJA & IZRAČUN -->
-                <div id="detailed-spec-container" class="calc-section"
-                    style="display:none; grid-column: 1 / -1; background: rgba(30, 41, 59, 0.3); border-color: var(--glass-border);">
-                    <h3
-                        style="color: #60a5fa; border-bottom: 1px solid rgba(96, 165, 250, 0.2); padding-bottom: 0.5rem; margin-bottom: 1rem;">
-                        📋 Tehnična Specifikacija & Razčlenitev Stroškov
-                    </h3>
-                    <div id="detailed-spec-content">
-                        <!-- Tukaj se dinamično generira vsebina iz renderDetailedSpec() -->
-                        <div style="text-align: center; color: #94a3b8; padding: 2rem;">
-                            Vnesite podatke za izračun specifikacije...
-                        </div>
-                    </div>
-                </div>
 
                 <!-- 6. REZULTAT -->
                 <div class="calc-section"
@@ -1965,412 +1957,464 @@
             }
 
             function calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH) {
-                if (sheetsNeededLeaves === undefined) {
-                    sheetsNeededLeaves = parseInt(document.getElementById('res-sheets-needed').innerText) || 0;
-                }
-                if (sheetsNeededCover === undefined) {
-                    sheetsNeededCover = parseInt(document.getElementById('header-cover-sheets-val').innerText) || 0;
-                }
-                if (totalItemsForm === undefined) {
-                    const qtyStr = document.getElementById('quantity').value || "0";
-                    const qList = qtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, ''))).filter(n => !isNaN(n) && n > 0);
-                    totalItemsForm = qList.length > 0 ? qList[0] : 0;
-                }
-                // Če še ni določenih dimenzij ali naklade, ne delaj izračuna cene
-                if (totalItemsForm === 0 && !sheetsNeededLeaves && !sheetsNeededCover) return;
+                try {
+                    if (sheetsNeededLeaves === undefined) {
+                        let txt = document.getElementById('res-sheets-needed') ? document.getElementById('res-sheets-needed').innerText : "0";
+                        sheetsNeededLeaves = parseInt(txt.replace(/\./g, '')) || 0;
+                    }
+                    if (sheetsNeededCover === undefined) {
+                        let txt = document.getElementById('header-cover-sheets-val') ? document.getElementById('header-cover-sheets-val').innerText : "0";
+                        sheetsNeededCover = parseInt(txt.replace(/\./g, '')) || 0;
+                    }
+                    if (totalItemsForm === undefined) {
+                        const qtyStr = document.getElementById('quantity').value || "0";
+                        const qList = qtyStr.split(',').map(s => {
+                            let clean = s.trim().replace(/\./g, '').replace(',', '.');
+                            return parseFloat(clean);
+                        }).filter(n => !isNaN(n) && n > 0);
+                        totalItemsForm = qList.length > 0 ? qList[0] : 0;
+                    }
+                    // Če še ni določenih dimenzij ali naklade, ne delaj izračuna cene
+                    // Calculate if we have at least SOME input or derived data
+                    // Removed strict return to allow spec to update with prep costs even if qty is 0
 
-                if (drawW === undefined || drawH === undefined || isNaN(drawW) || isNaN(drawH)) {
-                    let sizeText = document.getElementById('res-size').innerText;
-                    if (sizeText && sizeText.includes('x')) {
-                        let sizeStr = sizeText.split('x');
-                        drawW = parseFloat(sizeStr[0]);
-                        drawH = parseFloat(sizeStr[1]);
-                    } else {
-                        // Fallback na span vrednosti
-                        let sText = document.getElementById('res-size-leaves-val').innerText;
-                        if (sText && sText.includes('x')) {
-                            let sStr = sText.split('x');
-                            drawW = parseFloat(sStr[0]);
-                            drawH = parseFloat(sStr[1]);
+                    if (drawW === undefined || drawH === undefined || isNaN(drawW) || isNaN(drawH)) {
+                        let sizeText = document.getElementById('res-size').innerText;
+                        if (sizeText && sizeText.includes('x')) {
+                            let sizeStr = sizeText.split('x');
+                            drawW = parseFloat(sizeStr[0]);
+                            drawH = parseFloat(sizeStr[1]);
+                        } else {
+                            // Fallback na span vrednosti
+                            let sText = document.getElementById('res-size-leaves-val').innerText;
+                            if (sText && sText.includes('x')) {
+                                let sStr = sText.split('x');
+                                drawW = parseFloat(sStr[0]);
+                                drawH = parseFloat(sStr[1]);
+                            }
                         }
                     }
-                }
 
-                // Zadnji fallback če še vedno ni dimenzij
-                if (!drawW || !drawH || isNaN(drawW) || isNaN(drawH)) {
-                    drawW = 700; drawH = 500;
-                }
+                    // Zadnji fallback če še vedno ni dimenzij
+                    if (!drawW || !drawH || isNaN(drawW) || isNaN(drawH)) {
+                        drawW = 700; drawH = 500;
+                    }
 
-                // 0. PRIDOBIVANJE PARAMETROV TISKA (TAKTAK NA ZAČETKU)
-                // Liste
-                let frontL = parseInt(document.getElementById('calc-color-front-leaves').value) || 0;
-                let backL = parseInt(document.getElementById('calc-color-back-leaves').value) || 0;
-                let isObratL = document.getElementById('calc-is-obrat-leaves').checked;
-                let wasteL = parseInt(document.getElementById('calc-paper-waste-leaves').value) || 0;
+                    // 0. PRIDOBIVANJE PARAMETROV TISKA (TAKTAK NA ZAČETKU)
+                    // Liste
+                    let frontL = parseInt(document.getElementById('calc-color-front-leaves').value) || 0;
+                    let backL = parseInt(document.getElementById('calc-color-back-leaves').value) || 0;
+                    let isObratL = document.getElementById('calc-is-obrat-leaves').checked;
+                    let wasteL = parseInt(document.getElementById('calc-paper-waste-leaves').value) || 0;
 
-                // Ovitek
-                let frontC = parseInt(document.getElementById('calc-color-front-cover').value) || 0;
-                let backC = parseInt(document.getElementById('calc-color-back-cover').value) || 0;
-                let isObratC = document.getElementById('calc-is-obrat-cover').checked;
-                let wasteC = parseInt(document.getElementById('calc-paper-waste-cover').value) || 0;
+                    // Ovitek
+                    let frontC = parseInt(document.getElementById('calc-color-front-cover').value) || 0;
+                    let backC = parseInt(document.getElementById('calc-color-back-cover').value) || 0;
+                    let isObratC = document.getElementById('calc-is-obrat-cover').checked;
+                    let wasteC = parseInt(document.getElementById('calc-paper-waste-cover').value) || 0;
 
-                // Skupne potrebe po polah (za material)
-                let totalSheetsNeededLeaves = sheetsNeededLeaves + wasteL;
-                let totalSheetsNeededCover = sheetsNeededCover + wasteC;
-                let totalSheetsNeeded = totalSheetsNeededLeaves + totalSheetsNeededCover;
+                    // Skupne potrebe po polah (za material)
+                    let totalSheetsNeededLeaves = sheetsNeededLeaves + wasteL;
+                    let totalSheetsNeededCover = sheetsNeededCover + wasteC;
+                    let totalSheetsNeeded = totalSheetsNeededLeaves + totalSheetsNeededCover;
 
-                // 1. MATERIAL
-                let pPrice = parseFloat(document.getElementById('calc-paper-price').value) || 0;
-                let pUnit = document.getElementById('calc-paper-unit').value;
-                let pWeight = parseFloat(document.getElementById('calc-paper-weight').value) || 135;
+                    // 1. MATERIAL
+                    let pPrice = parseFloat(document.getElementById('calc-paper-price').value) || 0;
+                    let pUnit = document.getElementById('calc-paper-unit').value;
+                    let pWeight = parseFloat(document.getElementById('calc-paper-weight').value) || 135;
 
-                let paperCost = 0;
-                let pSupplyW = 700, pSupplyH = 1000, pYield = 1, pParentSheetsNeeded = 0;
+                    let paperCost = 0;
+                    let pSupplyW = 700, pSupplyH = 1000, pYield = 1, pParentSheetsNeeded = 0;
 
-                // Pridobi dimenzije za liste
-                let drawWL = 0, drawHL = 0;
-                let sizeTextL = document.getElementById('res-size-leaves-val').innerText;
-                let sizeStrL = sizeTextL.split('x');
-                if (sizeStrL.length === 2) {
-                    drawWL = parseFloat(sizeStrL[0]);
-                    drawHL = parseFloat(sizeStrL[1]);
-                }
+                    // Pridobi dimenzije za liste
+                    let drawWL = 0, drawHL = 0;
+                    let sizeTextL = document.getElementById('res-size-leaves-val').innerText;
+                    let sizeStrL = sizeTextL.split('x');
+                    if (sizeStrL.length === 2) {
+                        drawWL = parseFloat(sizeStrL[0]);
+                        drawHL = parseFloat(sizeStrL[1]);
+                    }
 
-                if (!document.getElementById('calc-paper-active') || document.getElementById('calc-paper-active').checked) {
-                    if (drawWL > 0 && drawHL > 0) {
-                        pSupplyW = parseFloat(document.getElementById('calc-source-w').value) || 700;
-                        pSupplyH = parseFloat(document.getElementById('calc-source-h').value) || 1000;
+                    if (!document.getElementById('calc-paper-active') || document.getElementById('calc-paper-active').checked) {
+                        if (drawWL > 0 && drawHL > 0) {
+                            pSupplyW = parseFloat(document.getElementById('calc-source-w').value) || 700;
+                            pSupplyH = parseFloat(document.getElementById('calc-source-h').value) || 1000;
 
-                        let pYield1 = Math.floor(pSupplyW / drawWL) * Math.floor(pSupplyH / drawHL);
-                        let pYield2 = Math.floor(pSupplyW / drawHL) * Math.floor(pSupplyH / drawWL);
-                        pYield = Math.max(pYield1, pYield2) || 1;
+                            let pYield1 = Math.floor(pSupplyW / drawWL) * Math.floor(pSupplyH / drawHL);
+                            let pYield2 = Math.floor(pSupplyW / drawHL) * Math.floor(pSupplyH / drawWL);
+                            pYield = Math.max(pYield1, pYield2) || 1;
 
-                        pParentSheetsNeeded = Math.ceil(totalSheetsNeededLeaves / pYield);
+                            pParentSheetsNeeded = Math.ceil(totalSheetsNeededLeaves / pYield);
 
-                        if (pUnit === "1") {
-                            paperCost = pParentSheetsNeeded * pPrice;
-                        } else if (pUnit === "1000") {
-                            paperCost = (pParentSheetsNeeded / 1000) * pPrice;
-                        } else if (pUnit === "kg") {
-                            let areaM2 = (pSupplyW / 1000) * (pSupplyH / 1000);
-                            let sheetKg = areaM2 * (pWeight / 1000);
-                            paperCost = pParentSheetsNeeded * sheetKg * pPrice;
-                        } else if (pUnit === "ton") {
-                            let areaM2 = (pSupplyW / 1000) * (pSupplyH / 1000);
-                            let sheetKg = areaM2 * (pWeight / 1000);
-                            let totalKg = pParentSheetsNeeded * sheetKg;
-                            paperCost = (totalKg / 1000) * pPrice;
+                            if (pUnit === "1") {
+                                paperCost = pParentSheetsNeeded * pPrice;
+                            } else if (pUnit === "1000") {
+                                paperCost = (pParentSheetsNeeded / 1000) * pPrice;
+                            } else if (pUnit === "kg") {
+                                let areaM2 = (pSupplyW / 1000) * (pSupplyH / 1000);
+                                let sheetKg = areaM2 * (pWeight / 1000);
+                                paperCost = pParentSheetsNeeded * sheetKg * pPrice;
+                            } else if (pUnit === "ton") {
+                                let areaM2 = (pSupplyW / 1000) * (pSupplyH / 1000);
+                                let sheetKg = areaM2 * (pWeight / 1000);
+                                let totalKg = pParentSheetsNeeded * sheetKg;
+                                paperCost = (totalKg / 1000) * pPrice;
+                            }
                         }
                     }
-                }
 
-                // Podkarton (obračunamo, če je vnesena cena)
-                let cbPrice = parseFloat(document.getElementById('calc-cardboard-price').value) || 0;
-                let cbSupplyW = 700, cbSupplyH = 1000, cbYield = 1, cbParentSheetsNeeded = 0;
+                    // Podkarton (obračunamo, če je vnesena cena)
+                    let cbPrice = parseFloat(document.getElementById('calc-cardboard-price').value) || 0;
+                    let cbSupplyW = 700, cbSupplyH = 1000, cbYield = 1, cbParentSheetsNeeded = 0;
 
-                // Pridobi dimenzije za ovitek
-                let drawWC = 0, drawHC = 0;
-                let sizeTextC = document.getElementById('res-size-cover-val').innerText;
-                let sizeStrC = sizeTextC.split('x');
-                if (sizeStrC.length === 2) {
-                    drawWC = parseFloat(sizeStrC[0]);
-                    drawHC = parseFloat(sizeStrC[1]);
-                }
-
-                if (cbPrice > 0) {
-                    if (drawWC > 0 && drawHC > 0) {
-                        let cbUnit = document.getElementById('calc-cardboard-unit').value;
-                        let cbWeight = parseFloat(document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : 300) || 300;
-
-                        cbSupplyW = parseFloat(document.getElementById('calc-source-cover-w').value) || 700;
-                        cbSupplyH = parseFloat(document.getElementById('calc-source-cover-h').value) || 1000;
-
-                        let cbYield1 = Math.floor(cbSupplyW / drawWC) * Math.floor(cbSupplyH / drawHC);
-                        let cbYield2 = Math.floor(cbSupplyW / drawHC) * Math.floor(cbSupplyH / drawWC);
-                        cbYield = Math.max(cbYield1, cbYield2) || 1;
-
-                        cbParentSheetsNeeded = Math.ceil(totalSheetsNeededCover / cbYield);
-
-                        let cbCost = 0;
-                        if (cbUnit === 'item') {
-                            cbCost = totalItemsForm * cbPrice;
-                        } else if (cbUnit === 'sheet') {
-                            cbCost = cbParentSheetsNeeded * cbPrice;
-                        } else if (cbUnit === '1000') {
-                            cbCost = (cbParentSheetsNeeded / 1000) * cbPrice;
-                        } else if (cbUnit === 'kg') {
-                            let areaM2 = (cbSupplyW / 1000) * (cbSupplyH / 1000);
-                            let sheetKg = areaM2 * (cbWeight / 1000);
-                            cbCost = cbParentSheetsNeeded * sheetKg * cbPrice;
-                        } else if (cbUnit === 'ton') {
-                            let areaM2 = (cbSupplyW / 1000) * (cbSupplyH / 1000);
-                            let sheetKg = areaM2 * (cbWeight / 1000);
-                            let totalKg = cbParentSheetsNeeded * sheetKg;
-                            cbCost = (totalKg / 1000) * cbPrice;
-                        }
-                        paperCost += cbCost;
+                    // Pridobi dimenzije za ovitek
+                    let drawWC = 0, drawHC = 0;
+                    let sizeTextC = document.getElementById('res-size-cover-val').innerText;
+                    let sizeStrC = sizeTextC.split('x');
+                    if (sizeStrC.length === 2) {
+                        drawWC = parseFloat(sizeStrC[0]);
+                        drawHC = parseFloat(sizeStrC[1]);
                     }
-                }
 
-                // 2. TISK - LISTI
-                let totalPrepCostL = 0;
-                let totalPrintCostL = 0;
+                    let cbUnit = document.getElementById('calc-cardboard-unit') ? document.getElementById('calc-cardboard-unit').value : "item";
+                    let cbWeight = parseFloat(document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : 300) || 300;
 
-                if (frontL + backL > 0) {
-                    let platesNumL = parseInt(document.getElementById('calc-plates-num-leaves').value) || 0;
-                    let platesPriceL = parseFloat(document.getElementById('calc-plates-price-leaves').value) || 0;
-                    let prepPriceL = parseFloat(document.getElementById('calc-prep-price-leaves').value) || 0;
-                    totalPrepCostL = (platesNumL * platesPriceL) + prepPriceL;
+                    if (cbPrice > 0) {
+                        if (drawWC > 0 && drawHC > 0) {
+                            cbSupplyW = parseFloat(document.getElementById('calc-source-cover-w').value) || 700;
+                            cbSupplyH = parseFloat(document.getElementById('calc-source-cover-h').value) || 1000;
 
-                    let mRateL = parseFloat(document.getElementById('calc-machine-rate-leaves').value) || 0;
-                    let mSpeedL = parseFloat(document.getElementById('calc-machine-speed-leaves').value) || 10000;
-                    let mPrepValL = document.getElementById('calc-machine-prep-time-leaves').value;
-                    let mPrepTimeL = (mPrepValL === "" ? 10 : parseFloat(mPrepValL)) / 60;
+                            let cbYield1 = Math.floor(cbSupplyW / drawWC) * Math.floor(cbSupplyH / drawHC);
+                            let cbYield2 = Math.floor(cbSupplyW / drawHC) * Math.floor(cbSupplyH / drawWC);
+                            cbYield = Math.max(cbYield1, cbYield2) || 1;
 
-                    let mPassesL = Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0);
-                    if (isObratL) mPassesL = Math.ceil(frontL / 4);
+                            cbParentSheetsNeeded = Math.ceil(totalSheetsNeededCover / cbYield);
 
-                    let printHoursL = (sheetsNeededLeaves + wasteL) * mPassesL / mSpeedL;
-                    totalPrintCostL = (printHoursL + mPrepTimeL) * mRateL;
-                }
+                            let cbCost = 0;
+                            if (cbUnit === 'item') {
+                                cbCost = totalItemsForm * cbPrice;
+                            } else if (cbUnit === 'sheet') {
+                                cbCost = cbParentSheetsNeeded * cbPrice;
+                            } else if (cbUnit === '1000') {
+                                cbCost = (cbParentSheetsNeeded / 1000) * cbPrice;
+                            } else if (cbUnit === 'kg') {
+                                let areaM2 = (cbSupplyW / 1000) * (cbSupplyH / 1000);
+                                let sheetKg = areaM2 * (cbWeight / 1000);
+                                cbCost = cbParentSheetsNeeded * sheetKg * cbPrice;
+                            } else if (cbUnit === 'ton') {
+                                let areaM2 = (cbSupplyW / 1000) * (cbSupplyH / 1000);
+                                let sheetKg = areaM2 * (cbWeight / 1000);
+                                let totalKg = cbParentSheetsNeeded * sheetKg;
+                                cbCost = (totalKg / 1000) * cbPrice;
+                            }
+                            paperCost += cbCost;
+                        }
+                    }
 
-                // 3. TISK - OVITEK
-                let totalPrepCostC = 0;
-                let totalPrintCostC = 0;
+                    // 2. TISK - LISTI
+                    let totalPrepCostL = 0;
+                    let totalPrintCostL = 0;
 
-                if (frontC + backC > 0) {
-                    let platesNumC = parseInt(document.getElementById('calc-plates-num-cover').value) || 0;
-                    let platesPriceC = parseFloat(document.getElementById('calc-plates-price-cover').value) || 0;
-                    let prepPriceC = parseFloat(document.getElementById('calc-prep-price-cover').value) || 0;
-                    totalPrepCostC = (platesNumC * platesPriceC) + prepPriceC;
+                    if (frontL + backL > 0) {
+                        let platesNumL = parseInt(document.getElementById('calc-plates-num-leaves').value) || 0;
+                        let platesPriceL = parseFloat(document.getElementById('calc-plates-price-leaves').value) || 0;
+                        let prepPriceL = parseFloat(document.getElementById('calc-prep-price-leaves').value) || 0;
+                        totalPrepCostL = (platesNumL * platesPriceL) + prepPriceL;
 
-                    let mRateC = parseFloat(document.getElementById('calc-machine-rate-cover').value) || 0;
-                    let mSpeedC = parseFloat(document.getElementById('calc-machine-speed-cover').value) || 10000;
-                    let mPrepValC = document.getElementById('calc-machine-prep-time-cover').value;
-                    let mPrepTimeC = (mPrepValC === "" ? 10 : parseFloat(mPrepValC)) / 60;
+                        let mRateL = parseFloat(document.getElementById('calc-machine-rate-leaves').value) || 0;
+                        let mSpeedL = parseFloat(document.getElementById('calc-machine-speed-leaves').value) || 10000;
+                        let mPrepValL = document.getElementById('calc-machine-prep-time-leaves').value;
+                        let mPrepTimeL = (mPrepValL === "" ? 10 : parseFloat(mPrepValL)) / 60;
 
-                    let mPassesC = Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0);
-                    if (isObratC) mPassesC = Math.ceil(frontC / 4);
+                        let mPassesL = Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0);
+                        if (isObratL) mPassesL = Math.ceil(frontL / 4);
 
-                    let printHoursC = (sheetsNeededCover + wasteC) * mPassesC / mSpeedC;
-                    totalPrintCostC = (printHoursC + mPrepTimeC) * mRateC;
-                }
+                        let printHoursL = (sheetsNeededLeaves + wasteL) * mPassesL / mSpeedL;
+                        totalPrintCostL = (printHoursL + mPrepTimeL) * mRateL;
+                    }
 
-                // Seštevek obeh tiskov
-                let totalPrepCost = totalPrepCostL + totalPrepCostC;
-                let totalPrintCost = totalPrintCostL + totalPrintCostC;
+                    // 3. TISK - OVITEK
+                    let totalPrepCostC = 0;
+                    let totalPrintCostC = 0;
+
+                    if (frontC + backC > 0) {
+                        let platesNumC = parseInt(document.getElementById('calc-plates-num-cover').value) || 0;
+                        let platesPriceC = parseFloat(document.getElementById('calc-plates-price-cover').value) || 0;
+                        let prepPriceC = parseFloat(document.getElementById('calc-prep-price-cover').value) || 0;
+                        totalPrepCostC = (platesNumC * platesPriceC) + prepPriceC;
+
+                        let mRateC = parseFloat(document.getElementById('calc-machine-rate-cover').value) || 0;
+                        let mSpeedC = parseFloat(document.getElementById('calc-machine-speed-cover').value) || 10000;
+                        let mPrepValC = document.getElementById('calc-machine-prep-time-cover').value;
+                        let mPrepTimeC = (mPrepValC === "" ? 10 : parseFloat(mPrepValC)) / 60;
+
+                        let mPassesC = Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0);
+                        if (isObratC) mPassesC = Math.ceil(frontC / 4);
+
+                        let printHoursC = (sheetsNeededCover + wasteC) * mPassesC / mSpeedC;
+                        totalPrintCostC = (printHoursC + mPrepTimeC) * mRateC;
+                    }
+
+                    // Seštevek obeh tiskov
+                    let totalPrepCost = totalPrepCostL + totalPrepCostC;
+                    let totalPrintCost = totalPrintCostL + totalPrintCostC;
 
 
-                // 4. DODELAVA (NOVA LOGIKA)
-                let totalFinishCost = 0;
+                    // 4. DODELAVA (NOVA LOGIKA)
+                    let totalFinishCost = 0;
+                    let finishItems = [];
 
-                // Cilinder
-                if (document.getElementById('f-cilinder-active').checked) {
-                    let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 20;
-                    let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 40;
-                    let cSpeed = pWeight > 300 ? 1400 : 2000;
-                    let cCost = cPrep + (totalSheetsNeeded / cSpeed) * cRate;
-                    totalFinishCost += cCost;
-                }
+                    // Cilinder
+                    if (document.getElementById('f-cilinder-active').checked) {
+                        let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 20;
+                        let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 40;
+                        let cSpeed = pWeight > 300 ? 1400 : 2000;
+                        let cWork = (totalSheetsNeeded / cSpeed) * cRate;
+                        let cCost = cPrep + cWork;
+                        totalFinishCost += cCost;
+                        finishItems.push({ name: 'Cilinder (izsek)', cost: cCost, breakdown: `Priprava: ${formatPrice(cPrep)} | Delo: ${formatPrice(cWork)}` });
+                    }
 
-                // Zgibanje
-                if (document.getElementById('f-zgibanje-active').checked) {
-                    let zFolds = parseInt(document.getElementById('f-zgibanje-folds').value) || 4;
-                    let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 10000;
-                    let zPrep = (zFolds / 4) * 50;
-                    let zRate = 30; // Predpostavljeno
-                    let zCost = zPrep + (totalItemsForm / zSpeed) * zRate;
-                    totalFinishCost += zCost;
-                }
+                    // Zgibanje
+                    if (document.getElementById('f-zgibanje-active').checked) {
+                        let zFolds = parseInt(document.getElementById('f-zgibanje-folds').value) || 4;
+                        let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 10000;
+                        let zPrep = (zFolds / 4) * 50;
+                        let zRate = 30; // Predpostavljeno
+                        let zWork = (totalItemsForm / zSpeed) * zRate;
+                        let zCost = zPrep + zWork;
+                        totalFinishCost += zCost;
+                        finishItems.push({ name: `Zgibanje (${zFolds}x)`, cost: zCost, breakdown: `Priprava: ${formatPrice(zPrep)} | Delo: ${formatPrice(zWork)}` });
+                    }
 
-                // Nož
-                if (document.getElementById('f-noz-active').checked) {
-                    let nTime = parseFloat(document.getElementById('f-noz-time').value) || 0;
-                    let nRate = parseFloat(document.getElementById('f-noz-rate').value) || 0;
-                    totalFinishCost += (nTime / 60) * nRate;
-                }
+                    // Nož
+                    if (document.getElementById('f-noz-active').checked) {
+                        let nTime = parseFloat(document.getElementById('f-noz-time').value) || 0;
+                        let nRate = parseFloat(document.getElementById('f-noz-rate').value) || 0;
+                        let nCost = (nTime / 60) * nRate;
+                        totalFinishCost += nCost;
+                        finishItems.push({ name: 'Nož / Razrez', cost: nCost, breakdown: `Čas: ${nTime} min | Postavka: ${formatPrice(nRate)}/h` });
+                    }
 
-                // Znašanje
-                if (document.getElementById('f-znasanje-active').checked) {
-                    let znPrep = parseFloat(document.getElementById('f-znasanje-prep').value) || 0;
-                    let znPer1000 = parseFloat(document.getElementById('f-znasanje-per1000').value) || 0;
-                    totalFinishCost += znPrep + (totalItemsForm / 1000) * znPer1000;
-                }
+                    // Znašanje
+                    if (document.getElementById('f-znasanje-active').checked) {
+                        let znPrep = parseFloat(document.getElementById('f-znasanje-prep').value) || 0;
+                        let znPer1000 = parseFloat(document.getElementById('f-znasanje-per1000').value) || 0;
+                        let znWork = (totalItemsForm / 1000) * znPer1000;
+                        let znCost = znPrep + znWork;
+                        totalFinishCost += znCost;
+                        finishItems.push({ name: 'Znašanje', cost: znCost, breakdown: `Priprava: ${formatPrice(znPrep)} | Delo: ${formatPrice(znWork)}` });
+                    }
 
-                // Lepljenje blokov
-                if (document.getElementById('f-lepljenjeblokov-active').checked) {
-                    let lbPrep = parseFloat(document.getElementById('f-lepljenjeblokov-prep').value) || 0;
-                    let lbKos = parseFloat(document.getElementById('f-lepljenjeblokov-kos').value) || 0;
-                    totalFinishCost += lbPrep + totalItemsForm * lbKos;
-                }
+                    // Lepljenje blokov
+                    if (document.getElementById('f-lepljenjeblokov-active').checked) {
+                        let lbPrep = parseFloat(document.getElementById('f-lepljenjeblokov-prep').value) || 0;
+                        let lbKos = parseFloat(document.getElementById('f-lepljenjeblokov-kos').value) || 0;
+                        let lbWork = totalItemsForm * lbKos;
+                        let lbCost = lbPrep + lbWork;
+                        totalFinishCost += lbCost;
+                        finishItems.push({ name: 'Lepljenje blokov', cost: lbCost, breakdown: `Priprava: ${formatPrice(lbPrep)} | Delo: ${formatPrice(lbWork)}` });
+                    }
 
-                // Špiraljenje
-                if (document.getElementById('f-spiraljenje-active').checked) {
-                    let spPrep = parseFloat(document.getElementById('f-spiraljenje-prep').value) || 0;
-                    let spKos = parseFloat(document.getElementById('f-spiraljenje-kos').value) || 0;
-                    totalFinishCost += spPrep + totalItemsForm * spKos;
-                }
+                    // Špiraljenje
+                    if (document.getElementById('f-spiraljenje-active').checked) {
+                        let spPrep = parseFloat(document.getElementById('f-spiraljenje-prep').value) || 0;
+                        let spKos = parseFloat(document.getElementById('f-spiraljenje-kos').value) || 0;
+                        let spWork = totalItemsForm * spKos;
+                        let spCost = spPrep + spWork;
+                        totalFinishCost += spCost;
+                        finishItems.push({ name: 'Špiraljenje', cost: spCost, breakdown: `Priprava: ${formatPrice(spPrep)} | Delo: ${formatPrice(spWork)}` });
+                    }
 
-                // Šivanje
-                if (document.getElementById('f-sivanje-active').checked) {
-                    let sPrep = parseFloat(document.getElementById('f-sivanje-prep').value) || 0;
-                    let sPer1 = parseFloat(document.getElementById('f-sivanje-per1000').value) || 0;
-                    totalFinishCost += sPrep + (totalItemsForm / 1000) * sPer1;
-                }
+                    // Šivanje
+                    if (document.getElementById('f-sivanje-active').checked) {
+                        let sPrep = parseFloat(document.getElementById('f-sivanje-prep').value) || 0;
+                        let sPer1 = parseFloat(document.getElementById('f-sivanje-per1000').value) || 0;
+                        let sWork = (totalItemsForm / 1000) * sPer1;
+                        let sCost = sPrep + sWork;
+                        totalFinishCost += sCost;
+                        finishItems.push({ name: 'Šivanje', cost: sCost, breakdown: `Priprava: ${formatPrice(sPrep)} | Delo: ${formatPrice(sWork)}` });
+                    }
 
-                // Lepljenje
-                if (document.getElementById('f-lepljenje-active').checked) {
-                    let lPrep = parseFloat(document.getElementById('f-lepljenje-prep').value) || 0;
-                    let lPer1 = parseFloat(document.getElementById('f-lepljenje-per1000').value) || 0;
-                    totalFinishCost += lPrep + (totalItemsForm / 1000) * lPer1;
-                }
+                    // Lepljenje
+                    if (document.getElementById('f-lepljenje-active').checked) {
+                        let lPrep = parseFloat(document.getElementById('f-lepljenje-prep').value) || 0;
+                        let lPer1 = parseFloat(document.getElementById('f-lepljenje-per1000').value) || 0;
+                        let lWork = (totalItemsForm / 1000) * lPer1;
+                        let lCost = lPrep + lWork;
+                        totalFinishCost += lCost;
+                        finishItems.push({ name: 'Lepljenje', cost: lCost, breakdown: `Priprava: ${formatPrice(lPrep)} | Delo: ${formatPrice(lWork)}` });
+                    }
 
-                // Ostalo
-                if (document.getElementById('f-extra-active').checked) {
-                    totalFinishCost += (parseFloat(document.getElementById('f-extra-manual').value) || 0);
-                    totalFinishCost += (parseFloat(document.getElementById('f-extra-external').value) || 0);
-                }
+                    // Ostalo
+                    if (document.getElementById('f-extra-active').checked) {
+                        let eManual = parseFloat(document.getElementById('f-extra-manual').value) || 0;
+                        let eExt = parseFloat(document.getElementById('f-extra-external').value) || 0;
+                        totalFinishCost += eManual + eExt;
+                        finishItems.push({ name: 'Ostalo (Ročno/Tuja)', cost: eManual + eExt, breakdown: `Ročno: ${formatPrice(eManual)} | Tuja: ${formatPrice(eExt)}` });
+                    }
 
-                // Orodje
-                if (document.getElementById('f-tool-active').checked) {
-                    totalFinishCost += (parseFloat(document.getElementById('f-tool-cost').value) || 0);
-                }
+                    // Orodje
+                    if (document.getElementById('f-tool-active').checked) {
+                        let tCost = parseFloat(document.getElementById('f-tool-cost').value) || 0;
+                        totalFinishCost += tCost;
+                        finishItems.push({ name: 'Orodje (izsek)', cost: tCost, breakdown: 'Strošek orodja' });
+                    }
 
-                // UV tuja usluga
-                if (document.getElementById('f-uv-active').checked) {
-                    let uvPrep = parseFloat(document.getElementById('f-uv-prep').value) || 0;
-                    let uvPer1 = parseFloat(document.getElementById('f-uv-per1000').value) || 0;
-                    // Obračun na število pol (vključno z odpadi) namesto na kos
-                    totalFinishCost += uvPrep + (totalSheetsNeeded / 1000) * uvPer1;
-                }
+                    // UV tuja usluga
+                    if (document.getElementById('f-uv-active').checked) {
+                        let uvPrep = parseFloat(document.getElementById('f-uv-prep').value) || 0;
+                        let uvPer1 = parseFloat(document.getElementById('f-uv-per1000').value) || 0;
+                        let uvWork = (totalSheetsNeeded / 1000) * uvPer1;
+                        let uvCost = uvPrep + uvWork;
+                        totalFinishCost += uvCost;
+                        finishItems.push({ name: 'UV lak (tuja)', cost: uvCost, breakdown: `Priprava: ${formatPrice(uvPrep)} | Delo (${totalSheetsNeeded} pol): ${formatPrice(uvWork)}` });
+                    }
 
-                // Plastifikacija
-                if (document.getElementById('f-lam-active').checked) {
-                    let lamPrep = parseFloat(document.getElementById('f-lam-prep').value) || 0;
-                    let lamPer1 = parseFloat(document.getElementById('f-lam-per1000').value) || 0;
-                    let lamSides = parseInt(document.getElementById('f-lam-sides').value) || 1;
-                    // Izračun na 1.000 pol, upoštevajoč število strani nanosa
-                    totalFinishCost += lamPrep + (totalSheetsNeeded / 1000) * lamPer1 * lamSides;
-                }
+                    // Plastifikacija
+                    if (document.getElementById('f-lam-active').checked) {
+                        let lamPrep = parseFloat(document.getElementById('f-lam-prep').value) || 0;
+                        let lamPer1 = parseFloat(document.getElementById('f-lam-per1000').value) || 0;
+                        let lamSides = parseInt(document.getElementById('f-lam-sides').value) || 1;
+                        let lamWork = (totalSheetsNeeded / 1000) * lamPer1 * lamSides;
+                        let lamCost = lamPrep + lamWork;
+                        totalFinishCost += lamCost;
+                        finishItems.push({ name: 'Plastifikacija', cost: lamCost, breakdown: `Priprava: ${formatPrice(lamPrep)} | Delo (${totalSheetsNeeded} pol, ${lamSides}x): ${formatPrice(lamWork)}` });
+                    }
 
-                // Dostava (KM)
-                if (document.getElementById('f-delivery-active').checked) {
-                    let dKm = parseFloat(document.getElementById('f-delivery-km').value) || 0;
-                    let dRate = parseFloat(document.getElementById('f-delivery-rate').value) || 0;
-                    totalFinishCost += dKm * dRate;
-                }
+                    // Dostava (KM)
+                    if (document.getElementById('f-delivery-active').checked) {
+                        let dKm = parseFloat(document.getElementById('f-delivery-km').value) || 0;
+                        let dRate = parseFloat(document.getElementById('f-delivery-rate').value) || 0;
+                        let dCost = dKm * dRate;
+                        totalFinishCost += dCost;
+                        finishItems.push({ name: 'Dostava (KM)', cost: dCost, breakdown: `${dKm} km × ${formatPrice(dRate)}/km` });
+                    }
 
-                // Dostava (Fiksno)
-                if (document.getElementById('f-del-fixed-active').checked) {
-                    totalFinishCost += parseFloat(document.getElementById('f-del-fixed-cost').value) || 0;
-                }
+                    // Dostava (Fiksno)
+                    if (document.getElementById('f-del-fixed-active').checked) {
+                        let dfCost = parseFloat(document.getElementById('f-del-fixed-cost').value) || 0;
+                        totalFinishCost += dfCost;
+                        finishItems.push({ name: 'Dostava (Fiksno)', cost: dfCost, breakdown: 'Fiksni strošek' });
+                    }
 
-                // 5. SKUPAJ IN RVC
-                let subtotal = paperCost + totalPrepCost + totalPrintCost + totalFinishCost;
-                let marginPercent = parseFloat(document.getElementById('calc-margin').value) || 0;
-                let totalMargin = subtotal * (marginPercent / 100);
-                let totalPrice = subtotal + totalMargin;
+                    // 5. SKUPAJ IN RVC
+                    let subtotal = paperCost + totalPrepCost + totalPrintCost + totalFinishCost;
+                    let marginPercent = parseFloat(document.getElementById('calc-margin').value) || 0;
+                    let totalMargin = subtotal * (marginPercent / 100);
+                    let totalPrice = subtotal + totalMargin;
 
-                // POSODOBITEV UI
-                document.getElementById('res-price-paper').innerText = paperCost.toFixed(2) + " €";
-                document.getElementById('res-price-prep').innerText = totalPrepCost.toFixed(2) + " €";
-                document.getElementById('res-price-print').innerText = totalPrintCost.toFixed(2) + " €";
-                document.getElementById('res-price-finish').innerText = totalFinishCost.toFixed(2) + " €";
+                    // POSODOBITEV UI
+                    document.getElementById('res-price-paper').innerText = paperCost.toFixed(2) + " €";
+                    document.getElementById('res-price-prep').innerText = totalPrepCost.toFixed(2) + " €";
+                    document.getElementById('res-price-print').innerText = totalPrintCost.toFixed(2) + " €";
+                    document.getElementById('res-price-finish').innerText = totalFinishCost.toFixed(2) + " €";
 
-                let perItemFinal = totalItemsForm > 0 ? (totalPrice / totalItemsForm) : 0;
-                let price1000 = perItemFinal * 1000;
+                    let perItemFinal = totalItemsForm > 0 ? (totalPrice / totalItemsForm) : 0;
+                    let price1000 = perItemFinal * 1000;
 
-                document.getElementById('res-price-total').innerText = totalPrice.toFixed(2) + " €";
-                document.getElementById('res-price-per-item').innerText = perItemFinal.toFixed(3) + " €";
-                if (document.getElementById('res-price-1000-stat')) {
-                    document.getElementById('res-price-1000-stat').innerText = price1000.toFixed(2) + " €";
-                }
+                    document.getElementById('res-price-total').innerText = totalPrice.toFixed(2) + " €";
+                    document.getElementById('res-price-per-item').innerText = perItemFinal.toFixed(3) + " €";
+                    if (document.getElementById('res-price-1000-stat')) {
+                        document.getElementById('res-price-1000-stat').innerText = price1000.toFixed(2) + " €";
+                    }
 
-                // Posodobitev lepljive vrstice na dnu
-                var sQty = document.getElementById('sticky-qty');
-                var sTotal = document.getElementById('sticky-price-total');
-                var sPerItem = document.getElementById('sticky-price-per-item');
-                var s1000 = document.getElementById('sticky-price-1000');
+                    // Posodobitev lepljive vrstice na dnu
+                    var sQty = document.getElementById('sticky-qty');
+                    var sTotal = document.getElementById('sticky-price-total');
+                    var sPerItem = document.getElementById('sticky-price-per-item');
+                    var s1000 = document.getElementById('sticky-price-1000');
 
-                if (sQty) sQty.innerText = totalItemsForm;
-                if (sTotal) sTotal.innerText = totalPrice.toFixed(2) + " €";
-                if (sPerItem) sPerItem.innerText = perItemFinal.toFixed(3) + " €";
-                if (s1000) s1000.innerText = price1000.toFixed(2) + " €";
+                    if (sQty) sQty.innerText = totalItemsForm;
+                    if (sTotal) sTotal.innerText = totalPrice.toFixed(2) + " €";
+                    if (sPerItem) sPerItem.innerText = perItemFinal.toFixed(3) + " €";
+                    if (s1000) s1000.innerText = price1000.toFixed(2) + " €";
 
-                // Specifikacija v nogi
-                if (document.getElementById('sticky-spec-paper')) document.getElementById('sticky-spec-paper').innerText = paperCost.toFixed(2) + " €";
-                if (document.getElementById('sticky-spec-prep')) document.getElementById('sticky-spec-prep').innerText = totalPrepCost.toFixed(2) + " €";
-                if (document.getElementById('sticky-spec-print')) document.getElementById('sticky-spec-print').innerText = totalPrintCost.toFixed(2) + " €";
-                if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = totalFinishCost.toFixed(2) + " €";
+                    // Specifikacija v nogi
+                    if (document.getElementById('sticky-spec-paper')) document.getElementById('sticky-spec-paper').innerText = paperCost.toFixed(2) + " €";
+                    if (document.getElementById('sticky-spec-prep')) document.getElementById('sticky-spec-prep').innerText = totalPrepCost.toFixed(2) + " €";
+                    if (document.getElementById('sticky-spec-print')) document.getElementById('sticky-spec-print').innerText = totalPrintCost.toFixed(2) + " €";
+                    if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = totalFinishCost.toFixed(2) + " €";
 
-                // GENERIRANJE PODROBNE SPECIFIKACIJE
-                let details = {
-                    paper: {
-                        cost: paperCost,
-                        leaves: {
-                            sheets: totalSheetsNeededLeaves,
-                            parentSheets: pParentSheetsNeeded,
-                            sourceW: pSupplyW,
-                            sourceH: pSupplyH,
-                            yield: pYield,
-                            kg: (pUnit === "ton" || pUnit === "kg") ? (pParentSheetsNeeded * ((pSupplyW / 1000) * (pSupplyH / 1000)) * (pWeight / 1000)) : 0
+                    // GENERIRANJE PODROBNE SPECIFIKACIJE
+                    let details = {
+                        paper: {
+                            cost: paperCost,
+                            leaves: {
+                                sheets: totalSheetsNeededLeaves,
+                                parentSheets: pParentSheetsNeeded,
+                                sourceW: pSupplyW,
+                                sourceH: pSupplyH,
+                                yield: pYield,
+                                kg: (pUnit === "ton" || pUnit === "kg") ? (pParentSheetsNeeded * ((pSupplyW / 1000) * (pSupplyH / 1000)) * (pWeight / 1000)) : 0
+                            },
+                            cover: {
+                                active: cbPrice > 0,
+                                sheets: totalSheetsNeededCover,
+                                parentSheets: cbParentSheetsNeeded,
+                                sourceW: cbSupplyW,
+                                sourceH: cbSupplyH,
+                                yield: cbYield,
+                                kg: (cbUnit === "ton" || cbUnit === "kg") ? (cbParentSheetsNeeded * ((cbSupplyW / 1000) * (cbSupplyH / 1000)) * ((parseFloat(document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : 300) || 300) / 1000)) : 0
+                            }
                         },
-                        cover: {
-                            active: cbPrice > 0,
-                            sheets: totalSheetsNeededCover,
-                            parentSheets: cbParentSheetsNeeded,
-                            sourceW: cbSupplyW,
-                            sourceH: cbSupplyH,
-                            yield: cbYield,
-                            kg: (cbUnit === "ton" || cbUnit === "kg") ? (cbParentSheetsNeeded * ((cbSupplyW / 1000) * (cbSupplyH / 1000)) * ((parseFloat(document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : 300) || 300) / 1000)) : 0
-                        }
-                    },
-                    leavesPrint: {
-                        active: (frontL + backL > 0),
-                        plates: parseInt(document.getElementById('calc-plates-num-leaves').value) || 0,
-                        prep: parseFloat(document.getElementById('calc-prep-price-leaves').value) || 0,
-                        mPrep: (document.getElementById('calc-machine-prep-time-leaves').value === "" ? 10 : parseFloat(document.getElementById('calc-machine-prep-time-leaves').value)) / 60 * (parseFloat(document.getElementById('calc-machine-rate-leaves').value) || 0),
-                        print: ((totalSheetsNeededLeaves * (isObratL ? Math.ceil(frontL / 4) : Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0))) / (parseFloat(document.getElementById('calc-machine-speed-leaves').value) || 10000)) * (parseFloat(document.getElementById('calc-machine-rate-leaves').value) || 0),
-                        cost: totalPrepCostL + totalPrintCostL
-                    },
-                    coverPrint: {
-                        active: (frontC + backC > 0),
-                        plates: parseInt(document.getElementById('calc-plates-num-cover').value) || 0,
-                        prep: parseFloat(document.getElementById('calc-prep-price-cover').value) || 0,
-                        mPrep: (document.getElementById('calc-machine-prep-time-cover').value === "" ? 10 : parseFloat(document.getElementById('calc-machine-prep-time-cover').value)) / 60 * (parseFloat(document.getElementById('calc-machine-rate-cover').value) || 0),
-                        print: ((totalSheetsNeededCover * (isObratC ? Math.ceil(frontC / 4) : Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0))) / (parseFloat(document.getElementById('calc-machine-speed-cover').value) || 10000)) * (parseFloat(document.getElementById('calc-machine-rate-cover').value) || 0),
-                        cost: totalPrepCostC + totalPrintCostC
-                    },
-                    finish: {
-                        cost: totalFinishCost,
-                        items: []
-                    },
-                    margin: totalMargin,
-                    total: totalPrice
-                };
+                        leavesPrint: {
+                            active: (frontL + backL > 0),
+                            plates: parseInt(document.getElementById('calc-plates-num-leaves').value) || 0,
+                            prep: parseFloat(document.getElementById('calc-prep-price-leaves').value) || 0,
+                            mPrep: (document.getElementById('calc-machine-prep-time-leaves').value === "" ? 10 : parseFloat(document.getElementById('calc-machine-prep-time-leaves').value)) / 60 * (parseFloat(document.getElementById('calc-machine-rate-leaves').value) || 0),
+                            print: ((totalSheetsNeededLeaves * (isObratL ? Math.ceil(frontL / 4) : Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0))) / (parseFloat(document.getElementById('calc-machine-speed-leaves').value) || 10000)) * (parseFloat(document.getElementById('calc-machine-rate-leaves').value) || 0),
+                            cost: totalPrepCostL + totalPrintCostL
+                        },
+                        coverPrint: {
+                            active: (frontC + backC > 0),
+                            plates: parseInt(document.getElementById('calc-plates-num-cover').value) || 0,
+                            prep: parseFloat(document.getElementById('calc-prep-price-cover').value) || 0,
+                            mPrep: (document.getElementById('calc-machine-prep-time-cover').value === "" ? 10 : parseFloat(document.getElementById('calc-machine-prep-time-cover').value)) / 60 * (parseFloat(document.getElementById('calc-machine-rate-cover').value) || 0),
+                            print: ((totalSheetsNeededCover * (isObratC ? Math.ceil(frontC / 4) : Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0))) / (parseFloat(document.getElementById('calc-machine-speed-cover').value) || 10000)) * (parseFloat(document.getElementById('calc-machine-rate-cover').value) || 0),
+                            cost: totalPrepCostC + totalPrintCostC
+                        },
+                        finish: {
+                            cost: totalFinishCost,
+                            items: finishItems
+                        },
+                        margin: totalMargin,
+                        total: totalPrice
+                    };
 
-                renderDetailedSpec(details);
+                    renderDetailedSpec(details);
 
-                return {
-                    totalPrice: totalPrice,
-                    perItem: perItemFinal,
-                    paperCost: paperCost,
-                    prepCost: totalPrepCost,
-                    printCost: totalPrintCost,
-                    finishCost: totalFinishCost,
-                    margin: totalMargin,
-                    quantity: totalItemsForm
-                };
+                    return {
+                        totalPrice: totalPrice,
+                        perItem: perItemFinal,
+                        paperCost: paperCost,
+                        prepCost: totalPrepCost,
+                        printCost: totalPrintCost,
+                        finishCost: totalFinishCost,
+                        margin: totalMargin,
+                        quantity: totalItemsForm
+                    };
+                } catch (e) {
+                    console.error("Napaka v calculatePrice:", e);
+                    const content = document.getElementById('detailed-spec-content');
+                    if (content) content.innerHTML = `<div style="color:#ef4444; padding:10px; background:rgba(239,68,68,0.1); border-radius:8px;">
+                        <strong>Napaka pri izračunu:</strong> ${e.message}
+                    </div>`;
+                }
             }
 
             function renderDetailedSpec(d) {
-                const container = document.getElementById('detailed-spec-container');
-                const content = document.getElementById('detailed-spec-content');
-                if (!container || !content) return;
+                try {
+                    const container = document.getElementById('detailed-spec-container');
+                    const content = document.getElementById('detailed-spec-content');
+                    if (!container || !content) return;
 
-                container.style.display = 'block';
+                    const safeFixed = (val, dec = 1) => {
+                        const n = parseFloat(val);
+                        return isNaN(n) ? "0" : n.toFixed(dec);
+                    };
 
-                let html = `
+                    let html = `
                     <!-- MATERIAL -->
                     <div style="padding: 10px; background: rgba(59, 130, 246, 0.05); border-radius: 8px;">
                         <div style="font-weight: bold; color: #60a5fa; margin-bottom: 5px;">1. Material (Liste)</div>
@@ -2378,7 +2422,7 @@
                             <span>Tiskovne pole po razrezu:</span> <span style="font-weight: bold;">${formatQty(d.paper.leaves.sheets)} pol</span>
                             <span style="color: #93c5fd;">Nerazrezane pole (${d.paper.leaves.sourceW}×${d.paper.leaves.sourceH} → ${d.paper.leaves.yield}x razrez):</span>
                             <span style="font-weight: bold; color: #93c5fd;">${formatQty(d.paper.leaves.parentSheets)} pol</span>
-                            ${d.paper.leaves.kg > 0 ? `<span>Teža papirja:</span> <span>${d.paper.leaves.kg.toFixed(1)} kg</span>` : ''}
+                            ${d.paper.leaves.kg > 0 ? `<span>Teža papirja:</span> <span>${safeFixed(d.paper.leaves.kg)} kg</span>` : ''}
                         </div>
 
                         ${d.paper.cover.active ? `
@@ -2388,7 +2432,7 @@
                                 <span>Tiskovne pole po razrezu:</span> <span style="font-weight: bold;">${formatQty(d.paper.cover.sheets)} pol</span>
                                 <span style="color: #93c5fd;">Nerazrezane pole (${d.paper.cover.sourceW}×${d.paper.cover.sourceH} → ${d.paper.cover.yield}x razrez):</span>
                                 <span style="font-weight: bold; color: #93c5fd;">${formatQty(d.paper.cover.parentSheets)} pol</span>
-                                ${d.paper.cover.kg > 0 ? `<span>Teža papirja:</span> <span>${d.paper.cover.kg.toFixed(1)} kg</span>` : ''}
+                                ${d.paper.cover.kg > 0 ? `<span>Teža papirja:</span> <span>${safeFixed(d.paper.cover.kg)} kg</span>` : ''}
                             </div>
                         </div>
                         ` : ''}
@@ -2404,7 +2448,7 @@
                     <div style="padding: 10px; background: rgba(167, 139, 250, 0.05); border-radius: 8px;">
                         <div style="font-weight: bold; color: #a78bfa; margin-bottom: 5px;">2. Tisk Listov</div>
                         <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                            <span>Plošče (${d.leavesPrint.plates} kos):</span> <span>${formatPrice(d.leavesPrint.plates * (parseFloat(document.getElementById('calc-plates-price-leaves').value) || 10))}</span>
+                            <span>Plošče (${d.leavesPrint.plates} kos):</span> <span>${formatPrice(d.leavesPrint.plates * (parseFloat(document.getElementById('calc-plates-price-leaves') ? document.getElementById('calc-plates-price-leaves').value : 0) || 10))}</span>
                             <span>Priprava stroja & pavšal:</span> <span>${formatPrice(d.leavesPrint.mPrep + d.leavesPrint.prep)}</span>
                             <span>Čas tiska:</span> <span>${formatPrice(d.leavesPrint.print)}</span>
                             <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
@@ -2418,7 +2462,7 @@
                     <div style="padding: 10px; background: rgba(244, 63, 94, 0.05); border-radius: 8px;">
                         <div style="font-weight: bold; color: #f43f5e; margin-bottom: 5px;">3. Tisk Ovitka</div>
                         <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                            <span>Plošče (${d.coverPrint.plates} kos):</span> <span>${formatPrice(d.coverPrint.plates * (parseFloat(document.getElementById('calc-plates-price-cover').value) || 10))}</span>
+                            <span>Plošče (${d.coverPrint.plates} kos):</span> <span>${formatPrice(d.coverPrint.plates * (parseFloat(document.getElementById('calc-plates-price-cover') ? document.getElementById('calc-plates-price-cover').value : 0) || 10))}</span>
                             <span>Priprava stroja & pavšal:</span> <span>${formatPrice(d.coverPrint.mPrep + d.coverPrint.prep)}</span>
                             <span>Čas tiska:</span> <span>${formatPrice(d.coverPrint.print)}</span>
                             <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
@@ -2430,8 +2474,19 @@
                     <!-- DODELAVA -->
                     <div style="padding: 10px; background: rgba(16, 185, 129, 0.05); border-radius: 8px;">
                         <div style="font-weight: bold; color: #10b981; margin-bottom: 5px;">4. Dodelava & Usluge</div>
-                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                            <span>Skupni strošek dodelave:</span> <span style="font-weight: bold;">${formatPrice(d.finish.cost)}</span>
+                        <div style="display: flex; flex-direction: column; gap: 4px; color: #cbd5e1; font-size: 0.8rem; margin-bottom: 8px;">
+                            ${d.finish.items.map(item => `
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 2px;">
+                                    <div>
+                                        <div style="font-weight: bold;">${item.name}</div>
+                                        <div style="font-size: 0.7rem; color: #94a3b8;">${item.breakdown}</div>
+                                    </div>
+                                    <div style="font-weight: bold; color: #f8fafc;">${formatPrice(item.cost)}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #10b981; font-weight: bold; border-top: 1px solid rgba(16, 185, 129, 0.2); padding-top: 5px;">
+                            <span>Skupni strošek dodelave:</span> <span>${formatPrice(d.finish.cost)}</span>
                         </div>
                     </div>
 
@@ -2450,7 +2505,14 @@
                         <span style="font-size: 1.1rem; font-weight: 800; color: #10b981;">${formatPrice(d.total)}</span>
                     </div>
                 `;
-                content.innerHTML = html;
+                    content.innerHTML = html;
+                } catch (e) {
+                    console.error("Napaka v renderDetailedSpec:", e);
+                    const content = document.getElementById('detailed-spec-content');
+                    if (content) content.innerHTML = `<div style="color:#ef4444; padding:10px; background:rgba(239,68,68,0.1); border-radius:8px;">
+                        <strong>Napaka pri prikazu:</strong> ${e.message}
+                    </div>`;
+                }
             }
 
             function togglePaperRow() {
@@ -3745,6 +3807,14 @@
             renderSavedProjects();
             updateCustomerDatalist();
 
+
+            // Initial call to render spec area
+            window.addEventListener('DOMContentLoaded', () => {
+                setTimeout(() => {
+                    calculate();
+                    calculatePrice();
+                }, 500);
+            });
         </script>
     </div>
 
