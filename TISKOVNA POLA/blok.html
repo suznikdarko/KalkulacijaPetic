@@ -1309,7 +1309,7 @@
                                 </div>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Cena/kos (€)</small></label>
-                                    <input type="number" id="f-uv-per1000" value="0.05" step="0.001"
+                                    <input type="number" id="f-uv-per1000" value="0.000" step="0.001"
                                         onchange="calculatePrice()">
                                 </div>
                             </div>
@@ -1338,12 +1338,9 @@
                                     </div>
                                 </div>
                                 <div class="form-group" style="margin:0;">
-                                    <label><small>Cena/1000 pol (€)</small></label>
-                                    <input type="number" id="f-lam-per1000" value="50.00" onchange="calculatePrice()">
-                                </div>
-                                <div class="form-group" style="margin:0;">
-                                    <label><small>Priprava (€)</small></label>
-                                    <input type="number" id="f-lam-prep" value="20.00" onchange="calculatePrice()">
+                                    <label><small>Cena na polo (€)</small></label>
+                                    <input type="number" id="f-lam-per1000" value="0.000" onchange="calculatePrice()"
+                                        step="0.001">
                                 </div>
                             </div>
 
@@ -1798,6 +1795,8 @@
                         document.getElementById('calc-source-cover-yield').value = sourceYieldC;
                         document.getElementById('res-source-cover-yield-info').innerText = `Izkoristek: ${sourceYieldC} x`;
 
+                        // Prenesi podatke v razčlenitev stroškov
+                        calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH, cDrawW, cDrawH);
                     }
                 } else {
                     document.getElementById('empty-state-cover').style.display = 'flex';
@@ -1829,6 +1828,34 @@
                 '4/4': { passes: 2, wasteImpressions: 800 },
                 '4/OB': { passes: 2, wasteImpressions: 800 }
             };
+
+            function getLaminationPricePerSheet(w, h, type) {
+                let area = w * h;
+                let formatClass = 'B1';
+                if (area <= 100000) formatClass = 'B4';
+                else if (area <= 200000) formatClass = 'B3';
+                else if (area <= 400000) formatClass = 'B2';
+                else formatClass = 'B1';
+
+                let basePrice = 0;
+                if (type === 'sijaj') {
+                    if (formatClass === 'B1') basePrice = 0.132;
+                    else if (formatClass === 'B2') basePrice = 0.074;
+                    else if (formatClass === 'B3') basePrice = 0.049;
+                    else if (formatClass === 'B4') basePrice = 0.037;
+                } else if (type === 'mat') {
+                    if (formatClass === 'B1') basePrice = 0.234;
+                    else if (formatClass === 'B2') basePrice = 0.12;
+                    else if (formatClass === 'B3') basePrice = 0.074;
+                    else if (formatClass === 'B4') basePrice = 0.049;
+                } else if (type === 'soft' || type === 'anti') {
+                    if (formatClass === 'B1') basePrice = 0.234 * 2;
+                    else if (formatClass === 'B2') basePrice = 0.12 * 2;
+                    else if (formatClass === 'B3') basePrice = 0.074 * 2;
+                    else if (formatClass === 'B4') basePrice = 0.049 * 2;
+                }
+                return basePrice;
+            }
 
             const machineProfiles = {
                 'S4': { rate: 120, speed: 4500, prep: 10, useDynamic: true, platePrice: 10.00, prepPrice: 25.00, changePrice: 10.00, limitW: 498, limitH: 348 },
@@ -1972,7 +1999,7 @@
                 calculatePrice();
             }
 
-            function calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH) {
+            function calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH, drawWC, drawHC) {
                 try {
                     if (sheetsNeededLeaves === undefined) {
                         let txt = document.getElementById('res-sheets-needed') ? document.getElementById('res-sheets-needed').innerText : "0";
@@ -2011,9 +2038,26 @@
                         }
                     }
 
-                    // Zadnji fallback če še vedno ni dimenzij
-                    if (!drawW || !drawH || isNaN(drawW) || isNaN(drawH)) {
-                        drawW = 700; drawH = 500;
+                    if (drawWC === undefined || drawHC === undefined || drawWC === 0 || drawHC === 0) {
+                        let cText = document.getElementById('res-size-cover-val') ? document.getElementById('res-size-cover-val').innerText : "";
+                        if (cText && cText.includes('x')) {
+                            let cStr = cText.split('x');
+                            drawWC = parseFloat(cStr[0]);
+                            drawHC = parseFloat(cStr[1]);
+                        }
+                    }
+
+                    // Posodobi ceno plastifikacije glede na format tiskovne pole (ovitka)
+                    const lamType = document.getElementById('f-lam-type').value;
+                    let lamPer1Input = document.getElementById('f-lam-per1000');
+                    let lamPer1 = parseFloat(lamPer1Input.value) || 0;
+
+                    if (drawWC > 0 && drawHC > 0) {
+                        const calculatedPrice = getLaminationPricePerSheet(drawWC, drawHC, lamType);
+                        if (calculatedPrice > 0) {
+                            lamPer1Input.value = calculatedPrice.toFixed(4);
+                            lamPer1 = calculatedPrice;
+                        }
                     }
 
                     // 0. PRIDOBIVANJE PARAMETROV TISKA (TAKTAK NA ZAČETKU)
@@ -2083,13 +2127,14 @@
                     let cbPrice = parseFloat(document.getElementById('calc-cardboard-price').value) || 0;
                     let cbSupplyW = 700, cbSupplyH = 1000, cbYield = 1, cbParentSheetsNeeded = 0;
 
-                    // Pridobi dimenzije za ovitek
-                    let drawWC = 0, drawHC = 0;
-                    let sizeTextC = document.getElementById('res-size-cover-val').innerText;
-                    let sizeStrC = sizeTextC.split('x');
-                    if (sizeStrC.length === 2) {
-                        drawWC = parseFloat(sizeStrC[0]);
-                        drawHC = parseFloat(sizeStrC[1]);
+                    // Pridobi dimenzije za ovitek (že pridobljeno na začetku funkcije)
+                    if (drawWC === 0 || drawHC === 0) {
+                        let sizeTextC = document.getElementById('res-size-cover-val').innerText;
+                        let sizeStrC = sizeTextC.split('x');
+                        if (sizeStrC.length === 2) {
+                            drawWC = parseFloat(sizeStrC[0]);
+                            drawHC = parseFloat(sizeStrC[1]);
+                        }
                     }
 
                     let cbUnit = document.getElementById('calc-cardboard-unit') ? document.getElementById('calc-cardboard-unit').value : "item";
@@ -2284,18 +2329,21 @@
                         let uvWork = sheetsNeededCover * uvPerUnit;
                         let uvCost = uvPrep + uvWork;
                         totalFinishCost += uvCost;
-                        finishItems.push({ name: 'UV lak (tuja)', cost: uvCost, breakdown: `Priprava: ${formatPrice(uvPrep)} | Delo (${sheetsNeededCover} kos ovitka): ${formatPrice(uvWork)}` });
+                        finishItems.push({ name: 'UV lak (tuja)', cost: uvCost, breakdown: `Priprava: ${formatPrice(uvPrep)} | Delo (${sheetsNeededCover} kos ovitka) | Cena: ${uvPerUnit.toFixed(3)} €/kos: ${formatPrice(uvWork)}` });
                     }
 
                     // Plastifikacija
                     if (document.getElementById('f-lam-active').checked) {
-                        let lamPrep = parseFloat(document.getElementById('f-lam-prep').value) || 0;
-                        let lamPer1 = parseFloat(document.getElementById('f-lam-per1000').value) || 0;
                         let lamSides = parseInt(document.getElementById('f-lam-sides').value) || 1;
-                        let lamWork = (sheetsNeededCover / 1000) * lamPer1 * lamSides;
-                        let lamCost = lamPrep + lamWork;
+                        // Uporabimo lamPer1, ki smo ga izračunali na začetku calculatePrice
+                        let lamWork = sheetsNeededCover * lamPer1 * lamSides;
+                        let lamCost = lamWork;
                         totalFinishCost += lamCost;
-                        finishItems.push({ name: 'Plastifikacija', cost: lamCost, breakdown: `Priprava: ${formatPrice(lamPrep)} | Delo (${sheetsNeededCover} pol ovitka, ${lamSides}x): ${formatPrice(lamWork)}` });
+                        finishItems.push({
+                            name: 'Plastifikacija',
+                            cost: lamCost,
+                            breakdown: `Delo (${sheetsNeededCover} kos ovitka, ${lamSides}x) | Cena: ${lamPer1.toFixed(3)} €/polo: ${formatPrice(lamWork)}`
+                        });
                     }
 
                     // Dostava (KM)
