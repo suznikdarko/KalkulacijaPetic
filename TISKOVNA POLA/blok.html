@@ -541,6 +541,11 @@
                         style="font-family: Inter, sans-serif; resize: vertical; height: auto; min-height: 60px;"></textarea>
                 </div>
                 <div class="header-group">
+                    <label for="calc-delivery-address">Naslov za dostavo</label>
+                    <textarea id="calc-delivery-address" placeholder="Npr. ime in ulica (po potrebi)" rows="2"
+                        style="font-family: Inter, sans-serif; resize: vertical; height: auto; min-height: 60px;"></textarea>
+                </div>
+                <div class="header-group" style="grid-column: span 2;">
                     <label for="calc-cust-email">E-mail stranke</label>
                     <input type="text" id="calc-cust-email" placeholder="E-mail">
                 </div>
@@ -2647,36 +2652,22 @@
                 }
 
                 const projectName = document.getElementById('calc-project-name').value || "Brez imena";
-                const materialCode = document.getElementById('calc-article-number') ? document.getElementById('calc-article-number').value : '/';
+                const materialCode = document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '/';
 
-                let fmtOpen = document.getElementById('calc-format-open') ? document.getElementById('calc-format-open').value : '/';
-                let fmtC1 = document.getElementById('calc-format-closed-1') ? document.getElementById('calc-format-closed-1').value : '/';
-                let formatText = `${fmtOpen} odprt, ${fmtC1} zaprt`;
-
-                let extent = document.getElementById('calc-extent') ? document.getElementById('calc-extent').value : '/';
                 let leaves = document.getElementById('calc-leaves').value || '/';
-                let extentText = `${extent} (${leaves} listov)`;
-
-                let paper = document.getElementById('calc-paper-desc') ? document.getElementById('calc-paper-desc').value : '/';
-                let leavesMaterial = document.getElementById('calc-leaves-material').value || '/';
-                let leavesWeight = document.getElementById('calc-paper-weight').value || '';
-                let paperText = `${paper} - ${leavesMaterial} ${leavesWeight}g`;
-
-                let coverDesc = document.getElementById('calc-cover-desc') ? document.getElementById('calc-cover-desc').value : '/';
-
-                let front = document.getElementById('calc-color-front-leaves').value || '0';
-                let back = document.getElementById('calc-color-back-leaves').value || '0';
-                let tiskText = front + "/" + back;
+                let extentText = `${leaves} listov`;
 
                 const item = {
                     id: Date.now(),
                     projectName: projectName,
                     materialCode: materialCode,
-                    formatText: formatText,
+                    formatLeaves: `${document.getElementById('width').value}x${document.getElementById('height').value} mm`,
+                    formatCover: `${document.getElementById('calc-cover-w').value}x${document.getElementById('calc-cover-h').value} mm`,
                     extentText: extentText,
-                    paperText: paperText,
-                    coverText: coverDesc,
-                    tiskText: tiskText,
+                    paperLeaves: `${document.getElementById('calc-leaves-material').value} ${document.getElementById('calc-paper-weight').value}g`,
+                    paperCover: document.getElementById('calc-cover-desc').value || '/',
+                    tiskLeaves: (document.getElementById('calc-color-front-leaves').value || '0') + "/" + (document.getElementById('calc-color-back-leaves').value || '0'),
+                    tiskCover: (document.getElementById('calc-color-front-cover').value || '0') + "/" + (document.getElementById('calc-color-back-cover').value || '0'),
                     options: [],
                     quantities: []
                 };
@@ -3103,6 +3094,7 @@
                     customer: document.getElementById('calc-customer').value,
                     custEmail: document.getElementById('calc-cust-email').value,
                     custAddress: document.getElementById('calc-cust-address').value,
+                    deliveryAddress: document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : "",
                     custId: document.getElementById('calc-cust-id') ? document.getElementById('calc-cust-id').value : "",
                     quoteNum: document.getElementById('calc-quote-number').value,
                     customerCode: document.getElementById('calc-customer-code').value,
@@ -3291,6 +3283,7 @@
                 if (document.getElementById('calc-customer-code')) document.getElementById('calc-customer-code').value = proj.customerCode || "";
                 if (document.getElementById('calc-cust-email')) document.getElementById('calc-cust-email').value = proj.custEmail || "";
                 if (document.getElementById('calc-cust-address')) document.getElementById('calc-cust-address').value = proj.custAddress || "";
+                if (document.getElementById('calc-delivery-address')) document.getElementById('calc-delivery-address').value = proj.deliveryAddress || "";
                 if (document.getElementById('calc-prepared-by')) document.getElementById('calc-prepared-by').value = proj.preparedBy || "";
 
                 if (document.getElementById('calc-leaves-material')) document.getElementById('calc-leaves-material').value = proj.leavesMaterial || "";
@@ -3478,21 +3471,16 @@
                     let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
                     const data = {
                         name: name,
-                        offerNumber: document.getElementById('calc-offer-number') ? document.getElementById('calc-offer-number').value : "",
+                        quoteNum: document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : "",
                         customerCode: document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "",
                         customer: document.getElementById('calc-customer').value,
-                        orderNumber: document.getElementById('calc-order-number').value,
-                        articleNumber: document.getElementById('calc-article-number').value,
-                        version: document.getElementById('calc-version').value,
+                        custId: document.getElementById('calc-cust-id') ? document.getElementById('calc-cust-id').value : "",
+                        preparedBy: document.getElementById('calc-prepared-by').value,
                         custEmail: document.getElementById('calc-cust-email').value,
                         custAddress: document.getElementById('calc-cust-address').value,
-                        formatOpen: document.getElementById('calc-format-open').value,
-                        formatClosed1: document.getElementById('calc-format-closed-1').value,
-                        formatClosed2: document.getElementById('calc-format-closed-2').value,
-                        extent: document.getElementById('calc-extent').value,
-                        paperDesc: document.getElementById('calc-paper-desc').value,
-                        leavesMaterial: document.getElementById('calc-leaves-material').value,
+                        deliveryAddress: document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : "",
                         materialCode: document.getElementById('calc-material-code').value,
+                        leavesMaterial: document.getElementById('calc-leaves-material').value,
                         timestamp: Date.now(),
                         inputs: {
                             machine_format: document.getElementById('machine-format').value,
@@ -3604,6 +3592,7 @@
                     let type = document.getElementById('f-lam-type').value;
                     desc.push("plastifikacija (" + type + ")");
                 }
+                if (document.getElementById('f-uv-active').checked) desc.push("UV lak");
                 return desc.join(", ") || "/";
             }
 
@@ -3611,7 +3600,7 @@
             function getQuoteHTML(isWord = false) {
                 const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
                 const date = new Date().toLocaleDateString('sl-SI');
-                const quoteNum = document.getElementById('calc-offer-number') ? document.getElementById('calc-offer-number').value : '/';
+                const quoteNum = document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '/';
                 const customer = document.getElementById('calc-customer').value || '';
                 const customerCode = document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : '/';
                 const custAddress = document.getElementById('calc-cust-address').value || '';
@@ -3622,26 +3611,20 @@
                 if (quoteBasket.length > 0) {
                     itemsToRender = quoteBasket;
                 } else {
-                    const projectName = (document.getElementById('calc-project-name-2').value || document.getElementById('calc-project-name').value) || 'Bloki';
-                    const materialCode = document.getElementById('calc-article-number') ? document.getElementById('calc-article-number').value : '/';
+                    const projectName = document.getElementById('calc-project-name').value || 'Bloki';
+                    const materialCode = document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '/';
 
-                    let fmtOpen = document.getElementById('calc-format-open') ? document.getElementById('calc-format-open').value : '/';
-                    let fmtC1 = document.getElementById('calc-format-closed-1') ? document.getElementById('calc-format-closed-1').value : '/';
-                    let fmtC2 = document.getElementById('calc-format-closed-2') ? document.getElementById('calc-format-closed-2').value : '/';
-                    let formatText = `${fmtOpen} odprt, ${fmtC1} zaprt`;
+                    let formatLeaves = `${document.getElementById('width').value}x${document.getElementById('height').value} mm`;
+                    let formatCover = `${document.getElementById('calc-cover-w').value}x${document.getElementById('calc-cover-h').value} mm`;
 
-                    let extent = document.getElementById('calc-extent') ? document.getElementById('calc-extent').value : '/';
                     let leaves = document.getElementById('calc-leaves').value || '/';
+                    let extentText = `${leaves} listov`;
 
-                    let paper = document.getElementById('calc-paper-desc') ? document.getElementById('calc-paper-desc').value : '/';
-                    let leavesMaterial = document.getElementById('calc-leaves-material').value || '/';
-                    let leavesWeight = document.getElementById('calc-paper-weight').value || '';
+                    let paperLeaves = `${document.getElementById('calc-leaves-material').value} ${document.getElementById('calc-paper-weight').value}g`;
+                    let paperCover = document.getElementById('calc-cover-desc').value || '/';
 
-                    let coverDesc = document.getElementById('calc-cover-desc') ? document.getElementById('calc-cover-desc').value : '/';
-
-                    let front = document.getElementById('calc-color-front-leaves').value || '0';
-                    let back = document.getElementById('calc-color-back-leaves').value || '0';
-                    let tiskText = front + "/" + back;
+                    let tiskLeaves = (document.getElementById('calc-color-front-leaves').value || '0') + "/" + (document.getElementById('calc-color-back-leaves').value || '0');
+                    let tiskCover = (document.getElementById('calc-color-front-cover').value || '0') + "/" + (document.getElementById('calc-color-back-cover').value || '0');
 
                     let finishing = getFinishingDesc();
 
@@ -3663,11 +3646,13 @@
                     itemsToRender.push({
                         projectName: projectName,
                         materialCode: materialCode,
-                        formatText: formatText,
-                        extentText: `${extent} (${leaves} listov)`,
-                        paperText: `${paper} - ${leavesMaterial} ${leavesWeight}g`,
-                        coverText: coverDesc,
-                        tiskText: tiskText,
+                        formatLeaves: formatLeaves,
+                        formatCover: formatCover,
+                        extentText: extentText,
+                        paperLeaves: paperLeaves,
+                        paperCover: paperCover,
+                        tiskLeaves: tiskLeaves,
+                        tiskCover: tiskCover,
                         finishingText: finishing,
                         quantities: quantities
                     });
@@ -3708,12 +3693,14 @@
                                     </td>
                                     <td style="width: 85%; vertical-align: top; padding-left: 10px;">
                                         <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                                            <tr><td style="width: 90px; font-weight: bold;">Izdelek:</td><td>${projName}</td></tr>
-                                            <tr><td style="font-weight: bold;">Format:</td><td>${fText}</td></tr>
+                                            <tr><td style="width: 100px; font-weight: bold;">Izdelek:</td><td>${projName}</td></tr>
+                                            <tr><td style="font-weight: bold;">Format (listi):</td><td>${item.formatLeaves || fText}</td></tr>
+                                            <tr><td style="font-weight: bold;">Format (ovitek):</td><td>${item.formatCover || '/'}</td></tr>
                                             <tr><td style="font-weight: bold;">Obseg:</td><td>${eText}</td></tr>
-                                            <tr><td style="font-weight: bold;">Papir:</td><td>${pText}</td></tr>
-                                            <tr><td style="font-weight: bold;">Ovitek/Podk.:</td><td>${cText}</td></tr>
-                                            <tr><td style="font-weight: bold;">Tisk (listi):</td><td>${printText}</td></tr>
+                                            <tr><td style="font-weight: bold;">Papir (listi):</td><td>${item.paperLeaves || pText}</td></tr>
+                                            <tr><td style="font-weight: bold;">Papir (ovitek):</td><td>${item.paperCover || cText}</td></tr>
+                                            <tr><td style="font-weight: bold;">Tisk (listi):</td><td>${item.tiskLeaves || printText}</td></tr>
+                                            <tr><td style="font-weight: bold;">Tisk (ovitek):</td><td>${item.tiskCover || '/'}</td></tr>
                                             <tr><td style="font-weight: bold;">Dodelava:</td><td>${finText}</td></tr>
                                         </table>
                                     </td>
@@ -3792,7 +3779,7 @@
                     const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
-                    const projectName = (document.getElementById('calc-project-name-2').value || document.getElementById('calc-project-name').value) || 'Ponudba';
+                    const projectName = (document.getElementById('calc-project-name').value) || 'Ponudba';
                     link.href = url;
                     link.download = "Ponudba_" + projectName.replace(/\s+/g, '_') + ".doc";
                     document.body.appendChild(link);
