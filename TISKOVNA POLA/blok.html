@@ -1415,14 +1415,24 @@
                         <button onclick="document.getElementById('import-file-input').click()"
                             style="background: #64748b; width: 100%; padding: 0.7rem;">📤 Uvozi iz datoteke</button>
                     </div>
-                    <div style="margin-top: 0.5rem;">
-                        <input type="text" id="archive-searchbox" placeholder="Išči po arhivu (ime, naklada, mere...)"
-                            oninput="renderSavedProjects()"
-                            style="background: rgba(255,255,255,0.8); border: 1px solid #cbd5e1; padding: 0.5rem; width: 100%; border-radius: 4px; box-sizing: border-box; font-size: 0.9rem;">
-                    </div>
-                    <div id="saved-projects-list"
-                        style="margin-top: 1rem; border-top: 1px solid #ddd; padding-top: 0.5rem;">
-                        <p style="font-size: 0.8rem; color: #64748b;">Nimate shranjenih ponudb.</p>
+                    <div style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+                        <label style="font-size: 0.8rem; color: #94a3b8; display: block; margin-bottom: 5px;">Izberi
+                            ponudbo iz arhiva:</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <select id="archive-dropdown" onchange="if(this.value) loadProject(this.value)"
+                                style="flex: 1; background: rgba(15, 23, 42, 0.9); border: 1px solid #475569; color: #f8fafc; padding: 0.7rem; border-radius: 8px; font-size: 0.9rem;">
+                                <option value="">-- Izberi ponudbo --</option>
+                            </select>
+                            <button
+                                onclick="let id=document.getElementById('archive-dropdown').value; if(id) exportSingleProject(id);"
+                                style="background: #3b82f6; border: none; color: white; padding: 0.7rem; border-radius: 8px; cursor: pointer; width: 45px;"
+                                title="Izvozi">📥</button>
+                            <button
+                                onclick="let id=document.getElementById('archive-dropdown').value; if(id) deleteProject(id);"
+                                style="background: #ef4444; border: none; color: white; padding: 0.7rem; border-radius: 8px; cursor: pointer; width: 45px;"
+                                title="Briši">✕</button>
+                        </div>
+                        <div id="saved-projects-list" style="display:none;"></div>
                     </div>
                 </div>
 
@@ -1816,10 +1826,10 @@
 
             const machineProfiles = {
                 'S4': { rate: 120, speed: 4500, prep: 10, useDynamic: true, platePrice: 10.00, prepPrice: 25.00, changePrice: 10.00, limitW: 498, limitH: 348 },
-                'S8': { rate: 150, speed: 5400, prep: 10, useDynamic: true, platePrice: 15.00, prepPrice: 40.00, changePrice: 15.00, limitW: 718, limitH: 518 },
-                'CD': { rate: 180, speed: 7200, prep: 10, useDynamic: false, platePrice: 12.00, prepPrice: 35.00, changePrice: 12.00, limitW: 718, limitH: 518 },
-                'SM4+lak': { rate: 160, speed: 6300, prep: 10, useDynamic: false, platePrice: 11.00, prepPrice: 30.00, changePrice: 11.00, limitW: 718, limitH: 518 },
-                'CD UV': { rate: 280, speed: 5400, prep: 10, useDynamic: false, platePrice: 20.00, prepPrice: 50.00, changePrice: 20.00, limitW: 718, limitH: 518 },
+                'S8': { rate: 150, speed: 5400, prep: 10, useDynamic: true, platePrice: 10.00, prepPrice: 40.00, changePrice: 10.00, limitW: 718, limitH: 518 },
+                'CD': { rate: 180, speed: 7200, prep: 10, useDynamic: false, platePrice: 10.00, prepPrice: 35.00, changePrice: 10.00, limitW: 718, limitH: 518 },
+                'SM4+lak': { rate: 160, speed: 6300, prep: 10, useDynamic: false, platePrice: 10.00, prepPrice: 30.00, changePrice: 10.00, limitW: 718, limitH: 518 },
+                'CD UV': { rate: 280, speed: 5400, prep: 10, useDynamic: false, platePrice: 10.00, prepPrice: 50.00, changePrice: 10.00, limitW: 718, limitH: 518 },
                 'digital': { rate: 40, speed: 1800, prep: 10, useDynamic: false, platePrice: 0.00, prepPrice: 5.00, changePrice: 0.00, defaultFormat: 'Digital (480x320)', limitW: 480, limitH: 320 }
             };
 
@@ -3139,64 +3149,28 @@
             }
 
             function renderSavedProjects() {
-                const listDiv = document.getElementById('saved-projects-list');
+                const dropdown = document.getElementById('archive-dropdown');
+                if (!dropdown) return;
+
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
 
-                const searchBox = document.getElementById('archive-searchbox');
-                const query = searchBox ? searchBox.value.toLowerCase().trim() : '';
+                // Clear existing options except the first one
+                dropdown.innerHTML = '<option value="">-- Izberi ponudbo (' + arhiv.length + ') --</option>';
 
-                if (arhiv.length === 0) {
-                    listDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem;">Arhiv je prazen.</div>';
-                    return;
-                }
+                if (arhiv.length === 0) return;
 
                 arhiv.sort((a, b) => b.id - a.id); // Najnovejši zgoraj
 
-                // Filtriranje po vseh vrednostih (JSON stringify hack za iskanje po vseh parametrih hkrati)
-                let filteredArhiv = arhiv;
-                if (query) {
-                    filteredArhiv = arhiv.filter(proj => {
-                        const allDataString = JSON.stringify(proj).toLowerCase();
-                        return allDataString.includes(query);
-                    });
-                }
+                arhiv.forEach(proj => {
+                    const name = proj.name || 'Brez imena';
+                    const date = proj.date ? proj.date.split(' ')[0] : '';
+                    const total = (proj.results && proj.results.total) ? proj.results.total : '';
+                    const customer = proj.customer ? ' | ' + proj.customer : '';
 
-                if (filteredArhiv.length === 0) {
-                    listDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem;">Ni zadetkov za ta iskalni niz.</div>';
-                    return;
-                }
-
-                let html = "";
-                filteredArhiv.forEach(proj => {
-                    const codeDisplay = proj.materialCode ? `<span style="color:#60a5fa; margin-left:5px;">[${proj.materialCode}]</span>` : "";
-                    const custDisplay = proj.customer ? `<div style="font-size: 0.7rem; color: #6ee7b7;">${proj.customer}</div>` : "";
-                    let totalVal = "-";
-                    if (proj.results && proj.results.total) totalVal = proj.results.total;
-
-                    html += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row">
-                            <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProject(${proj.id});">
-                                <div style="font-weight: bold; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
-                                    ${proj.name || 'Brez imena'} ${codeDisplay}
-                                </div>
-                                ${custDisplay}
-                                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${proj.date || ''} | ${totalVal}</div>
-                            </div>
-                            <div style="display: flex; gap: 6px; margin-left: 10px;">
-                                 <button onclick="exportSingleProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #3b82f6; cursor: pointer; padding: 4px; font-size: 0.9rem;" title="Izvozi">📥</button>
-                                 <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 1rem;" title="Briši">✕</button>
-                            </div>
-                        </div>
-                        `;
-                });
-
-                listDiv.innerHTML = html;
-
-                // Dodaj hover efekte dinamično
-                const rows = listDiv.querySelectorAll('.project-item-row');
-                rows.forEach(r => {
-                    r.onmouseover = function () { this.style.background = "rgba(255,255,255,0.05)"; };
-                    r.onmouseout = function () { this.style.background = "transparent"; };
+                    const option = document.createElement('option');
+                    option.value = proj.id;
+                    option.textContent = `${date} - ${name}${customer} (${total})`;
+                    dropdown.appendChild(option);
                 });
             }
 
@@ -3376,7 +3350,7 @@
 
             function loadProject(id) {
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-                let proj = arhiv.find(p => p.id === id);
+                let proj = arhiv.find(p => p.id == id);
                 if (!proj) return;
                 loadProjectData(proj);
                 alert("Ponudba '" + proj.name + "' je uspešno naložena!");
@@ -3385,10 +3359,26 @@
             function deleteProject(id) {
                 if (!confirm("Ali ste prepričani, da želite izbrisati to ponudbo?")) return;
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-                arhiv = arhiv.filter(p => p.id !== id);
+                arhiv = arhiv.filter(p => p.id != id);
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
                 renderSavedProjects();
                 updateCustomerDatalist();
+            }
+
+            function exportSingleProject(id) {
+                let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                let proj = arhiv.find(p => p.id == id);
+                if (!proj) return;
+
+                const blob = new Blob([JSON.stringify(proj, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = (proj.name || "Ponudba") + "_" + (proj.date ? proj.date.split(' ')[0] : id) + ".json";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
             }
 
             // FILE EXPORT / IMPORT LOGIC
