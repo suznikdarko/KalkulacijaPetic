@@ -597,7 +597,7 @@
                     style="margin: 0; padding: 0.8rem; flex: 1; background: #f59e0b;"
                     title="Odpri shranjen projekt iz svoje mape">Odpri</button>
                 <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(event)"
-                    accept=".json">
+                    accept=".tiskovna-pola-kalkulator.json,.json">
             </div>
         </div>
         <!-- SREDINSKI PANEL: VIZUALIZACIJA -->
@@ -2766,6 +2766,7 @@
                 const data = {
                     id: Date.now(),
                     name: name,
+                    _source: 'tiskovna-pola-kalkulator',
                     date: new Date().toLocaleString('sl-SI'),
                     customer: gv('calc-customer'),
                     custAddress: gv('calc-cust-address'),
@@ -2934,7 +2935,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = proj.name.replace(/\s+/g, '_') + '.json';
+            a.download = proj.name.replace(/\s+/g, '_') + '.tiskovna-pola-kalkulator.json';
             document.body.appendChild(a);
             a.click();
             setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
@@ -3090,6 +3091,7 @@
                 let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
                 const data = {
                     name: name,
+                    _source: 'tiskovna-pola-kalkulator',
                     customer: document.getElementById('calc-customer').value,
                     materialCode: document.getElementById('calc-material-code').value,
                     timestamp: Date.now(),
@@ -3134,11 +3136,12 @@
                 };
 
                 const jsonStr = JSON.stringify(data, null, 2);
+                const suggestedName = name.replace(/\s+/g, '_') + '.tiskovna-pola-kalkulator.json';
                 if (window.showSaveFilePicker) {
                     try {
                         const handle = await window.showSaveFilePicker({
-                            suggestedName: name.replace(/\s+/g, '_') + '.json',
-                            types: [{ description: 'JSON Ponudba', accept: { 'application/json': ['.json'] } }],
+                            suggestedName: suggestedName,
+                            types: [{ description: 'Tiskovna Pola JSON', accept: { 'application/json': ['.json'] } }],
                         });
                         const writable = await handle.createWritable();
                         await writable.write(jsonStr);
@@ -3151,7 +3154,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = name.replace(/\s+/g, '_') + '.json';
+                a.download = suggestedName;
                 document.body.appendChild(a); a.click();
                 setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
             } catch (err) { alert("Napaka pri shranjevanju: " + err.message); }
@@ -3387,11 +3390,20 @@
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
+            // Preveri, da je to datoteka tega kalkulatorja
+            if (!file.name.includes('.tiskovna-pola-kalkulator.')) {
+                alert("Napaka: Ta datoteka ne pripada Tiskovna Pola kalkulatorju!\nPričakovana datoteka: *.tiskovna-pola-kalkulator.json");
+                event.target.value = "";
+                return;
+            }
             const reader = new FileReader();
             reader.onload = function (e) {
                 try {
                     const data = JSON.parse(e.target.result);
                     if (!data.inputs) throw new Error("Neveljavna datoteka!");
+                    if (data._source && data._source !== 'tiskovna-pola-kalkulator') {
+                        throw new Error("Ta datoteka pripada drugemu kalkulatorju (" + data._source + ")!");
+                    }
                     loadProjectData(data);
                     alert("Ponudba '" + (data.name || "Brez imena") + "' uspešno uvožena!");
                 } catch (err) { alert("Napaka pri uvozu: " + err.message); }

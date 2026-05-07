@@ -704,7 +704,7 @@
                     style="margin: 0; padding: 0.8rem; flex: 1; background: #f59e0b;"
                     title="Odpri shranjen projekt">Odpri</button>
                 <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(event)"
-                    accept=".json">
+                    accept=".blok.json,.json">
             </div>
         </div>
         <!-- SREDINA: VIZUALIZACIJA IN HITRI REZULTATI -->
@@ -3090,6 +3090,7 @@
                 const data = {
                     id: Date.now(),
                     name: name,
+                    _source: 'blok',
                     date: new Date().toLocaleString('sl-SI'),
                     customer: document.getElementById('calc-customer').value,
                     custEmail: document.getElementById('calc-cust-email').value,
@@ -3223,7 +3224,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = proj.name.replace(/\s+/g, '_') + '.json';
+                a.download = proj.name.replace(/\s+/g, '_') + '.blok.json';
                 document.body.appendChild(a);
                 a.click();
                 setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
@@ -3471,6 +3472,7 @@
                     let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
                     const data = {
                         name: name,
+                        _source: 'blok',
                         quoteNum: document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : "",
                         customerCode: document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "",
                         customer: document.getElementById('calc-customer').value,
@@ -3536,11 +3538,12 @@
                     };
 
                     const jsonStr = JSON.stringify(data, null, 2);
+                    const suggestedName = name.replace(/\s+/g, '_') + '.blok.json';
                     if (window.showSaveFilePicker) {
                         try {
                             const handle = await window.showSaveFilePicker({
-                                suggestedName: name.replace(/\s+/g, '_') + '.json',
-                                types: [{ description: 'JSON Ponudba', accept: { 'application/json': ['.json'] } }],
+                                suggestedName: suggestedName,
+                                types: [{ description: 'Blok JSON', accept: { 'application/json': ['.json'] } }],
                             });
                             const writable = await handle.createWritable();
                             await writable.write(jsonStr);
@@ -3553,7 +3556,7 @@
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = name.replace(/\s+/g, '_') + '.json';
+                    a.download = suggestedName;
                     document.body.appendChild(a); a.click();
                     setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
                 } catch (err) { alert("Napaka pri shranjevanju: " + err.message); }
@@ -3562,11 +3565,20 @@
             function handleFileSelect(event) {
                 const file = event.target.files[0];
                 if (!file) return;
+                // Preveri, da je to datoteka tega kalkulatorja
+                if (!file.name.includes('.blok.')) {
+                    alert("Napaka: Ta datoteka ne pripada Blok kalkulatorju!\nPričakovana datoteka: *.blok.json");
+                    event.target.value = "";
+                    return;
+                }
                 const reader = new FileReader();
                 reader.onload = function (e) {
                     try {
                         const data = JSON.parse(e.target.result);
                         if (!data.inputs) throw new Error("Neveljavna datoteka!");
+                        if (data._source && data._source !== 'blok') {
+                            throw new Error("Ta datoteka pripada drugemu kalkulatorju (" + data._source + ")!");
+                        }
                         loadProjectData(data);
                         alert("Ponudba '" + (data.name || "Brez imena") + "' uspešno uvožena!");
                     } catch (err) { alert("Napaka pri uvozu: " + err.message); }

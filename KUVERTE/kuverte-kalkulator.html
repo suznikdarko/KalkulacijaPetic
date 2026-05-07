@@ -663,6 +663,14 @@
             <button class="calculate-btn" onclick="saveCurrentProject()"
                 style="margin: 0; width: auto; background: #8b5cf6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">💾
                 V Arhiv</button>
+            <button class="calculate-btn" onclick="exportToFile()"
+                style="margin: 0; width: auto; background: #64748b; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">📥
+                Shrani Ponudbo</button>
+            <button class="calculate-btn" onclick="document.getElementById('file-input').click()"
+                style="margin: 0; width: auto; background: #f59e0b; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;"
+                title="Odpri shranjen projekt iz svoje mape">📂 Odpri</button>
+            <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(event)"
+                accept=".kuverte-kalkulator.json,.json">
             <button class="calculate-btn" onclick="openQuotePreview()" id="btn-open-quote"
                 style="margin: 0; width: auto; background: #3b82f6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">📝
                 Pripravi Ponudbo <span id="basket-count-badge"
@@ -1583,6 +1591,7 @@
             const data = {
                 id: Date.now(),
                 name: name,
+                _source: 'kuverte-kalkulator',
                 date: new Date().toLocaleString('sl-SI'),
                 customer: document.getElementById('calc-customer').value,
                 custAddress: document.getElementById('calc-cust-address').value,
@@ -1724,6 +1733,7 @@
                             <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${proj.date} | ${proj.results ? proj.results.total : '-'}</div>
                         </div>
                         <div style="display: flex; gap: 6px; margin-left: 10px;">
+                             <button onclick="exportSingleProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #3b82f6; cursor: pointer; padding: 4px; font-size: 0.9rem;" title="Izvozi">📥</button>
                              <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 1rem;" title="Briši">✕</button>
                         </div>
                     </div>`;
@@ -1746,6 +1756,109 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
             renderSavedProjects();
             updateCustomerDatalist();
+        }
+
+        // Pomožna funkcija za izvoz enega projekta iz arhiva
+        function exportSingleProject(id) {
+            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            let proj = arhiv.find(p => p.id === id);
+            if (!proj) return;
+
+            const jsonStr = JSON.stringify(proj, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = proj.name.replace(/\s+/g, '_') + '.kuverte-kalkulator.json';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
+        }
+
+        // FILE EXPORT / IMPORT LOGIC
+        async function exportToFile() {
+            try {
+                let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
+                const data = {
+                    name: name,
+                    _source: 'kuverte-kalkulator',
+                    customer: document.getElementById('calc-customer').value,
+                    materialCode: document.getElementById('calc-material-code').value,
+                    timestamp: Date.now(),
+                    inputs: {
+                        item_w: document.getElementById('width').value,
+                        item_h: document.getElementById('height').value,
+                        envelopePreset: document.getElementById('envelope-preset').value,
+                        quantities: document.getElementById('calc-quantities').value,
+                        qtyOrdered: document.getElementById('calc-qty-ordered').value,
+                        mPrice: document.getElementById('calc-material-price').value,
+                        packaging: document.getElementById('calc-packaging').value,
+                        margin: document.getElementById('calc-margin').value,
+                        colorsFront: document.getElementById('calc-colors-front').value,
+                        colorsBack: document.getElementById('calc-colors-back').value,
+                        mRate: document.getElementById('calc-machine-rate').value,
+                        mSpeed: document.getElementById('calc-machine-speed').value,
+                        autoSpeed: document.getElementById('calc-auto-speed').checked,
+                        plateDod: document.getElementById('calc-plate-price').value,
+                        plateCount: document.getElementById('calc-plate-count').value,
+                        colorChangePrice: document.getElementById('calc-color-change-price').value,
+                        persCount: document.getElementById('calc-personalization').value,
+                        manualWork: document.getElementById('calc-manual-work').value,
+                        usePers: document.getElementById('calc-use-personalization').checked,
+                        useManual: document.getElementById('calc-use-manual-work').checked,
+                        waste: document.getElementById('calc-waste').value,
+                        commercial: document.getElementById('calc-commercial').value
+                    }
+                };
+
+                const jsonStr = JSON.stringify(data, null, 2);
+                const suggestedName = name.replace(/\s+/g, '_') + '.kuverte-kalkulator.json';
+                if (window.showSaveFilePicker) {
+                    try {
+                        const handle = await window.showSaveFilePicker({
+                            suggestedName: suggestedName,
+                            types: [{ description: 'Kuverte JSON', accept: { 'application/json': ['.json'] } }],
+                        });
+                        const writable = await handle.createWritable();
+                        await writable.write(jsonStr);
+                        await writable.close();
+                        alert("Datoteka uspešno shranjena!");
+                        return;
+                    } catch (e) { if (e.name === 'AbortError') return; }
+                }
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = suggestedName;
+                document.body.appendChild(a); a.click();
+                setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
+            } catch (err) { alert("Napaka pri shranjevanju: " + err.message); }
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            // Preveri, da je to datoteka tega kalkulatorja
+            if (!file.name.includes('.kuverte-kalkulator.')) {
+                alert("Napaka: Ta datoteka ne pripada Kuverte kalkulatorju!\nPričakovana datoteka: *.kuverte-kalkulator.json");
+                event.target.value = "";
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!data.inputs) throw new Error("Neveljavna datoteka!");
+                    if (data._source && data._source !== 'kuverte-kalkulator') {
+                        throw new Error("Ta datoteka pripada drugemu kalkulatorju (" + data._source + ")!");
+                    }
+                    loadProjectData(data);
+                    alert("Ponudba '" + (data.name || "Brez imena") + "' uspešno uvožena!");
+                } catch (err) { alert("Napaka pri uvozu: " + err.message); }
+                event.target.value = "";
+            };
+            reader.readAsText(file);
         }
 
         function updatePlates() {
