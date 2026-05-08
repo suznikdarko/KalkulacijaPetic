@@ -700,6 +700,21 @@
     </div>
 
     <script>
+        const sheetB3 = { w: 500, h: 350, name: "B3" };
+        const gripper = 10;
+        const bleed = 0;
+        const envelopePresets = {
+            'Amerikanka_LO': { w: 230, h: 110 },
+            'Amerikanka_DO': { w: 230, h: 110 },
+            'Amerikanka_BO': { w: 230, h: 110 },
+            'C6': { w: 230, h: 162 },
+            'DL': { w: 220, h: 220 },
+            'C5': { w: 324, h: 229 },
+            'C4': { w: 458, h: 324 },
+            'B5': { w: 353, h: 250 },
+            'B4': { w: 500, h: 353 }
+        };
+
         let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
         renderBasket();
 
@@ -1071,9 +1086,6 @@
             previewWindow.document.close();
         }
 
-        const sheetB3 = { w: 500, h: 350, name: "B3" };
-        const gripper = 10;
-        const bleed = 0;
 
         function formatPrice(val, decimals = 2) {
             return val.toFixed(decimals).replace('.', ',') + " €";
@@ -1244,17 +1256,6 @@
             content.innerHTML = html;
         }
 
-        const envelopePresets = {
-            'Amerikanka_LO': { w: 230, h: 110 },
-            'Amerikanka_DO': { w: 230, h: 110 },
-            'Amerikanka_BO': { w: 230, h: 110 },
-            'C6': { w: 230, h: 162 },
-            'DL': { w: 220, h: 220 },
-            'C5': { w: 324, h: 229 },
-            'C4': { w: 458, h: 324 },
-            'B5': { w: 353, h: 250 },
-            'B4': { w: 500, h: 353 }
-        };
 
         function applyEnvelopePreset() {
             const type = document.getElementById('envelope-preset').value;
@@ -1281,113 +1282,123 @@
         }
 
         function calculate() {
-            const widthVal = parseFloat(document.getElementById('width').value) || 0;
-            const heightVal = parseFloat(document.getElementById('height').value) || 0;
-            const w = widthVal + (2 * bleed);
-            const h = heightVal + (2 * bleed);
+            try {
+                const widthVal = parseFloat(document.getElementById('width').value) || 0;
+                const heightVal = parseFloat(document.getElementById('height').value) || 0;
+                const w = widthVal + (2 * bleed);
+                const h = heightVal + (2 * bleed);
 
-            const qStr = document.getElementById('calc-quantities').value.trim();
-            const qtyInput = document.getElementById('calc-quantities');
+                const qStr = document.getElementById('calc-quantities').value.trim();
+                const qtyInput = document.getElementById('calc-quantities');
 
-            if (!qStr) {
-                qtyInput.style.animation = 'blinkRequired 1.5s infinite';
-                qtyInput.focus();
-                return;
-            }
-            qtyInput.style.animation = 'none';
-
-            const qList = qStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
-            if (qList.length === 0) return;
-            const q = qList[0];
-
-            // Samodejna prilagoditev hitrosti
-            const speedInput = document.getElementById('calc-machine-speed');
-            const autoSpeed = document.getElementById('calc-auto-speed').checked;
-            if (speedInput && autoSpeed) {
-                if (q <= 1000) {
-                    speedInput.value = 2490;
-                } else if (q <= 7000) {
-                    speedInput.value = 3320;
-                } else {
-                    speedInput.value = 3480;
+                if (!qStr) {
+                    qtyInput.style.animation = 'blinkRequired 1.5s infinite';
+                    qtyInput.focus();
+                    return;
                 }
+                qtyInput.style.animation = 'none';
+
+                const qList = qStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
+                if (qList.length === 0) return;
+                const q = qList[0];
+
+                // Samodejna prilagoditev hitrosti
+                const speedInput = document.getElementById('calc-machine-speed');
+                const autoSpeed = document.getElementById('calc-auto-speed').checked;
+                if (speedInput && autoSpeed) {
+                    if (q <= 1000) {
+                        speedInput.value = 2490;
+                    } else if (q <= 7000) {
+                        speedInput.value = 3320;
+                    } else {
+                        speedInput.value = 3480;
+                    }
+                }
+
+                let layout = optimizeLayout(sheetB3.w, sheetB3.h, w, h, gripper);
+                if (!layout) {
+                    alert("Format je prevelik za B3 polo!");
+                    return;
+                }
+
+                const usage = (layout.count * widthVal * heightVal) / (sheetB3.w * sheetB3.h);
+                const sheetsNeeded = Math.ceil(q / layout.count);
+
+                document.getElementById('res-count').innerText = layout.count;
+                document.getElementById('res-count-mini').innerText = layout.count;
+                document.getElementById('res-usage').innerText = (usage * 100).toFixed(1) + '%';
+                document.getElementById('res-usage-mini').innerText = (usage * 100).toFixed(1) + '%';
+                document.getElementById('res-sheets-needed').innerText = formatQty(sheetsNeeded);
+                document.getElementById('sticky-qty').innerText = formatQty(q);
+
+                drawCanvas(sheetB3.w, sheetB3.h, layout);
+                calculatePrice();
+            } catch (err) {
+                console.error("Calculation error:", err);
+                document.getElementById('results-tbody').innerHTML = '<tr><td colspan="7" style="color:#ef4444; text-align:center; padding: 20px; font-weight: bold;">⚠️ Napaka pri izračunu: ' + err.message + '</td></tr>';
             }
-
-            let layout = optimizeLayout(sheetB3.w, sheetB3.h, w, h, gripper);
-            if (!layout) {
-                alert("Format je prevelik za B3 polo!");
-                return;
-            }
-
-            const usage = (layout.count * widthVal * heightVal) / (sheetB3.w * sheetB3.h);
-            const sheetsNeeded = Math.ceil(q / layout.count);
-
-            document.getElementById('res-count').innerText = layout.count;
-            document.getElementById('res-count-mini').innerText = layout.count;
-            document.getElementById('res-usage').innerText = (usage * 100).toFixed(1) + '%';
-            document.getElementById('res-usage-mini').innerText = (usage * 100).toFixed(1) + '%';
-            document.getElementById('res-sheets-needed').innerText = formatQty(sheetsNeeded);
-            document.getElementById('sticky-qty').innerText = formatQty(q);
-
-            drawCanvas(sheetB3.w, sheetB3.h, layout);
-            calculatePrice();
         }
 
         function calculatePrice() {
-            const quantitiesStr = document.getElementById('calc-quantities').value.trim();
-            if (!quantitiesStr) {
-                document.getElementById('results-tbody').innerHTML = '';
-                document.getElementById('detailed-spec-content').innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">Vnesite naklado za prikaz izračuna.</div>';
+            try {
+                const quantitiesStr = document.getElementById('calc-quantities').value.trim();
+                if (!quantitiesStr) {
+                    document.getElementById('results-tbody').innerHTML = '';
+                    document.getElementById('detailed-spec-content').innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">Vnesite naklado za prikaz izračuna.</div>';
 
-                // Clear sticky footer
-                document.getElementById('sticky-qty').innerText = '-';
-                document.getElementById('sticky-price-per-item').innerText = '0.0000 €';
-                document.getElementById('sticky-price-total-bottom').innerText = '0.00 €';
+                    // Clear sticky footer
+                    document.getElementById('sticky-qty').innerText = '-';
+                    document.getElementById('sticky-price-per-item').innerText = '0.0000 €';
+                    document.getElementById('sticky-price-total-bottom').innerText = '0.00 €';
 
-                // Clear stats
-                document.getElementById('res-count').innerText = '0';
-                document.getElementById('res-count-mini').innerText = '-';
-                document.getElementById('res-usage').innerText = '0%';
-                document.getElementById('res-usage-mini').innerText = '-';
-                document.getElementById('res-sheets-needed').innerText = '0';
-                return;
-            }
-            const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
-            if (qList.length === 0) return;
-
-            let tbodyHtml = '';
-            let firstResult = null;
-
-            qList.forEach((q, index) => {
-                const res = calculateForSingleQty(q);
-                if (index === 0) firstResult = res;
-
-                tbodyHtml += `
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <td style="padding: 0.5rem; text-align: left; font-weight: bold; color: var(--item-color-blue);">${formatQty(q)}</td>
-                        <td style="padding: 0.5rem;">${res.materialCost.toFixed(2)} €</td>
-                        <td style="padding: 0.5rem;">${res.platesCost.toFixed(2)} €</td>
-                        <td style="padding: 0.5rem;">${(res.printCost + res.colorChangeCost).toFixed(2)} €</td>
-                        <td style="padding: 0.5rem;">${res.additionalCost.toFixed(2)} €</td>
-                        <td style="padding: 0.5rem; font-weight: bold; color: var(--accent-color);">${res.finalTotal.toFixed(2)} €</td>
-                        <td style="padding: 0.5rem; color: #10b981; font-weight: bold;">${res.pricePerItem.toFixed(4)} €</td>
-                    </tr>
-                `;
-            });
-
-            document.getElementById('results-tbody').innerHTML = tbodyHtml;
-
-            if (firstResult) {
-                renderDetailedSpec(firstResult.details, firstResult.qty);
-                // Update sticky footer
-                document.getElementById('sticky-qty').innerText = formatQty(firstResult.qty);
-                document.getElementById('sticky-price-total-bottom').innerText = firstResult.finalTotal.toFixed(2) + " €";
-                document.getElementById('sticky-price-per-item').innerText = firstResult.pricePerItem.toFixed(4) + " €";
-
-                // Update stats grid if exists
-                if (document.getElementById('res-price-per-item')) {
-                    document.getElementById('res-price-per-item').innerText = firstResult.pricePerItem.toFixed(4) + " €";
+                    // Clear stats
+                    document.getElementById('res-count').innerText = '0';
+                    document.getElementById('res-count-mini').innerText = '-';
+                    document.getElementById('res-usage').innerText = '0%';
+                    document.getElementById('res-usage-mini').innerText = '-';
+                    document.getElementById('res-sheets-needed').innerText = '0';
+                    return;
                 }
+                const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
+                if (qList.length === 0) return;
+
+                let tbodyHtml = '';
+                let firstResult = null;
+
+                qList.forEach((q, index) => {
+                    const res = calculateForSingleQty(q);
+                    if (index === 0) firstResult = res;
+
+                    tbodyHtml += `
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <td style="padding: 0.5rem; text-align: left; font-weight: bold; color: var(--item-color-blue);">${formatQty(q)}</td>
+                            <td style="padding: 0.5rem;">${res.materialCost.toFixed(2)} €</td>
+                            <td style="padding: 0.5rem;">${res.platesCost.toFixed(2)} €</td>
+                            <td style="padding: 0.5rem;">${(res.printCost + res.colorChangeCost).toFixed(2)} €</td>
+                            <td style="padding: 0.5rem;">${res.additionalCost.toFixed(2)} €</td>
+                            <td style="padding: 0.5rem; font-weight: bold; color: var(--accent-color);">${res.finalTotal.toFixed(2)} €</td>
+                            <td style="padding: 0.5rem; color: #10b981; font-weight: bold;">${res.pricePerItem.toFixed(4)} €</td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('results-tbody').innerHTML = tbodyHtml;
+
+                if (firstResult) {
+                    renderDetailedSpec(firstResult.details, firstResult.qty);
+                    // Update sticky footer
+                    document.getElementById('sticky-qty').innerText = formatQty(firstResult.qty);
+                    document.getElementById('sticky-price-total-bottom').innerText = firstResult.finalTotal.toFixed(2) + " €";
+                    document.getElementById('sticky-price-per-item').innerText = firstResult.pricePerItem.toFixed(4) + " €";
+
+                    // Update stats grid if exists
+                    if (document.getElementById('res-price-per-item')) {
+                        document.getElementById('res-price-per-item').innerText = firstResult.pricePerItem.toFixed(4) + " €";
+                    }
+                }
+            } catch (err) {
+                console.error("Price calculation error:", err);
+                document.getElementById('results-tbody').innerHTML = '<tr><td colspan="7" style="color:#ef4444; text-align:center; padding: 20px; font-weight: bold;">⚠️ Napaka pri izračunu cene</td></tr>';
             }
         }
 
@@ -1874,9 +1885,31 @@
         }
 
         window.onload = function () {
-            updateCustomerDatalist();
-            renderBasket();
-            calculate();
+            try {
+                const requiredIds = [
+                    'width', 'height', 'calc-quantities', 'calc-machine-speed', 'calc-auto-speed',
+                    'results-tbody', 'detailed-spec-content', 'sticky-qty', 'sticky-price-per-item',
+                    'sticky-price-total-bottom', 'res-count', 'res-count-mini', 'res-usage',
+                    'res-usage-mini', 'res-sheets-needed', 'calc-qty-ordered', 'calc-material-price',
+                    'calc-colors-front', 'calc-colors-back', 'calc-machine-rate', 'calc-plate-price',
+                    'calc-plate-count', 'calc-prep-price', 'calc-change-price', 'calc-color-change-price',
+                    'calc-personalization', 'calc-manual-work', 'calc-margin', 'calc-use-personalization',
+                    'calc-use-manual-work', 'calc-waste', 'calc-commercial'
+                ];
+                let missing = [];
+                requiredIds.forEach(id => {
+                    if (!document.getElementById(id)) missing.push(id);
+                });
+                if (missing.length > 0) {
+                    document.getElementById('results-tbody').innerHTML = '<tr><td colspan="7" style="color:#ef4444; text-align:center; padding: 20px; font-weight: bold;">⚠️ Manjkajoči elementi: ' + missing.join(', ') + '</td></tr>';
+                } else {
+                    updateCustomerDatalist();
+                    renderBasket();
+                    calculate();
+                }
+            } catch (e) {
+                console.error("Onload error:", e);
+            }
         };
     </script>
 </body>
