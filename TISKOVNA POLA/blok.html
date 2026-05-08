@@ -3609,7 +3609,7 @@
             }
 
 
-            function getQuoteHTML(isWord = false) {
+            function getQuoteHTML(isWord = false, canvasImages = null, isInternal = false) {
                 const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
                 const date = new Date().toLocaleDateString('sl-SI');
                 const quoteNum = document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '/';
@@ -3671,6 +3671,63 @@
                 }
 
                 const htmlHeader = isWord ? `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>` : `<html>`;
+
+                if (isInternal && canvasImages) {
+                    const item = itemsToRender[0];
+                    return `
+                        ${htmlHeader}
+                        <head><meta charset="utf-8"><title>MONTAŽA - BLOK</title>
+                        <style>
+                            body { font-family: 'Arial', sans-serif; padding: 30px; color: #000; text-align: center; }
+                            h1 { font-size: 24px; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; text-transform: uppercase; }
+                            .section { margin-bottom: 30px; border: 1px solid #000; padding: 15px; text-align: left; page-break-inside: avoid; }
+                            .section-title { font-weight: bold; font-size: 18px; border-bottom: 1px solid #ccc; margin-bottom: 10px; padding-bottom: 5px; color: #3b82f6; }
+                            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; }
+                            .info-item { margin-bottom: 5px; }
+                            .schema-box { text-align: center; margin-top: 15px; }
+                            img { max-width: 100%; height: auto; border: 1px solid #ddd; }
+                            .footer { margin-top: 40px; font-size: 11px; color: #666; border-top: 1px solid #eee; padding-top: 10px; }
+                        </style>
+                        </head>
+                        <body>
+                            <h1>MONTAŽNI LIST - BLOK</h1>
+                            <div style="text-align: left; margin-bottom: 20px; font-size: 16px;">
+                                <strong>STRANKA:</strong> ${customer}<br>
+                                <strong>IZDELEK:</strong> ${item.projectName}<br>
+                                <strong>PONUDBA:</strong> ${quoteNum}
+                            </div>
+
+                            <div class="section">
+                                <div class="section-title">📄 LISTI (NOTRANJOST)</div>
+                                <div class="info-grid">
+                                    <div class="info-item"><strong>Format:</strong> ${item.formatLeaves} mm</div>
+                                    <div class="info-item"><strong>Obseg:</strong> ${item.extentText}</div>
+                                    <div class="info-item"><strong>Papir:</strong> ${item.paperLeaves}</div>
+                                    <div class="info-item"><strong>Tisk:</strong> ${item.tiskLeaves}</div>
+                                </div>
+                                ${canvasImages.leaves ? `<div class="schema-box"><img src="${canvasImages.leaves}"></div>` : ''}
+                            </div>
+
+                            <div class="section">
+                                <div class="section-title">📕 OVITEK / PODKARTON</div>
+                                <div class="info-grid">
+                                    <div class="info-item"><strong>Format:</strong> ${item.formatCover} mm</div>
+                                    <div class="info-item"><strong>Papir:</strong> ${item.paperCover}</div>
+                                    <div class="info-item"><strong>Tisk:</strong> ${item.tiskCover}</div>
+                                </div>
+                                ${canvasImages.cover ? `<div class="schema-box"><img src="${canvasImages.cover}"></div>` : ''}
+                            </div>
+
+                            <div class="section">
+                                <div class="section-title">⚙️ DODELAVA</div>
+                                <div style="font-size: 14px;">${item.finishingText}</div>
+                            </div>
+
+                            <div class="footer">
+                                Datum: ${date} | Pripravil: ${preparedBy} | <span style="color:red; font-weight:bold;">INTERNI DOKUMENT - TISKARNA PETRIČ</span>
+                            </div>
+                        </body></html>`;
+                }
 
                 let itemsHtml = '';
                 itemsToRender.forEach((item, idx) => {
@@ -3782,29 +3839,47 @@
 
             function printQuote() {
                 try {
-                    const html = getQuoteHTML(false);
-                    const printWindow = window.open('', '', 'width=800,height=900');
-                    if (!printWindow) {
-                        alert("Prosimo omogočite pojavna okna (pop-ups) za ta zavihek.");
+                    const html = getQuoteHTML(false, null, false);
+                    const printWin = window.open('', '', 'width=900,height=900');
+                    if (!printWin) {
+                        alert("Pojavno okno je bilo blokirano.");
                         return;
                     }
-                    printWindow.document.write(html);
-                    printWindow.document.close();
-                    printWindow.focus();
-                    setTimeout(() => { printWindow.print(); }, 500);
-                } catch (e) {
-                    alert("Napaka pri pripravi ponudbe: " + e.message);
-                    console.error(e);
-                }
+                    printWin.document.write(html);
+                    printWin.document.close();
+                    setTimeout(() => { printWin.print(); }, 500);
+                } catch (e) { alert("Napaka pri pripravi ponudbe: " + e.message); }
+            }
+
+            function printProductionOrder() {
+                try {
+                    const canvasLeaves = document.getElementById('canvas-leaves');
+                    const canvasCover = document.getElementById('canvas-cover');
+
+                    const images = {
+                        leaves: (canvasLeaves && canvasLeaves.style.display !== 'none') ? canvasLeaves.toDataURL() : null,
+                        cover: (canvasCover && canvasCover.style.display !== 'none') ? canvasCover.toDataURL() : null
+                    };
+
+                    const html = getQuoteHTML(false, images, true);
+                    const printWin = window.open('', '', 'width=900,height=900');
+                    if (!printWin) {
+                        alert("Pojavno okno je bilo blokirano.");
+                        return;
+                    }
+                    printWin.document.write(html);
+                    printWin.document.close();
+                    setTimeout(() => { printWin.print(); }, 500);
+                } catch (e) { alert("Napaka pri pripravi montažnega lista: " + e.message); }
             }
 
             function exportQuoteWord() {
                 try {
-                    const htmlContent = getQuoteHTML(true);
+                    const htmlContent = getQuoteHTML(true, null, false);
                     const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
-                    const projectName = (document.getElementById('calc-project-name').value) || 'Ponudba';
+                    const projectName = document.getElementById('calc-project-name').value || 'Ponudba';
                     link.href = url;
                     link.download = "Ponudba_" + projectName.replace(/\s+/g, '_') + ".doc";
                     document.body.appendChild(link);
@@ -3812,7 +3887,6 @@
                     setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(url); }, 100);
                 } catch (e) {
                     alert("Napaka pri pripravi Word dokumenta: " + e.message);
-                    console.error(e);
                 }
             }
             function printFormat() {
@@ -3980,6 +4054,11 @@
             <button class="calculate-btn" onclick="exportToFile()"
                 style="margin: 0; width: auto; background: #6366f1; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
                 💾 SHRANI</button>
+
+            <button class="calculate-btn" onclick="printProductionOrder()"
+                style="margin: 0; width: auto; background: #818cf8; padding: 0.5rem 1.2rem; font-size:0.85rem;"
+                title="Internal Montaža">🛠️
+                Montažni list</button>
 
             <button class="calculate-btn" onclick="toggleBasketModal(true)"
                 style="margin: 0; width: auto; background: #475569; padding: 0.5rem 1.2rem; font-size:0.85rem; position:relative;">
