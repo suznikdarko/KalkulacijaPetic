@@ -466,7 +466,8 @@
             <div class="header-group" style="grid-column: span 2;">
                 <label for="calc-project-name">Projekt / Ime ponudbe</label>
                 <div style="display: flex; gap: 0.2rem; position: relative;">
-                    <input type="text" id="calc-project-name" placeholder="Vnesite ime ponudbe" style="flex: 1;">
+                    <input type="text" id="calc-project-name" placeholder="Vnesite ime ponudbe" style="flex: 1;"
+                        oninput="document.getElementById('calc-project-name-2').value = this.value">
                     <button onclick="toggleProjectsDropdown()"
                         style="width: auto; background: #64748b; border: none; border-radius: 8px; color: white; cursor: pointer; padding: 0 10px; font-size: 0.8rem; font-weight: bold;">
                         MOJI PROJEKTI ▼
@@ -1426,10 +1427,11 @@
                     <h3>5. Arhiv Ponudb</h3>
                     <div class="form-group">
                         <label>Ime ponudbe (za shranjevanje)</label>
-                        <input type="text" id="calc-project-name-2" placeholder="npr. Katalog Jesen 2024">
+                        <input type="text" id="calc-project-name-2" placeholder="npr. Katalog Jesen 2024"
+                            oninput="document.getElementById('calc-project-name').value = this.value">
                     </div>
                     <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
-                        <button onclick="saveCurrentProject()"
+                        <button onclick="saveCurrentProject(this)"
                             style="background: #10b981; flex: 1; min-width: 120px; padding: 0.7rem; border:none; color:white; border-radius:8px; cursor:pointer; font-weight:bold;">💾
                             Shrani v arhiv</button>
                         <button onclick="printQuote()"
@@ -1579,7 +1581,7 @@
                 const b = parseFloat(document.getElementById('bleed').value.replace(',', '.')) || 0;
                 const g = parseFloat(document.getElementById('gripper').value.replace(',', '.')) || 0;
                 const qtyStr = document.getElementById('quantity').value || "";
-                const qList = qtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, '').replace(',', '.'))).filter(n => !isNaN(n) && n > 0);
+                const qList = qtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, '').replace(',', '.'))).filter(n => !isNaN(n) && n >= 0);
                 const q = qList.length > 0 ? qList[0] : 0; // Za vizualizacijo uporabimo prvo naklado
 
                 const mFormat = document.getElementById('machine-format').value;
@@ -2025,7 +2027,7 @@
                         const qList = qtyStr.split(',').map(s => {
                             let clean = s.trim().replace(/\./g, '').replace(',', '.');
                             return parseFloat(clean);
-                        }).filter(n => !isNaN(n) && n > 0);
+                        }).filter(n => !isNaN(n) && n >= 0);
                         totalItemsForm = qList.length > 0 ? qList[0] : 0;
                     }
                     // Če še ni določenih dimenzij ali naklade, ne delaj izračuna cene
@@ -2644,11 +2646,11 @@
 
             function addToBasket() {
                 const qtyStr = document.getElementById('quantity').value || "";
-                const qList = qtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, ''))).filter(n => !isNaN(n) && n > 0);
+                const qList = qtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, ''))).filter(n => !isNaN(n) && n >= 0);
 
+                // Če ni naklade, dodaj vsaj 0, da omogočiš shranjevanje v košarico
                 if (qList.length === 0) {
-                    alert("Prosimo vnesite vsaj eno naklado!");
-                    return;
+                    qList.push(0);
                 }
 
                 const projectName = document.getElementById('calc-project-name').value || "Brez imena";
@@ -2937,7 +2939,7 @@
 
 
             // --- KONSTANTE IN SHRANJEVANJE ---
-            var STORAGE_KEY = 'tisk_kalkulator_arhiv';
+            var STORAGE_KEY = 'darko_blok_arhiv';
 
             // --- CUSTOMER LOGIC (Ultra-Safe) ---
             var lastSearch = "";
@@ -3080,125 +3082,130 @@
                 }
             } catch (e) { logDebug("Napaka pri povezovanju dogodkov: " + e.message, true); }
 
-            function saveCurrentProject() {
-                let name = document.getElementById('calc-project-name').value.trim();
-                if (!name) {
-                    alert("Prosimo vnesite ime ponudbe!");
-                    return;
-                }
+            function saveCurrentProject(btn = null) {
+                try {
+                    function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+                    function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
 
-                const data = {
-                    id: Date.now(),
-                    name: name,
-                    _source: 'blok',
-                    date: new Date().toLocaleString('sl-SI'),
-                    customer: document.getElementById('calc-customer').value,
-                    custEmail: document.getElementById('calc-cust-email').value,
-                    custAddress: document.getElementById('calc-cust-address').value,
-                    deliveryAddress: document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : "",
-                    custId: document.getElementById('calc-cust-id') ? document.getElementById('calc-cust-id').value : "",
-                    quoteNum: document.getElementById('calc-quote-number').value,
-                    customerCode: document.getElementById('calc-customer-code').value,
-                    preparedBy: document.getElementById('calc-prepared-by').value,
-                    materialCode: document.getElementById('calc-material-code').value,
-                    leavesMaterial: document.getElementById('calc-leaves-material').value,
-                    inputs: {
-                        machine_format: document.getElementById('machine-format').value,
-                        item_w: document.getElementById('width').value,
-                        item_h: document.getElementById('height').value,
-                        quantity: document.getElementById('quantity').value,
-                        bleed: document.getElementById('bleed').value,
-                        gripper: document.getElementById('gripper').value,
-                        orientation: document.getElementById('item-orientation').value,
-                        itemsPerSheet: document.getElementById('items-per-sheet').value,
-                        sourceW: document.getElementById('calc-source-w').value,
-                        sourceH: document.getElementById('calc-source-h').value,
-                        sourceYield: document.getElementById('calc-source-yield').value,
-                        leaves: document.getElementById('calc-leaves').value,
-                        // Cover tech fields
-                        coverW: document.getElementById('calc-cover-w').value,
-                        coverH: document.getElementById('calc-cover-h').value,
-                        coverBleed: document.getElementById('calc-cover-bleed').value,
-                        coverGripper: document.getElementById('calc-cover-gripper').value,
-                        coverQty: document.getElementById('calc-cover-qty').value,
-                        coverDesc: document.getElementById('calc-cover-desc').value,
-                        sourceCoverW: document.getElementById('calc-source-cover-w').value,
-                        sourceCoverH: document.getElementById('calc-source-cover-h').value,
-                        sourceCoverYield: document.getElementById('calc-source-cover-yield').value,
-                        pActive: document.getElementById('calc-paper-active') ? document.getElementById('calc-paper-active').checked : true,
-                        pPrice: document.getElementById('calc-paper-price').value,
-                        pUnit: document.getElementById('calc-paper-unit').value,
-                        pWeight: document.getElementById('calc-paper-weight').value,
-                        pSupplyType: document.getElementById('calc-paper-supply-type') ? document.getElementById('calc-paper-supply-type').value : '700x1000',
-                        pSupplyW: document.getElementById('calc-paper-supply-w') ? document.getElementById('calc-paper-supply-w').value : 700,
-                        pSupplyH: document.getElementById('calc-paper-supply-h') ? document.getElementById('calc-paper-supply-h').value : 1000,
-                        pWaste: document.getElementById('calc-paper-waste-leaves').value,
-                        cbActive: true,
-                        cbPrice: document.getElementById('calc-cardboard-price') ? document.getElementById('calc-cardboard-price').value : "",
-                        cbUnit: document.getElementById('calc-cardboard-unit') ? document.getElementById('calc-cardboard-unit').value : "",
-                        cbWeight: document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : "",
-                        cbSupplyType: document.getElementById('calc-cb-supply-type') ? document.getElementById('calc-cb-supply-type').value : '700x1000',
-                        cbSupplyW: document.getElementById('calc-cb-supply-w') ? document.getElementById('calc-cb-supply-w').value : 700,
-                        cbSupplyH: document.getElementById('calc-cb-supply-h') ? document.getElementById('calc-cb-supply-h').value : 1000,
+                    let name = gv('calc-project-name').trim() || "Brez imena";
 
-                        // Leaves Print
-                        mTypeL: document.getElementById('calc-machine-type-leaves').value,
-                        mRateL: document.getElementById('calc-machine-rate-leaves').value,
-                        mSpeedL: document.getElementById('calc-machine-speed-leaves').value,
-                        mPrepL: document.getElementById('calc-machine-prep-time-leaves').value,
-                        frontL: document.getElementById('calc-color-front-leaves').value,
-                        backL: document.getElementById('calc-color-back-leaves').value,
-                        obratL: document.getElementById('calc-is-obrat-leaves').checked,
-                        platesNumL: document.getElementById('calc-plates-num-leaves').value,
-                        platesPriceL: document.getElementById('calc-plates-price-leaves').value,
-                        prepPriceL: document.getElementById('calc-prep-price-leaves').value,
-                        wasteL: document.getElementById('calc-paper-waste-leaves').value,
-
-                        // Cover Print
-                        mTypeC: document.getElementById('calc-machine-type-cover').value,
-                        mRateC: document.getElementById('calc-machine-rate-cover').value,
-                        mSpeedC: document.getElementById('calc-machine-speed-cover').value,
-                        mPrepC: document.getElementById('calc-machine-prep-time-cover').value,
-                        frontC: document.getElementById('calc-color-front-cover').value,
-                        backC: document.getElementById('calc-color-back-cover').value,
-                        obratC: document.getElementById('calc-is-obrat-cover').checked,
-                        platesNumC: document.getElementById('calc-plates-num-cover').value,
-                        platesPriceC: document.getElementById('calc-plates-price-cover').value,
-                        prepPriceC: document.getElementById('calc-prep-price-cover').value,
-                        wasteC: document.getElementById('calc-paper-waste-cover').value,
-
-                        margin: document.getElementById('calc-margin').value,
-
-                        // Finishing fields
-                        finish: {
-                            cilinder: { active: document.getElementById('f-cilinder-active').checked, prep: document.getElementById('f-cilinder-prep').value, rate: document.getElementById('f-cilinder-rate').value },
-                            zgibanje: { active: document.getElementById('f-zgibanje-active').checked, folds: document.getElementById('f-zgibanje-folds').value, speed: document.getElementById('f-zgibanje-speed').value },
-                            noz: { active: document.getElementById('f-noz-active').checked, time: document.getElementById('f-noz-time').value, rate: document.getElementById('f-noz-rate').value },
-                            sivanje: { active: document.getElementById('f-sivanje-active').checked, prep: document.getElementById('f-sivanje-prep').value, per1000: document.getElementById('f-sivanje-per1000').value },
-                            lepljenje: { active: document.getElementById('f-lepljenje-active').checked, prep: document.getElementById('f-lepljenje-prep').value, per1000: document.getElementById('f-lepljenje-per1000').value },
-                            extra: { active: document.getElementById('f-extra-active').checked, manual: document.getElementById('f-extra-manual').value, external: document.getElementById('f-extra-external').value },
-                            tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
-                            uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
-                            lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type').value, sides: document.getElementById('f-lam-sides').value, per1000: document.getElementById('f-lam-per1000').value, prep: document.getElementById('f-lam-prep').value },
-                            delivery: { active: document.getElementById('f-delivery-active').checked, km: document.getElementById('f-delivery-km').value, rate: document.getElementById('f-delivery-rate').value },
-                            delFixed: { active: document.getElementById('f-del-fixed-active').checked, cost: document.getElementById('f-del-fixed-cost').value }
+                    const data = {
+                        id: Date.now(),
+                        name: name,
+                        _source: 'darko-blok',
+                        date: new Date().toLocaleString('sl-SI'),
+                        customer: gv('calc-customer'),
+                        custEmail: gv('calc-cust-email'),
+                        custAddress: gv('calc-cust-address'),
+                        deliveryAddress: gv('calc-delivery-address'),
+                        custId: gv('calc-cust-id'),
+                        quoteNum: gv('calc-quote-number'),
+                        customerCode: gv('calc-customer-code'),
+                        preparedBy: gv('calc-prepared-by'),
+                        materialCode: gv('calc-material-code'),
+                        leavesMaterial: gv('calc-leaves-material'),
+                        inputs: {
+                            machine_format: gv('machine-format'),
+                            item_w: gv('width'),
+                            item_h: gv('height'),
+                            quantity: gv('quantity'),
+                            bleed: gv('bleed'),
+                            gripper: gv('gripper'),
+                            orientation: gv('item-orientation'),
+                            itemsPerSheet: gv('items-per-sheet'),
+                            sourceW: gv('calc-source-w'),
+                            sourceH: gv('calc-source-h'),
+                            sourceYield: gv('calc-source-yield'),
+                            leaves: gv('calc-leaves'),
+                            coverW: gv('calc-cover-w'),
+                            coverH: gv('calc-cover-h'),
+                            coverBleed: gv('calc-cover-bleed'),
+                            coverGripper: gv('calc-cover-gripper'),
+                            coverQty: gv('calc-cover-qty'),
+                            coverDesc: gv('calc-cover-desc'),
+                            sourceCoverW: gv('calc-source-cover-w'),
+                            sourceCoverH: gv('calc-source-cover-h'),
+                            sourceCoverYield: gv('calc-source-cover-yield'),
+                            pActive: gc('calc-paper-active'),
+                            pPrice: gv('calc-paper-price'),
+                            pUnit: gv('calc-paper-unit'),
+                            pWeight: gv('calc-paper-weight'),
+                            pSupplyType: gv('calc-paper-supply-type'),
+                            pSupplyW: gv('calc-paper-supply-w'),
+                            pSupplyH: gv('calc-paper-supply-h'),
+                            pWaste: gv('calc-paper-waste-leaves'),
+                            cbActive: gc('calc-cardboard-active'),
+                            cbPrice: gv('calc-cardboard-price'),
+                            cbUnit: gv('calc-cardboard-unit'),
+                            cbWeight: gv('calc-cardboard-weight'),
+                            cbSupplyType: gv('calc-cb-supply-type'),
+                            cbSupplyW: gv('calc-cb-supply-w'),
+                            cbSupplyH: gv('calc-cb-supply-h'),
+                            mTypeL: gv('calc-machine-type-leaves'),
+                            mRateL: gv('calc-machine-rate-leaves'),
+                            mSpeedL: gv('calc-machine-speed-leaves'),
+                            mPrepL: gv('calc-machine-prep-time-leaves'),
+                            frontL: gv('calc-color-front-leaves'),
+                            backL: gv('calc-color-back-leaves'),
+                            obratL: gc('calc-is-obrat-leaves'),
+                            platesNumL: gv('calc-plates-num-leaves'),
+                            platesPriceL: gv('calc-plates-price-leaves'),
+                            prepPriceL: gv('calc-prep-price-leaves'),
+                            wasteL: gv('calc-paper-waste-leaves'),
+                            mTypeC: gv('calc-machine-type-cover'),
+                            mRateC: gv('calc-machine-rate-cover'),
+                            mSpeedC: gv('calc-machine-speed-cover'),
+                            mPrepC: gv('calc-machine-prep-time-cover'),
+                            frontC: gv('calc-color-front-cover'),
+                            backC: gv('calc-color-back-cover'),
+                            obratC: gc('calc-is-obrat-cover'),
+                            platesNumC: gv('calc-plates-num-cover'),
+                            platesPriceC: gv('calc-plates-price-cover'),
+                            prepPriceC: gv('calc-prep-price-cover'),
+                            wasteC: gv('calc-paper-waste-cover'),
+                            margin: gv('calc-margin'),
+                            finish: {
+                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
+                                zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
+                                noz: { active: gc('f-noz-active'), time: gv('f-noz-time'), rate: gv('f-noz-rate') },
+                                znasanje: { active: gc('f-znasanje-active'), prep: gv('f-znasanje-prep'), per1000: gv('f-znasanje-per1000') },
+                                lepljenjeblokov: { active: gc('f-lepljenjeblokov-active'), prep: gv('f-lepljenjeblokov-prep'), kos: gv('f-lepljenjeblokov-kos') },
+                                spiraljenje: { active: gc('f-spiraljenje-active'), prep: gv('f-spiraljenje-prep'), kos: gv('f-spiraljenje-kos') },
+                                sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
+                                lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
+                                extra: { active: gc('f-extra-active'), manual: gv('f-extra-manual'), external: gv('f-extra-external') },
+                                tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
+                                uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                                lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
+                                delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
+                                delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
+                            }
+                        },
+                        results: {
+                            total: (document.getElementById('res-price-total') || {}).innerText || '',
+                            perItem: (document.getElementById('res-price-per-item') || {}).innerText || '',
+                            sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
                         }
-                    },
-                    results: {
-                        total: document.getElementById('res-price-total').innerText,
-                        perItem: document.getElementById('res-price-per-item').innerText,
-                        sheets: document.getElementById('res-sheets-needed').innerText
+                    };
+
+                    let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                    arhiv.push(data);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
+
+                    document.getElementById('calc-project-name').value = "";
+                    renderSavedProjects();
+                    updateCustomerDatalist();
+
+                    if (btn) {
+                        const oldHTML = btn.innerHTML;
+                        btn.innerHTML = "✅ SHRANJENO";
+                        btn.style.background = "#10b981";
+                        setTimeout(() => {
+                            btn.innerHTML = oldHTML;
+                            btn.style.background = "#10b981";
+                        }, 2000);
                     }
-                };
-
-                let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-                arhiv.push(data);
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
-
-                document.getElementById('calc-project-name').value = "";
-                renderSavedProjects();
-                updateCustomerDatalist();
-                alert("Ponudba '" + name + "' je shranjena v arhiv!");
+                } catch (err) { console.error("saveCurrentProject error:", err); }
             }
 
             function toggleProjectsDropdown() {
@@ -3469,76 +3476,106 @@
             // FILE EXPORT / IMPORT LOGIC
             async function exportToFile() {
                 try {
-                    let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
+                    function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+                    function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
+
+                    let name = gv('calc-project-name') || "Ponudba";
                     const data = {
                         name: name,
-                        _source: 'blok',
-                        quoteNum: document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : "",
-                        customerCode: document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "",
-                        customer: document.getElementById('calc-customer').value,
-                        custId: document.getElementById('calc-cust-id') ? document.getElementById('calc-cust-id').value : "",
-                        preparedBy: document.getElementById('calc-prepared-by').value,
-                        custEmail: document.getElementById('calc-cust-email').value,
-                        custAddress: document.getElementById('calc-cust-address').value,
-                        deliveryAddress: document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : "",
-                        materialCode: document.getElementById('calc-material-code').value,
-                        leavesMaterial: document.getElementById('calc-leaves-material').value,
-                        timestamp: Date.now(),
+                        _source: 'darko-blok',
+                        date: new Date().toLocaleString('sl-SI'),
+                        customer: gv('calc-customer'),
+                        custId: gv('calc-cust-id'),
+                        custEmail: gv('calc-cust-email'),
+                        custAddress: gv('calc-cust-address'),
+                        deliveryAddress: gv('calc-delivery-address'),
+                        quoteNum: gv('calc-quote-number'),
+                        customerCode: gv('calc-customer-code'),
+                        preparedBy: gv('calc-prepared-by'),
+                        materialCode: gv('calc-material-code'),
+                        leavesMaterial: gv('calc-leaves-material'),
                         inputs: {
-                            machine_format: document.getElementById('machine-format').value,
-                            item_w: document.getElementById('width').value,
-                            item_h: document.getElementById('height').value,
-                            quantity: document.getElementById('quantity').value,
-                            bleed: document.getElementById('bleed').value,
-                            leaves: document.getElementById('calc-leaves').value,
-                            coverW: document.getElementById('calc-cover-w').value,
-                            coverH: document.getElementById('calc-cover-h').value,
-                            coverBleed: document.getElementById('calc-cover-bleed').value,
-                            coverGripper: document.getElementById('calc-cover-gripper').value,
-                            coverQty: document.getElementById('calc-cover-qty').value,
-                            coverDesc: document.getElementById('calc-cover-desc').value,
-                            pActive: document.getElementById('calc-paper-active') ? document.getElementById('calc-paper-active').checked : true,
-                            pPrice: document.getElementById('calc-paper-price').value,
-                            pUnit: document.getElementById('calc-paper-unit').value,
-                            pWeight: document.getElementById('calc-paper-weight').value,
-                            pSupplyType: document.getElementById('calc-paper-supply-type') ? document.getElementById('calc-paper-supply-type').value : '700x1000',
-                            pSupplyW: document.getElementById('calc-paper-supply-w') ? document.getElementById('calc-paper-supply-w').value : 700,
-                            pSupplyH: document.getElementById('calc-paper-supply-h') ? document.getElementById('calc-paper-supply-h').value : 1000,
-                            pWaste: document.getElementById('calc-paper-waste').value,
-                            cbActive: document.getElementById('calc-cardboard-active') ? document.getElementById('calc-cardboard-active').checked : false,
-                            cbPrice: document.getElementById('calc-cardboard-price') ? document.getElementById('calc-cardboard-price').value : "",
-                            cbUnit: document.getElementById('calc-cardboard-unit') ? document.getElementById('calc-cardboard-unit').value : "",
-                            cbWeight: document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : "",
-                            cbSupplyType: document.getElementById('calc-cb-supply-type') ? document.getElementById('calc-cb-supply-type').value : '700x1000',
-                            cbSupplyW: document.getElementById('calc-cb-supply-w') ? document.getElementById('calc-cb-supply-w').value : 700,
-                            cbSupplyH: document.getElementById('calc-cb-supply-h') ? document.getElementById('calc-cb-supply-h').value : 1000,
-                            platesPrice: document.getElementById('calc-plates-price').value,
-                            prepPrice: document.getElementById('calc-prep-price').value,
-                            changePrice: document.getElementById('calc-change-price').value,
-                            machineType: document.getElementById('calc-machine-type').value,
-                            machineRate: document.getElementById('calc-machine-rate').value,
-                            machineSpeed: document.getElementById('calc-machine-speed').value,
-                            machinePrepTime: document.getElementById('calc-machine-prep-time').value,
-                            colorFront: document.getElementById('calc-color-front').value,
-                            colorBack: document.getElementById('calc-color-back').value,
-                            isObrat: document.getElementById('calc-is-obrat').checked,
-                            margin: document.getElementById('calc-margin').value,
+                            machine_format: gv('machine-format'),
+                            item_w: gv('width'),
+                            item_h: gv('height'),
+                            quantity: gv('quantity'),
+                            bleed: gv('bleed'),
+                            gripper: gv('gripper'),
+                            orientation: gv('item-orientation'),
+                            itemsPerSheet: gv('items-per-sheet'),
+                            sourceW: gv('calc-source-w'),
+                            sourceH: gv('calc-source-h'),
+                            sourceYield: gv('calc-source-yield'),
+                            leaves: gv('calc-leaves'),
+                            coverW: gv('calc-cover-w'),
+                            coverH: gv('calc-cover-h'),
+                            coverBleed: gv('calc-cover-bleed'),
+                            coverGripper: gv('calc-cover-gripper'),
+                            coverQty: gv('calc-cover-qty'),
+                            coverDesc: gv('calc-cover-desc'),
+                            sourceCoverW: gv('calc-source-cover-w'),
+                            sourceCoverH: gv('calc-source-cover-h'),
+                            sourceCoverYield: gv('calc-source-cover-yield'),
+                            pActive: gc('calc-paper-active'),
+                            pPrice: gv('calc-paper-price'),
+                            pUnit: gv('calc-paper-unit'),
+                            pWeight: gv('calc-paper-weight'),
+                            pSupplyType: gv('calc-paper-supply-type'),
+                            pSupplyW: gv('calc-paper-supply-w'),
+                            pSupplyH: gv('calc-paper-supply-h'),
+                            pWaste: gv('calc-paper-waste-leaves'),
+                            cbActive: gc('calc-cardboard-active'),
+                            cbPrice: gv('calc-cardboard-price'),
+                            cbUnit: gv('calc-cardboard-unit'),
+                            cbWeight: gv('calc-cardboard-weight'),
+                            cbSupplyType: gv('calc-cb-supply-type'),
+                            cbSupplyW: gv('calc-cb-supply-w'),
+                            cbSupplyH: gv('calc-cb-supply-h'),
+                            mTypeL: gv('calc-machine-type-leaves'),
+                            mRateL: gv('calc-machine-rate-leaves'),
+                            mSpeedL: gv('calc-machine-speed-leaves'),
+                            mPrepL: gv('calc-machine-prep-time-leaves'),
+                            frontL: gv('calc-color-front-leaves'),
+                            backL: gv('calc-color-back-leaves'),
+                            obratL: gc('calc-is-obrat-leaves'),
+                            platesNumL: gv('calc-plates-num-leaves'),
+                            platesPriceL: gv('calc-plates-price-leaves'),
+                            prepPriceL: gv('calc-prep-price-leaves'),
+                            wasteL: gv('calc-paper-waste-leaves'),
+                            mTypeC: gv('calc-machine-type-cover'),
+                            mRateC: gv('calc-machine-rate-cover'),
+                            mSpeedC: gv('calc-machine-speed-cover'),
+                            mPrepC: gv('calc-machine-prep-time-cover'),
+                            frontC: gv('calc-color-front-cover'),
+                            backC: gv('calc-color-back-cover'),
+                            obratC: gc('calc-is-obrat-cover'),
+                            platesNumC: gv('calc-plates-num-cover'),
+                            platesPriceC: gv('calc-plates-price-cover'),
+                            prepPriceC: gv('calc-prep-price-cover'),
+                            wasteC: gv('calc-paper-waste-cover'),
+                            margin: gv('calc-margin'),
                             finish: {
-                                cilinder: { active: document.getElementById('f-cilinder-active').checked, prep: document.getElementById('f-cilinder-prep').value, rate: document.getElementById('f-cilinder-rate').value },
-                                zgibanje: { active: document.getElementById('f-zgibanje-active').checked, folds: document.getElementById('f-zgibanje-folds').value, speed: document.getElementById('f-zgibanje-speed').value },
-                                noz: { active: document.getElementById('f-noz-active').checked, time: document.getElementById('f-noz-time').value, rate: document.getElementById('f-noz-rate').value },
-                                sivanje: { active: document.getElementById('f-sivanje-active').checked, prep: document.getElementById('f-sivanje-prep').value, per1000: document.getElementById('f-sivanje-per1000').value },
-                                lepljenje: { active: document.getElementById('f-lepljenje-active').checked, prep: document.getElementById('f-lepljenje-prep').value, per1000: document.getElementById('f-lepljenje-per1000').value },
-                                extra: { active: document.getElementById('f-extra-active').checked, manual: document.getElementById('f-extra-manual').value, external: document.getElementById('f-extra-external').value },
-                                tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
-                                uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
-                                lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type').value, sides: document.getElementById('f-lam-sides').value, per1000: document.getElementById('f-lam-per1000').value, prep: document.getElementById('f-lam-prep').value }
+                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
+                                zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
+                                noz: { active: gc('f-noz-active'), time: gv('f-noz-time'), rate: gv('f-noz-rate') },
+                                znasanje: { active: gc('f-znasanje-active'), prep: gv('f-znasanje-prep'), per1000: gv('f-znasanje-per1000') },
+                                lepljenjeblokov: { active: gc('f-lepljenjeblokov-active'), prep: gv('f-lepljenjeblokov-prep'), kos: gv('f-lepljenjeblokov-kos') },
+                                spiraljenje: { active: gc('f-spiraljenje-active'), prep: gv('f-spiraljenje-prep'), kos: gv('f-spiraljenje-kos') },
+                                sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
+                                lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
+                                extra: { active: gc('f-extra-active'), manual: gv('f-extra-manual'), external: gv('f-extra-external') },
+                                tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
+                                uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                                lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
+                                delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
+                                delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
                             }
                         }
                     };
 
                     const jsonStr = JSON.stringify(data, null, 2);
                     const suggestedName = name.replace(/\s+/g, '_') + '.blok.json';
+
                     if (window.showSaveFilePicker) {
                         try {
                             const handle = await window.showSaveFilePicker({
@@ -3548,10 +3585,10 @@
                             const writable = await handle.createWritable();
                             await writable.write(jsonStr);
                             await writable.close();
-                            alert("Datoteka uspešno shranjena!");
                             return;
                         } catch (e) { if (e.name === 'AbortError') return; }
                     }
+
                     const blob = new Blob([jsonStr], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -3576,7 +3613,7 @@
                     try {
                         const data = JSON.parse(e.target.result);
                         if (!data.inputs) throw new Error("Neveljavna datoteka!");
-                        if (data._source && data._source !== 'blok') {
+                        if (data._source && data._source !== 'darko-blok' && data._source !== 'blok') {
                             throw new Error("Ta datoteka pripada drugemu kalkulatorju (" + data._source + ")!");
                         }
                         loadProjectData(data);
@@ -3641,7 +3678,7 @@
                     let finishing = getFinishingDesc();
 
                     const qtyStr = document.getElementById('quantity').value || "0";
-                    const qList = qtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, ''))).filter(n => !isNaN(n) && n > 0);
+                    const qList = qtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, ''))).filter(n => !isNaN(n) && n >= 0);
 
                     let quantities = [];
                     if (qList.length > 0) {
