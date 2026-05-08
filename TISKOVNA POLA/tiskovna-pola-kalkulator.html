@@ -597,7 +597,7 @@
                     style="margin: 0; padding: 0.8rem; flex: 1; background: #f59e0b;"
                     title="Odpri shranjen projekt iz svoje mape">Odpri</button>
                 <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(event)"
-                    accept=".tiskovna-pola-kalkulator.json,.json">
+                    accept=".pola.json,.json">
             </div>
         </div>
         <!-- SREDINSKI PANEL: VIZUALIZACIJA -->
@@ -2766,7 +2766,7 @@
                 const data = {
                     id: Date.now(),
                     name: name,
-                    _source: 'tiskovna-pola-kalkulator',
+                    _source: 'pola',
                     date: new Date().toLocaleString('sl-SI'),
                     customer: gv('calc-customer'),
                     custAddress: gv('calc-cust-address'),
@@ -2845,6 +2845,97 @@
                 alert("Napaka pri shranjevanju: " + err.message);
                 console.error("saveCurrentProject error:", err);
             }
+        }
+
+        async function saveProjectToFile() {
+            try {
+                let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
+                function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+                function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
+
+                const data = {
+                    name: name,
+                    _source: 'pola',
+                    date: new Date().toLocaleString('sl-SI'),
+                    customer: gv('calc-customer'),
+                    custAddress: gv('calc-cust-address'),
+                    deliveryAddress: gv('calc-delivery-address'),
+                    custEmail: gv('calc-cust-email'),
+                    custId: gv('calc-cust-id'),
+                    quoteNum: gv('calc-quote-number'),
+                    customerCode: gv('calc-customer-code'),
+                    preparedBy: gv('calc-prepared-by'),
+                    materialCode: gv('calc-material-code'),
+                    inputs: {
+                        machine_format: gv('machine-format'),
+                        item_w: gv('width'),
+                        item_h: gv('height'),
+                        quantity: gv('quantity'),
+                        bleed: gv('bleed'),
+                        pPrice: gv('calc-paper-price'),
+                        pUnit: gv('calc-paper-unit'),
+                        pWeight: gv('calc-paper-weight'),
+                        pType: gv('calc-paper-type'),
+                        pWaste: gv('calc-paper-waste'),
+                        platesPrice: gv('calc-plates-price'),
+                        prepPrice: gv('calc-prep-price'),
+                        changePrice: gv('calc-change-price'),
+                        machineType: gv('calc-machine-type'),
+                        machineRate: gv('calc-machine-rate'),
+                        machineSpeed: gv('calc-machine-speed'),
+                        machinePrepTime: gv('calc-machine-prep-time'),
+                        colorFront: gv('calc-color-front'),
+                        colorBack: gv('calc-color-back'),
+                        isObrat: gc('calc-is-obrat'),
+                        margin: gv('calc-margin'),
+                        itemsPerSheet: gv('items-per-sheet'),
+                        itemOrientation: gv('item-orientation'),
+                        finish: {
+                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
+                            zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
+                            noz: { active: gc('f-noz-active'), time: gv('f-noz-time'), rate: gv('f-noz-rate') },
+                            sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
+                            lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
+                            spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
+                            extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
+                            tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
+                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                            lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
+                            delivery: { active: gc('f-delivery-active'), count: gv('f-post-count'), pricePer: gv('f-post-price-per') },
+                            deliveryFixed: { active: gc('f-del-fixed-active'), price: gv('f-del-fixed-price') }
+                        }
+                    },
+                    results: {
+                        total: (document.getElementById('res-price-total') || {}).innerText || '',
+                        perItem: (document.getElementById('res-price-per-item-stat-final') || {}).innerText || '',
+                        sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
+                    }
+                };
+
+                const jsonStr = JSON.stringify(data, null, 2);
+                const suggestedName = name.replace(/\s+/g, '_') + '.pola.json';
+
+                if (window.showSaveFilePicker) {
+                    try {
+                        const handle = await window.showSaveFilePicker({
+                            suggestedName: suggestedName,
+                            types: [{ description: 'Pola JSON', accept: { 'application/json': ['.json'] } }],
+                        });
+                        const writable = await handle.createWritable();
+                        await writable.write(jsonStr);
+                        await writable.close();
+                        return;
+                    } catch (e) { if (e.name === 'AbortError') return; }
+                }
+
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = suggestedName;
+                document.body.appendChild(a); a.click();
+                setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
+            } catch (err) { alert("Napaka pri shranjevanju: " + err.message); }
         }
 
         function renderSavedProjects() {
@@ -3072,6 +3163,8 @@
             let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
             let proj = arhiv.find(p => p.id === id);
             if (!proj) return;
+            // Prikaži samo projekte pola (ali stare brez tipa)
+            arhiv = arhiv.filter(p => !p.calcType || p.calcType === 'tiskovna-pola' || p._source === 'pola');
             loadProjectData(proj);
             alert("Projekt '" + proj.name + "' je uspešno naložen!");
         }
@@ -3391,8 +3484,8 @@
             const file = event.target.files[0];
             if (!file) return;
             // Preveri, da je to datoteka tega kalkulatorja
-            if (!file.name.includes('.tiskovna-pola-kalkulator.')) {
-                alert("Napaka: Ta datoteka ne pripada Tiskovna Pola kalkulatorju!\nPričakovana datoteka: *.tiskovna-pola-kalkulator.json");
+            if (!file.name.includes('.pola.')) {
+                alert("Napaka: Ta datoteka ne pripada Tiskovna Pola kalkulatorju!\nPričakovana datoteka: *.pola.json");
                 event.target.value = "";
                 return;
             }
@@ -3401,7 +3494,7 @@
                 try {
                     const data = JSON.parse(e.target.result);
                     if (!data.inputs) throw new Error("Neveljavna datoteka!");
-                    if (data._source && data._source !== 'tiskovna-pola-kalkulator') {
+                    if (data._source && data._source !== 'pola') {
                         throw new Error("Ta datoteka pripada drugemu kalkulatorju (" + data._source + ")!");
                     }
                     loadProjectData(data);
@@ -3710,9 +3803,12 @@
             <button class="calculate-btn" onclick="calculate(true)"
                 style="margin: 0; width: auto; background: #10b981; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold;">
                 ✨ IZRAČUNAJ</button>
+            <button class="calculate-btn" onclick="saveProjectToFile()"
+                style="margin: 0; width: auto; background: #6366f1; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
+                💾 SHRANI</button>
             <button class="calculate-btn" onclick="saveCurrentProject(this)"
                 style="margin: 0; width: auto; background: #8b5cf6; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">
-                💾 SHRANI V ARHIV</button>
+                💾 V ARHIV</button>
             <button class="calculate-btn" onclick="printProductionOrder()"
                 style="margin: 0; width: auto; background: #818cf8; padding: 0.5rem 1.2rem; font-size:0.85rem;"
                 title="Internal Montaža">🛠️
