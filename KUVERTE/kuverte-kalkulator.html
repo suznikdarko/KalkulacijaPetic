@@ -1704,52 +1704,87 @@
             }
         }
 
+        // Pomožna funkcija za varno nastavljanje vrednosti (prepreči "null" napake)
+        function setV(id, val, isChecked = false) {
+            const el = document.getElementById(id);
+            if (el) {
+                if (isChecked) el.checked = val;
+                else el.value = (val !== undefined && val !== null) ? val : "";
+            }
+        }
+
         function loadProjectData(proj) {
             if (!proj || !proj.inputs) return;
             const inp = proj.inputs;
 
-            document.getElementById('calc-customer').value = proj.customer || "";
-            document.getElementById('calc-cust-address').value = proj.custAddress || "";
-            if (document.getElementById('calc-delivery-address')) document.getElementById('calc-delivery-address').value = proj.deliveryAddress || "";
-            document.getElementById('calc-cust-email').value = proj.custEmail || "";
-            document.getElementById('calc-quote-number').value = proj.quoteNum || "";
-            document.getElementById('calc-customer-code').value = proj.customerCode || "";
-            if (proj.preparedBy) document.getElementById('calc-prepared-by').value = proj.preparedBy;
-            document.getElementById('calc-material-code').value = proj.materialCode || "";
+            setV('calc-customer', proj.customer);
+            setV('calc-cust-address', proj.custAddress);
+            setV('calc-delivery-address', proj.deliveryAddress);
+            setV('calc-cust-email', proj.custEmail);
+            setV('calc-quote-number', proj.quoteNum);
+            setV('calc-customer-code', proj.customerCode);
+            setV('calc-prepared-by', proj.preparedBy);
+            setV('calc-material-code', proj.materialCode);
 
-            document.getElementById('width').value = inp.item_w || 230;
-            document.getElementById('height').value = inp.item_h || 110;
-            document.getElementById('envelope-preset').value = inp.envelopePreset || "custom";
-            document.getElementById('calc-quantities').value = inp.quantities || "1000";
-            document.getElementById('calc-qty-ordered').value = inp.qtyOrdered || "0";
-            document.getElementById('calc-material-price').value = inp.mPrice || "25.00";
-            document.getElementById('calc-packaging').value = inp.packaging || "500";
-            document.getElementById('calc-margin').value = inp.margin || "0";
-            document.getElementById('calc-colors-front').value = inp.colorsFront || "0";
-            document.getElementById('calc-colors-back').value = inp.colorsBack || "0";
-            document.getElementById('calc-machine-rate').value = inp.mRate || "120";
-            document.getElementById('calc-machine-speed').value = inp.mSpeed || "10000";
-            document.getElementById('calc-auto-speed').checked = (inp.autoSpeed !== undefined) ? inp.autoSpeed : true;
-            document.getElementById('calc-plate-price').value = inp.plateDod || "10";
-            if (inp.plateCount) document.getElementById('calc-plate-count').value = inp.plateCount;
-            if (inp.colorChangePrice) document.getElementById('calc-color-change-price').value = inp.colorChangePrice;
-            document.getElementById('calc-personalization').value = inp.persCount || "0";
-            document.getElementById('calc-manual-work').value = inp.manualWork || "0";
-            document.getElementById('calc-use-personalization').checked = inp.usePers || false;
-            document.getElementById('calc-use-manual-work').checked = inp.useManual || false;
-            document.getElementById('calc-waste').value = inp.waste || "320";
-            document.getElementById('calc-commercial').value = inp.commercial || "10.00";
+            setV('width', inp.item_w);
+            setV('height', inp.item_h);
+            setV('envelope-preset', inp.envelopePreset);
+            setV('calc-quantities', inp.quantities);
+            setV('calc-qty-ordered', inp.qtyOrdered);
+            setV('calc-material-price', inp.mPrice);
+            setV('calc-packaging', inp.packaging);
+            setV('calc-margin', inp.margin);
+            setV('calc-colors-front', inp.colorsFront);
+            setV('calc-colors-back', inp.colorsBack);
+            setV('calc-machine-rate', inp.mRate);
+            setV('calc-machine-speed', inp.mSpeed);
+            setV('calc-auto-speed', inp.autoSpeed, true);
+            setV('calc-plate-price', inp.plateDod);
+            setV('calc-plate-count', inp.plateCount);
+            setV('calc-color-change-price', inp.colorChangePrice);
+            setV('calc-personalization', inp.persCount);
+            setV('calc-manual-work', inp.manualWork);
+            setV('calc-use-personalization', inp.usePers, true);
+            setV('calc-use-manual-work', inp.useManual, true);
+            setV('calc-waste', inp.waste);
+            setV('calc-commercial', inp.commercial);
 
-            if (proj.name) document.getElementById('calc-project-name').value = proj.name;
-
-            calculate();
+            setV('calc-project-name', proj.name);
+            if (typeof calculate === 'function') calculate();
         }
 
-        function toggleProjectsDropdown() {
+            var g_projectsDirHandle = null;
+            var g_diskProjects = [];
+            
+            async function syncWithFolder() {
+                try {
+                    g_projectsDirHandle = await window.showDirectoryPicker();
+                    await refreshDiskProjects();
+                    renderSavedProjects();
+                    alert("Mapa uspešno povezana!");
+                } catch (err) {
+                    if (err.name !== 'AbortError') alert("Napaka: " + err.message);
+                }
+            }
+
+            async function refreshDiskProjects() {
+                if (!g_projectsDirHandle) return;
+                g_diskProjects = [];
+                try {
+                    for await (const entry of g_projectsDirHandle.values()) {
+                        if (entry.kind === 'file' && entry.name.endsWith('.json')) {
+                            g_diskProjects.push(entry);
+                        }
+                    }
+                } catch (err) { console.error(err); }
+            }
+
+        async function toggleProjectsDropdown() {
             const list = document.getElementById('projects-dropdown-list');
             if (list.style.display === 'block') {
                 list.style.display = 'none';
             } else {
+                if (g_projectsDirHandle) await refreshDiskProjects();
                 renderSavedProjects();
                 list.style.display = 'block';
                 const clist = document.getElementById('cust-dropdown-list');
@@ -1783,23 +1818,67 @@
             }
 
             let html = "";
-            filtered.forEach(proj => {
-                const custDisplay = proj.customer ? `<div style="font-size: 0.7rem; color: #6ee7b7;">${proj.customer}</div>` : "";
-                html += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
-                        <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProject(${proj.id}); toggleProjectsDropdown();">
-                            <div style="font-weight: bold; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
-                                ${proj.name}
+            
+            if (g_diskProjects.length > 0) {
+                html += '<div style="padding: 5px 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(16, 185, 129, 0.2);">📁 DATOTEKE NA DISKU</div>';
+                let diskFiltered = g_diskProjects;
+                if (filter) diskFiltered = g_diskProjects.filter(e => e.name.toLowerCase().includes(filter));
+                diskFiltered.forEach(entry => {
+                    html += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                            <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProjectFromDisk('${entry.name}'); toggleProjectsDropdown();">
+                                <div style="font-weight: bold; color: #10b981; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
+                                    📄 ${entry.name}
+                                </div>
+                                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">Lokalna datoteka</div>
                             </div>
-                            ${custDisplay}
-                            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${proj.date} | ${proj.results ? proj.results.total : '-'}</div>
-                        </div>
-                        <div style="display: flex; gap: 6px; margin-left: 10px;">
-                             <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 1rem;" title="Briši">✕</button>
-                        </div>
-                    </div>`;
-            });
-            listContent.innerHTML = html;
+                        </div>`;
+                });
+            }
+
+            if (filtered.length > 0) {
+                html += '<div style="padding: 5px 12px; background: rgba(59, 130, 246, 0.1); color: #60a5fa; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(59, 130, 246, 0.2);">⭐ ARHIV (Baza)</div>';
+                filtered.forEach(proj => {
+                    const custDisplay = proj.customer ? `<div style="font-size: 0.7rem; color: #6ee7b7;">${proj.customer}</div>` : "";
+                    html += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                            <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProject(${proj.id}); toggleProjectsDropdown();">
+                                <div style="font-weight: bold; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
+                                    ${proj.name}
+                                </div>
+                                ${custDisplay}
+                                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${proj.date} | ${proj.results ? proj.results.total : '-'}</div>
+                            </div>
+                            <div style="display: flex; gap: 6px; margin-left: 10px;">
+                                 <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 1rem;" title="Briši">✕</button>
+                            </div>
+                        </div>`;
+                });
+            }
+            
+            if (html === "") {
+                let msg = 'Arhiv je prazen.';
+                if (!g_projectsDirHandle) {
+                    msg = '<div style="color:#10b981; font-weight:bold; margin-bottom:10px;">Mapa ni povezana!</div>Kliknite zgornji gumb <br><b style="color:#10b981;">📂 POVEŽI Z MAPO</b><br>da vidite datoteke na disku.';
+                } else {
+                    msg = 'V mapi ni bilo najdenih projektov.';
+                }
+                listContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem; line-height:1.4;">' + msg + '</div>';
+            } else {
+                listContent.innerHTML = html;
+            }
+        }
+
+        async function loadProjectFromDisk(fileName) {
+            const entry = g_diskProjects.find(e => e.name === fileName);
+            if (!entry) return;
+            try {
+                const file = await entry.getFile();
+                const content = await file.text();
+                const data = JSON.parse(content);
+                loadProjectData(data);
+                alert("Datoteka '" + fileName + "' naložena!");
+            } catch (err) { alert("Napaka: " + err.message); }
         }
 
         function loadProject(id) {
