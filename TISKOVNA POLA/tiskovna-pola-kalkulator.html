@@ -445,11 +445,6 @@
                                 style="width: 100%; padding: 8px; border-radius: 6px; background: #0f172a; border: 1px solid #475569; color: white; font-size: 0.8rem;"
                                 oninput="renderSavedProjects()">
                             <div style="margin-top: 8px; display: flex; gap: 5px;">
-                                <button onclick="syncWithFolder()"
-                                    style="flex: 1.2; background: #10b981; border: 1px solid #059669; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;"
-                                    title="Prikaži datoteke iz mape na disku (C:\DARKO-TISKOVNA-POLA)">
-                                    📂 POVEŽI Z MAPO
-                                </button>
                                 <button onclick="document.getElementById('import-file-input').click()"
                                     style="flex: 1; background: #334155; border: 1px solid #475569; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;">
                                     📤 UVOZI JSON
@@ -2943,33 +2938,6 @@
             } catch (err) { alert("Napaka pri shranjevanju: " + err.message); }
         }
 
-        async function syncWithFolder() {
-            try {
-                g_projectsDirHandle = await window.showDirectoryPicker();
-                await refreshDiskProjects();
-                renderSavedProjects();
-                alert("Mapa uspešno povezana!");
-            } catch (err) {
-                if (err.name !== 'AbortError') {
-                    alert("Napaka pri povezovanju z mapo: " + err.message);
-                }
-            }
-        }
-
-        async function refreshDiskProjects() {
-            if (!g_projectsDirHandle) return;
-            g_diskProjects = [];
-            try {
-                for await (const entry of g_projectsDirHandle.values()) {
-                    if (entry.kind === 'file' && (entry.name.endsWith('.json') || entry.name.endsWith('.pola.json'))) {
-                        g_diskProjects.push(entry);
-                    }
-                }
-            } catch (err) {
-                console.error("Napaka pri branju mape:", err);
-            }
-        }
-
         function renderSavedProjects() {
             const listContent = document.getElementById('projects-list-content');
             if (!listContent) return;
@@ -3003,64 +2971,28 @@
             }
 
             let html = "";
+            filtered.forEach(proj => {
+                const codeDisplay = proj.materialCode ? `<span style="color:#60a5fa; margin-left:5px;">[${proj.materialCode}]</span>` : "";
+                const custDisplay = proj.customer ? `<div style="font-size: 0.7rem; color: #6ee7b7;">${proj.customer}</div>` : "";
 
-            // 1. DODAJ DATOTEKE Z DISKA (če so povezane)
-            if (g_diskProjects.length > 0) {
-                html += '<div style="padding: 5px 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(16, 185, 129, 0.2);">📁 DATOTEKE NA DISKU</div>';
-                let diskFiltered = g_diskProjects;
-                if (filter) {
-                    diskFiltered = g_diskProjects.filter(entry => entry.name.toLowerCase().includes(filter));
-                }
-                
-                diskFiltered.forEach(entry => {
-                    html += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row">
-                            <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProjectFromDisk('${entry.name}'); toggleProjectsDropdown();">
-                                <div style="font-weight: bold; color: #10b981; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
-                                    📄 ${entry.name}
-                                </div>
-                                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">Lokalna datoteka</div>
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row">
+                        <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProject(${proj.id}); toggleProjectsDropdown();">
+                            <div style="font-weight: bold; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
+                                ${proj.name} ${codeDisplay}
                             </div>
-                        </div>`;
-                });
-            }
-
-            // 2. DODAJ ARHIV (localStorage)
-            if (filtered.length > 0) {
-                html += '<div style="padding: 5px 12px; background: rgba(59, 130, 246, 0.1); color: #60a5fa; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(59, 130, 246, 0.2);">⭐ ARHIV (Baza)</div>';
-                filtered.forEach(proj => {
-                    const codeDisplay = proj.materialCode ? `<span style="color:#60a5fa; margin-left:5px;">[${proj.materialCode}]</span>` : "";
-                    const custDisplay = proj.customer ? `<div style="font-size: 0.7rem; color: #6ee7b7;">${proj.customer}</div>` : "";
-
-                    html += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row">
-                            <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProject(${proj.id}); toggleProjectsDropdown();">
-                                <div style="font-weight: bold; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
-                                    ${proj.name} ${codeDisplay}
-                                </div>
-                                ${custDisplay}
-                                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${proj.date} | ${proj.results ? proj.results.total : '-'}</div>
-                            </div>
-                            <div style="display: flex; gap: 6px; margin-left: 10px;">
-                                 <button onclick="exportSingleProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #3b82f6; cursor: pointer; padding: 4px; font-size: 0.9rem;" title="Izvozi">📥</button>
-                                 <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 1rem;" title="Briši">✕</button>
-                            </div>
+                            ${custDisplay}
+                            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${proj.date} | ${proj.results ? proj.results.total : '-'}</div>
                         </div>
-                        `;
-                });
-            }
+                        <div style="display: flex; gap: 6px; margin-left: 10px;">
+                             <button onclick="exportSingleProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #3b82f6; cursor: pointer; padding: 4px; font-size: 0.9rem;" title="Izvozi">📥</button>
+                             <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 1rem;" title="Briši">✕</button>
+                        </div>
+                    </div>
+                    `;
+            });
 
-            if (html === "") {
-                let msg = 'Arhiv je prazen.';
-                if (!g_projectsDirHandle) {
-                    msg = '<div style="color:#10b981; font-weight:bold; margin-bottom:10px;">Mapa ni povezana!</div>Kliknite zgornji gumb <br><b style="color:#10b981;">📂 POVEŽI Z MAPO</b><br>da vidite datoteke na disku.';
-                } else {
-                    msg = 'V mapi ni bilo najdenih projektov.';
-                }
-                listContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem; line-height:1.4;">' + msg + '</div>';
-            } else {
-                listContent.innerHTML = html;
-            }
+            listContent.innerHTML = html;
 
             // Dodaj hover efekte dinamično
             const rows = listContent.querySelectorAll('.project-item-row');
@@ -3070,12 +3002,11 @@
             });
         }
 
-        async function toggleProjectsDropdown() {
+        function toggleProjectsDropdown() {
             const list = document.getElementById('projects-dropdown-list');
             if (list.style.display === 'block') {
                 list.style.display = 'none';
             } else {
-                if (g_projectsDirHandle) await refreshDiskProjects();
                 renderSavedProjects();
                 list.style.display = 'block';
                 // Zapri customer dropdown če je odprt
@@ -3101,150 +3032,131 @@
             setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
         }
 
-        async function loadProjectFromDisk(fileName) {
-            const entry = g_diskProjects.find(e => e.name === fileName);
-            if (!entry) return;
-            try {
-                const file = await entry.getFile();
-                const content = await file.text();
-                const data = JSON.parse(content);
-                loadProjectData(data);
-                alert("Datoteka '" + fileName + "' naložena!");
-            } catch (err) {
-                alert("Napaka pri nalaganju z diska: " + err.message);
-            }
-        }
-
-        // Pomožna funkcija za varno nastavljanje vrednosti (prepreči "null" napake)
-        function setV(id, val, isChecked = false) {
-            const el = document.getElementById(id);
-            if (el) {
-                if (isChecked) el.checked = val;
-                else el.value = (val !== undefined && val !== null) ? val : "";
-            }
-        }
-
         // Pomožna funkcija za nalaganje podatkov v polja (skupna za Arhiv in File Import)
         function loadProjectData(proj) {
             if (!proj || !proj.inputs) return;
             const inp = proj.inputs;
 
-            setV('calc-customer', proj.customer);
-            setV('calc-cust-address', proj.custAddress);
-            setV('calc-delivery-address', proj.deliveryAddress);
-            setV('calc-cust-email', proj.custEmail);
-            setV('calc-mut-type', proj.mutType);
-            setV('calc-mut-plates', proj.mutPlates);
-            setV('calc-cust-id', proj.custId);
-            setV('calc-quote-number', proj.quoteNum);
-            setV('calc-customer-code', proj.customerCode);
-            setV('calc-prepared-by', proj.preparedBy);
-            setV('calc-material-code', proj.materialCode);
+            document.getElementById('calc-customer').value = proj.customer || "";
+            document.getElementById('calc-cust-address').value = proj.custAddress || "";
+            if (document.getElementById('calc-delivery-address')) {
+                document.getElementById('calc-delivery-address').value = proj.deliveryAddress || "";
+            }
+            document.getElementById('calc-cust-email').value = proj.custEmail || "";
+            if (document.getElementById('calc-mut-type')) {
+                document.getElementById('calc-mut-type').value = proj.mutType || "";
+                document.getElementById('calc-mut-plates').value = proj.mutPlates || 0;
+            }
+            document.getElementById('calc-cust-id').value = proj.custId || "";
+            document.getElementById('calc-quote-number').value = proj.quoteNum || "";
+            document.getElementById('calc-customer-code').value = proj.customerCode || "";
+            if (proj.preparedBy) document.getElementById('calc-prepared-by').value = proj.preparedBy;
+            document.getElementById('calc-material-code').value = proj.materialCode || "";
 
-            setV('machine-format', inp.machine_format);
-            setV('width', inp.item_w);
-            setV('height', inp.item_h);
-            setV('quantity', inp.quantity);
-            setV('bleed', inp.bleed);
-            setV('calc-paper-price', inp.pPrice);
-            setV('calc-paper-unit', inp.pUnit);
-            setV('calc-paper-weight', inp.pWeight);
-            setV('calc-paper-type', inp.pType);
-            setV('calc-paper-waste', inp.pWaste);
-            setV('calc-plates-price', inp.platesPrice);
-            setV('calc-prep-price', inp.prepPrice);
-            setV('calc-change-price', inp.changePrice);
-            setV('calc-machine-type', inp.machineType);
-            setV('calc-machine-rate', inp.machineRate);
-            setV('calc-machine-speed', inp.machineSpeed);
-            setV('calc-machine-prep-time', inp.machinePrepTime);
-            setV('calc-color-front', inp.colorFront);
-            setV('calc-color-back', inp.colorBack);
-            setV('calc-is-obrat', inp.isObrat, true);
-            setV('calc-margin', inp.margin);
-            setV('items-per-sheet', inp.itemsPerSheet);
-            setV('item-orientation', inp.itemOrientation);
+            document.getElementById('machine-format').value = inp.machine_format;
+            document.getElementById('width').value = inp.item_w;
+            document.getElementById('height').value = inp.item_h;
+            document.getElementById('quantity').value = inp.quantity;
+            document.getElementById('bleed').value = inp.bleed;
+            document.getElementById('calc-paper-price').value = inp.pPrice;
+            document.getElementById('calc-paper-unit').value = inp.pUnit;
+            document.getElementById('calc-paper-weight').value = inp.pWeight;
+            if (inp.pType !== undefined) document.getElementById('calc-paper-type').value = inp.pType;
+            document.getElementById('calc-paper-waste').value = inp.pWaste;
+            document.getElementById('calc-plates-price').value = inp.platesPrice;
+            document.getElementById('calc-prep-price').value = inp.prepPrice;
+            document.getElementById('calc-change-price').value = inp.changePrice;
+            document.getElementById('calc-machine-type').value = inp.machineType;
+            document.getElementById('calc-machine-rate').value = inp.machineRate;
+            document.getElementById('calc-machine-speed').value = inp.machineSpeed;
+            if (inp.machinePrepTime !== undefined) document.getElementById('calc-machine-prep-time').value = inp.machinePrepTime;
+            document.getElementById('calc-color-front').value = inp.colorFront;
+            document.getElementById('calc-color-back').value = inp.colorBack;
+            document.getElementById('calc-is-obrat').checked = inp.isObrat;
+            if (document.getElementById('calc-margin')) document.getElementById('calc-margin').value = inp.margin || 0;
+            if (inp.itemsPerSheet !== undefined) document.getElementById('items-per-sheet').value = inp.itemsPerSheet;
+            if (inp.itemOrientation !== undefined) document.getElementById('item-orientation').value = inp.itemOrientation;
 
             // Load Finishing
             if (inp.finish) {
                 const f = inp.finish;
                 if (f.cilinder) {
-                    setV('f-cilinder-active', f.cilinder.active, true);
-                    setV('f-cilinder-prep', f.cilinder.prep);
-                    setV('f-cilinder-rate', f.cilinder.rate);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow('cilinder');
+                    document.getElementById('f-cilinder-active').checked = f.cilinder.active;
+                    document.getElementById('f-cilinder-prep').value = f.cilinder.prep;
+                    document.getElementById('f-cilinder-rate').value = f.cilinder.rate;
+                    toggleFinishRow('cilinder');
                 }
                 if (f.zgibanje) {
-                    setV('f-zgibanje-active', f.zgibanje.active, true);
-                    setV('f-zgibanje-folds', f.zgibanje.folds);
-                    setV('f-zgibanje-speed', f.zgibanje.speed);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow('zgibanje');
+                    document.getElementById('f-zgibanje-active').checked = f.zgibanje.active;
+                    document.getElementById('f-zgibanje-folds').value = f.zgibanje.folds;
+                    document.getElementById('f-zgibanje-speed').value = f.zgibanje.speed;
+                    toggleFinishRow('zgibanje');
                 }
                 if (f.noz) {
-                    setV('f-noz-active', f.noz.active, true);
-                    setV('f-noz-time', f.noz.time);
-                    setV('f-noz-rate', f.noz.rate);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow('noz');
+                    document.getElementById('f-noz-active').checked = f.noz.active;
+                    document.getElementById('f-noz-time').value = f.noz.time;
+                    document.getElementById('f-noz-rate').value = f.noz.rate;
+                    toggleFinishRow('noz');
                 }
                 if (f.sivanje) {
-                    setV('f-sivanje-active', f.sivanje.active, true);
-                    setV('f-sivanje-prep', f.sivanje.prep);
-                    setV('f-sivanje-per1000', f.sivanje.per1000);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow('sivanje');
+                    document.getElementById('f-sivanje-active').checked = f.sivanje.active;
+                    document.getElementById('f-sivanje-prep').value = f.sivanje.prep;
+                    document.getElementById('f-sivanje-per1000').value = f.sivanje.per1000;
+                    toggleFinishRow('sivanje');
                 }
                 if (f.lepljenje) {
-                    setV('f-lepljenje-active', f.lepljenje.active, true);
-                    setV('f-lepljenje-prep', f.lepljenje.prep);
-                    setV('f-lepljenje-per1000', f.lepljenje.per1000);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow('lepljenje');
+                    document.getElementById('f-lepljenje-active').checked = f.lepljenje.active;
+                    document.getElementById('f-lepljenje-prep').value = f.lepljenje.prep;
+                    document.getElementById('f-lepljenje-per1000').value = f.lepljenje.per1000;
+                    toggleFinishRow('lepljenje');
                 }
                 if (f.spiral) {
-                    setV('f-spiral-active', f.spiral.active, true);
-                    setV('f-spiral-price', f.spiral.price);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow('spiral');
+                    document.getElementById('f-spiral-active').checked = f.spiral.active;
+                    document.getElementById('f-spiral-price').value = f.spiral.price || 0;
+                    toggleFinishRow('spiral');
                 }
                 if (f.extra) {
-                    setV('f-extra-active', f.extra.active, true);
-                    setV('f-extra-speed', f.extra.speed);
-                    setV('f-extra-rate', f.extra.rate);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow('extra');
+                    document.getElementById('f-extra-active').checked = f.extra.active;
+                    if (f.extra.speed) document.getElementById('f-extra-speed').value = f.extra.speed;
+                    if (f.extra.rate) document.getElementById('f-extra-rate').value = f.extra.rate;
+                    toggleFinishRow('extra');
                 }
                 if (f.tool) {
-                    setV('f-tool-active', f.tool.active, true);
-                    setV('f-tool-cost', f.tool.cost);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow('tool');
+                    document.getElementById('f-tool-active').checked = f.tool.active;
+                    document.getElementById('f-tool-cost').value = f.tool.cost;
+                    toggleFinishRow('tool');
                 }
                 if (f.uv) {
-                    setV('f-uv-active', f.uv.active, true);
-                    setV('f-uv-prep', f.uv.prep);
-                    setV('f-uv-per1000', f.uv.per1000);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow('uv');
+                    document.getElementById('f-uv-active').checked = f.uv.active;
+                    document.getElementById('f-uv-prep').value = f.uv.prep;
+                    document.getElementById('f-uv-per1000').value = f.uv.per1000;
+                    toggleFinishRow('uv');
                 }
                 if (f.lam) {
-                    setV('f-lam-active', f.lam.active, true);
-                    setV('f-lam-type', f.lam.type);
-                    setV('f-lam-sides', f.lam.sides);
-                    setV('f-lam-per1000', f.lam.per1000);
-                    setV('f-lam-prep', f.lam.prep);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow('lam');
+                    document.getElementById('f-lam-active').checked = f.lam.active;
+                    document.getElementById('f-lam-type').value = f.lam.type;
+                    document.getElementById('f-lam-sides').value = f.lam.sides;
+                    document.getElementById('f-lam-per1000').value = f.lam.per1000;
+                    document.getElementById('f-lam-prep').value = f.lam.prep;
+                    toggleFinishRow('lam');
                 }
                 if (f.delivery) {
-                    setV('f-delivery-active', f.delivery.active, true);
-                    setV('f-post-count', f.delivery.count);
-                    setV('f-post-price-per', f.delivery.pricePer);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow('delivery');
+                    document.getElementById('f-delivery-active').checked = f.delivery.active;
+                    document.getElementById('f-post-count').value = f.delivery.count || 0;
+                    document.getElementById('f-post-price-per').value = f.delivery.pricePer || 0;
+                    toggleFinishRow('delivery');
                 }
                 if (f.deliveryFixed) {
-                    setV('f-del-fixed-active', f.deliveryFixed.active, true);
-                    setV('f-del-fixed-price', f.deliveryFixed.price);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow('del-fixed');
+                    document.getElementById('f-del-fixed-active').checked = f.deliveryFixed.active;
+                    document.getElementById('f-del-fixed-price').value = f.deliveryFixed.price || 0;
+                    toggleFinishRow('del-fixed');
                 }
             }
 
-            setV('calc-project-name', proj.name);
+            if (proj.name) document.getElementById('calc-project-name').value = proj.name;
 
             // Recalculate everything
-            if (typeof calculate === 'function') calculate();
+            calculate();
         }
 
         function loadProject(id) {
