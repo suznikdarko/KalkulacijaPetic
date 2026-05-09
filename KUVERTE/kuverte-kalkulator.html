@@ -660,9 +660,9 @@
             <button class="calculate-btn" onclick="addToBasket()"
                 style="margin: 0; width: auto; background: #f59e0b; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">🛒
                 Dodaj v Ponudbo</button>
-            <button class="calculate-btn" onclick="saveCurrentProject()"
-                style="margin: 0; width: auto; background: #8b5cf6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">💾
-                V Arhiv</button>
+            <button class="calculate-btn" onclick="exportToFile()"
+                style="margin: 0; width: auto; background: #6366f1; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">📁
+                Shrani v mapo</button>
             <button class="calculate-btn" onclick="openQuotePreview()" id="btn-open-quote"
                 style="margin: 0; width: auto; background: #3b82f6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">📝
                 Pripravi Ponudbo <span id="basket-count-badge"
@@ -1620,6 +1620,88 @@
             renderSavedProjects();
             updateCustomerDatalist();
             alert("Projekt '" + name + "' je shranjen v arhiv!");
+        }
+
+        async function exportToFile() {
+            try {
+                let name = document.getElementById('calc-project-name').value.trim() || "Ponudba_Kuverte";
+                const data = {
+                    name: name,
+                    date: new Date().toLocaleString('sl-SI'),
+                    customer: document.getElementById('calc-customer').value,
+                    custAddress: document.getElementById('calc-cust-address').value,
+                    deliveryAddress: document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : "",
+                    custEmail: document.getElementById('calc-cust-email').value,
+                    quoteNum: document.getElementById('calc-quote-number').value,
+                    customerCode: document.getElementById('calc-customer-code').value,
+                    preparedBy: document.getElementById('calc-prepared-by').value,
+                    materialCode: document.getElementById('calc-material-code').value,
+                    timestamp: Date.now(),
+                    inputs: {
+                        item_w: document.getElementById('width').value,
+                        item_h: document.getElementById('height').value,
+                        envelopePreset: document.getElementById('envelope-preset').value,
+                        quantities: document.getElementById('calc-quantities').value,
+                        qtyOrdered: document.getElementById('calc-qty-ordered').value,
+                        mPrice: document.getElementById('calc-material-price').value,
+                        packaging: document.getElementById('calc-packaging').value,
+                        margin: document.getElementById('calc-margin').value,
+                        colorsFront: document.getElementById('calc-colors-front').value,
+                        colorsBack: document.getElementById('calc-colors-back').value,
+                        mRate: document.getElementById('calc-machine-rate').value,
+                        mSpeed: document.getElementById('calc-machine-speed').value,
+                        autoSpeed: document.getElementById('calc-auto-speed').checked,
+                        plateDod: document.getElementById('calc-plate-price').value,
+                        plateCount: document.getElementById('calc-plate-count').value,
+                        colorChangePrice: document.getElementById('calc-color-change-price').value,
+                        persCount: document.getElementById('calc-personalization').value,
+                        manualWork: document.getElementById('calc-manual-work').value,
+                        usePers: document.getElementById('calc-use-personalization').checked,
+                        useManual: document.getElementById('calc-use-manual-work').checked,
+                        waste: document.getElementById('calc-waste').value,
+                        commercial: document.getElementById('calc-commercial').value
+                    },
+                    results: {
+                        total: document.getElementById('sticky-price-total-bottom').innerText,
+                        perItem: document.getElementById('sticky-price-per-item').innerText,
+                        sheets: document.getElementById('res-sheets-needed').innerText
+                    }
+                };
+
+                const jsonStr = JSON.stringify(data, null, 2);
+                
+                if (window.showSaveFilePicker) {
+                    try {
+                        const handle = await window.showSaveFilePicker({
+                            suggestedName: 'KUVERTA_' + name.replace(/\s+/g, '_') + '.json',
+                            types: [{ description: 'JSON Ponudba (Shranite v C:\\DARKO-KUVERTE)', accept: { 'application/json': ['.json'] } }],
+                        });
+                        const writable = await handle.createWritable();
+                        await writable.write(jsonStr);
+                        await writable.close();
+                        alert("Datoteka uspešno shranjena!");
+                        return;
+                    } catch (e) {
+                        if (e.name === 'AbortError') return;
+                    }
+                }
+
+                // Fallback for browsers that don't support showSaveFilePicker
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = name.replace(/\s+/g, '_') + '.json';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+            } catch (err) {
+                alert("Napaka pri shranjevanju: " + err.message);
+            }
         }
 
         function loadProjectData(proj) {
