@@ -589,6 +589,10 @@
                 <div style="flex: 1; min-width: 120px;">
                     <label>Št. strani na poli</label>
                     <input type="number" id="items-per-sheet" value="" placeholder="Avto" oninput="calculate()">
+                    <div style="font-size: 0.8rem; color: #3b82f6; margin-top: 0.32rem; font-weight: 600;">
+                        Pol za 1 brošuro: <span id="sheets-per-brochure" style="color: #f8fafc;">0</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px;" id="sheet-breakdown"></div>
                 </div>
                 <div style="flex: 1.2; min-width: 140px;">
                     <label>število brošur (loči z vejico)</label>
@@ -1702,10 +1706,41 @@
                     document.getElementById('res-usage-leaves').innerText = usage;
 
                     const leavesPerBlock = parseFloat(document.getElementById('calc-leaves').value) || 1;
-                    let sheetsNeededLeaves = Math.ceil((q * leavesPerBlock) / currentCount);
+                    const pagesPerSheet = currentCount * 2;
+                    let sheetsNeededLeaves = Math.ceil((q * leavesPerBlock) / pagesPerSheet);
                     document.getElementById('res-sheets-needed').innerText = sheetsNeededLeaves;
                     document.getElementById('res-sheets-leaves-net').innerText = sheetsNeededLeaves + ' pol';
                     if (document.getElementById('header-sheets-val')) document.getElementById('header-sheets-val').innerText = sheetsNeededLeaves;
+                    
+                    if (document.getElementById('sheets-per-brochure')) {
+                        let sheetsPerB = leavesPerBlock / pagesPerSheet;
+                        document.getElementById('sheets-per-brochure').innerText = Number.isInteger(sheetsPerB) ? sheetsPerB : sheetsPerB.toFixed(2);
+                        
+                        let breakdownText = [];
+                        let wSheets = Math.floor(sheetsPerB);
+                        if (wSheets > 0) {
+                            let wText = "celih pol";
+                            if (wSheets === 1) wText = "cela pola";
+                            else if (wSheets === 2) wText = "celi poli";
+                            else if (wSheets === 3 || wSheets === 4) wText = "cele pole";
+                            breakdownText.push(wSheets + ' ' + wText);
+                        }
+                        
+                        let remainderPages = leavesPerBlock % pagesPerSheet;
+                        if (remainderPages > 0) {
+                            let frac = remainderPages / pagesPerSheet;
+                            if (frac === 0.5) breakdownText.push('1 polovička (' + remainderPages + ' str)');
+                            else if (frac === 0.25) breakdownText.push('1 četrtinka (' + remainderPages + ' str)');
+                            else if (frac === 0.125) breakdownText.push('1 osminka (' + remainderPages + ' str)');
+                            else if (frac === 0.75) breakdownText.push('1 polovička in 1 četrtinka (' + remainderPages + ' str)');
+                            else breakdownText.push(remainderPages + ' str (ostanek)');
+                        }
+                        
+                        let breakdownEl = document.getElementById('sheet-breakdown');
+                        if (breakdownEl) {
+                            breakdownEl.innerText = breakdownText.length > 0 ? '(' + breakdownText.join(', ') + ')' : '(0 pol)';
+                        }
+                    }
 
                     let drawW = bestSheet.mode === 'L' ? bestSheet.w : bestSheet.h;
                     let drawH = bestSheet.mode === 'L' ? bestSheet.h : bestSheet.w;
