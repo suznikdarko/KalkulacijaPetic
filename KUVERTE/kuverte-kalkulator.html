@@ -323,11 +323,22 @@
                 </div>
                 <div id="projects-dropdown-list"
                     style="display: none; position: absolute; top: 100%; right: 0; width: 400px; background: #0f172a; border: 1px solid #3b82f6; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 1000; max-height: 400px; overflow-y: auto;">
-                    <div
-                        style="padding: 10px; background: #1e293b; position: sticky; top: 0; border-bottom: 1px solid #3b82f6; z-index: 2;">
+                    <div style="padding: 10px; background: #1e293b; position: sticky; top: 0; border-bottom: 1px solid #3b82f6; z-index: 2;">
                         <input type="text" id="project-search-input" placeholder="Išči po imenu ali stranki..."
                             style="width: 100%; padding: 6px; border-radius: 4px; border: none; font-size: 0.9rem;"
                             oninput="renderSavedProjects()">
+                        <div style="margin-top: 8px; display: flex; gap: 5px;">
+                            <button onclick="syncWithFolder()"
+                                style="flex: 1.2; background: #10b981; border: none; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;"
+                                title="Prikaži datoteke iz mape na disku (C:\DARKO-KUVERTE)">
+                                📂 POVEŽI Z MAPO
+                            </button>
+                            <button onclick="document.getElementById('import-file-input').click()"
+                                style="flex: 1; background: #334155; border: none; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;">
+                                📤 UVOZI JSON
+                            </button>
+                            <input type="file" id="import-file-input" style="display: none;" onchange="handleFileSelect(event)">
+                        </div>
                     </div>
                     <div id="projects-list-content"></div>
                 </div>
@@ -1800,10 +1811,6 @@
             const filter = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
             let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-            if (arhiv.length === 0) {
-                listContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem;">Arhiv je prazen.</div>';
-                return;
-            }
 
             arhiv.sort((a, b) => b.id - a.id);
             let filtered = filter ? arhiv.filter(proj => {
@@ -1811,11 +1818,6 @@
                 const customer = (proj.customer || "").toLowerCase();
                 return name.includes(filter) || customer.includes(filter);
             }) : arhiv;
-
-            if (filtered.length === 0) {
-                listContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem;">Ni zadetkov.</div>';
-                return;
-            }
 
             let html = "";
             
@@ -1879,6 +1881,20 @@
                 loadProjectData(data);
                 alert("Datoteka '" + fileName + "' naložena!");
             } catch (err) { alert("Napaka: " + err.message); }
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    loadProjectData(data);
+                    alert("Projekt uspešno uvožen!");
+                } catch (err) { alert("Napaka pri branju datoteke: " + err.message); }
+            };
+            reader.readAsText(file);
         }
 
         function loadProject(id) {

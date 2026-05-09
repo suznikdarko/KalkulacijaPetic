@@ -445,6 +445,11 @@
                                 style="width: 100%; padding: 8px; border-radius: 6px; background: #0f172a; border: 1px solid #475569; color: white; font-size: 0.8rem;"
                                 oninput="renderSavedProjects()">
                             <div style="margin-top: 8px; display: flex; gap: 5px;">
+                                <button onclick="syncWithFolder()"
+                                    style="flex: 1.2; background: #10b981; border: 1px solid #059669; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;"
+                                    title="Prikaži datoteke iz mape na disku (C:\TISKOVNE_POLE)">
+                                    📂 POVEŽI Z MAPO
+                                </button>
                                 <button onclick="document.getElementById('import-file-input').click()"
                                     style="flex: 1; background: #334155; border: 1px solid #475569; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;">
                                     📤 UVOZI JSON
@@ -2938,6 +2943,58 @@
             } catch (err) { alert("Napaka pri shranjevanju: " + err.message); }
         }
 
+        var g_projectsDirHandle = null;
+        var g_diskProjects = [];
+        
+        async function syncWithFolder() {
+            try {
+                g_projectsDirHandle = await window.showDirectoryPicker();
+                await refreshDiskProjects();
+                renderSavedProjects();
+                alert("Mapa uspešno povezana!");
+            } catch (err) {
+                if (err.name !== 'AbortError') alert("Napaka: " + err.message);
+            }
+        }
+
+        async function refreshDiskProjects() {
+            if (!g_projectsDirHandle) return;
+            g_diskProjects = [];
+            try {
+                for await (const entry of g_projectsDirHandle.values()) {
+                    if (entry.kind === 'file' && entry.name.endsWith('.json')) {
+                        g_diskProjects.push(entry);
+                    }
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function loadProjectFromDisk(fileName) {
+            const entry = g_diskProjects.find(e => e.name === fileName);
+            if (!entry) return;
+            try {
+                const file = await entry.getFile();
+                const content = await file.text();
+                const data = JSON.parse(content);
+                loadProjectData(data);
+                alert("Datoteka '" + fileName + "' naložena!");
+            } catch (err) { alert("Napaka: " + err.message); }
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    loadProjectData(data);
+                    alert("Projekt uspešno uvožen!");
+                } catch (err) { alert("Napaka pri branju datoteke: " + err.message); }
+            };
+            reader.readAsText(file);
+        }
+
         function renderSavedProjects() {
             const listContent = document.getElementById('projects-list-content');
             if (!listContent) return;
@@ -2946,15 +3003,27 @@
             const filter = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
             let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            let html = "";
 
-            if (arhiv.length === 0) {
-                listContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem;">Arhiv je prazen.</div>';
-                return;
+            // 1. DODAJ DATOTEKE Z DISKA
+            if (g_diskProjects.length > 0) {
+                html += '<div style="padding: 5px 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(16, 185, 129, 0.2);">📁 DATOTEKE NA DISKU</div>';
+                let diskFiltered = g_diskProjects;
+                if (filter) diskFiltered = g_diskProjects.filter(e => e.name.toLowerCase().includes(filter));
+                diskFiltered.forEach(entry => {
+                    html += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                            <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProjectFromDisk('${entry.name}'); toggleProjectsDropdown();">
+                                <div style="font-weight: bold; color: #10b981; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
+                                    📄 ${entry.name}
+                                </div>
+                                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">Lokalna datoteka</div>
+                            </div>
+                        </div>`;
+                });
             }
 
-            arhiv.sort((a, b) => b.id - a.id); // Najnovejši zgoraj
-
-            // Filtriranje
+            // 2. DODAJ ARHIV
             let filtered = arhiv;
             if (filter) {
                 filtered = arhiv.filter(proj => {
@@ -2964,49 +3033,49 @@
                     return name.includes(filter) || customer.includes(filter) || code.includes(filter);
                 });
             }
+            filtered.sort((a, b) => b.id - a.id);
 
-            if (filtered.length === 0) {
-                listContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem;">Ni zadetkov za ta iskalni niz.</div>';
-                return;
+            if (filtered.length > 0) {
+                html += '<div style="padding: 5px 12px; background: rgba(59, 130, 246, 0.1); color: #60a5fa; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(59, 130, 246, 0.2);">⭐ ARHIV (Baza)</div>';
+                filtered.forEach(proj => {
+                    const codeDisplay = proj.materialCode ? `<span style="color:#60a5fa; margin-left:5px;">[${proj.materialCode}]</span>` : "";
+                    const custDisplay = proj.customer ? `<div style="font-size: 0.7rem; color: #6ee7b7;">${proj.customer}</div>` : "";
+                    html += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                            <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProject(${proj.id}); toggleProjectsDropdown();">
+                                <div style="font-weight: bold; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
+                                    ${proj.name} ${codeDisplay}
+                                </div>
+                                ${custDisplay}
+                                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${proj.date} | ${proj.results ? proj.results.total : '-'}</div>
+                            </div>
+                            <div style="display: flex; gap: 6px; margin-left: 10px;">
+                                 <button onclick="exportSingleProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #3b82f6; cursor: pointer; padding: 4px; font-size: 0.9rem;" title="Izvozi">📥</button>
+                                 <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 1rem;" title="Briši">✕</button>
+                            </div>
+                        </div>`;
+                });
             }
 
-            let html = "";
-            filtered.forEach(proj => {
-                const codeDisplay = proj.materialCode ? `<span style="color:#60a5fa; margin-left:5px;">[${proj.materialCode}]</span>` : "";
-                const custDisplay = proj.customer ? `<div style="font-size: 0.7rem; color: #6ee7b7;">${proj.customer}</div>` : "";
-
-                html += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row">
-                        <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProject(${proj.id}); toggleProjectsDropdown();">
-                            <div style="font-weight: bold; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
-                                ${proj.name} ${codeDisplay}
-                            </div>
-                            ${custDisplay}
-                            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${proj.date} | ${proj.results ? proj.results.total : '-'}</div>
-                        </div>
-                        <div style="display: flex; gap: 6px; margin-left: 10px;">
-                             <button onclick="exportSingleProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #3b82f6; cursor: pointer; padding: 4px; font-size: 0.9rem;" title="Izvozi">📥</button>
-                             <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 1rem;" title="Briši">✕</button>
-                        </div>
-                    </div>
-                    `;
-            });
-
-            listContent.innerHTML = html;
-
-            // Dodaj hover efekte dinamično
-            const rows = listContent.querySelectorAll('.project-item-row');
-            rows.forEach(r => {
-                r.onmouseover = function () { this.style.background = "rgba(255,255,255,0.05)"; };
-                r.onmouseout = function () { this.style.background = "transparent"; };
-            });
+            if (html === "") {
+                let msg = 'Arhiv je prazen.';
+                if (!g_projectsDirHandle) {
+                    msg = '<div style="color:#10b981; font-weight:bold; margin-bottom:10px;">Mapa ni povezana!</div>Kliknite zgornji gumb <br><b style="color:#10b981;">📂 POVEŽI Z MAPO</b><br>da vidite datoteke na disku.';
+                } else {
+                    msg = 'V mapi ni bilo najdenih projektov.';
+                }
+                listContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem; line-height:1.4;">' + msg + '</div>';
+            } else {
+                listContent.innerHTML = html;
+            }
         }
 
-        function toggleProjectsDropdown() {
+        async function toggleProjectsDropdown() {
             const list = document.getElementById('projects-dropdown-list');
             if (list.style.display === 'block') {
                 list.style.display = 'none';
             } else {
+                if (g_projectsDirHandle) await refreshDiskProjects();
                 renderSavedProjects();
                 list.style.display = 'block';
                 // Zapri customer dropdown če je odprt
