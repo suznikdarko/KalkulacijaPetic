@@ -2947,13 +2947,51 @@
             var STORAGE_KEY = 'darko_blok_arhiv';
             var g_projectsDirHandle = null;
             var g_diskProjects = [];
-            
+
+            function setHandleInIndexedDB(handle, key) {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('KalkulatorDB', 1);
+                    request.onupgradeneeded = e => {
+                        e.target.result.createObjectStore('handles');
+                    };
+                    request.onsuccess = e => {
+                        const db = e.target.result;
+                        const tx = db.transaction('handles', 'readwrite');
+                        const store = tx.objectStore('handles');
+                        store.put(handle, key);
+                        tx.oncomplete = () => resolve();
+                        tx.onerror = () => reject(tx.error);
+                    };
+                    request.onerror = e => reject(e.target.error);
+                });
+            }
+
+            function getHandleFromIndexedDB(key) {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('KalkulatorDB', 1);
+                    request.onupgradeneeded = e => {
+                        e.target.result.createObjectStore('handles');
+                    };
+                    request.onsuccess = e => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('handles')) return resolve(null);
+                        const tx = db.transaction('handles', 'readonly');
+                        const store = tx.objectStore('handles');
+                        const getReq = store.get(key);
+                        getReq.onsuccess = () => resolve(getReq.result);
+                        getReq.onerror = () => reject(getReq.error);
+                    };
+                    request.onerror = e => reject(e.target.error);
+                });
+            }
+
             async function syncWithFolder() {
                 try {
                     g_projectsDirHandle = await window.showDirectoryPicker();
+                    await setHandleInIndexedDB(g_projectsDirHandle, 'blok_dir_handle');
                     await refreshDiskProjects();
                     renderSavedProjects();
-                    alert("Mapa uspešno povezana!");
+                    alert("Mapa uspešno povezana in shranjena!");
                 } catch (err) {
                     if (err.name !== 'AbortError') alert("Napaka: " + err.message);
                 }
@@ -3238,19 +3276,32 @@
                 } catch (err) { console.error("saveCurrentProject error:", err); }
             }
 
-        async function toggleProjectsDropdown() {
-            const list = document.getElementById('projects-dropdown-list');
-            if (list.style.display === 'flex') {
-                list.style.display = 'none';
-            } else {
-                if (g_projectsDirHandle) await refreshDiskProjects();
-                renderSavedProjects();
-                list.style.display = 'flex';
-                // Zapri customer dropdown če je odprt
-                const clist = document.getElementById('cust-dropdown-list');
-                if (clist) clist.style.display = 'none';
+            async function toggleProjectsDropdown() {
+                const list = document.getElementById('projects-dropdown-list');
+                if (list.style.display === 'flex') {
+                    list.style.display = 'none';
+                } else {
+                    if (!g_projectsDirHandle) {
+                        try {
+                            const handle = await getHandleFromIndexedDB('blok_dir_handle');
+                            if (handle) {
+                                if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') {
+                                    g_projectsDirHandle = handle;
+                                } else if ((await handle.requestPermission({ mode: 'readwrite' })) === 'granted') {
+                                    g_projectsDirHandle = handle;
+                                }
+                            }
+                        } catch (e) { console.error("IndexedDB error:", e); }
+                    }
+
+                    if (g_projectsDirHandle) await refreshDiskProjects();
+                    renderSavedProjects();
+                    list.style.display = 'flex';
+                    // Zapri customer dropdown če je odprt
+                    const clist = document.getElementById('cust-dropdown-list');
+                    if (clist) clist.style.display = 'none';
+                }
             }
-        }
 
             function exportSingleProject(id) {
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');

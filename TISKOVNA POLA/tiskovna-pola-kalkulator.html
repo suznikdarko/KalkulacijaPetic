@@ -3075,6 +3075,19 @@
             if (list.style.display === 'block') {
                 list.style.display = 'none';
             } else {
+                if (!g_projectsDirHandle) {
+                    try {
+                        const handle = await getHandleFromIndexedDB('pola_dir_handle');
+                        if (handle) {
+                            if ((await handle.queryPermission({mode: 'readwrite'})) === 'granted') {
+                                g_projectsDirHandle = handle;
+                            } else if ((await handle.requestPermission({mode: 'readwrite'})) === 'granted') {
+                                g_projectsDirHandle = handle;
+                            }
+                        }
+                    } catch(e) { console.error("IndexedDB error:", e); }
+                }
+
                 if (g_projectsDirHandle) await refreshDiskProjects();
                 renderSavedProjects();
                 list.style.display = 'block';
