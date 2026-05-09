@@ -586,6 +586,10 @@
                     <label>št. strani v brošuri</label>
                     <input type="number" id="calc-leaves" value="" onchange="calculate()">
                 </div>
+                <div style="flex: 1; min-width: 120px;">
+                    <label>Št. strani na poli</label>
+                    <input type="number" id="items-per-sheet" value="" placeholder="Avto" oninput="calculate()">
+                </div>
                 <div style="flex: 1.2; min-width: 140px;">
                     <label>število brošur (loči z vejico)</label>
                     <input type="text" id="quantity" value="" placeholder="npr. 100, 200, 500" oninput="calculate()">
@@ -1676,22 +1680,29 @@
                     document.getElementById('empty-state-leaves').style.display = 'none';
                     document.getElementById('stats').style.display = 'grid';
 
+                    if (isManual || itemsInp.value == "0" || itemsInp.value == "" || parseInt(itemsInp.value) === window.g_autoCountBrosura) {
+                        itemsInp.value = bestLayout.count;
+                        window.g_autoCountBrosura = bestLayout.count;
+                    }
+
+                    const currentCount = parseInt(itemsInp.value) || bestLayout.count;
+
                     const itemW = w + (2 * b);
                     const itemH = h + (2 * b);
-                    let actualArea = bestLayout.count * (itemW * itemH);
+                    let actualArea = currentCount * (itemW * itemH);
                     let totalArea = bestSheet.w * bestSheet.h;
                     let usage = (actualArea / totalArea * 100).toFixed(1) + '%';
 
                     document.getElementById('res-sheet').innerText = bestSheet.name;
-                    document.getElementById('res-count').innerText = bestLayout.count;
+                    document.getElementById('res-count').innerText = currentCount;
                     document.getElementById('res-usage').innerText = usage;
 
                     document.getElementById('res-sheet-mini').innerText = bestSheet.name;
-                    document.getElementById('res-count-leaves').innerText = bestLayout.count;
+                    document.getElementById('res-count-leaves').innerText = currentCount;
                     document.getElementById('res-usage-leaves').innerText = usage;
 
                     const leavesPerBlock = parseFloat(document.getElementById('calc-leaves').value) || 1;
-                    let sheetsNeededLeaves = Math.ceil((q * leavesPerBlock) / bestLayout.count);
+                    let sheetsNeededLeaves = Math.ceil((q * leavesPerBlock) / currentCount);
                     document.getElementById('res-sheets-needed').innerText = sheetsNeededLeaves;
                     document.getElementById('res-sheets-leaves-net').innerText = sheetsNeededLeaves + ' pol';
                     if (document.getElementById('header-sheets-val')) document.getElementById('header-sheets-val').innerText = sheetsNeededLeaves;
@@ -2851,7 +2862,7 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = isManualMatch ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.08)';
-                ctx.fillText(layout.count, canvas.width / 2, canvas.height / 2);
+                ctx.fillText(isManualMatch ? targetCount : layout.count, canvas.width / 2, canvas.height / 2);
                 ctx.restore();
 
                 // Mreža stavkov
@@ -2915,7 +2926,7 @@
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'top';
                 ctx.font = 'bold 12px Inter';
-                const infoText = `Pola: ${sheetW}x${sheetH} | Stavek: ${origW}x${origH} | Ups: ${layout.count}`;
+                const infoText = `Pola: ${sheetW}x${sheetH} | Stavek: ${origW}x${origH} | Ups: ${isManualMatch ? targetCount : layout.count}`;
                 const tw = ctx.measureText(infoText).width;
                 ctx.fillStyle = isManualMatch ? 'rgba(251, 191, 36, 0.9)' : 'rgba(59, 130, 246, 0.9)';
                 ctx.fillRect(10, 10, tw + 20, 25);
