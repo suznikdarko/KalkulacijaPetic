@@ -625,7 +625,11 @@
                     <label>Prijemalec ov. (mm)</label>
                     <input type="number" id="calc-cover-gripper" value="10" onchange="calculate()">
                 </div>
-                <div style="flex: 1; min-width: 120px;">
+                <div style="flex: 1; min-width: 100px;">
+                    <label>št. strani ovitka</label>
+                    <input type="number" id="calc-cover-pages" value="4" onchange="calculate()">
+                </div>
+                <div style="flex: 1; min-width: 100px;">
                     <label>št. ovitkov</label>
                     <input type="number" id="calc-cover-qty" value="" onchange="calculate()">
                     <div style="font-size: 0.8rem; color: #f43f5e; margin-top: 0.32rem; font-weight: 600;">
@@ -1264,8 +1268,7 @@
                                 </div>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Cena/kos (€)</small></label>
-                                    <input type="number" id="f-brosiranje-kos" value="0.00"
-                                        onchange="calculatePrice()">
+                                    <input type="number" id="f-brosiranje-kos" value="0.00" onchange="calculatePrice()">
                                 </div>
                             </div>
 
@@ -1711,11 +1714,11 @@
                     document.getElementById('res-sheets-needed').innerText = sheetsNeededLeaves;
                     document.getElementById('res-sheets-leaves-net').innerText = sheetsNeededLeaves + ' pol';
                     if (document.getElementById('header-sheets-val')) document.getElementById('header-sheets-val').innerText = sheetsNeededLeaves;
-                    
+
                     if (document.getElementById('sheets-per-brochure')) {
                         let sheetsPerB = leavesPerBlock / pagesPerSheet;
                         document.getElementById('sheets-per-brochure').innerText = Number.isInteger(sheetsPerB) ? sheetsPerB : sheetsPerB.toFixed(2);
-                        
+
                         let breakdownText = [];
                         let wSheets = Math.floor(sheetsPerB);
                         if (wSheets > 0) {
@@ -1725,7 +1728,7 @@
                             else if (wSheets === 3 || wSheets === 4) wText = "cele pole";
                             breakdownText.push(wSheets + ' ' + wText);
                         }
-                        
+
                         let remainderPages = leavesPerBlock % pagesPerSheet;
                         if (remainderPages > 0) {
                             let frac = remainderPages / pagesPerSheet;
@@ -1735,7 +1738,7 @@
                             else if (frac === 0.75) breakdownText.push('1 polovička in 1 četrtinka (' + remainderPages + ' str)');
                             else breakdownText.push(remainderPages + ' str (ostanek)');
                         }
-                        
+
                         let breakdownEl = document.getElementById('sheet-breakdown');
                         if (breakdownEl) {
                             breakdownEl.innerText = breakdownText.length > 0 ? '(' + breakdownText.join(', ') + ')' : '(0 pol)';
@@ -2721,6 +2724,7 @@
                     paperCover: document.getElementById('calc-cover-desc').value || '/',
                     tiskLeaves: (document.getElementById('calc-color-front-leaves').value || '0') + "/" + (document.getElementById('calc-color-back-leaves').value || '0'),
                     tiskCover: (document.getElementById('calc-color-front-cover').value || '0') + "/" + (document.getElementById('calc-color-back-cover').value || '0'),
+                    coverPages: document.getElementById('calc-cover-pages').value || '4',
                     options: [],
                     quantities: []
                 };
@@ -2784,10 +2788,9 @@
                             <div style="font-weight: bold; color: #f8fafc; font-size: 1rem;">${item.projectName}</div>
                             <button onclick="removeFromBasket(${index})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 0 5px;">✕</button>
                         </div>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px;">
-                            <div><span style="color:#64748b;">Format:</span> ${item.formatText}</div>
-                            <div><span style="color:#64748b;">Papir:</span> ${item.paperText}</div>
-                            <div><span style="color:#64748b;">Tisk:</span> ${item.tiskText}</div>
+                        <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px;">
+                            <div><span style="color:#64748b;">Notranjost:</span> ${item.extentText}, ${item.formatLeaves} mm, ${item.paperLeaves}, tisk ${item.tiskLeaves}</div>
+                            <div><span style="color:#64748b;">Ovitek:</span> ${item.coverPages || '4'} str, ${item.formatCover} mm, ${item.paperCover}, tisk ${item.tiskCover}</div>
                             <div><span style="color:#64748b;">Dodelava:</span> ${item.finishingText}</div>
                         </div>
                         <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
@@ -3030,7 +3033,7 @@
                     request.onerror = e => reject(e.target.error);
                 });
             }
-            
+
             async function syncWithFolder() {
                 try {
                     g_projectsDirHandle = await window.showDirectoryPicker();
@@ -3236,6 +3239,7 @@
                             coverBleed: gv('calc-cover-bleed'),
                             coverGripper: gv('calc-cover-gripper'),
                             coverQty: gv('calc-cover-qty'),
+                            coverPages: gv('calc-cover-pages'),
                             coverDesc: gv('calc-cover-desc'),
                             sourceCoverW: gv('calc-source-cover-w'),
                             sourceCoverH: gv('calc-source-cover-h'),
@@ -3322,32 +3326,32 @@
                 } catch (err) { console.error("saveCurrentProject error:", err); }
             }
 
-        async function toggleProjectsDropdown() {
-            const list = document.getElementById('projects-dropdown-list');
-            if (list.style.display === 'flex') {
-                list.style.display = 'none';
-            } else {
-                if (!g_projectsDirHandle) {
-                    try {
-                        const handle = await getHandleFromIndexedDB('brosura_dir_handle');
-                        if (handle) {
-                            if ((await handle.queryPermission({mode: 'readwrite'})) === 'granted') {
-                                g_projectsDirHandle = handle;
-                            } else if ((await handle.requestPermission({mode: 'readwrite'})) === 'granted') {
-                                g_projectsDirHandle = handle;
+            async function toggleProjectsDropdown() {
+                const list = document.getElementById('projects-dropdown-list');
+                if (list.style.display === 'flex') {
+                    list.style.display = 'none';
+                } else {
+                    if (!g_projectsDirHandle) {
+                        try {
+                            const handle = await getHandleFromIndexedDB('brosura_dir_handle');
+                            if (handle) {
+                                if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') {
+                                    g_projectsDirHandle = handle;
+                                } else if ((await handle.requestPermission({ mode: 'readwrite' })) === 'granted') {
+                                    g_projectsDirHandle = handle;
+                                }
                             }
-                        }
-                    } catch(e) { console.error("IndexedDB error:", e); }
-                }
+                        } catch (e) { console.error("IndexedDB error:", e); }
+                    }
 
-                if (g_projectsDirHandle) await refreshDiskProjects();
-                renderSavedProjects();
-                list.style.display = 'flex';
-                // Zapri customer dropdown če je odprt
-                const clist = document.getElementById('cust-dropdown-list');
-                if (clist) clist.style.display = 'none';
+                    if (g_projectsDirHandle) await refreshDiskProjects();
+                    renderSavedProjects();
+                    list.style.display = 'flex';
+                    // Zapri customer dropdown če je odprt
+                    const clist = document.getElementById('cust-dropdown-list');
+                    if (clist) clist.style.display = 'none';
+                }
             }
-        }
 
             function exportSingleProject(id) {
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -3449,18 +3453,18 @@
             }
 
             async function loadProjectFromDisk(fileName) {
-            const entry = g_diskProjects.find(e => e.name === fileName);
-            if (!entry) return;
-            try {
-                const file = await entry.getFile();
-                const content = await file.text();
-                const data = JSON.parse(content);
-                loadProjectData(data);
-                alert("Datoteka '" + fileName + "' naložena!");
-            } catch (err) { alert("Napaka: " + err.message); }
-        }
+                const entry = g_diskProjects.find(e => e.name === fileName);
+                if (!entry) return;
+                try {
+                    const file = await entry.getFile();
+                    const content = await file.text();
+                    const data = JSON.parse(content);
+                    loadProjectData(data);
+                    alert("Datoteka '" + fileName + "' naložena!");
+                } catch (err) { alert("Napaka: " + err.message); }
+            }
 
-        // Pomožna funkcija za nalaganje podatkov v polja (skupna za Arhiv in File Import)
+            // Pomožna funkcija za nalaganje podatkov v polja (skupna za Arhiv in File Import)
             function loadProjectData(proj) {
                 if (!proj || !proj.inputs) return;
                 const inp = proj.inputs;
@@ -3481,7 +3485,7 @@
                 setV('height', inp.item_h);
                 setV('quantity', inp.quantity);
                 setV('bleed', inp.bleed);
-                
+
                 // Paper
                 setV('calc-paper-active', inp.pActive, true);
                 setV('calc-paper-price', inp.pPrice);
@@ -3525,6 +3529,7 @@
                 if (inp.coverBleed) document.getElementById('calc-cover-bleed').value = inp.coverBleed;
                 if (inp.coverGripper) document.getElementById('calc-cover-gripper').value = inp.coverGripper;
                 if (inp.coverQty) document.getElementById('calc-cover-qty').value = inp.coverQty;
+                if (inp.coverPages) document.getElementById('calc-cover-pages').value = inp.coverPages;
                 if (inp.coverDesc) document.getElementById('calc-cover-desc').value = inp.coverDesc;
                 if (inp.sourceCoverW) document.getElementById('calc-source-cover-w').value = inp.sourceCoverW;
                 if (inp.sourceCoverH) document.getElementById('calc-source-cover-h').value = inp.sourceCoverH;
@@ -3670,6 +3675,7 @@
                             coverBleed: gv('calc-cover-bleed'),
                             coverGripper: gv('calc-cover-gripper'),
                             coverQty: gv('calc-cover-qty'),
+                            coverPages: gv('calc-cover-pages'),
                             coverDesc: gv('calc-cover-desc'),
                             sourceCoverW: gv('calc-source-cover-w'),
                             sourceCoverH: gv('calc-source-cover-h'),
@@ -3964,6 +3970,7 @@
                                             <tr><td style="font-weight: bold;">Papir listov:</td><td>${item.paperLeaves || pText}</td></tr>
                                             <tr><td style="font-weight: bold;">Papir ovitka:</td><td>${item.paperCover || cText}</td></tr>
                                             <tr><td style="font-weight: bold;">Tisk listov:</td><td>${item.tiskLeaves || printText}</td></tr>
+                                            <tr><td style="font-weight: bold;">Obseg ovitka:</td><td>${item.coverPages || '4'} strani</td></tr>
                                             <tr><td style="font-weight: bold;">Tisk ovitka:</td><td>${item.tiskCover || '/'}</td></tr>
                                             <tr><td style="font-weight: bold;">Dodelava:</td><td>${finText}</td></tr>
                                         </table>
