@@ -1532,31 +1532,61 @@
         function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceMode) {
             const isObrat = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
             let best = null;
-            const configs = [
-                { w: itemW, h: itemH, rot: false, edge: 'H', c: Math.floor(sheetW / itemW), r: Math.floor((sheetH - gripper) / itemH) },
-                { w: itemH, h: itemW, rot: true, edge: 'H', c: Math.floor(sheetW / itemH), r: Math.floor((sheetH - gripper) / itemW) }
+
+            const baseConfigs = [
+                { iw: itemW, ih: itemH, rot: false, edge: 'H' },
+                { iw: itemH, ih: itemW, rot: true, edge: 'H' },
+                { iw: itemW, ih: itemH, rot: false, edge: 'W' },
+                { iw: itemH, ih: itemW, rot: true, edge: 'W' }
             ];
-            configs.forEach(cfg => {
-                let isPlacedLandscape = cfg.w >= cfg.h;
+
+            baseConfigs.forEach(cfg => {
+                let usableW = cfg.edge === 'W' ? sheetW - gripper : sheetW;
+                let usableH = cfg.edge === 'H' ? sheetH - gripper : sheetH;
+                if (usableW <= 0 || usableH <= 0) return;
+
+                let cols = Math.floor(usableW / cfg.iw);
+                let rows = Math.floor(usableH / cfg.ih);
+
+                let isPlacedLandscape = cfg.iw >= cfg.ih;
                 if (forceMode === 'landscape' && !isPlacedLandscape) return;
-                if (forceMode === 'portrait' && isPlacedLandscape && cfg.w !== cfg.h) return;
+                if (forceMode === 'portrait' && isPlacedLandscape && cfg.iw !== cfg.ih) return;
 
-                let count = cfg.c * cfg.r;
+                let count = cols * rows;
+                let finalCount = count;
+                let isMixed = false;
 
-                if (isObrat) {
-                    // Za obračanje potrebujemo sodo število stavkov v eni od smeri
-                    let maxColsEven = Math.floor(cfg.c / 2) * 2;
-                    let maxRowsEven = Math.floor(cfg.r / 2) * 2;
-                    let obratCount = Math.max(maxColsEven * cfg.r, cfg.c * maxRowsEven);
-                    if (obratCount > 0) {
-                        count = obratCount;
-                    } else {
-                        count = 0; // Ne moremo obračati, če ni vsaj 2 stavkov
+                if (forceMode === 'auto' && !isObrat && count > 0) {
+                    let remW = usableW - (cols * cfg.iw);
+                    let addRight = (remW >= cfg.ih) ? Math.floor(remW / cfg.ih) * Math.floor(usableH / cfg.iw) : 0;
+
+                    let remH = usableH - (rows * cfg.ih);
+                    let addBottom = (remH >= cfg.iw) ? Math.floor(remH / cfg.iw) * Math.floor(usableW / cfg.ih) : 0;
+
+                    if (addRight > 0 || addBottom > 0) {
+                        finalCount = count + Math.max(addRight, addBottom);
+                        isMixed = true;
                     }
                 }
 
-                if (count > 0 && (!best || count > best.count)) {
-                    best = { count, cols: cfg.c, rows: cfg.r, itemW: cfg.w, itemH: cfg.h, rot: cfg.rot, gripEdge: cfg.edge };
+                if (isObrat) {
+                    let maxColsEven = Math.floor(cols / 2) * 2;
+                    let maxRowsEven = Math.floor(rows / 2) * 2;
+                    let obratCount = Math.max(maxColsEven * rows, cols * maxRowsEven);
+                    finalCount = obratCount > 0 ? obratCount : 0;
+                }
+
+                if (finalCount > 0 && (!best || finalCount > best.count)) {
+                    best = {
+                        count: finalCount,
+                        cols: cols,
+                        rows: rows,
+                        itemW: cfg.iw,
+                        itemH: cfg.ih,
+                        rot: cfg.rot,
+                        gripEdge: cfg.edge,
+                        isMixed: isMixed
+                    };
                 }
             });
             return best;
@@ -1621,6 +1651,8 @@
             return basePrice;
         }
 
+        let g_lastW_calc = 0, g_lastH_calc = 0;
+
         function calculate(isManual = false) {
             updateWarnings();
             try {
@@ -1641,13 +1673,24 @@
 
                 if (w <= 0 || h <= 0 || q <= 0) return;
 
+                // Če se dimenzije spremenijo, počistimo ročno postavitev
+                if (w !== g_lastW_calc || h !== g_lastH_calc) {
+                    g_manualLayout = null;
+                }
+                g_lastW_calc = w;
+                g_lastH_calc = h;
+
                 const itemW = w + 2 * b;
                 const itemH = h + 2 * b;
 
-                // Preberi ročni vnos stavkov (če obstaja)
+                // Preberi ročni vnos stavkov
                 const itemsInp = document.getElementById('items-per-sheet');
                 let targetCount = parseInt(itemsInp.value) || 0;
-                if (isManual) targetCount = 0; // Gumb "Izračunaj" vedno išče globalni maksimum
+
+                // Če je isManual ali če so se dimenzije spremenile, ne vsiljujemo starega števila stavkov
+                if (isManual || targetCount === g_autoCount) {
+                    targetCount = 0;
+                }
 
                 let bestSheet = null;
                 let bestLayout = null;
@@ -1668,21 +1711,20 @@
                     const y2 = Math.floor(sw / s.h) * Math.floor(sh / s.w);
                     const sYield = Math.max(y1, y2, 1);
 
-                    // LOGIKA OPTIMIZACIJE:
                     let score;
                     let isSatisfied = (targetCount > 0 && currLayout.count >= targetCount);
 
                     if (targetCount > 0) {
                         if (isSatisfied) {
-                            // 1. Prioriteta: sYield (koliko kosov dobimo iz velike pole) - Zelo velika teža
-                            // 2. Prioriteta: Manjša površina strojnih pol (manj plošč, hitrejša priprava...)
-                            // 3. Prioriteta: Maksimalno število stavkov (rezerva)
+                            // Če dosegamo želeno število, optimiziramo sYield in porabo papirja
                             const sheetArea = s.w * s.h;
                             score = (sYield * 1000000000) + (1000000000000 / sheetArea) + currLayout.count;
                         } else {
+                            // Če ne dosegamo, gremo na max stavke
                             score = currLayout.count;
                         }
                     } else {
+                        // Standardna optimizacija: čimveč kosov iz osnovne pole (sYield * count)
                         score = sYield * currLayout.count;
                     }
 
@@ -1693,9 +1735,7 @@
                     }
                 };
 
-                // Uporabimo globalni seznam 'sheets' namesto lokalnega
                 if (mFormat === 'auto') {
-                    // Preverimo vse formate iz globalnega seznama
                     for (let s of sheets) {
                         checkSheet(s);
                     }
@@ -1717,7 +1757,6 @@
                     const y2 = Math.floor(sw / bestSheet.h) * Math.floor(sh / bestSheet.w);
                     document.getElementById('calc-source-yield').value = Math.max(y1, y2, 1);
 
-                    // Posodobi ceno plastifikacije glede na format tiskovne pole
                     const lamType = document.getElementById('f-lam-type').value;
                     const lamPricePerSheet = getLaminationPricePerSheet(bestSheet.w, bestSheet.h, lamType);
                     if (lamPricePerSheet > 0) {
@@ -1730,7 +1769,6 @@
                     return;
                 }
 
-                // Update UI basics
                 document.getElementById('empty-state').style.display = 'none';
                 document.getElementById('stats').style.display = 'grid';
                 document.getElementById('res-sheet').innerText = bestSheet.name;
@@ -1738,7 +1776,8 @@
                 document.getElementById('res-sheet-mini').innerText = bestSheet.name;
                 document.getElementById('res-count-mini').innerText = bestLayout.count;
 
-                if (isManual || itemsInp.value == "0" || itemsInp.value == "" || parseInt(itemsInp.value) === g_autoCount) {
+                // Samodejno posodobi polje za vnos stavkov, če je bilo v "auto" načinu
+                if (isManual || itemsInp.value == "0" || itemsInp.value == "" || parseInt(itemsInp.value) === g_autoCount || targetCount === 0) {
                     itemsInp.value = bestLayout.count;
                     g_autoCount = bestLayout.count;
                 }
@@ -2510,28 +2549,29 @@
             const usableW = layout.gripEdge === 'W' ? sheetW - gripper : sheetW;
             const usableH = layout.gripEdge === 'H' ? sheetH - gripper : sheetH;
 
-            const targetCount = currentCount || (layout.rows * layout.cols);
+            const targetCount = currentCount || layout.count;
 
-            // Poiščemo najbolj uravnoteženo mrežo (cols/rows) za to število
-            let bestC = Math.min(layout.cols, targetCount);
-            let bestR = Math.ceil(targetCount / (bestC || 1));
+            // Poiščemo najbolj uravnoteženo mrežo (cols/rows) za uniformni del
+            let uniformCount = layout.isMixed ? (layout.cols * layout.rows) : targetCount;
+            let bestC = Math.min(layout.cols, uniformCount);
+            let bestR = Math.ceil(uniformCount / (bestC || 1));
 
             const isObratChecked = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
 
-            for (let tempC = 1; tempC <= layout.cols; tempC++) {
-                let tempR = Math.ceil(targetCount / tempC);
-                if (tempR <= layout.rows) {
-                    let diff = Math.abs(tempC - tempR);
-                    let bestDiff = Math.abs(bestC - bestR);
-
-                    if (isObratChecked) {
-                        if (bestC % 2 !== 0) bestDiff += 1000;
-                        if (tempC % 2 !== 0) diff += 1000;
-                    }
-
-                    if (diff < bestDiff || (diff === bestDiff && tempC > bestC)) {
-                        bestC = tempC;
-                        bestR = tempR;
+            if (!layout.isMixed) {
+                for (let tempC = 1; tempC <= layout.cols; tempC++) {
+                    let tempR = Math.ceil(targetCount / tempC);
+                    if (tempR <= layout.rows) {
+                        let diff = Math.abs(tempC - tempR);
+                        let bestDiff = Math.abs(bestC - bestR);
+                        if (isObratChecked) {
+                            if (bestC % 2 !== 0) bestDiff += 1000;
+                            if (tempC % 2 !== 0) diff += 1000;
+                        }
+                        if (diff < bestDiff || (diff === bestDiff && tempC > bestC)) {
+                            bestC = tempC;
+                            bestR = tempR;
+                        }
                     }
                 }
             }
@@ -2541,19 +2581,38 @@
 
             const gridH = usedRows * layout.itemH;
             const startY = (usableH - gridH) / 2;
-
-            // Izračunamo fiksen X za celoten grid, da se ohrani simetrična poravnava stolpcev za razrez
             const gridW = usedCols * layout.itemW;
             const startX = offsetX + (usableW - gridW) / 2;
 
             let slotsToDraw = [];
+            let itemsToDraw = targetCount;
+
+            function drawOneItem(ctx, x, y, iw, ih, innerW, innerH, b, sc) {
+                ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 1;
+                ctx.fillRect(x, y, iw * sc, ih * sc);
+                ctx.strokeRect(x, y, iw * sc, ih * sc);
+
+                ctx.setLineDash([2, 3]);
+                ctx.strokeStyle = '#1e3a8a';
+                ctx.strokeRect(x + (b * sc), y + (b * sc), innerW * sc, innerH * sc);
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = '#1e3a8a';
+                ctx.font = 'bold 9px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const dimLabel = `${Math.round(innerW)}x${Math.round(innerH)}`;
+                if (iw * sc > 30 && ih * sc > 15) {
+                    ctx.fillText(dimLabel, x + (iw * sc) / 2, y + (ih * sc) / 2);
+                }
+            }
 
             if (isObratChecked) {
                 let midC = Math.floor(usedCols / 2);
                 let hasCenter = usedCols % 2 !== 0;
-
                 for (let r = 0; r < usedRows; r++) {
-                    // Gradimo pare od sredine navzven
                     for (let c = midC - 1; c >= 0; c--) {
                         slotsToDraw.push({ c: c, r: r });
                         slotsToDraw.push({ c: usedCols - 1 - c, r: r });
@@ -2564,50 +2623,58 @@
                         slotsToDraw.push({ c: midC, r: r });
                     }
                 }
-                slotsToDraw = slotsToDraw.slice(0, targetCount);
+                slotsToDraw = slotsToDraw.slice(0, itemsToDraw);
             } else {
                 let tempCount = 0;
-                for (let r = 0; r < usedRows; r++) {
-                    const itemsInRow = Math.min(usedCols, targetCount - tempCount);
-                    for (let c = 0; c < itemsInRow; c++) {
+                let rowsToFill = layout.isMixed ? layout.rows : usedRows;
+                let colsToFill = layout.isMixed ? layout.cols : usedCols;
+                for (let r = 0; r < rowsToFill && tempCount < itemsToDraw; r++) {
+                    for (let c = 0; c < colsToFill && tempCount < itemsToDraw; c++) {
                         slotsToDraw.push({ c: c, r: r });
+                        tempCount++;
                     }
-                    tempCount += itemsInRow;
                 }
             }
 
             slotsToDraw.forEach(slot => {
                 const x = (startX + slot.c * layout.itemW) * scale;
                 const y = (startY + slot.r * layout.itemH) * scale;
-
-                ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
-                ctx.strokeStyle = '#3b82f6';
-                ctx.lineWidth = 1;
-                ctx.fillRect(x, y, layout.itemW * scale, layout.itemH * scale);
-                ctx.strokeRect(x, y, layout.itemW * scale, layout.itemH * scale);
-
                 const innerW = (layout.rot ? origH : origW);
                 const innerH = (layout.rot ? origW : origH);
-                ctx.setLineDash([2, 3]);
-                ctx.strokeStyle = '#1e3a8a';
-                ctx.strokeRect(x + (bleed * scale), y + (bleed * scale), innerW * scale, innerH * scale);
-                ctx.setLineDash([]);
-
-                // Add Dimensions (Centered)
-                ctx.fillStyle = '#1e3a8a';
-                ctx.font = 'bold 9px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                const dimLabel = `${origW}x${origH}`;
-                // Only draw if it fits somewhat
-                if (layout.itemW * scale > 30 && layout.itemH * scale > 15) {
-                    ctx.fillText(dimLabel, x + (layout.itemW * scale) / 2, y + (layout.itemH * scale) / 2);
-                }
-
-                // Reset for next
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'alphabetic';
+                drawOneItem(ctx, x, y, layout.itemW, layout.itemH, innerW, innerH, bleed, scale);
             });
+
+            // Mešana postavitev (Mixed) - nariši preostale kose
+            let drawnSoFar = slotsToDraw.length;
+            if (layout.isMixed && drawnSoFar < itemsToDraw && !isObratChecked) {
+                // Preveri kje je več prostora za ostale kose (desno ali spodaj)
+                let remW = usableW - (layout.cols * layout.itemW);
+                let remH = usableH - (layout.rows * layout.itemH);
+
+                if (remW >= layout.itemH) { // Rotirani kosi desno
+                    let addCols = Math.floor(remW / layout.itemH);
+                    let addRows = Math.floor(usableH / layout.itemW);
+                    for (let r = 0; r < addRows && drawnSoFar < itemsToDraw; r++) {
+                        for (let c = 0; c < addCols && drawnSoFar < itemsToDraw; c++) {
+                            const x = (startX + (layout.cols * layout.itemW) + c * layout.itemH) * scale;
+                            const y = (startY + r * layout.itemW) * scale;
+                            drawOneItem(ctx, x, y, layout.itemH, layout.itemW, (layout.rot ? origW : origH), (layout.rot ? origH : origW), bleed, scale);
+                            drawnSoFar++;
+                        }
+                    }
+                } else if (remH >= layout.itemW) { // Rotirani kosi spodaj
+                    let addRows = Math.floor(remH / layout.itemW);
+                    let addCols = Math.floor(usableW / layout.itemH);
+                    for (let r = 0; r < addRows && drawnSoFar < itemsToDraw; r++) {
+                        for (let c = 0; c < addCols && drawnSoFar < itemsToDraw; c++) {
+                            const x = (startX + c * layout.itemH) * scale;
+                            const y = (startY + (layout.rows * layout.itemH) + r * layout.itemW) * scale;
+                            drawOneItem(ctx, x, y, layout.itemH, layout.itemW, (layout.rot ? origW : origH), (layout.rot ? origH : origW), bleed, scale);
+                            drawnSoFar++;
+                        }
+                    }
+                }
+            }
         }
 
         // INITIAL CALLS ON LOAD (MOVED TO BOTTOM)
@@ -2846,7 +2913,7 @@
                 } else {
                     alert("Projekt '" + name + "' uspešno shranjen v arhiv!");
                 }
-            } catch(err) {
+            } catch (err) {
                 alert("Napaka pri shranjevanju: " + err.message);
                 console.error("saveCurrentProject error:", err);
             }
@@ -2945,7 +3012,7 @@
 
         var g_projectsDirHandle = null;
         var g_diskProjects = [];
-        
+
         async function syncWithFolder() {
             try {
                 g_projectsDirHandle = await window.showDirectoryPicker();
@@ -2985,7 +3052,7 @@
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     const data = JSON.parse(e.target.result);
                     loadProjectData(data);
@@ -3079,13 +3146,13 @@
                     try {
                         const handle = await getHandleFromIndexedDB('pola_dir_handle');
                         if (handle) {
-                            if ((await handle.queryPermission({mode: 'readwrite'})) === 'granted') {
+                            if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') {
                                 g_projectsDirHandle = handle;
-                            } else if ((await handle.requestPermission({mode: 'readwrite'})) === 'granted') {
+                            } else if ((await handle.requestPermission({ mode: 'readwrite' })) === 'granted') {
                                 g_projectsDirHandle = handle;
                             }
                         }
-                    } catch(e) { console.error("IndexedDB error:", e); }
+                    } catch (e) { console.error("IndexedDB error:", e); }
                 }
 
                 if (g_projectsDirHandle) await refreshDiskProjects();
