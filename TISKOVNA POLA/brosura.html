@@ -1480,6 +1480,20 @@
                                     <input type="number" id="f-del-fixed-cost" value="0.00" onchange="calculatePrice()">
                                 </div>
                             </div>
+
+                            <!-- Komerciala / Admin -->
+                            <div class="finish-item"
+                                style="border-left: 3px solid #60a5fa; background: rgba(59, 130, 246, 0.05);">
+                                <label
+                                    style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; color: #60a5fa;">
+                                    Komerciala / Admin
+                                </label>
+                                <div class="form-group" style="margin:0; grid-column: span 2;">
+                                    <label><small>Fiksni strošek (€)</small></label>
+                                    <input type="number" id="calc-commercial" value="10.00" step="0.5"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2536,7 +2550,8 @@
                     }
 
                     // 5. SKUPAJ IN RVC
-                    let subtotal = paperCost + totalPrepCost + totalPrintCost + totalFinishCost;
+                    let commercialCost = parseFloat(document.getElementById('calc-commercial').value) || 0;
+                    let subtotal = paperCost + totalPrepCost + totalPrintCost + totalFinishCost + commercialCost;
                     let marginPercent = parseFloat(document.getElementById('calc-margin').value) || 0;
                     let totalMargin = subtotal * (marginPercent / 100);
                     let totalPrice = subtotal + totalMargin;
@@ -2619,6 +2634,7 @@
                             cost: totalFinishCost,
                             items: finishItems
                         },
+                        commercial: commercialCost,
                         margin: totalMargin,
                         total: totalPrice
                     };
@@ -2738,6 +2754,16 @@
                             <span>Skupni strošek dodelave:</span> <span>${formatPrice(d.finish.cost)}</span>
                         </div>
                     </div>
+
+                    <!-- KOMERCIALA -->
+                    ${d.commercial > 0 ? `
+                    <div style="padding: 10px; background: rgba(59, 130, 246, 0.05); border-radius: 8px;">
+                        <div style="font-weight: bold; color: #60a5fa; margin-bottom: 5px;">Komerciala / Admin</div>
+                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                            <span>Strošek komerciale:</span> <span>${formatPrice(d.commercial)}</span>
+                        </div>
+                    </div>
+                    ` : ''}
 
                     <!-- MARŽA -->
                     ${d.margin > 0 ? `
@@ -3412,6 +3438,7 @@
                             mutChangeC: gv('calc-mut-change-price-cover'),
                             prepPriceC: gv('calc-prep-price-cover'),
                             wasteC: gv('calc-paper-waste-cover'),
+                            commercial: gv('calc-commercial'),
                             margin: gv('calc-margin'),
                             finish: {
                                 cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
@@ -3649,6 +3676,7 @@
                 setV('calc-cb-supply-h', inp.cbSupplyH);
                 if (typeof toggleCbSupplyCustom === 'function') toggleCbSupplyCustom();
                 // Removed toggleCardboardRow call as section is always open.
+                setV('calc-commercial', inp.commercial);
                 setV('calc-margin', inp.margin);
 
                 // Load Header Extras
