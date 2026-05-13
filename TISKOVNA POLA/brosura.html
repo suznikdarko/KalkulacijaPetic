@@ -1853,10 +1853,10 @@
                 }
 
                 // --- OPTIMIZATION FOR COVER ---
-                const cw = parseFloat(gV('calc-cover-w'));
-                const ch = parseFloat(gV('calc-cover-h'));
-                const cb = parseFloat(gV('calc-cover-bleed')) || 0;
-                const cg = parseFloat(gV('calc-cover-gripper')) || 0;
+                const cw = parseFloat(gV('calc-cover-w').replace(',', '.')) || 0;
+                const ch = parseFloat(gV('calc-cover-h').replace(',', '.')) || 0;
+                const cb = parseFloat(gV('calc-cover-bleed').replace(',', '.')) || 0;
+                const cg = parseFloat(gV('calc-cover-gripper').replace(',', '.')) || 0;
 
                 // Vir materiala za ovitek
                 const swc = parseFloat(gV('calc-source-cover-w')) || 1000;
@@ -1945,7 +1945,7 @@
                         if (!bestSheet) {
                             document.getElementById('res-size').innerText = `${cDrawW} x ${cDrawH}`;
                         }
-                        drawCanvas('canvas-cover', cDrawW, cDrawH, cBestLayout, cg, cw, ch, cb);
+                        drawCanvas('canvas-cover', cDrawW, cDrawH, cBestLayout, cg, cw, ch, cb, false, 0, '#f43f5e', true);
 
                         // --- VIZUALIZACIJA RAZREZA OVITKA ---
                         let sourceYieldC = drawSourceLayoutCanvas('canvas-source-cover', swc, shc, cBestSheet.w, cBestSheet.h, '#f43f5e');
@@ -2952,7 +2952,7 @@
                 if (show) renderBasket();
             }
 
-            function drawCanvas(canvasId, sheetW, sheetH, layout, gripper, origW, origH, bleed, isManualMatch = false, manualTarget = 0) {
+            function drawCanvas(canvasId, sheetW, sheetH, layout, gripper, origW, origH, bleed, isManualMatch = false, manualTarget = 0, themeColor = '#3b82f6', isCover = false) {
                 const canvas = document.getElementById(canvasId);
                 const ctx = canvas.getContext('2d');
                 canvas.style.display = 'block';
@@ -3017,7 +3017,8 @@
                 ctx.font = 'bold ' + (canvas.height * 0.3) + 'px Inter';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillStyle = isManualMatch ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.08)';
+                let waterColor = isCover ? 'rgba(244, 63, 94, 0.08)' : (isManualMatch ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.08)');
+                ctx.fillStyle = waterColor;
                 ctx.fillText(isManualMatch ? targetCount : layout.count, canvas.width / 2, canvas.height / 2);
                 ctx.restore();
 
@@ -3041,16 +3042,19 @@
                         const h = layout.itemH * scale;
 
                         // Polnilo stavka
-                        ctx.fillStyle = isManualMatch ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)';
+                        let rectFill = isCover ? 'rgba(244, 63, 94, 0.15)' : (isManualMatch ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)');
+                        let rectStroke = isCover ? '#f43f5e' : (isManualMatch ? '#d97706' : '#2563eb');
+
+                        ctx.fillStyle = rectFill;
                         ctx.globalAlpha = 0.8;
                         ctx.fillRect(x, y, w, h);
                         ctx.globalAlpha = 1.0;
-                        ctx.strokeStyle = '#2563eb';
+                        ctx.strokeStyle = rectStroke;
                         ctx.lineWidth = 1;
                         ctx.strokeRect(x, y, w, h);
 
                         // Bleed rob
-                        ctx.strokeStyle = isManualMatch ? 'rgba(245, 158, 11, 0.5)' : 'rgba(59, 130, 246, 0.5)';
+                        ctx.strokeStyle = isCover ? 'rgba(244, 63, 94, 0.5)' : (isManualMatch ? 'rgba(245, 158, 11, 0.5)' : 'rgba(59, 130, 246, 0.5)');
                         ctx.lineWidth = 1;
                         ctx.strokeRect(x, y, w, h);
 
@@ -3060,7 +3064,7 @@
                         const bX = bleed * scale;
                         const bY = bleed * scale;
 
-                        ctx.strokeStyle = isManualMatch ? '#d97706' : '#2563eb';
+                        ctx.strokeStyle = isCover ? '#f43f5e' : (isManualMatch ? '#d97706' : '#2563eb');
                         ctx.setLineDash([2, 2]);
                         ctx.strokeRect(x + bX, y + bY, innerW, innerH);
                         ctx.setLineDash([]);
@@ -3068,7 +3072,7 @@
                         // Dimenzije v sredini vsakega stavka
                         ctx.save();
                         ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
-                        ctx.fillStyle = isManualMatch ? '#92400e' : '#1e40af';
+                        ctx.fillStyle = isCover ? '#9d174d' : (isManualMatch ? '#92400e' : '#1e40af');
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillText(`${origW}x${origH}`, x + (w / 2), y + (h / 2));
@@ -3083,9 +3087,11 @@
                 ctx.font = 'bold 12px Inter';
                 const infoText = `Pola: ${sheetW}x${sheetH} | Stavek: ${origW}x${origH} | Ups: ${isManualMatch ? targetCount : layout.count}`;
                 const tw = ctx.measureText(infoText).width;
-                ctx.fillStyle = isManualMatch ? 'rgba(251, 191, 36, 0.9)' : 'rgba(59, 130, 246, 0.9)';
+                let badgeColor = isCover ? 'rgba(244, 63, 94, 0.9)' : (isManualMatch ? 'rgba(251, 191, 36, 0.9)' : 'rgba(59, 130, 246, 0.9)');
+                let badgeTextColor = (isCover || !isManualMatch) ? '#ffffff' : '#92400e';
+                ctx.fillStyle = badgeColor;
                 ctx.fillRect(10, 10, tw + 20, 25);
-                ctx.fillStyle = isManualMatch ? '#92400e' : '#ffffff';
+                ctx.fillStyle = badgeTextColor;
                 ctx.fillText(infoText, 20, 16);
                 ctx.restore();
 
