@@ -519,9 +519,15 @@
                         <label>Pakiranje (kos / škatlo)</label>
                         <input type="number" id="calc-packaging" value="500" onchange="calculate()">
                     </div>
-                    <div class="form-group">
-                        <label>Pribitek / Marža (%)</label>
-                        <input type="number" id="calc-margin" value="0" onchange="calculate()">
+                    <div class="form-group" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 10px; display: flex; gap: 0.5rem; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                            <label style="color: #f59e0b; margin: 0; font-weight: bold;">Pribitek / Marža (%)</label>
+                            <input type="number" id="calc-margin" value="0" onchange="calculate()" style="border-color: #f59e0b; width: 80px;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(239, 68, 68, 0.1); padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                            <input type="checkbox" id="calc-minus-price" onchange="calculate()" style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
+                            <label for="calc-minus-price" style="font-weight:bold; color: #ef4444; margin: 0; cursor: pointer;">Minus cena 4,8%</label>
+                        </div>
                     </div>
                 </div>
 
@@ -1128,7 +1134,11 @@
             }
             const additionalCost = persCost + manualCost;
 
-            const subtotal = materialCost + totalPlatePrepCost + colorChangeCost + printCost + additionalCost + commercialCost;
+            let subtotal = materialCost + totalPlatePrepCost + colorChangeCost + printCost + additionalCost + commercialCost;
+
+            if (document.getElementById('calc-minus-price') && document.getElementById('calc-minus-price').checked) {
+                subtotal = subtotal * 0.952; // -4.8%
+            }
 
             const marginAmount = (subtotal * margin) / 100;
             const finalTotal = subtotal + marginAmount;
@@ -1614,7 +1624,8 @@
                     usePers: document.getElementById('calc-use-personalization').checked,
                     useManual: document.getElementById('calc-use-manual-work').checked,
                     waste: document.getElementById('calc-waste').value,
-                    commercial: document.getElementById('calc-commercial').value
+                    commercial: document.getElementById('calc-commercial').value,
+                    minusPrice: document.getElementById('calc-minus-price') ? document.getElementById('calc-minus-price').checked : false
                 },
                 results: {
                     total: document.getElementById('sticky-price-total-bottom').innerText,
@@ -1670,7 +1681,8 @@
                         usePers: document.getElementById('calc-use-personalization').checked,
                         useManual: document.getElementById('calc-use-manual-work').checked,
                         waste: document.getElementById('calc-waste').value,
-                        commercial: document.getElementById('calc-commercial').value
+                        commercial: document.getElementById('calc-commercial').value,
+                        minusPrice: document.getElementById('calc-minus-price') ? document.getElementById('calc-minus-price').checked : false
                     },
                     results: {
                         total: document.getElementById('sticky-price-total-bottom').innerText,
@@ -1759,6 +1771,9 @@
             setV('calc-use-manual-work', inp.useManual, true);
             setV('calc-waste', inp.waste);
             setV('calc-commercial', inp.commercial);
+            if (document.getElementById('calc-minus-price')) {
+                document.getElementById('calc-minus-price').checked = inp.minusPrice || false;
+            }
 
             setV('calc-project-name', proj.name);
             if (typeof calculate === 'function') calculate();
