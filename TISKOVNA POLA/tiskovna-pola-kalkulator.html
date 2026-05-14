@@ -2628,6 +2628,46 @@
             ctx.fillText(`${sheetH} mm`, 0, 0);
             ctx.restore();
 
+            // Grain direction indicator
+            const sw_v = parseFloat(document.getElementById('calc-source-w').value) || 1000;
+            const sh_v = parseFloat(document.getElementById('calc-source-h').value) || 700;
+            const y1_v = Math.floor(sw_v / sheetW) * Math.floor(sh_v / sheetH);
+            const y2_v = Math.floor(sw_v / sheetH) * Math.floor(sh_v / sheetW);
+            const isGrainV = y1_v >= y2_v;
+
+            ctx.save();
+            ctx.strokeStyle = '#ef4444';
+            ctx.setLineDash([12, 6]);
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.4; // Bolj prosojno, ker je v sredini
+
+            if (isGrainV) {
+                const midX = canvas.width / 2;
+                ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, canvas.height - 40); ctx.stroke();
+                ctx.fillStyle = '#ef4444'; ctx.setLineDash([]);
+                ctx.beginPath(); ctx.moveTo(midX, 25); ctx.lineTo(midX - 6, 40); ctx.lineTo(midX + 6, 40); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(midX, canvas.height - 25); ctx.lineTo(midX - 6, canvas.height - 40); ctx.lineTo(midX + 6, canvas.height - 40); ctx.fill();
+
+                ctx.save();
+                ctx.translate(midX - 10, canvas.height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 11px Inter';
+                ctx.fillText('SMER VLAKEN', 0, 0);
+                ctx.restore();
+            } else {
+                const midY = canvas.height / 2;
+                ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(canvas.width - 40, midY); ctx.stroke();
+                ctx.fillStyle = '#ef4444'; ctx.setLineDash([]);
+                ctx.beginPath(); ctx.moveTo(25, midY); ctx.lineTo(40, midY - 6); ctx.lineTo(40, midY + 6); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(canvas.width - 15, midY); ctx.lineTo(canvas.width - 40, midY - 6); ctx.lineTo(canvas.width - 40, midY + 6); ctx.fill();
+
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 11px Inter';
+                ctx.fillText('SMER VLAKEN', canvas.width / 2, midY - 10);
+            }
+            ctx.restore();
+
             // Prikaz opozorila za ročni vnos (namesto roza barve)
             if (isOverride) {
                 // Glow obroba

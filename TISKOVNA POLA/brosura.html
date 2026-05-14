@@ -3207,6 +3207,53 @@
                 const startX = offsetX + ((usableW - gridTotalW) / 2);
                 const startY = offsetY + ((usableH - gridTotalH) / 2);
 
+                // Grain direction indicator
+                let sw_v, sh_v;
+                if (canvasId === 'canvas-leaves') {
+                    sw_v = parseFloat(gV('calc-source-w')) || 1000;
+                    sh_v = parseFloat(gV('calc-source-h')) || 700;
+                } else {
+                    sw_v = parseFloat(gV('calc-source-cover-w')) || 1000;
+                    sh_v = parseFloat(gV('calc-source-cover-h')) || 700;
+                }
+
+                const y1_v = Math.floor(sw_v / sheetW) * Math.floor(sh_v / sheetH);
+                const y2_v = Math.floor(sw_v / sheetH) * Math.floor(sh_v / sheetW);
+                const isGrainV = y1_v >= y2_v;
+
+                ctx.save();
+                ctx.strokeStyle = '#ef4444';
+                ctx.setLineDash([12, 6]);
+                ctx.lineWidth = 1.5;
+                ctx.globalAlpha = 0.4; // Bolj prosojno, ker je v sredini
+
+                if (isGrainV) {
+                    const midX = canvas.width / 2;
+                    ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, canvas.height - 40); ctx.stroke();
+                    ctx.fillStyle = '#ef4444'; ctx.setLineDash([]);
+                    ctx.beginPath(); ctx.moveTo(midX, 25); ctx.lineTo(midX - 6, 40); ctx.lineTo(midX + 6, 40); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(midX, canvas.height - 25); ctx.lineTo(midX - 6, canvas.height - 40); ctx.lineTo(midX + 6, canvas.height - 40); ctx.fill();
+
+                    ctx.save();
+                    ctx.translate(midX - 10, canvas.height / 2);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.textAlign = 'center';
+                    ctx.font = 'bold 11px Inter';
+                    ctx.fillText('SMER VLAKEN', 0, 0);
+                    ctx.restore();
+                } else {
+                    const midY = canvas.height / 2;
+                    ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(canvas.width - 40, midY); ctx.stroke();
+                    ctx.fillStyle = '#ef4444'; ctx.setLineDash([]);
+                    ctx.beginPath(); ctx.moveTo(25, midY); ctx.lineTo(40, midY - 6); ctx.lineTo(40, midY + 6); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(canvas.width - 15, midY); ctx.lineTo(canvas.width - 40, midY - 6); ctx.lineTo(canvas.width - 40, midY + 6); ctx.fill();
+
+                    ctx.textAlign = 'center';
+                    ctx.font = 'bold 11px Inter';
+                    ctx.fillText('SMER VLAKEN', canvas.width / 2, midY - 10);
+                }
+                ctx.restore();
+
                 for (let r = 0; r < layout.rows; r++) {
                     for (let c = 0; c < layout.cols; c++) {
                         const x = (startX + (c * layout.itemW)) * scale;
