@@ -1066,6 +1066,17 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Pranje barv Listi -->
+                    <div class="form-group"
+                        style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed rgba(255, 255, 255, 0.1);">
+                        <label>Pranje / Menjava barv (število pranj)</label>
+                        <div style="display: flex; gap: 0.2rem;">
+                            <input type="number" id="calc-color-washes-leaves" value="0" min="0" step="1"
+                                onchange="calculatePrice()" style="flex: 1;" placeholder="Št.">
+                            <input type="number" id="calc-wash-price-leaves" value="25.00" step="1"
+                                onchange="calculatePrice()" style="flex: 1;" placeholder="€/pranje">
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 3. TISK OVITEK -->
@@ -1185,6 +1196,17 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Pranje barv Ovitek -->
+                    <div class="form-group"
+                        style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed rgba(255, 255, 255, 0.1);">
+                        <label>Pranje / Menjava barv (število pranj)</label>
+                        <div style="display: flex; gap: 0.2rem;">
+                            <input type="number" id="calc-color-washes-cover" value="0" min="0" step="1"
+                                onchange="calculatePrice()" style="flex: 1;" placeholder="Št.">
+                            <input type="number" id="calc-wash-price-cover" value="25.00" step="1"
+                                onchange="calculatePrice()" style="flex: 1;" placeholder="€/pranje">
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 3b. Podrobna Specifikacija -->
@@ -1286,6 +1308,24 @@
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Urna post. (€/h)</small></label>
                                     <input type="number" id="f-razrez-format-rate" value="20.00"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
+
+                            <!-- Razrez materiala (pred tiskom) -->
+                            <div class="finish-item" id="row-finish-precut">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-precut-active" onchange="toggleFinishRow('precut')">
+                                    Razrez materiala (pred tiskom)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Priprava noža (€)</small></label>
+                                    <input type="number" id="f-precut-prep" value="2.50" step="0.5"
+                                        onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena na 1000 pol (€)</small></label>
+                                    <input type="number" id="f-precut-per1000" value="3.60" step="0.1"
                                         onchange="calculatePrice()">
                                 </div>
                             </div>
@@ -2435,7 +2475,11 @@
                         let mutChangePriceL = parseFloat(gV('calc-mut-change-price-leaves')) || 0;
                         let mutationCostL = mutNumL * (mutPlatesL * platesPriceL + mutChangePriceL);
 
-                        totalPrepCostL = (isPlatesActiveL ? (platesNumL * platesPriceL) : 0) + prepPriceL + mutationCostL;
+                        let washesNumL = parseInt(gV('calc-color-washes-leaves')) || 0;
+                        let washPriceL = parseFloat(gV('calc-wash-price-leaves')) || 25;
+                        let washCostL = washesNumL * washPriceL;
+
+                        totalPrepCostL = (isPlatesActiveL ? (platesNumL * platesPriceL) : 0) + prepPriceL + mutationCostL + washCostL;
 
                         let mRateL = parseFloat(document.getElementById('calc-machine-rate-leaves').value) || 0;
                         let mSpeedL = parseFloat(document.getElementById('calc-machine-speed-leaves').value) || 10000;
@@ -2465,7 +2509,11 @@
                         let mutChangePriceC = parseFloat(gV('calc-mut-change-price-cover')) || 0;
                         let mutationCostC = mutNumC * (mutPlatesC * platesPriceC + mutChangePriceC);
 
-                        totalPrepCostC = (isPlatesActiveC ? (platesNumC * platesPriceC) : 0) + prepPriceC + mutationCostC;
+                        let washesNumC = parseInt(gV('calc-color-washes-cover')) || 0;
+                        let washPriceC = parseFloat(gV('calc-wash-price-cover')) || 25;
+                        let washCostC = washesNumC * washPriceC;
+
+                        totalPrepCostC = (isPlatesActiveC ? (platesNumC * platesPriceC) : 0) + prepPriceC + mutationCostC + washCostC;
 
                         let mRateC = parseFloat(document.getElementById('calc-machine-rate-cover').value) || 0;
                         let mSpeedC = parseFloat(document.getElementById('calc-machine-speed-cover').value) || 10000;
@@ -3857,6 +3905,12 @@
                         setV('f-tool-active', f.tool.active, true);
                         setV('f-tool-cost', f.tool.cost);
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('tool');
+                    }
+                    if (f.precut) {
+                        if (document.getElementById('f-precut-active')) document.getElementById('f-precut-active').checked = f.precut.active;
+                        if (document.getElementById('f-precut-prep')) document.getElementById('f-precut-prep').value = f.precut.prep || 2.50;
+                        if (document.getElementById('f-precut-per1000')) document.getElementById('f-precut-per1000').value = f.precut.per1000 || 3.60;
+                        toggleFinishRow('precut');
                     }
                     if (f.uv) {
                         setV('f-uv-active', f.uv.active, true);
