@@ -943,6 +943,25 @@
                                 </div>
                             </div>
 
+                            <!-- Razrez na format -->
+                            <div class="finish-item" id="row-finish-razrez-format">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-razrez-format-active"
+                                        onchange="toggleFinishRow('razrez-format')">
+                                    Razrez na format
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Normativ (pol/h)</small></label>
+                                    <input type="number" id="f-razrez-format-speed" value="5800"
+                                        onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Urna post. (€/h)</small></label>
+                                    <input type="number" id="f-razrez-format-rate" value="20.00"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
+
                             <!-- Orodje -->
                             <div class="finish-item" id="row-finish-tool">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
@@ -1227,6 +1246,7 @@
                 list.push(`Zgibanje (${f}x)`);
             }
             if (document.getElementById('f-noz-active').checked) list.push('Razrez');
+            if (document.getElementById('f-razrez-format-active').checked) list.push('Razrez na format');
             if (document.getElementById('f-sivanje-active').checked) list.push('Šivanje');
             if (document.getElementById('f-lepljenje-active').checked) list.push('Lepljenje');
             if (document.getElementById('f-spiral-active').checked) list.push('Špiraljenje');
@@ -2092,6 +2112,11 @@
             if (document.getElementById('f-noz-active').checked) {
                 totalFinishCost += ((parseFloat(document.getElementById('f-noz-time').value) || 0) / 60) * (parseFloat(document.getElementById('f-noz-rate').value) || 0);
             }
+            if (document.getElementById('f-razrez-format-active').checked) {
+                const spd = parseFloat(document.getElementById('f-razrez-format-speed').value) || 5800;
+                const rte = parseFloat(document.getElementById('f-razrez-format-rate').value) || 20;
+                totalFinishCost += (totalSheetsNeeded / spd) * rte;
+            }
             if (document.getElementById('f-sivanje-active').checked) {
                 totalFinishCost += (parseFloat(document.getElementById('f-sivanje-prep').value) || 0) + (qty / 1000) * (parseFloat(document.getElementById('f-sivanje-per1000').value) || 0);
             }
@@ -2196,6 +2221,17 @@
                     name: 'Razrez',
                     cost: nCost,
                     breakdown: `Čas dela: ${nTime} min | Urna post.: ${formatPrice(nRate)}/h`
+                });
+            }
+            if (document.getElementById('f-razrez-format-active').checked) {
+                const spd = parseFloat(document.getElementById('f-razrez-format-speed').value) || 5800;
+                const rte = parseFloat(document.getElementById('f-razrez-format-rate').value) || 20;
+                const hrs = totalSheetsNeeded / spd;
+                let cost = hrs * rte;
+                details.finish.items.push({
+                    name: 'Razrez na format',
+                    cost: cost,
+                    breakdown: `Norma: ${spd} pol/h | Čas: ${hrs.toFixed(2)} h (${formatPrice(cost)})`
                 });
             }
             if (document.getElementById('f-sivanje-active').checked) {
@@ -2936,6 +2972,7 @@
                             cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
                             zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
                             noz: { active: gc('f-noz-active'), time: gv('f-noz-time'), rate: gv('f-noz-rate') },
+                            razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                             sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
                             lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
                             spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
@@ -3026,6 +3063,7 @@
                             cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
                             zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
                             noz: { active: gc('f-noz-active'), time: gv('f-noz-time'), rate: gv('f-noz-rate') },
+                            razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                             sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
                             lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
                             spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
@@ -3307,6 +3345,12 @@
                     document.getElementById('f-noz-time').value = f.noz.time;
                     document.getElementById('f-noz-rate').value = f.noz.rate;
                     toggleFinishRow('noz');
+                }
+                if (f.razrezFormat) {
+                    document.getElementById('f-razrez-format-active').checked = f.razrezFormat.active;
+                    document.getElementById('f-razrez-format-speed').value = f.razrezFormat.speed || 5800;
+                    document.getElementById('f-razrez-format-rate').value = f.razrezFormat.rate || 20.00;
+                    toggleFinishRow('razrez-format');
                 }
                 if (f.sivanje) {
                     document.getElementById('f-sivanje-active').checked = f.sivanje.active;
