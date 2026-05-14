@@ -616,6 +616,25 @@
                             </div>
                         </div>
                     </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" id="f-delivery-active" onchange="calculate()" style="width: auto;">
+                                Dostava (Pošta)
+                            </label>
+                            <div style="display: flex; gap: 0.2rem;">
+                                <input type="number" id="f-post-count" value="0" placeholder="Št." onchange="calculate()" style="flex: 1;">
+                                <input type="number" id="f-post-price-per" value="0.00" step="0.01" placeholder="€" onchange="calculate()" style="flex: 1;">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" id="f-del-fixed-active" onchange="calculate()" style="width: auto;">
+                                Dostava (Fiksno)
+                            </label>
+                            <input type="number" id="f-del-fixed-price" value="0.00" step="0.01" placeholder="Cena €" onchange="calculate()">
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label>Komerciala / Admin (€)</label>
                         <input type="number" id="calc-commercial" value="10.00" step="0.5" onchange="calculate()">
@@ -739,6 +758,9 @@
             const useManual = document.getElementById('calc-use-manual-work').checked;
             if (useManual) finishingParts.push('Ročna dela');
 
+            if (document.getElementById('f-delivery-active') && document.getElementById('f-delivery-active').checked) finishingParts.push('Dostava pošti');
+            if (document.getElementById('f-del-fixed-active') && document.getElementById('f-del-fixed-active').checked) finishingParts.push('Fiksna dostava');
+
             const item = {
                 id: Date.now(),
                 type: 'Kuverte',
@@ -854,6 +876,9 @@
                 if (usePers && persCount > 0) finishingParts.push('Personalizacija (' + formatQty(persCount) + ' kos)');
                 const useManual = document.getElementById('calc-use-manual-work').checked;
                 if (useManual) finishingParts.push('Ročna dela');
+
+                if (document.getElementById('f-delivery-active') && document.getElementById('f-delivery-active').checked) finishingParts.push('Dostava pošti');
+                if (document.getElementById('f-del-fixed-active') && document.getElementById('f-del-fixed-active').checked) finishingParts.push('Fiksna dostava');
 
                 itemsToRender.push({
                     name: projectName,
@@ -1104,8 +1129,13 @@
             const waste = parseFloat(document.getElementById('calc-waste').value) || 0;
             const commercialCost = parseFloat(document.getElementById('calc-commercial').value) || 0;
 
-
-
+            let deliveryCost = 0;
+            if (document.getElementById('f-delivery-active') && document.getElementById('f-delivery-active').checked) {
+                deliveryCost += (parseFloat(document.getElementById('f-post-count').value) || 0) * (parseFloat(document.getElementById('f-post-price-per').value) || 0);
+            }
+            if (document.getElementById('f-del-fixed-active') && document.getElementById('f-del-fixed-active').checked) {
+                deliveryCost += parseFloat(document.getElementById('f-del-fixed-price').value) || 0;
+            }
 
             const totalQ = q + qo + waste;
             const materialCost = (totalQ / 1000) * mPrice;
@@ -1134,11 +1164,13 @@
             }
             const additionalCost = persCost + manualCost;
 
-            let subtotal = materialCost + totalPlatePrepCost + colorChangeCost + printCost + additionalCost + commercialCost;
+            let subtotalWithoutDelivery = materialCost + totalPlatePrepCost + colorChangeCost + printCost + additionalCost + commercialCost;
 
             if (document.getElementById('calc-minus-price') && document.getElementById('calc-minus-price').checked) {
-                subtotal = subtotal * 0.952; // -4.8%
+                subtotalWithoutDelivery = subtotalWithoutDelivery * 0.952; // -4.8%
             }
+
+            let subtotal = subtotalWithoutDelivery + deliveryCost;
 
             const marginAmount = (subtotal * margin) / 100;
             const finalTotal = subtotal + marginAmount;
@@ -1168,6 +1200,7 @@
                     print: { cost: printCost, speed: mSpeed, rate: mRate },
                     additional: { cost: additionalCost, persCost, manualCost },
                     commercial: { cost: commercialCost },
+                    delivery: { cost: deliveryCost },
                     margin: { amount: marginAmount, percent: margin },
                     finalTotal
                 }
@@ -1216,11 +1249,12 @@
                 </div>
                 ` : ''}
     
-                ${details.commercial.cost > 0 ? `
+                ${(details.commercial.cost > 0 || details.delivery.cost > 0) ? `
                 <div style="padding: 10px; background: rgba(251, 191, 36, 0.05); border-radius: 8px;">
                     <div style="font-weight: bold; color: #fbbf24; margin-bottom: 5px;">6. Ostalo</div>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                        <span>Komerciala / Admin:</span> <span>${formatPrice(details.commercial.cost)}</span>
+                        ${details.commercial.cost > 0 ? `<span>Komerciala / Admin:</span> <span>${formatPrice(details.commercial.cost)}</span>` : ''}
+                        ${details.delivery.cost > 0 ? `<span>Dostava:</span> <span>${formatPrice(details.delivery.cost)}</span>` : ''}
                     </div>
                 </div>
                 ` : ''}
@@ -1625,6 +1659,11 @@
                     useManual: document.getElementById('calc-use-manual-work').checked,
                     waste: document.getElementById('calc-waste').value,
                     commercial: document.getElementById('calc-commercial').value,
+                    deliveryActive: document.getElementById('f-delivery-active') ? document.getElementById('f-delivery-active').checked : false,
+                    postCount: document.getElementById('f-post-count') ? document.getElementById('f-post-count').value : '',
+                    postPricePer: document.getElementById('f-post-price-per') ? document.getElementById('f-post-price-per').value : '',
+                    delFixedActive: document.getElementById('f-del-fixed-active') ? document.getElementById('f-del-fixed-active').checked : false,
+                    delFixedPrice: document.getElementById('f-del-fixed-price') ? document.getElementById('f-del-fixed-price').value : '',
                     minusPrice: document.getElementById('calc-minus-price') ? document.getElementById('calc-minus-price').checked : false
                 },
                 results: {
@@ -1682,6 +1721,11 @@
                         useManual: document.getElementById('calc-use-manual-work').checked,
                         waste: document.getElementById('calc-waste').value,
                         commercial: document.getElementById('calc-commercial').value,
+                        deliveryActive: document.getElementById('f-delivery-active') ? document.getElementById('f-delivery-active').checked : false,
+                        postCount: document.getElementById('f-post-count') ? document.getElementById('f-post-count').value : '',
+                        postPricePer: document.getElementById('f-post-price-per') ? document.getElementById('f-post-price-per').value : '',
+                        delFixedActive: document.getElementById('f-del-fixed-active') ? document.getElementById('f-del-fixed-active').checked : false,
+                        delFixedPrice: document.getElementById('f-del-fixed-price') ? document.getElementById('f-del-fixed-price').value : '',
                         minusPrice: document.getElementById('calc-minus-price') ? document.getElementById('calc-minus-price').checked : false
                     },
                     results: {
@@ -1771,6 +1815,11 @@
             setV('calc-use-manual-work', inp.useManual, true);
             setV('calc-waste', inp.waste);
             setV('calc-commercial', inp.commercial);
+            if (document.getElementById('f-delivery-active')) document.getElementById('f-delivery-active').checked = inp.deliveryActive || false;
+            setV('f-post-count', inp.postCount);
+            setV('f-post-price-per', inp.postPricePer);
+            if (document.getElementById('f-del-fixed-active')) document.getElementById('f-del-fixed-active').checked = inp.delFixedActive || false;
+            setV('f-del-fixed-price', inp.delFixedPrice);
             if (document.getElementById('calc-minus-price')) {
                 document.getElementById('calc-minus-price').checked = inp.minusPrice || false;
             }
