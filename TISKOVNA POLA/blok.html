@@ -1227,14 +1227,15 @@
 
                             <!-- Marža / RVC (Prestali sem jo sem po želji uporabnika) -->
                             <div class="finish-item"
-                                style="background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3);">
-                                <label
-                                    style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; color: #f59e0b;">
-                                    RVC / Marža (%)
-                                </label>
-                                <div class="form-group" style="margin:0;">
+                                style="background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); display: flex; gap: 0.5rem; align-items: center; justify-content: space-between; padding: 10px;">
+                                <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                                    <label style="font-weight:bold; color: #f59e0b; margin: 0;">RVC / Marža (%)</label>
                                     <input type="number" id="calc-margin" value="0" step="1" onchange="calculatePrice()"
-                                        style="border-color: #f59e0b;">
+                                        style="border-color: #f59e0b; width: 80px;">
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(239, 68, 68, 0.1); padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                                    <input type="checkbox" id="calc-minus-price" onchange="calculatePrice()" style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
+                                    <label for="calc-minus-price" style="font-weight:bold; color: #ef4444; margin: 0; cursor: pointer;">Minus cena 4,8%</label>
                                 </div>
                             </div>
                         </div>
@@ -2481,8 +2482,22 @@
                     }
 
                     // 5. SKUPAJ IN RVC
+                    let deliveryCost = 0;
+                    if (document.getElementById('f-delivery-active').checked) {
+                        deliveryCost += (parseFloat(document.getElementById('f-delivery-km').value) || 0) * (parseFloat(document.getElementById('f-delivery-rate').value) || 0);
+                    }
+                    if (document.getElementById('f-del-fixed-active').checked) {
+                        deliveryCost += parseFloat(document.getElementById('f-del-fixed-cost').value) || 0;
+                    }
+
                     let commercialCost = parseFloat(document.getElementById('calc-commercial').value) || 0;
-                    let subtotal = paperCost + totalPrepCost + totalPrintCost + totalFinishCost + commercialCost;
+                    let subtotalWithoutDelivery = paperCost + totalPrepCost + totalPrintCost + (totalFinishCost - deliveryCost) + commercialCost;
+
+                    if (document.getElementById('calc-minus-price').checked) {
+                        subtotalWithoutDelivery = subtotalWithoutDelivery * 0.952; // -4.8%
+                    }
+
+                    let subtotal = subtotalWithoutDelivery + deliveryCost;
                     let marginPercent = parseFloat(document.getElementById('calc-margin').value) || 0;
                     let totalMargin = subtotal * (marginPercent / 100);
                     let totalPrice = subtotal + totalMargin;
@@ -3345,6 +3360,7 @@
                             wasteC: gv('calc-paper-waste-cover'),
                             commercial: gv('calc-commercial'),
                             margin: gv('calc-margin'),
+                            minusPrice: gc('calc-minus-price'),
                             finish: {
                                 cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
                                 zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
@@ -3599,6 +3615,7 @@
                 if (typeof toggleCbSupplyCustom === 'function') toggleCbSupplyCustom();
                 setV('calc-commercial', inp.commercial || 10);
                 setV('calc-margin', inp.margin);
+                if (document.getElementById('calc-minus-price')) document.getElementById('calc-minus-price').checked = inp.minusPrice || false;
 
                 // Load Header Extras
                 setV('gripper', inp.gripper);
@@ -3801,6 +3818,7 @@
                             wasteC: gv('calc-paper-waste-cover'),
                             commercial: gv('calc-commercial'),
                             margin: gv('calc-margin'),
+                            minusPrice: gc('calc-minus-price'),
                             finish: {
                                 cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
                                 zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
