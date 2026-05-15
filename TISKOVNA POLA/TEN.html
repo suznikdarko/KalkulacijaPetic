@@ -766,10 +766,10 @@
                     <div class="form-group">
                         <label>Cena papirja</label>
                         <div class="input-group">
-                            <input type="number" id="calc-paper-price" value="" step="0.01" placeholder="Vnesite ceno"
+                            <input type="number" id="calc-paper-price" value="1500" step="1" placeholder="Vnesite ceno"
                                 onchange="calculatePrice()">
-                            <select id="calc-paper-unit">
-                                <option value="ton">na tono</option>
+                            <select id="calc-paper-unit" onchange="calculatePrice()">
+                                <option value="ton" selected>na tono</option>
                                 <option value="1000">na 1000 pol</option>
                                 <option value="1">na 1 polo</option>
                             </select>
@@ -777,7 +777,8 @@
                     </div>
                     <div class="form-group">
                         <label>Gramatura (g/m²)</label>
-                        <input type="number" id="calc-paper-weight" value="" placeholder="g/m²" onchange="calculate()">
+                        <input type="number" id="calc-paper-weight" value="90" placeholder="g/m²"
+                            onchange="calculate()">
                     </div>
                     <div class="form-group">
                         <label>Vrsta materiala (mat, glos...)</label>
@@ -787,11 +788,11 @@
                         <label>Število barv (Lice / Hrbet)</label>
                         <div class="input-group" style="display: flex; gap: 0.5rem;">
                             <select id="calc-color-front" onchange="updateWasteAndPrice()">
-                                <option value="0" selected>0</option>
+                                <option value="0">0</option>
                                 <option value="1">1</option>
                                 <option value="2">2</option>
                                 <option value="3">3</option>
-                                <option value="4">4</option>
+                                <option value="4" selected>4</option>
                                 <option value="5">5</option>
                                 <option value="6">6</option>
                                 <option value="7">7</option>
@@ -1460,7 +1461,7 @@
             '1/0': { passes: 1, wasteImpressions: 175 },
             '2/0': { passes: 1, wasteImpressions: 200 },
             '3/0': { passes: 1, wasteImpressions: 250 },
-            '4/0': { passes: 1, wasteImpressions: 350 },
+            '4/0': { passes: 2, wasteImpressions: 480 },
             '5/0': { passes: 2, wasteImpressions: 850 },
             '6/0': { passes: 2, wasteImpressions: 1050 },
             '7/0': { passes: 2, wasteImpressions: 1250 },
@@ -1475,7 +1476,7 @@
         };
 
         const machineProfiles = {
-            'S4': { rate: 120, speed: 5000, prep: 10, useDynamic: true, maxW: 518, maxH: 348, defaultFormat: 'B3' },
+            'S4': { rate: 120, speed: 6000, prep: 10, useDynamic: true, maxW: 518, maxH: 348, defaultFormat: 'B3' },
             'S8': { rate: 150, speed: 6000, prep: 10, useDynamic: true, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'CD': { rate: 180, speed: 8000, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'SM4+lak': { rate: 160, speed: 7000, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
@@ -1880,8 +1881,10 @@
             const totalPlates = front + (isObrat ? 0 : back) + mutPlates;
             document.getElementById('calc-plates-num').value = totalPlates;
 
-            // Odstranjeno prisilno prepisovanje rate, speed in prep-time iz updateWasteAndPrice,
-            // tako da lahko uporabnik ročno vnese čas priprave in se ta ne povozi pri vsakem izračunu.
+            // Samodejno posodobi makulaturo glede na izbran barvni način
+            const colorMode = front + '/' + (isObrat ? 'OB' : back);
+            const rule = prepRules[colorMode] || { passes: 1, wasteImpressions: (front + back) * 150 };
+            document.getElementById('calc-paper-waste').value = rule.wasteImpressions;
 
             const qStr = document.getElementById('quantity').value || "0";
             const qArr = qStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
@@ -2122,27 +2125,26 @@
             let platesPrice = parseFloat(document.getElementById('calc-plates-price').value) || 0;
             let prepPrice = parseFloat(document.getElementById('calc-prep-price').value) || 0;
             let changePrice = parseFloat(document.getElementById('calc-change-price').value) || 0;
-            let numberOfChanges = Math.max(0, platesNum - 1);
-
+            let numberOfChanges = platesNum; // Boss računa vse menjave plošč
             let washesNum = parseInt(document.getElementById('calc-color-washes').value) || 0;
             let washPrice = parseFloat(document.getElementById('calc-wash-price').value) || 25;
             let washCost = washesNum * washPrice;
 
             let totalPrepCost = (platesNum * platesPrice) + prepPrice + (numberOfChanges * changePrice) + washCost;
 
-            let mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 0;
-            let mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 10000;
+            let mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 120;
+            let mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 6000;
             let mPrepInp = document.getElementById('calc-machine-prep-time').value;
             let mPrepTime = (mPrepInp === "" ? 10 : parseFloat(mPrepInp)) / 60;
 
             let printHours = (sheetsNeeded + paperWasteSheets) * mPasses / mSpeed;
-            let totalPrintCost = (printHours + mPrepTime) * mRate;
+            let totalPrintCost = printHours * mRate;
 
             let totalFinishCost = 0;
             if (document.getElementById('f-cilinder-active').checked) {
-                let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 20;
+                let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 20.80;
                 let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 40;
-                let cSpeed = paperWeight > 300 ? 1400 : (document.getElementById('f-tool-active')?.checked ? 1500 : 2000);
+                let cSpeed = 850; // Boss speed
                 totalFinishCost += cPrep + (totalSheetsNeeded / cSpeed) * cRate;
             }
             if (document.getElementById('f-zgibanje-active').checked) {
@@ -2151,12 +2153,12 @@
                 totalFinishCost += ((zFolds / 4) * 25) + (effectiveQty / zSpeed) * 50;
             }
             if (document.getElementById('f-noz-active').checked) {
-                totalFinishCost += ((parseFloat(document.getElementById('f-noz-time').value) || 0) / 60) * (parseFloat(document.getElementById('f-noz-rate').value) || 0);
+                totalFinishCost += 2.80 + ((parseFloat(document.getElementById('f-noz-time').value) || 0) / 60) * (parseFloat(document.getElementById('f-noz-rate').value) || 0);
             }
             if (document.getElementById('f-razrez-format-active').checked) {
                 const spd = parseFloat(document.getElementById('f-razrez-format-speed').value) || 5800;
                 const rte = parseFloat(document.getElementById('f-razrez-format-rate').value) || 20;
-                totalFinishCost += (totalSheetsNeeded / spd) * rte;
+                totalFinishCost += 2.80 + (totalSheetsNeeded / spd) * rte;
             }
             if (document.getElementById('f-sivanje-active').checked) {
                 totalFinishCost += (parseFloat(document.getElementById('f-sivanje-prep').value) || 0) + (effectiveQty / 1000) * (parseFloat(document.getElementById('f-sivanje-per1000').value) || 0);
@@ -2249,7 +2251,7 @@
             if (document.getElementById('f-cilinder-active').checked) {
                 let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 20;
                 let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 40;
-                let cSpeed = paperWeight > 300 ? 1400 : (document.getElementById('f-tool-active')?.checked ? 1500 : 2000);
+                let cSpeed = 850;
                 let workHours = totalSheetsNeeded / cSpeed;
                 let cWork = workHours * cRate;
                 let cCost = cPrep + cWork;
