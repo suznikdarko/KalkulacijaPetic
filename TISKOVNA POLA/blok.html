@@ -566,12 +566,14 @@
                     <input type="text" id="calc-leaves-material" placeholder="npr. 90g Offset"
                         style="padding: 0.75rem 1rem; font-size: 0.85rem;">
                 </div>
-                <div style="flex: 1.5; min-width: 140px;">
-                    <label>Dimenzije list (Š x V mm)</label>
+                <div style="flex: 2; min-width: 220px;">
+                    <label style="color: #60a5fa; font-weight: bold;">Dimenzije list (Š x V mm)</label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="number" id="width" value="" placeholder="Š" oninput="calculate()">
-                        <span style="color:var(--text-muted);">x</span>
-                        <input type="number" id="height" value="" placeholder="V" oninput="calculate()">
+                        <input type="text" id="width" value="" placeholder="Š" oninput="document.getElementById('items-per-sheet').value=''; calculate()"
+                            style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); flex: 1;">
+                        <span style="color:var(--text-muted); font-weight: bold;">x</span>
+                        <input type="text" id="height" value="" placeholder="V" oninput="document.getElementById('items-per-sheet').value=''; calculate()"
+                            style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); flex: 1;">
                     </div>
                 </div>
                 <div style="flex: 0.8; min-width: 80px;">
@@ -585,6 +587,10 @@
                 <div style="flex: 1; min-width: 120px;">
                     <label>št. listov v bloku</label>
                     <input type="number" id="calc-leaves" value="" onchange="calculate()">
+                </div>
+                <div style="flex: 1; min-width: 120px;">
+                    <label>Stavkov na poli</label>
+                    <input type="number" id="items-per-sheet" value="" placeholder="Avto" oninput="calculate()">
                 </div>
                 <div style="flex: 1.2; min-width: 140px;">
                     <label>število blokov (loči z vejico)</label>
@@ -628,7 +634,7 @@
 
             <div class="header-group">
                 <label>Format tiskarske pole</label>
-                <select id="machine-format" onchange="calculate()">
+                <select id="machine-format" onchange="document.getElementById('items-per-sheet').value=''; calculate()">
                     <option value="auto">Samodejno (B2 max)</option>
                     <option value="B2">B2 (698 x 498 mm)</option>
                     <option value="638x448">Izrez (638 x 448 mm)</option>
@@ -1653,7 +1659,10 @@
                 const el = document.getElementById(id);
                 if (el) el.innerText = text;
             }
-            // setV je že definiran spodaj, ga bomo prestavili sem ali pustili tam
+            function setV(id, val) {
+                const el = document.getElementById(id);
+                if (el) el.value = val;
+            }
 
             function calculate(isManual = false) {
                 const w = parseFloat(gV('width').replace(',', '.')) || 0;
@@ -2099,6 +2108,10 @@
             }
 
             function applyMachineDefaults(comp = 'leaves') {
+                if (comp === 'leaves') {
+                    const itemsInp = document.getElementById('items-per-sheet');
+                    if (itemsInp) itemsInp.value = "";
+                }
                 let mType = gV('calc-machine-type-' + comp);
                 let profile = machineProfiles[mType];
                 if (profile) {
