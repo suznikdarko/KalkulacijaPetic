@@ -945,18 +945,18 @@
                                     Zgibanje
                                 </label>
                                 <div class="form-group" style="margin:0;">
-                                    <label><small>Št. zgibov (1-4)</small></label>
+                                    <label><small>Št. zgibov (1-5)</small></label>
                                     <select id="f-zgibanje-folds" onchange="calculatePrice()">
                                         <option value="1" selected>1 zgib</option>
                                         <option value="2">2 zgiba</option>
                                         <option value="3">3 zgiba</option>
                                         <option value="4">4 zgibi</option>
+                                        <option value="5">5 zgibov</option>
                                     </select>
                                 </div>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Hitrost (kom/h)</small></label>
-                                    <input type="number" id="f-zgibanje-speed" value="10000"
-                                        onchange="calculatePrice()">
+                                    <input type="number" id="f-zgibanje-speed" value="6800" onchange="calculatePrice()">
                                 </div>
                             </div>
 
@@ -1489,6 +1489,33 @@
         let g_lastSheetW = 0, g_lastSheetH = 0, g_lastG = 0;
         let g_autoCount = 0;
 
+        function parseLocaleFloat(val) {
+            if (val == null) return 0;
+            if (typeof val === 'number') return val;
+            let clean = val.toString().trim();
+            if (!clean) return 0;
+            if (clean.includes('.') && clean.includes(',')) {
+                clean = clean.replace(/\./g, '').replace(/,/g, '.');
+            } else if (clean.includes(',')) {
+                clean = clean.replace(/,/g, '.');
+            }
+            const num = parseFloat(clean);
+            return isNaN(num) ? 0 : num;
+        }
+
+        function getFloatValue(id, defaultVal = 0) {
+            const el = document.getElementById(id);
+            if (!el) return defaultVal;
+            return parseLocaleFloat(el.value);
+        }
+
+        function getIntValue(id, defaultVal = 0) {
+            const el = document.getElementById(id);
+            if (!el) return defaultVal;
+            const val = parseInt(el.value);
+            return isNaN(val) ? defaultVal : val;
+        }
+
         function formatPrice(num, decimals = 2) {
             if (num == null || isNaN(num)) return "0,00";
             let parts = Number(num).toFixed(decimals).split('.');
@@ -1719,18 +1746,18 @@
         function calculate(isManual = false) {
             updateWarnings();
             try {
-                const w = parseFloat(document.getElementById('width').value) || 0;
-                const h = parseFloat(document.getElementById('height').value) || 0;
-                const b = parseFloat(document.getElementById('bleed').value) || 0;
-                const g = parseFloat(document.getElementById('gripper').value) || 0;
+                const w = getFloatValue('width');
+                const h = getFloatValue('height');
+                const b = getFloatValue('bleed');
+                const g = getFloatValue('gripper');
                 const qStr = document.getElementById('quantity').value || "0";
-                const qArr = qStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+                const qArr = qStr.split(',').map(x => parseLocaleFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
                 const q = qArr[0] || 0;
                 const fMode = document.getElementById('item-orientation').value;
                 const mFormat = document.getElementById('machine-format').value;
 
-                const sw = parseFloat(document.getElementById('calc-source-w').value) || 1000;
-                const sh = parseFloat(document.getElementById('calc-source-h').value) || 700;
+                const sw = getFloatValue('calc-source-w', 1000);
+                const sh = getFloatValue('calc-source-h', 700);
                 const mType = document.getElementById('calc-machine-type').value;
                 const profile = machineProfiles[mType];
 
@@ -2056,7 +2083,7 @@
         }
 
         function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH) {
-            let itemsPerSheet = parseInt(document.getElementById('items-per-sheet').value) || 0;
+            let itemsPerSheet = getIntValue('items-per-sheet');
             let sheetsNeeded = sheetsNeededIn;
 
             // TEN LOGIKA: Material, zgibanje in cilinder se delijo na pol
@@ -2065,10 +2092,9 @@
             if (itemsPerSheet > 0) {
                 sheetsNeeded = Math.ceil(effectiveQty / itemsPerSheet);
             } else {
-                if (sheetsNeeded === undefined) {
-                    sheetsNeeded = parseInt(document.getElementById('res-sheets-needed').innerText) || 0;
-                }
-                itemsPerSheet = parseInt(document.getElementById('res-count').innerText) || 1;
+                let autCount = g_lastBestLayout ? g_lastBestLayout.count : (parseInt(document.getElementById('res-count').innerText) || 1);
+                itemsPerSheet = autCount;
+                sheetsNeeded = Math.ceil(effectiveQty / autCount);
             }
 
             if (sheetsNeeded === 0) sheetsNeeded = 1;
@@ -2076,43 +2102,42 @@
             if (drawW === undefined || drawH === undefined) {
                 let sizeStr = document.getElementById('res-size').innerText.split('x');
                 if (sizeStr.length === 2) {
-                    drawW = parseFloat(sizeStr[0].trim());
-                    drawH = parseFloat(sizeStr[1].trim());
+                    drawW = parseLocaleFloat(sizeStr[0].trim());
+                    drawH = parseLocaleFloat(sizeStr[1].trim());
                 } else {
-                    drawW = parseFloat(document.getElementById('width').value) || 0;
-                    drawH = parseFloat(document.getElementById('height').value) || 0;
+                    drawW = getFloatValue('width');
+                    drawH = getFloatValue('height');
                 }
             }
 
-            let paperPrice = parseFloat(document.getElementById('calc-paper-price').value) || 0;
+            let paperPrice = getFloatValue('calc-paper-price');
             let paperUnit = document.getElementById('calc-paper-unit').value;
-            let paperWeight = parseFloat(document.getElementById('calc-paper-weight').value) || 0;
-            let paperWasteSheets = parseInt(document.getElementById('calc-paper-waste').value) || 0;
+            let paperWeight = getFloatValue('calc-paper-weight');
+            let paperWasteSheets = getIntValue('calc-paper-waste');
             let totalSheetsNeeded = sheetsNeeded + paperWasteSheets;
 
             let paperCost = 0;
-            let sourceW = parseFloat(document.getElementById('calc-source-w').value) || 1000;
-            let sourceH = parseFloat(document.getElementById('calc-source-h').value) || 700;
-            let sourceYield = parseFloat(document.getElementById('calc-source-yield').value) || 1;
+            let sourceW = getFloatValue('calc-source-w', 1000);
+            let sourceH = getFloatValue('calc-source-h', 700);
+            let sourceYield = getFloatValue('calc-source-yield', 1);
 
-            // Izračunamo koliko OSNOVNIH pol potrebujemo
+            // Izračunamo koliko OSNOVNIH pol potrebujemo (netto, brez dodatka)
+            let netSourceSheetsNeeded = Math.ceil(sheetsNeeded / sourceYield);
             let totalSourceSheetsNeeded = Math.ceil(totalSheetsNeeded / sourceYield);
 
             if (paperUnit === 'ton') {
                 let areaM2 = (sourceW / 1000) * (sourceH / 1000);
-                let weightKg = areaM2 * (paperWeight / 1000) * totalSourceSheetsNeeded;
+                let weightKg = areaM2 * (paperWeight / 1000) * netSourceSheetsNeeded;
                 paperCost = (weightKg / 1000) * paperPrice;
             } else if (paperUnit === '1000') {
                 // Cena na 1000 osnovnih pol
-                paperCost = (totalSourceSheetsNeeded / 1000) * paperPrice;
+                paperCost = (netSourceSheetsNeeded / 1000) * paperPrice;
             } else {
-                paperCost = totalSourceSheetsNeeded * paperPrice;
+                paperCost = netSourceSheetsNeeded * paperPrice;
             }
 
-            let frontRaw = parseInt(document.getElementById('calc-color-front').value);
-            let front = isNaN(frontRaw) ? 0 : frontRaw;
-            let backRaw = parseInt(document.getElementById('calc-color-back').value);
-            let back = isNaN(backRaw) ? 0 : backRaw;
+            let front = getIntValue('calc-color-front');
+            let back = getIntValue('calc-color-back');
             let isObrat = document.getElementById('calc-is-obrat').checked;
             let colorMode = front + '/' + (isObrat ? 'OB' : back);
             let prepPasses = Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0);
@@ -2120,85 +2145,89 @@
             let rule = prepRules[colorMode] || { passes: prepPasses, wasteImpressions: defaultWaste };
             let mPasses = rule.passes;
 
-            let mutPlates = parseInt(document.getElementById('calc-mut-plates').value) || 0;
-            let platesNum = (parseInt(document.getElementById('calc-plates-num').value) || (front + (isObrat ? 0 : back))) + mutPlates;
-            let platesPrice = parseFloat(document.getElementById('calc-plates-price').value) || 0;
-            let prepPrice = parseFloat(document.getElementById('calc-prep-price').value) || 0;
-            let changePrice = parseFloat(document.getElementById('calc-change-price').value) || 0;
-            let numberOfChanges = Math.max(0, platesNum - 1); // Boss računa menjave brez prve plošče
-            let washesNum = parseInt(document.getElementById('calc-color-washes').value) || 0;
-            let washPrice = parseFloat(document.getElementById('calc-wash-price').value) || 25;
+            let mutPlates = getIntValue('calc-mut-plates');
+            let platesNum = (getIntValue('calc-plates-num', front + (isObrat ? 0 : back))) + mutPlates;
+            let platesPrice = getFloatValue('calc-plates-price');
+            let prepPrice = getFloatValue('calc-prep-price');
+            let changePrice = getFloatValue('calc-change-price');
+            let numberOfChanges = Math.max(0, platesNum - 1);
+            let washesNum = getIntValue('calc-color-washes');
+            let washPrice = getFloatValue('calc-wash-price', 25);
             let washCost = washesNum * washPrice;
 
             let totalPrepCost = (platesNum * platesPrice) + prepPrice + (numberOfChanges * changePrice) + washCost;
 
-            let mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 120;
-            let mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 6000;
+            let mRate = getFloatValue('calc-machine-rate', 120);
+            let mSpeed = getFloatValue('calc-machine-speed', 6000);
             let mPrepInp = document.getElementById('calc-machine-prep-time').value;
-            let mPrepTime = (mPrepInp === "" ? 10 : parseFloat(mPrepInp)) / 60;
+            let mPrepTime = (mPrepInp === "" ? 10 : parseLocaleFloat(mPrepInp)) / 60;
 
             let printHours = (sheetsNeeded + paperWasteSheets) * mPasses / mSpeed;
             let totalPrintCost = printHours * mRate;
 
             let totalFinishCost = 0;
             if (document.getElementById('f-cilinder-active').checked) {
-                let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 20.80;
-                let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 40;
-                let cSpeed = 700; // Boss speed for high volume
-                totalFinishCost += cPrep + (totalSheetsNeeded / cSpeed) * cRate;
+                let cPrep = getFloatValue('f-cilinder-prep', 20.80);
+                let cRate = getFloatValue('f-cilinder-rate', 40);
+                let cSpeed = 2000;
+                totalFinishCost += cPrep + (sheetsNeeded / cSpeed) * cRate;
             }
             if (document.getElementById('f-zgibanje-active').checked) {
-                let zFolds = parseInt(document.getElementById('f-zgibanje-folds').value) || 4;
-                let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 7700;
-                totalFinishCost += ((zFolds / 4) * 25) + (effectiveQty / zSpeed) * 50;
+                let zFolds = getIntValue('f-zgibanje-folds', 4);
+                let zSpeed = getFloatValue('f-zgibanje-speed', 6800);
+                let prepMap = { 1: 16.80, 2: 12.60, 3: 11.20, 4: 10.50, 5: 6.72 };
+                let rateMap = { 1: 50.80, 2: 55.35, 3: 66.23, 4: 71.94, 5: 71.94 };
+                let zPrep = prepMap[zFolds] || 10.50;
+                let zRate = rateMap[zFolds] || 50.80;
+                totalFinishCost += zPrep + (effectiveQty / zSpeed) * zRate;
             }
             if (document.getElementById('f-noz-active').checked) {
-                totalFinishCost += 2.80 + ((parseFloat(document.getElementById('f-noz-time').value) || 0) / 60) * (parseFloat(document.getElementById('f-noz-rate').value) || 0);
+                totalFinishCost += 2.80 + ((getFloatValue('f-noz-time') / 60) * getFloatValue('f-noz-rate'));
             }
             if (document.getElementById('f-razrez-format-active').checked) {
-                const spd = parseFloat(document.getElementById('f-razrez-format-speed').value) || 5800;
-                const rte = parseFloat(document.getElementById('f-razrez-format-rate').value) || 20;
-                totalFinishCost += 2.80 + (totalSheetsNeeded / spd) * rte;
+                const spd = getFloatValue('f-razrez-format-speed', 5800);
+                const rte = getFloatValue('f-razrez-format-rate', 20);
+                totalFinishCost += (totalSheetsNeeded / spd) * rte;
             }
             if (document.getElementById('f-sivanje-active').checked) {
-                totalFinishCost += (parseFloat(document.getElementById('f-sivanje-prep').value) || 0) + (effectiveQty / 1000) * (parseFloat(document.getElementById('f-sivanje-per1000').value) || 0);
+                totalFinishCost += getFloatValue('f-sivanje-prep') + (effectiveQty / 1000) * getFloatValue('f-sivanje-per1000');
             }
             if (document.getElementById('f-lepljenje-active').checked) {
-                totalFinishCost += (parseFloat(document.getElementById('f-lepljenje-prep').value) || 0) + (effectiveQty / 1000) * (parseFloat(document.getElementById('f-lepljenje-per1000').value) || 0);
+                totalFinishCost += getFloatValue('f-lepljenje-prep') + (effectiveQty / 1000) * getFloatValue('f-lepljenje-per1000');
             }
             if (document.getElementById('f-spiral-active').checked) {
-                totalFinishCost += effectiveQty * (parseFloat(document.getElementById('f-spiral-price').value) || 0);
+                totalFinishCost += effectiveQty * getFloatValue('f-spiral-price');
             }
             if (document.getElementById('f-extra-active').checked) {
-                const spd = parseFloat(document.getElementById('f-extra-speed').value) || 1;
-                const rte = parseFloat(document.getElementById('f-extra-rate').value) || 20;
+                const spd = getFloatValue('f-extra-speed', 1);
+                const rte = getFloatValue('f-extra-rate', 20);
                 totalFinishCost += (effectiveQty / spd) * rte;
             }
             if (document.getElementById('f-tool-active').checked) {
-                totalFinishCost += (parseFloat(document.getElementById('f-tool-cost').value) || 0);
+                totalFinishCost += getFloatValue('f-tool-cost');
             }
             if (document.getElementById('f-uv-active').checked) {
-                totalFinishCost += (parseFloat(document.getElementById('f-uv-prep').value) || 0) + (totalSheetsNeeded / 1000) * (parseFloat(document.getElementById('f-uv-per1000').value) || 0);
+                totalFinishCost += getFloatValue('f-uv-prep') + (totalSheetsNeeded / 1000) * getFloatValue('f-uv-per1000');
             }
             if (document.getElementById('f-precut-active') && document.getElementById('f-precut-active').checked) {
-                let prePrep = parseFloat(document.getElementById('f-precut-prep').value) || 0;
-                let prePer1000 = parseFloat(document.getElementById('f-precut-per1000').value) || 0;
+                let prePrep = getFloatValue('f-precut-prep', 2.50);
+                let prePer1000 = getFloatValue('f-precut-per1000', 3.60);
                 totalFinishCost += prePrep + (totalSourceSheetsNeeded / 1000) * prePer1000;
             }
             if (document.getElementById('f-lam-active').checked) {
-                totalFinishCost += sheetsNeeded * (parseFloat(document.getElementById('f-lam-per1000').value) || 0) * (parseInt(document.getElementById('f-lam-sides').value) || 1);
+                totalFinishCost += sheetsNeeded * getFloatValue('f-lam-per1000') * getIntValue('f-lam-sides', 1);
             }
             let deliveryCost = 0;
             if (document.getElementById('f-delivery-active').checked) {
-                let pCount = parseFloat(document.getElementById('f-post-count').value) || 0;
-                let pPricePer = parseFloat(document.getElementById('f-post-price-per').value) || 0;
+                let pCount = getFloatValue('f-post-count');
+                let pPricePer = getFloatValue('f-post-price-per');
                 deliveryCost += (pCount * pPricePer);
             }
             if (document.getElementById('f-del-fixed-active').checked) {
-                deliveryCost += (parseFloat(document.getElementById('f-del-fixed-price').value) || 0);
+                deliveryCost += getFloatValue('f-del-fixed-price');
             }
 
-            let commercialCost = parseFloat(document.getElementById('calc-commercial').value) || 0;
+            let commercialCost = getFloatValue('calc-commercial');
             let subtotalWithoutDelivery = paperCost + totalPrepCost + totalPrintCost + (totalFinishCost - deliveryCost) + commercialCost;
 
             if (document.getElementById('calc-minus-price').checked) {
@@ -2206,19 +2235,19 @@
             }
 
             let subtotal = subtotalWithoutDelivery + deliveryCost;
-            let marginPercent = parseFloat(document.getElementById('calc-margin').value) || 0;
+            let marginPercent = getFloatValue('calc-margin');
             let totalPrice = subtotal * (1 + marginPercent / 100);
             let perItemFinal = totalPrice / qty;
 
             // DETAILED SPECS OBJECT
             let details = {
                 paper: {
-                    totalSheets: totalSheetsNeeded,
-                    sourceSheets: totalSourceSheetsNeeded,
+                    totalSheets: sheetsNeeded,
+                    sourceSheets: netSourceSheetsNeeded,
                     sourceYield: sourceYield,
                     sourceW: sourceW,
                     sourceH: sourceH,
-                    kg: paperUnit === 'ton' ? ((sourceW / 1000) * (sourceH / 1000) * (paperWeight / 1000) * totalSourceSheetsNeeded) : 0,
+                    kg: paperUnit === 'ton' ? ((sourceW / 1000) * (sourceH / 1000) * (paperWeight / 1000) * netSourceSheetsNeeded) : 0,
                     cost: paperCost
                 },
                 prep: {
@@ -2239,7 +2268,7 @@
                     prepTime: mPrepTime,
                     mRate: mRate,
                     cost: totalPrintCost,
-                    gripper: parseFloat(document.getElementById('gripper').value) || 0
+                    gripper: getFloatValue('gripper')
                 },
                 finish: {
                     items: [],
@@ -2249,10 +2278,10 @@
 
             // Collect finishing items
             if (document.getElementById('f-cilinder-active').checked) {
-                let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 20;
-                let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 40;
-                let cSpeed = 850;
-                let workHours = totalSheetsNeeded / cSpeed;
+                let cPrep = getFloatValue('f-cilinder-prep', 20);
+                let cRate = getFloatValue('f-cilinder-rate', 40);
+                let cSpeed = 2000;
+                let workHours = sheetsNeeded / cSpeed;
                 let cWork = workHours * cRate;
                 let cCost = cPrep + cWork;
                 details.finish.items.push({
@@ -2262,11 +2291,14 @@
                 });
             }
             if (document.getElementById('f-zgibanje-active').checked) {
-                let zFolds = parseInt(document.getElementById('f-zgibanje-folds').value) || 4;
-                let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 7700;
+                let prepMap = { 1: 16.80, 2: 12.60, 3: 11.20, 4: 10.50, 5: 6.72 };
+                let rateMap = { 1: 50.80, 2: 55.35, 3: 66.23, 4: 71.94, 5: 71.94 };
+                let zSpeed = getFloatValue('f-zgibanje-speed', 6800);
                 let workHours = effectiveQty / zSpeed;
-                let zPrep = (zFolds / 4) * 25;
-                let zWork = workHours * 50;
+                let zFolds = getIntValue('f-zgibanje-folds', 4);
+                let zPrep = prepMap[zFolds] || 10.50;
+                let zRate = rateMap[zFolds] || 50.80;
+                let zWork = workHours * zRate;
                 let zCost = zPrep + zWork;
                 details.finish.items.push({
                     name: `Zgibanje (${zFolds}x)`,
@@ -2275,8 +2307,8 @@
                 });
             }
             if (document.getElementById('f-noz-active').checked) {
-                let nTime = (parseFloat(document.getElementById('f-noz-time').value) || 0);
-                let nRate = (parseFloat(document.getElementById('f-noz-rate').value) || 0);
+                let nTime = getFloatValue('f-noz-time');
+                let nRate = getFloatValue('f-noz-rate');
                 let nCost = (nTime / 60) * nRate;
                 details.finish.items.push({
                     name: 'Razrez',
@@ -2285,8 +2317,8 @@
                 });
             }
             if (document.getElementById('f-razrez-format-active').checked) {
-                const spd = parseFloat(document.getElementById('f-razrez-format-speed').value) || 5800;
-                const rte = parseFloat(document.getElementById('f-razrez-format-rate').value) || 20;
+                const spd = getFloatValue('f-razrez-format-speed', 5800);
+                const rte = getFloatValue('f-razrez-format-rate', 20);
                 const hrs = totalSheetsNeeded / spd;
                 let cost = hrs * rte;
                 details.finish.items.push({
@@ -2296,8 +2328,8 @@
                 });
             }
             if (document.getElementById('f-sivanje-active').checked) {
-                let sPrep = (parseFloat(document.getElementById('f-sivanje-prep').value) || 0);
-                let sP1000 = (parseFloat(document.getElementById('f-sivanje-per1000').value) || 0);
+                let sPrep = getFloatValue('f-sivanje-prep');
+                let sP1000 = getFloatValue('f-sivanje-per1000');
                 let sWork = (effectiveQty / 1000) * sP1000;
                 let sCost = sPrep + sWork;
                 details.finish.items.push({
@@ -2307,8 +2339,8 @@
                 });
             }
             if (document.getElementById('f-lepljenje-active').checked) {
-                let lPrep = (parseFloat(document.getElementById('f-lepljenje-prep').value) || 0);
-                let lP1000 = (parseFloat(document.getElementById('f-lepljenje-per1000').value) || 0);
+                let lPrep = getFloatValue('f-lepljenje-prep');
+                let lP1000 = getFloatValue('f-lepljenje-per1000');
                 let lWork = (effectiveQty / 1000) * lP1000;
                 let lCost = lPrep + lWork;
                 details.finish.items.push({
@@ -2318,7 +2350,7 @@
                 });
             }
             if (document.getElementById('f-spiral-active').checked) {
-                let sPrice = parseFloat(document.getElementById('f-spiral-price').value) || 0;
+                let sPrice = getFloatValue('f-spiral-price');
                 let sCost = effectiveQty * sPrice;
                 details.finish.items.push({
                     name: 'Špiraljenje',
@@ -2328,8 +2360,8 @@
             }
 
             if (document.getElementById('f-extra-active').checked) {
-                const spd = parseFloat(document.getElementById('f-extra-speed').value) || 1;
-                const rte = parseFloat(document.getElementById('f-extra-rate').value) || 20;
+                const spd = getFloatValue('f-extra-speed', 1);
+                const rte = getFloatValue('f-extra-rate', 20);
                 const hrs = effectiveQty / spd;
                 let eMan = hrs * rte;
                 details.finish.items.push({
@@ -2339,7 +2371,7 @@
                 });
             }
             if (document.getElementById('f-tool-active').checked) {
-                let tCost = (parseFloat(document.getElementById('f-tool-cost').value) || 0);
+                let tCost = getFloatValue('f-tool-cost');
                 details.finish.items.push({
                     name: 'Orodje (izsek)',
                     cost: tCost,
@@ -2347,8 +2379,8 @@
                 });
             }
             if (document.getElementById('f-uv-active').checked) {
-                let uPrep = (parseFloat(document.getElementById('f-uv-prep').value) || 0);
-                let uP1000 = (parseFloat(document.getElementById('f-uv-per1000').value) || 0);
+                let uPrep = getFloatValue('f-uv-prep');
+                let uP1000 = getFloatValue('f-uv-per1000');
                 let uWork = (totalSheetsNeeded / 1000) * uP1000;
                 let uCost = uPrep + uWork;
                 details.finish.items.push({
@@ -2358,8 +2390,8 @@
                 });
             }
             if (document.getElementById('f-lam-active').checked) {
-                let lP1000 = (parseFloat(document.getElementById('f-lam-per1000').value) || 0);
-                let lSides = (parseInt(document.getElementById('f-lam-sides').value) || 1);
+                let lP1000 = getFloatValue('f-lam-per1000');
+                let lSides = getIntValue('f-lam-sides', 1);
                 let lWork = sheetsNeeded * lP1000 * lSides;
                 let lCost = lWork;
                 details.finish.items.push({
@@ -2369,8 +2401,8 @@
                 });
             }
             if (document.getElementById('f-delivery-active').checked) {
-                let pCount = parseFloat(document.getElementById('f-post-count').value) || 0;
-                let pPricePer = parseFloat(document.getElementById('f-post-price-per').value) || 0;
+                let pCount = getFloatValue('f-post-count');
+                let pPricePer = getFloatValue('f-post-price-per');
                 let totalD = pCount * pPricePer;
 
                 details.finish.items.push({
@@ -2380,7 +2412,7 @@
                 });
             }
             if (document.getElementById('f-del-fixed-active').checked) {
-                let fPrice = parseFloat(document.getElementById('f-del-fixed-price').value) || 0;
+                let fPrice = getFloatValue('f-del-fixed-price');
                 details.finish.items.push({
                     name: 'Dostava (Fiksno)',
                     cost: fPrice,
