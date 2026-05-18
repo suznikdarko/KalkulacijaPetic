@@ -722,6 +722,9 @@
                 style="margin: 0; width: auto; background: #3b82f6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">📝
                 Pripravi Ponudbo <span id="basket-count-badge"
                     style="background: white; color: #3b82f6; padding: 2px 6px; border-radius: 10px; font-size: 0.75rem; margin-left: 5px; display: none;">0</span></button>
+            <button class="calculate-btn" onclick="openQuotePreview(true)" id="btn-open-quote-at"
+                style="margin: 0; width: auto; background: #ef4444; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">🇦🇹
+                Ponudba (AT)</button>
         </div>
     </div>
 
@@ -863,7 +866,7 @@
             list.innerHTML = html;
         }
 
-        function getQuoteHTML(isWord = false) {
+        function getQuoteHTML(isWord = false, isAT = false) {
             const quoteNum = document.getElementById('calc-quote-number').value || '/';
             const customer = document.getElementById('calc-customer').value || '';
             const custAddress = document.getElementById('calc-cust-address').value || '';
@@ -922,29 +925,29 @@
                         <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;" cellpadding="0" cellspacing="0">
                             <tr>
                                 <td style="width: 15%; vertical-align: top; border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                                    <div style="font-size: 9px; color: #64748b; text-transform: uppercase; margin-bottom: 5px;">Šifra izdelka:</div>
+                                    <div style="font-size: 9px; color: #1e293b; font-weight: bold; margin-bottom: 5px;">${isAT ? 'Številka artikla:' : 'Šifra izdelka:'}</div>
                                     <div style="font-size: 16px; font-weight: bold; color: #1e293b; border: 1px solid #e2e8f0; padding: 10px; background: #f8fafc; text-align: center; border-radius: 4px;">${item.materialCode}</div>
                                 </td>
                                 <td style="width: 85%; vertical-align: top; padding-left: 20px;">
                                     <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                                        <tr><td style="width: 90px; font-weight: bold;">Izdelek:</td><td>${item.name || '/'}</td></tr>
+                                        <tr><td style="width: 90px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td>${item.name || '/'}</td></tr>
                                         <tr><td style="font-weight: bold;">Format:</td><td>${(item.spec && item.spec.format) ? item.spec.format : '/'}</td></tr>
-                                        <tr><td style="font-weight: bold;">Tisk:</td><td>${(item.spec && item.spec.colors) ? item.spec.colors : '/'}</td></tr>
-                                        ${(item.spec && item.spec.paper) ? `<tr><td style="font-weight: bold;">Papir:</td><td>${item.spec.paper}</td></tr>` : ''}
-                                        ${(item.spec && item.spec.finishing) ? `<tr><td style="font-weight: bold;">Dodel.:</td><td>${item.spec.finishing}</td></tr>` : ''}
+                                        <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${(item.spec && item.spec.colors) ? item.spec.colors : '/'}</td></tr>
+                                        ${(item.spec && item.spec.paper) ? `<tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.spec.paper}</td></tr>` : ''}
+                                        ${(item.spec && item.spec.finishing) ? `<tr><td style="font-weight: bold;">${isAT ? 'Verarbeitung:' : 'Dodel.:'}</td><td>${item.spec.finishing}</td></tr>` : ''}
                                     </table>
                                 </td>
                             </tr>
                         </table>
                         <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000;">
-                            <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">Naklada</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">Cena/Kom.</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">Cena skupno:</th></tr>
+                            <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">${isAT ? 'Auflage' : 'Naklada'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">${isAT ? 'Preis/ Stk.' : 'Cena/Kom.'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">${isAT ? 'Gesamt Preis:' : 'Cena skupno:'}</th></tr>
                             ${(item.quantities && Array.isArray(item.quantities)) ? item.quantities.map(q => `
                                 <tr>
-                                    <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} kos</td>
+                                    <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} ${isAT ? 'Stk.' : 'kos'}</td>
                                     <td style="padding: 4px;">${formatPrice(q.pricePerUnit, 3)}</td>
                                     <td style="font-weight: bold; text-align: right; padding: 4px;">${formatPrice(q.priceTotal, 2)}</td>
                                 </tr>
-                            `).join('') : '<tr><td colspan="3" style="padding:4px; color:red;">Manjkajoči podatki o ceni</td></tr>'}
+                            `).join('') : `<tr><td colspan="3" style="padding:4px; color:red;">${isAT ? 'Fehlende Preisdaten' : 'Manjkajoči podatki o ceni'}</td></tr>`}
                         </table>
                     </div>
                 `;
@@ -975,20 +978,25 @@
                     <div class="header-line">
                         <table style="width: 100%;">
                             <tr>
-                                <td style="width: 40%;">
-                                    <div class="brand-sub">tiskarna</div>
-                                    <div class="brand-name" style="padding-left: 15px;">petrič</div>
+                                <td style="width: 35%; vertical-align: middle;">
+                                    <div style="font-size: 24px; color: #475569; font-style: italic; line-height: 1;">tiskarna</div>
+                                    <div style="font-size: 42px; font-weight: 900; color: #f99c26; font-style: italic; line-height: 0.9; padding-left: 35px;">petrič</div>
                                 </td>
-                                <td style="width: 30%; border-left: 1px solid #f99c26; padding-left: 20px; font-size: 10px; color: #64748b;">
+                                <td style="width: 25%; border-left: 1px solid #f99c26; padding-left: 15px; font-size: 11px; color: #475569; font-style: italic; vertical-align: middle; line-height: 1.3;">
                                     <strong>Tiskarna Petrič d.o.o.</strong><br>
                                     Tovarniška cesta 8<br>
                                     3210 Slovenske Konjice<br>
-                                    T: 03 757 25 56 | F: 03 757 25 63
+                                    ID za DDV: SI50694014
                                 </td>
-                                <td style="width: 30%; border-left: 1px solid #f99c26; padding-left: 20px; font-size: 10px; color: #64748b;">
-                                    ID za DDV: SI50694014<br>
-                                    Mat. št.: 6889433<br>
-                                    E: info@tiskarnapetric.si
+                                <td style="width: 25%; border-left: 1px solid #f99c26; padding-left: 15px; font-size: 11px; color: #475569; font-style: italic; vertical-align: middle; line-height: 1.3;">
+                                    T: 03 757 25 56<br>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;03 757 25 50<br>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;03 757 25 64<br>
+                                    F: 03 757 25 63<br>
+                                    Mat. št.: 6889433
+                                </td>
+                                <td style="width: 15%; border-left: 1px solid #f99c26; padding-left: 15px; color: #f99c26; font-weight: 900; font-style: italic; font-size: 16px; text-align: center; vertical-align: bottom; padding-bottom: 5px;">
+                                    vse stiska
                                 </td>
                             </tr>
                         </table>
@@ -996,38 +1004,38 @@
 
                     <div class="info-grid">
                         <div class="customer-box">
-                            <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 5px;">Prejemnik:</div>
+                            <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 5px;">${isAT ? '' : 'Prejemnik:'}</div>
                             <div style="font-size: 16px; font-weight: bold; color: #1e293b;">${customer}</div>
                             <div style="font-size: 13px; color: #475569; margin-top: 5px;">${custAddress ? custAddress.replace(/\\n/g, '<br>') : ''}</div>
                         </div>
                         <div class="meta-box">
                             <table class="meta-table">
                                 <tr><td>Datum:</td><td>${date}</td></tr>
-                                <tr><td>Šifra stranke:</td><td>${customerCode}</td></tr>
-                                <tr><td>Ponudba št.:</td><td>${quoteNum}</td></tr>
+                                <tr><td>${isAT ? 'Kunde' : 'Šifra stranke:'}</td><td>${customerCode}</td></tr>
+                                <tr><td><strong style="font-size: 14px;">${isAT ? 'Angebot' : 'Ponudba št.:'}</strong></td><td><strong style="font-size: 14px;">${quoteNum}</strong></td></tr>
                             </table>
                         </div>
                     </div>
 
-                    <h1>Ponudba za tisk</h1>
-                    <p style="color: #475569; margin-bottom: 20px;">Zahvaljujemo se Vam za povpraševanje. Na podlagi vaših zahtev vam posredujemo naslednjo ponudbo:</p>
+                    <h1 style="text-decoration: underline; margin-bottom: 10px; border: none; padding: 0;">${isAT ? 'Angebot' : 'Ponudba za tisk'}</h1>
+                    <p style="color: #1e293b; font-weight: bold; margin-bottom: 20px;">${isAT ? 'Herzlichen Dank für Ihr Interesse. Wir können Ihnen folgendes anbieten:' : 'Zahvaljujemo se Vam za povpraševanje. Na podlagi vaših zahtev vam posredujemo naslednjo ponudbo:'}</p>
 
                     ${allItemsHTML}
+                    
+                    ${isAT ? '<div style="text-align: center; font-weight: bold; font-size: 12px; margin-top: -5px; margin-bottom: 20px; text-decoration: underline;">Voraussetzung: Kunde liefert druckfertige Daten</div>' : ''}
 
 
-                    <div class="footer-notes">
-                        Ponudba velja 30 dni od dneva izdaje. Vse cene so v EUR in ne vključujejo DDV (22%). 
-                        Rok izdelave po dogovoru, običajno 3-5 delovnih dni od potrditve predogleda. 
-                        Rok plačila je 30 dni po prejemu računa, razen če je dogovorjeno drugače. 
-                        Tiskarna Petrič d.o.o. si pridržuje pravico do spremembe cen v primeru bistvenih sprememb cen surovin na trgu.
+                    <div class="footer-notes" style="color: #1e293b; font-size: 11px;">
+                        ${isAT ? 'Dieses Angebot ist gültig für 30 Tage. Zahlung erfolgt nach 30 Tagen ab Lieferung der Ware.<br>Wir danken Ihnen für Ihre mögliche Bestellung, und wünschen Ihnen einen angenehmen Tag.'
+                    : 'Ponudba velja 30 dni od dneva izdaje. Vse cene so v EUR in ne vključujejo DDV (22%).<br>Rok izdelave po dogovoru, običajno 3-5 delovnih dni od potrditve predogleda.<br>Rok plačila je 30 dni po prejemu računa, razen če je dogovorjeno drugače.<br>Tiskarna Petrič d.o.o. si pridržuje pravico do spremembe cen v primeru bistvenih sprememb cen surovin na trgu.'}
                     </div>
 
                     <div class="signature-section">
                         <div style="color: #64748b; font-size: 10px;">
-                            Žig podjetja (ni obvezen pri elektronskem pošiljanju)
+                            ${isAT ? '' : 'Žig podjetja (ni obvezen pri elektronskem pošiljanju)'}
                         </div>
-                        <div class="prepared-by">
-                            Kalkulacijo pripravil: ${preparedBy}
+                        <div class="prepared-by" style="font-weight: normal; font-size: 11px; color: #1e293b;">
+                            ${isAT ? 'Dieses Angebot hat für Sie erstellt:' : 'Kalkulacijo pripravil:'} ${preparedBy}
                         </div>
                     </div>
                 </body>
@@ -1071,8 +1079,8 @@
             }
         }
 
-        function openQuotePreview() {
-            const quoteHTML = getQuoteHTML();
+        function openQuotePreview(isAT = false) {
+            const quoteHTML = getQuoteHTML(false, isAT);
             const previewWindow = window.open('', '', 'width=900,height=900');
 
             const toolbarHTML = `
