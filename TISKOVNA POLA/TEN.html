@@ -1570,9 +1570,11 @@
                 document.getElementById('calc-machine-speed').value = profile.speed;
                 document.getElementById('calc-machine-prep-time').value = profile.prep;
 
-                /* Samodejno iskanje formata ob menjavi stroja onemogočeno po želji uporabnika */
-                // const itemW = ... (stara logika)
-
+                // Samodejno nastavi format na 'auto', da sistem sam poišče najboljšo polo ob menjavi stroja
+                const mFormatSelect = document.getElementById('machine-format');
+                if (mFormatSelect) {
+                    mFormatSelect.value = 'auto';
+                }
             }
             filterAvailableFormats();
         }
@@ -2848,10 +2850,51 @@
                 }
             }
 
-            const gridH = usedRows * layout.itemH;
-            const startY = (usableH - gridH) / 2;
-            const gridW = usedCols * layout.itemW;
-            const startX = offsetX + (usableW - gridW) / 2;
+            let gridH = usedRows * layout.itemH;
+            let gridW = usedCols * layout.itemW;
+
+            // Če je mešana postavitev, prilagodimo skupno širino in višino glede na dodatne rotirane kose
+            if (layout.isMixed && !isObratChecked && targetCount > (layout.cols * layout.rows)) {
+                let remW = usableW - (layout.cols * layout.itemW);
+                let remH = usableH - (layout.rows * layout.itemH);
+
+                if (remW >= layout.itemH) { // Rotirani kosi desno
+                    let addCols = Math.floor(remW / layout.itemH);
+                    let addRows = Math.floor(usableH / layout.itemW);
+                    gridW = (layout.cols * layout.itemW) + (addCols * layout.itemH);
+                    gridH = Math.max(layout.rows * layout.itemH, addRows * layout.itemW);
+                } else if (remH >= layout.itemW) { // Rotirani kosi spodaj
+                    let addRows = Math.floor(remH / layout.itemW);
+                    let addCols = Math.floor(usableW / layout.itemH);
+                    gridW = Math.max(layout.cols * layout.itemW, addCols * layout.itemH);
+                    gridH = (layout.rows * layout.itemH) + (addRows * layout.itemW);
+                }
+            }
+
+            // Izračun simetričnih odmikov (startX, startY) na celotni poli
+            let startX, startY;
+            if (layout.gripEdge === 'W') {
+                // Če je prijemalec na levi (W), poskusimo centrirati simetrično na celo polo
+                const idealMargin = (sheetW - gridW) / 2;
+                if (idealMargin >= gripper) {
+                    startX = idealMargin;
+                } else {
+                    // Če ni dovolj prostora za idealno centriranje, potisnemo tik za prijemalec
+                    startX = gripper;
+                }
+                startY = (usableH - gridH) / 2;
+            } else { // gripEdge === 'H' (prijemalec na dnu)
+                startX = (usableW - gridW) / 2;
+                // Če je prijemalec na dnu, mora biti spodnji rob vsaj velikosti gripper
+                const idealMargin = (sheetH - gridH) / 2;
+                if (idealMargin >= gripper) {
+                    startY = idealMargin;
+                } else {
+                    // Če ni dovolj prostora, potisnemo čim višje, da spodaj ostane prostora za prijemalec
+                    startY = Math.min(idealMargin, sheetH - gridH - gripper);
+                    if (startY < 0) startY = 0;
+                }
+            }
 
             let slotsToDraw = [];
             let itemsToDraw = targetCount;
