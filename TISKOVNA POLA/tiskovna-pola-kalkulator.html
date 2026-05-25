@@ -551,6 +551,10 @@
                     <label>Naklade (vejica)</label>
                     <input type="text" id="quantity" value="" oninput="if(typeof formatInputQty === 'function') formatInputQty(this); calculate()">
                 </div>
+                <div style="flex: 1.2; min-width: 140px;">
+                    <label>Naročena naklada (neobvezno)</label>
+                    <input type="text" id="ordered-quantity" value="" placeholder="npr. 750" oninput="if(typeof formatInputQty === 'function') formatInputQty(this); calculate()">
+                </div>
                 <div style="flex: 1; min-width: 120px;">
                     <label>Stavkov na poli</label>
                     <input type="number" id="items-per-sheet" value="0" oninput="if(typeof updatePriceFromManualCount === 'function') updatePriceFromManualCount(); else calculate()">
@@ -1311,6 +1315,9 @@
                 const qtyStr = document.getElementById('quantity').value || '0';
                 const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
 
+                const oqStr = document.getElementById('ordered-quantity').value || "";
+                const oqArr = oqStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+
                 if (qtyArr.length === 0) {
                     alert("Prosimo vnesite vsaj eno naklado.");
                     return;
@@ -1318,8 +1325,9 @@
 
                 // Pripravimo podatke za vsako naklado
                 const results = [];
-                qtyArr.forEach(q => {
-                    const res = calculateForSingleQty(q);
+                qtyArr.forEach((q, idx) => {
+                    const oqVal = oqArr[idx] || q;
+                    const res = calculateForSingleQty(q, undefined, undefined, undefined, oqVal);
                     if (res) results.push(res);
                 });
 
@@ -1340,11 +1348,14 @@
                         colors: document.getElementById('calc-color-front').value + '/' + document.getElementById('calc-color-back').value,
                         finishing: getActiveFinishingList()
                     },
-                    quantities: results.map(r => ({
-                        qty: r.qty,
-                        priceTotal: r.totalPrice,
-                        pricePerUnit: r.perItemFinal
-                    }))
+                    quantities: results.map((r, idx) => {
+                        const oqVal = oqArr[idx] || r.qty;
+                        return {
+                            qty: oqVal,
+                            priceTotal: r.totalPrice,
+                            pricePerUnit: r.perItemFinal
+                        };
+                    })
                 };
 
                 quoteBasket.push(basketItem);
@@ -1846,12 +1857,16 @@
             const qArr = qStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
             const totalItemsFormArr = qArr.length ? qArr : [q || 1000];
 
+            const oqStr = document.getElementById('ordered-quantity').value || "";
+            const oqArr = oqStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+
             let results = [];
             let r = null;
 
-            totalItemsFormArr.forEach(qty => {
+            totalItemsFormArr.forEach((qty, idx) => {
                 let currentNeeded = Math.ceil(qty / (parseInt(document.getElementById('items-per-sheet').value) || 1));
-                let res = calculateForSingleQty(qty, currentNeeded, dw, dh);
+                let orderedQty = oqArr[idx] || qty;
+                let res = calculateForSingleQty(qty, currentNeeded, dw, dh, orderedQty);
                 results.push(res);
                 if (qty === q) r = res;
             });
@@ -1900,12 +1915,16 @@
             const stickyQty = document.getElementById('sticky-qty');
 
             if (totalItemsFormArr.length > 1) {
-                if (stickyQty) stickyQty.innerHTML = results.map(x => formatQty(x.qty)).join('<br>');
+                if (stickyQty) stickyQty.innerHTML = results.map((x, idx) => {
+                    const oqVal = oqArr[idx] || x.qty;
+                    return formatQty(oqVal);
+                }).join('<br>');
                 if (stickyTotal) stickyTotal.innerHTML = results.map(x => x.totalPrice.toFixed(2) + " €").join('<br>');
                 if (stickyPerItem) stickyPerItem.innerHTML = results.map(x => x.perItemFinal.toFixed(3) + " €").join('<br>');
                 if (sticky1000) sticky1000.innerHTML = results.map(x => (x.perItemFinal * 1000).toFixed(2) + " €").join('<br>');
             } else {
-                if (stickyQty) stickyQty.innerText = formatQty(r.qty);
+                const oqVal = oqArr[0] || r.qty;
+                if (stickyQty) stickyQty.innerText = formatQty(oqVal);
                 if (stickyTotal) stickyTotal.innerText = r.totalPrice.toFixed(2) + " €";
                 if (stickyPerItem) stickyPerItem.innerText = r.perItemFinal.toFixed(3) + " €";
                 if (sticky1000) sticky1000.innerText = (r.perItemFinal * 1000).toFixed(2) + " €";
@@ -2011,7 +2030,7 @@
             content.innerHTML = html;
         }
 
-        function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH) {
+        function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH, orderedQty) {
             let itemsPerSheet = parseInt(document.getElementById('items-per-sheet').value) || 0;
             let sheetsNeeded = sheetsNeededIn;
 
@@ -2162,7 +2181,9 @@
             let subtotal = subtotalWithoutDelivery + deliveryCost;
             let marginPercent = parseFloat(document.getElementById('calc-margin').value) || 0;
             let totalPrice = subtotal * (1 + marginPercent / 100);
-            let perItemFinal = totalPrice / qty;
+            // perItemFinal: cena na kos za stranko - deli s naročeno naklado (ne tiskano)
+            let effectiveQty = (orderedQty && orderedQty > 0) ? orderedQty : qty;
+            let perItemFinal = totalPrice / effectiveQty;
 
             // DETAILED SPECS OBJECT
             let details = {
@@ -2372,6 +2393,7 @@
 
             return {
                 qty: qty,
+                orderedQty: effectiveQty,
                 itemsPerSheet: itemsPerSheet,
                 sheetsNeeded: sheetsNeeded,
                 paperCost: paperCost,
@@ -3648,8 +3670,14 @@
                 const qtyStr = document.getElementById('quantity').value || '0';
                 const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
 
+                const oqStr = document.getElementById('ordered-quantity').value || '';
+                const oqArr = oqStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+
                 const results = [];
-                qtyArr.forEach(q => results.push(calculateForSingleQty(q)));
+                qtyArr.forEach((q, idx) => {
+                    const oqVal = oqArr[idx] || q;
+                    results.push(calculateForSingleQty(q, undefined, undefined, undefined, oqVal));
+                });
 
                 itemsToPrint = [{
                     name: projectName,
@@ -3663,7 +3691,7 @@
                         finishing: getActiveFinishingList()
                     },
                     quantities: results.map(r => ({
-                        qty: r.qty,
+                        qty: r.orderedQty,
                         priceTotal: r.totalPrice,
                         pricePerUnit: r.perItemFinal
                     })),
