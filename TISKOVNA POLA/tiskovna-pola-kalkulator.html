@@ -408,6 +408,34 @@
             pointer-events: none;
         }
 
+        /* Manual editor - stavek na poli */
+        .manual-box {
+            position: absolute;
+            background: rgba(96, 165, 250, 0.25);
+            border: 2px solid #3b82f6;
+            border-radius: 3px;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #1e3a8a;
+            font-weight: bold;
+            user-select: none;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .manual-box:active {
+            cursor: grabbing;
+        }
+
+        .manual-box.selected {
+            background: rgba(251, 146, 60, 0.35);
+            border: 2px solid #f97316;
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.4);
+        }
+
         @keyframes blinkRequired {
 
             0%,
@@ -1795,6 +1823,10 @@
                 }
 
                 if (bestSheet) {
+                    g_lastSheetW = bestSheet.w;
+                    g_lastSheetH = bestSheet.h;
+                    g_lastG = g;
+
                     const y1 = Math.floor(sw / bestSheet.w) * Math.floor(sh / bestSheet.h);
                     const y2 = Math.floor(sw / bestSheet.h) * Math.floor(sh / bestSheet.w);
                     document.getElementById('calc-source-yield').value = Math.max(y1, y2, 1);
@@ -4010,11 +4042,7 @@
         let m_scale = 1;
 
         function openManualEditor() {
-            // Ensure calculation has been run to have sheet dimensions
-            if (!g_lastSheetW) {
-                alert("Najprej zaženite osnovni izračun, da določite format pole.");
-                return;
-            }
+
 
             document.getElementById('manual-editor-modal').style.display = 'flex';
 
@@ -4027,14 +4055,59 @@
             sheet.querySelectorAll('.manual-box').forEach(b => b.remove());
 
             // Reset internal state if we starting fresh or use global
-            if (g_manualLayout && confirm("Želite nadaljevati s prejšnjo ročno postavitvijo?")) {
+            if (g_manualLayout && g_manualLayout.items && g_manualLayout.items.length > 0 && confirm("Želite nadaljevati s prejšnjo ročno postavitvijo?")) {
                 m_items = JSON.parse(JSON.stringify(g_manualLayout.items));
             } else {
                 m_items = [];
+
+                // Samodejno izriši (pred-napolni) stavke glede na Osnovni format
+                const w = parseFloat(document.getElementById('width').value) || 0;
+                const h = parseFloat(document.getElementById('height').value) || 0;
+                const b = parseFloat(document.getElementById('bleed').value) || 0;
+                const itemW = w + 2 * b;
+                const itemH = h + 2 * b;
+                const fMode = document.getElementById('item-orientation') ? document.getElementById('item-orientation').value : 'auto';
+
+                const sheetW = parseFloat(document.getElementById('calc-source-w').value) || 1000;
+                const sheetH = parseFloat(document.getElementById('calc-source-h').value) || 700;
+                const gripper = parseFloat(document.getElementById('gripper').value) || 10;
+
+                console.log('[ManualEditor] Pred-populacija:', { w, h, b, itemW, itemH, sheetW, sheetH, gripper, fMode });
+
+                if (itemW > 0 && itemH > 0) {
+                    const srcLayout = optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, fMode);
+                    console.log('[ManualEditor] optimizeLayout rezultat:', srcLayout);
+                    if (srcLayout && srcLayout.count > 0) {
+                        // Prijemalec je zdaj vizualno in logično na dnu (H)
+                        const gripOffsetW = srcLayout.gripEdge === 'W' ? gripper : 0;
+                        const gripOffsetH = 0; // ker je gripper vedno spodaj, začnemo na vrhu (y=0)
+
+                        let idCount = Date.now();
+                        for (let r = 0; r < srcLayout.rows; r++) {
+                            for (let c = 0; c < srcLayout.cols; c++) {
+                                m_items.push({
+                                    id: idCount++,
+                                    x: gripOffsetW + c * srcLayout.itemW,
+                                    y: gripOffsetH + r * srcLayout.itemH,
+                                    w: srcLayout.itemW,
+                                    h: srcLayout.itemH,
+                                    bleed: b,
+                                    rot: srcLayout.rot
+                                });
+                            }
+                        }
+                        console.log('[ManualEditor] Dodanih stavkov:', m_items.length);
+                    }
+                }
             }
 
-            setupManualCanvas();
-            renderManualItems();
+            // Počakaj, da se modal prikaže, preden izmerimo dimenzije
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    setupManualCanvas();
+                    renderManualItems();
+                });
+            });
         }
 
         function closeManualEditor() {
@@ -4043,30 +4116,42 @@
 
         function setupManualCanvas() {
             const container = document.getElementById('manual-canvas-container');
-            const sheetW = g_lastSheetW;
-            const sheetH = g_lastSheetH;
-            const gripper = g_lastG;
 
-            // Calculate scale
-            const maxW = window.innerWidth * 0.7;
-            const maxH = window.innerHeight * 0.7;
-            m_scale = Math.min(maxW / sheetW, maxH / sheetH);
+            // Preberi "Osnovni format" (v mm)
+            const sheetW = parseFloat(document.getElementById('calc-source-w').value) || 1000;
+            const sheetH = parseFloat(document.getElementById('calc-source-h').value) || 700;
+            const gripper = parseFloat(document.getElementById('gripper').value) || 10;
 
-            container.style.width = (sheetW * m_scale) + 'px';
-            container.style.width = (sheetW * m_scale) + 'px';
-            container.style.height = (sheetH * m_scale) + 'px';
+            g_lastSheetW = sheetW;
+            g_lastSheetH = sheetH;
+            g_lastG = gripper;
 
-            // Update gripper visual
+            // Izračunaj skalo, da se cela pola ujame v 80% okna
+            const modal = document.getElementById('manual-editor-modal');
+            const canvasArea = modal.querySelector('[data-canvas-area]');
+            const areaW = canvasArea ? canvasArea.clientWidth - 80 : window.innerWidth * 0.6;
+            const areaH = canvasArea ? canvasArea.clientHeight - 80 : window.innerHeight * 0.75;
+            m_scale = Math.max(0.3, Math.min(areaW / sheetW, areaH / sheetH, 1.5));
+            console.log('[ManualEditor] setupManualCanvas:', { sheetW, sheetH, areaW, areaH, m_scale });
+
+            // Nastavi kontejner na skaliran px
+            container.style.width = Math.round(sheetW * m_scale) + 'px';
+            container.style.height = Math.round(sheetH * m_scale) + 'px';
+            container.style.transform = '';
+            container.style.position = 'relative';
+
+            // Prijemalec (v skaliranih px)
             const grip = document.getElementById('manual-gripper');
-            if (g_lastBestLayout.gripEdge === 'W') {
-                grip.style.top = '0'; grip.style.left = '0'; grip.style.bottom = '0';
-                grip.style.right = 'auto'; grip.style.width = (gripper * m_scale) + 'px'; grip.style.height = '100%';
-                grip.style.borderRight = '1px dashed #f43f5e'; grip.style.borderBottom = 'none';
-            } else {
-                grip.style.bottom = '0'; grip.style.left = '0'; grip.style.right = '0';
-                grip.style.top = 'auto'; grip.style.height = (gripper * m_scale) + 'px'; grip.style.width = '100%';
-                grip.style.borderTop = '1px dashed #f43f5e'; grip.style.borderBottom = 'none';
-            }
+            // Prijemalec naj bo vedno spodaj
+            grip.style.top = 'auto';
+            grip.style.bottom = '0';
+            grip.style.left = '0';
+            grip.style.right = '0';
+            grip.style.height = Math.round(gripper * m_scale) + 'px';
+            grip.style.width = '100%';
+            grip.style.borderTop = '2px dashed #f43f5e';
+            grip.style.borderBottom = 'none';
+            grip.style.borderRight = 'none';
         }
 
         function addManualBox() {
@@ -4097,20 +4182,39 @@
             m_items.forEach(item => {
                 const el = document.createElement('div');
                 el.className = 'manual-box' + (m_selectedId === item.id ? ' selected' : '');
-                el.style.width = (item.w * m_scale) + 'px';
-                el.style.height = (item.h * m_scale) + 'px';
-                el.style.left = (item.x * m_scale) + 'px';
-                el.style.top = (item.y * m_scale) + 'px';
-                el.innerHTML = `<span>${item.w - 2 * item.bleed}x${item.h - 2 * item.bleed}</span>`;
+                // Vse koordinate in dimenzije skaliramo v px
+                const px = Math.round(item.x * m_scale);
+                const py = Math.round(item.y * m_scale);
+                const pw = Math.round(item.w * m_scale);
+                const ph = Math.round(item.h * m_scale);
+                el.style.width = pw + 'px';
+                el.style.height = ph + 'px';
+                el.style.left = px + 'px';
+                el.style.top = py + 'px';
+                el.style.boxSizing = 'border-box';
+                el.style.overflow = 'hidden';
 
-                // Add bleed visual
-                const bleedEl = document.createElement('div');
-                bleedEl.className = 'manual-box-bleed';
-                bleedEl.style.top = (item.bleed * m_scale) + 'px';
-                bleedEl.style.left = (item.bleed * m_scale) + 'px';
-                bleedEl.style.right = (item.bleed * m_scale) + 'px';
-                bleedEl.style.bottom = (item.bleed * m_scale) + 'px';
-                el.appendChild(bleedEl);
+                // Besedilo z dimenzijami stavka
+                const netW = Math.round(item.w - 2 * item.bleed);
+                const netH = Math.round(item.h - 2 * item.bleed);
+                const label = document.createElement('span');
+                label.textContent = `${netW}x${netH}`;
+                label.style.fontSize = Math.max(9, Math.round(10 * m_scale)) + 'px';
+                label.style.pointerEvents = 'none';
+                el.appendChild(label);
+
+                // Pogled na prelivanje (bleed)
+                if (item.bleed > 0) {
+                    const bleedBox = document.createElement('div');
+                    bleedBox.style.position = 'absolute';
+                    bleedBox.style.top = Math.round(item.bleed * m_scale) + 'px';
+                    bleedBox.style.left = Math.round(item.bleed * m_scale) + 'px';
+                    bleedBox.style.width = Math.round((item.w - 2 * item.bleed) * m_scale) + 'px';
+                    bleedBox.style.height = Math.round((item.h - 2 * item.bleed) * m_scale) + 'px';
+                    bleedBox.style.border = '1px dotted rgba(255,255,255,0.5)';
+                    bleedBox.style.pointerEvents = 'none';
+                    el.appendChild(bleedBox);
+                }
 
                 el.onmousedown = (e) => startDrag(e, item.id);
                 el.ondblclick = () => rotateSelectedBox();
@@ -4169,8 +4273,10 @@
             selectManualBox(id);
             const item = m_items.find(it => it.id === id);
             m_dragging = true;
-            m_offsetX = (e.clientX / m_scale) - item.x;
-            m_offsetY = (e.clientY / m_scale) - item.y;
+
+            const rect = document.getElementById('manual-canvas-container').getBoundingClientRect();
+            m_offsetX = ((e.clientX - rect.left) / m_scale) - item.x;
+            m_offsetY = ((e.clientY - rect.top) / m_scale) - item.y;
 
             window.addEventListener('mousemove', drag);
             window.addEventListener('mouseup', stopDrag);
@@ -4180,8 +4286,9 @@
             if (!m_dragging) return;
             const item = m_items.find(it => it.id === m_selectedId);
             if (item) {
-                item.x = (e.clientX / m_scale) - m_offsetX;
-                item.y = (e.clientY / m_scale) - m_offsetY;
+                const rect = document.getElementById('manual-canvas-container').getBoundingClientRect();
+                item.x = ((e.clientX - rect.left) / m_scale) - m_offsetX;
+                item.y = ((e.clientY - rect.top) / m_scale) - m_offsetY;
 
                 // Constrain to sheet
                 const limitX = g_lastSheetW - item.w;
@@ -4337,7 +4444,7 @@
             <div style="flex: 1; display: flex; overflow: hidden;">
                 <!-- Toolbar -->
                 <div
-                    style="width: 320px; border-right: 1px solid var(--glass-border); padding: 1.5rem; background: rgba(15, 23, 42, 0.2); overflow-y: auto;">
+                    style="width: 280px; min-width: 280px; border-right: 1px solid var(--glass-border); padding: 1.5rem; background: rgba(15, 23, 42, 0.2); overflow-y: auto;">
                     <div style="margin-bottom: 2rem;">
                         <h4
                             style="margin: 0 0 1rem 0; color: #f8fafc; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em;">
@@ -4389,10 +4496,10 @@
                 </div>
 
                 <!-- Canvas Area -->
-                <div
+                <div data-canvas-area
                     style="flex: 1; background: #0f172a; display: flex; align-items: center; justify-content: center; position: relative; padding: 40px; overflow: auto;">
                     <div id="manual-canvas-container"
-                        style="position: relative; background: #fff; box-shadow: 0 0 40px rgba(0,0,0,0.5); transform-origin: center center;">
+                        style="position: relative; background: #fff; box-shadow: 0 0 40px rgba(0,0,0,0.5); transform-origin: top left;">
                         <!-- The print sheet -->
                         <div id="manual-sheet"
                             style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; box-sizing: content-box;">
