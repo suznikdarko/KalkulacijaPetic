@@ -1741,7 +1741,8 @@
                 const mType = document.getElementById('calc-machine-type').value;
                 const profile = machineProfiles[mType];
 
-                if (w <= 0 || h <= 0 || q <= 0) return;
+                if (q <= 0) return;
+                if (!g_manualLayout && (w <= 0 || h <= 0)) return;
 
                 // Če se dimenzije spremenijo, počistimo ročno postavitev
                 if (w !== g_lastW_calc || h !== g_lastH_calc) {
@@ -1758,7 +1759,7 @@
                 let targetCount = parseInt(itemsInp.value) || 0;
 
                 // Če je isManual ali če so se dimenzije spremenile, ne vsiljujemo starega števila stavkov
-                if (isManual || targetCount === g_autoCount) {
+                if (!g_manualLayout && (isManual || targetCount === g_autoCount)) {
                     targetCount = 0;
                 }
 
@@ -1766,60 +1767,66 @@
                 let bestLayout = null;
                 let bestScore = -1;
 
-                const checkSheet = (s) => {
-                    let fitsSource = (sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w);
-                    let fitsMachine = true;
-                    if (profile && profile.maxW) {
-                        fitsMachine = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
-                    }
-                    if (!fitsSource || !fitsMachine) return;
+                if (g_manualLayout) {
+                    bestSheet = sheets.find(s => s.w === g_manualLayout.sheetW && s.h === g_manualLayout.sheetH) || sheets.find(s => s.name === mFormat) || sheets[0];
+                    bestLayout = {
+                        count: g_manualLayout.items.length,
+                        items: g_manualLayout.items,
+                        cols: 1, rows: g_manualLayout.items.length, rot: false, isMixed: true, gripEdge: 'H', itemW: 0, itemH: 0
+                    };
+                } else {
+                    const checkSheet = (s) => {
+                        let fitsSource = (sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w);
+                        let fitsMachine = true;
+                        if (profile && profile.maxW) {
+                            fitsMachine = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
+                        }
+                        if (!fitsSource || !fitsMachine) return;
 
-                    let currLayout = optimizeLayout(s.w, s.h, itemW, itemH, g, fMode);
-                    if (!currLayout) return;
+                        let currLayout = optimizeLayout(s.w, s.h, itemW, itemH, g, fMode);
+                        if (!currLayout) return;
 
-                    const y1 = Math.floor(sw / s.w) * Math.floor(sh / s.h);
-                    const y2 = Math.floor(sw / s.h) * Math.floor(sh / s.w);
-                    const sYield = Math.max(y1, y2, 1);
+                        const y1 = Math.floor(sw / s.w) * Math.floor(sh / s.h);
+                        const y2 = Math.floor(sw / s.h) * Math.floor(sh / s.w);
+                        const sYield = Math.max(y1, y2, 1);
 
-                    let score;
-                    let isSatisfied = (targetCount > 0 && currLayout.count >= targetCount);
+                        let score;
+                        let isSatisfied = (targetCount > 0 && currLayout.count >= targetCount);
 
-                    if (targetCount > 0) {
-                        if (isSatisfied) {
-                            // Če dosegamo želeno število, optimiziramo sYield in porabo papirja
-                            const sheetArea = s.w * s.h;
-                            score = (sYield * 1000000000) + (1000000000000 / sheetArea) + currLayout.count;
+                        if (targetCount > 0) {
+                            if (isSatisfied) {
+                                const sheetArea = s.w * s.h;
+                                score = (sYield * 1000000000) + (1000000000000 / sheetArea) + currLayout.count;
+                            } else {
+                                score = currLayout.count;
+                            }
                         } else {
-                            // Če ne dosegamo, gremo na max stavke
-                            score = currLayout.count;
+                            score = sYield * currLayout.count;
+                        }
+
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestSheet = s;
+                            bestLayout = currLayout;
+                        }
+                    };
+
+                    if (mFormat === 'auto') {
+                        for (let s of sheets) {
+                            checkSheet(s);
+                        }
+                        if (!bestSheet) {
+                            bestSheet = sheets.find(s => {
+                                let fM = true;
+                                if (profile && profile.maxW) fM = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
+                                return ((sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w)) && fM;
+                            }) || sheets[0];
+                            bestLayout = optimizeLayout(bestSheet.w, bestSheet.h, itemW, itemH, g, fMode);
                         }
                     } else {
-                        // Standardna optimizacija: čimveč kosov iz osnovne pole (sYield * count)
-                        score = sYield * currLayout.count;
-                    }
-
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestSheet = s;
-                        bestLayout = currLayout;
-                    }
-                };
-
-                if (mFormat === 'auto') {
-                    for (let s of sheets) {
-                        checkSheet(s);
-                    }
-                    if (!bestSheet) {
-                        bestSheet = sheets.find(s => {
-                            let fM = true;
-                            if (profile && profile.maxW) fM = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
-                            return ((sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w)) && fM;
-                        }) || sheets[0];
+                        bestSheet = sheets.find(s => s.name === mFormat) || sheets[0];
                         bestLayout = optimizeLayout(bestSheet.w, bestSheet.h, itemW, itemH, g, fMode);
                     }
-                } else {
-                    bestSheet = sheets.find(s => s.name === mFormat) || sheets[0];
-                    bestLayout = optimizeLayout(bestSheet.w, bestSheet.h, itemW, itemH, g, fMode);
                 }
 
                 if (bestSheet) {
@@ -2261,6 +2268,7 @@
             if (document.getElementById('f-del-fixed-active').checked) {
                 deliveryCost += (parseFloat(document.getElementById('f-del-fixed-price').value) || 0);
             }
+            totalFinishCost += deliveryCost; // Sedaj prištejemo k dodelavi!
 
             let commercialCost = parseFloat(document.getElementById('calc-commercial').value) || 0;
             let subtotalWithoutDelivery = paperCost + totalPrepCost + totalPrintCost + (totalFinishCost - deliveryCost) + commercialCost;
@@ -2501,6 +2509,8 @@
         function updatePriceFromManualCount() {
             let manualCount = parseInt(document.getElementById('items-per-sheet').value) || 0;
             if (manualCount > 0) {
+                // Če uporabnik ročno vnese število, počistimo grafično postavitev, ker ni več veljavna
+                g_manualLayout = null;
                 // Samodejno preklopimo na 'auto' format, da sistem najde najboljšo polo za to število
                 const mFormatEl = document.getElementById('machine-format');
                 if (mFormatEl.value !== 'auto') {
@@ -4060,7 +4070,7 @@
             } else {
                 m_items = [];
 
-                // Samodejno izriši (pred-napolni) stavke glede na Osnovni format
+                // Samodejno izriši (pred-napolni) stavke glede na Osnovni format, če so podane dimenzije
                 const w = parseFloat(document.getElementById('width').value) || 0;
                 const h = parseFloat(document.getElementById('height').value) || 0;
                 const b = parseFloat(document.getElementById('bleed').value) || 0;
@@ -4068,8 +4078,29 @@
                 const itemH = h + 2 * b;
                 const fMode = document.getElementById('item-orientation') ? document.getElementById('item-orientation').value : 'auto';
 
-                const sheetW = parseFloat(document.getElementById('calc-source-w').value) || 1000;
-                const sheetH = parseFloat(document.getElementById('calc-source-h').value) || 700;
+                let sheetW, sheetH;
+                const mFormat = document.getElementById('machine-format').value;
+                if (mFormat !== 'auto') {
+                    const s = sheets.find(sh => sh.name === mFormat);
+                    if (s) { sheetW = s.w; sheetH = s.h; }
+                }
+                if (!sheetW && g_lastSheetW > 0) {
+                    sheetW = g_lastSheetW;
+                    sheetH = g_lastSheetH;
+                }
+                if (!sheetW) {
+                    // Fallback: uporabi profil stroja ali B2
+                    const mType = document.getElementById('calc-machine-type').value;
+                    const prof = machineProfiles[mType];
+                    if (prof && prof.defaultFormat) {
+                        const s = sheets.find(sh => sh.name === prof.defaultFormat);
+                        if (s) { sheetW = s.w; sheetH = s.h; }
+                    }
+                }
+                if (!sheetW) {
+                    sheetW = sheets[0].w;
+                    sheetH = sheets[0].h;
+                }
                 const gripper = parseFloat(document.getElementById('gripper').value) || 10;
 
                 console.log('[ManualEditor] Pred-populacija:', { w, h, b, itemW, itemH, sheetW, sheetH, gripper, fMode });
@@ -4117,9 +4148,28 @@
         function setupManualCanvas() {
             const container = document.getElementById('manual-canvas-container');
 
-            // Preberi "Osnovni format" (v mm)
-            const sheetW = parseFloat(document.getElementById('calc-source-w').value) || 1000;
-            const sheetH = parseFloat(document.getElementById('calc-source-h').value) || 700;
+            let sheetW, sheetH;
+            const mFormat = document.getElementById('machine-format').value;
+            if (mFormat !== 'auto') {
+                const s = sheets.find(sh => sh.name === mFormat);
+                if (s) { sheetW = s.w; sheetH = s.h; }
+            }
+            if (!sheetW && g_lastSheetW > 0) {
+                sheetW = g_lastSheetW;
+                sheetH = g_lastSheetH;
+            }
+            if (!sheetW) {
+                const mType = document.getElementById('calc-machine-type').value;
+                const prof = machineProfiles[mType];
+                if (prof && prof.defaultFormat) {
+                    const s = sheets.find(sh => sh.name === prof.defaultFormat);
+                    if (s) { sheetW = s.w; sheetH = s.h; }
+                }
+            }
+            if (!sheetW) {
+                sheetW = sheets[0].w;
+                sheetH = sheets[0].h;
+            }
             const gripper = parseFloat(document.getElementById('gripper').value) || 10;
 
             g_lastSheetW = sheetW;
@@ -4306,6 +4356,111 @@
             window.removeEventListener('mouseup', stopDrag);
         }
 
+        function printManualLayout() {
+            const container = document.getElementById('manual-canvas-container');
+            if (!container) return;
+
+            // Ustvari nov okno
+            const printWin = window.open('', '', 'width=1000,height=800');
+            if (!printWin) {
+                alert("Brskalnik je blokiral pojavno okno. Prosimo, dovolite pojavna okna za to spletno mesto.");
+                return;
+            }
+
+            // Pripravi HTML
+            const sheetW = g_lastSheetW || 1000;
+            const sheetH = g_lastSheetH || 700;
+
+            // Nastavi CSS in vsebino. Za tisk bomo naštimali, da se polje prilagodi strani
+            const html = `
+                <html>
+                <head>
+                    <title>Montažni list</title>
+                    <style>
+                        @page { size: landscape; margin: 10mm; }
+                        body { 
+                            margin: 0; 
+                            padding: 20px; 
+                            font-family: Arial, sans-serif;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            height: 100vh;
+                            box-sizing: border-box;
+                        }
+                        h2 {
+                            text-align: center;
+                            margin-bottom: 20px;
+                            font-size: 18px;
+                            color: #333;
+                        }
+                        .print-wrapper {
+                            /* Reset transform on wrapper to avoid scaling issues in some browsers */
+                            position: relative;
+                        }
+                        /* Podedujemo stile za montažni list (iz korenskega CSS-a) */
+                        .manual-box {
+                            position: absolute;
+                            background: rgba(96, 165, 250, 0.25) !important;
+                            border: 2px solid #3b82f6 !important;
+                            border-radius: 3px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 10px;
+                            color: #1e3a8a;
+                            font-weight: bold;
+                            box-sizing: border-box;
+                            overflow: hidden;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        .manual-box div {
+                            border: 1px dotted #333 !important;
+                        }
+                        #manual-gripper {
+                            background: rgba(244, 63, 94, 0.15) !important;
+                            color: #f43f5e !important;
+                            border-top: 2px dashed #f43f5e !important;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        @media print {
+                            body { height: auto; display: block; }
+                            h2 { margin-bottom: 30px; }
+                            .print-wrapper {
+                                margin: 0 auto;
+                                /* Scale canvas to fit page width (A4 landscape roughly 277mm printable) */
+                                transform-origin: top center;
+                                transform: scale(\${Math.min(1, 900 / (parseFloat(container.style.width) || container.clientWidth || 900))}); 
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h2>Montažni list (Osnovni format: \${sheetW} x \${sheetH} mm, Elementi: \${m_items.length})</h2>
+                    <div class="print-wrapper">
+                        \${container.outerHTML}
+                    </div>
+                    <script>
+                        // Odstrani box-shadow z glave zabojnika
+                        document.getElementById('manual-canvas-container').style.boxShadow = 'none';
+                        document.getElementById('manual-canvas-container').style.border = '1px solid #ccc';
+                    <\/script>
+                </body>
+                </html>
+            `;
+
+            printWin.document.write(html);
+            printWin.document.close();
+
+            // Počakaj trenutek, da brskalnik izriše CSS in DOM, preden zažene tisk
+            setTimeout(() => {
+                printWin.print();
+            }, 500);
+        }
+
         function applyManualLayout() {
             if (m_items.length === 0) {
                 g_manualLayout = null;
@@ -4480,8 +4635,10 @@
                                 style="background: transparent; border: 1px solid #ef4444; color: #f87171; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">Odstrani
                                 (Del)</button>
                             <button onclick="clearManualLayout()"
-                                style="background: transparent; border: 1px solid #94a3b8; color: #94a3b8; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; grid-column: span 2;">Počisti
+                                style="background: transparent; border: 1px solid #94a3b8; color: #94a3b8; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; grid-column: 1;">Počisti
                                 vse</button>
+                            <button onclick="printManualLayout()"
+                                style="background: transparent; border: 1px solid #10b981; color: #10b981; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; grid-column: 2;">Natisni</button>
                         </div>
                     </div>
 
