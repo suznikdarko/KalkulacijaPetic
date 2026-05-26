@@ -892,8 +892,20 @@
                         <input type="number" id="calc-machine-rate" value="120.00" step="1">
                     </div>
                     <div class="form-group">
-                        <label>Hitrost tiska (pol / uro)</label>
-                        <input type="number" id="calc-machine-speed" value="9000" step="500">
+                        <label>Maks. hitrost stroja (pol / uro)</label>
+                        <input type="number" id="calc-machine-speed-max" value="9000" step="500"
+                            onchange="calculatePrice()"
+                            title="Vnesite maksimalno hitrost stroja. Dejanska hitrost se izračuna samodejno glede na naklado in gramaturo.">
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex; align-items:center; gap:0.4rem;">
+                            ⚙️ Dejanska hitrost tiska
+                            <span style="font-size:0.7rem; color:#94a3b8;">(samodejno glede na naklado &amp;
+                                gramaturo)</span>
+                        </label>
+                        <input type="number" id="calc-machine-speed" readonly
+                            style="background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.4); color: #fbbf24; font-weight: bold; cursor: default;"
+                            title="Samodejno izračunana dejanska hitrost tiska">
                     </div>
 
                     <div class="form-group">
@@ -1513,7 +1525,7 @@
             const profile = machineProfiles[mType];
             if (profile) {
                 document.getElementById('calc-machine-rate').value = profile.rate;
-                document.getElementById('calc-machine-speed').value = profile.speed;
+                document.getElementById('calc-machine-speed-max').value = profile.speed;
                 document.getElementById('calc-machine-prep-time').value = profile.prep;
 
                 // Samodejno nastavi format na 'auto', da sistem sam poišče najboljšo polo ob menjavi stroja
@@ -1795,7 +1807,14 @@
                 }
 
                 if (!bestLayout) {
-                    if (isManual) alert("Izdelek ne gre na polo!");
+                    if (isManual) {
+                        const isObrat = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
+                        if (isObrat) {
+                            alert("Izdelek ne gre na polo! (Nasvet: Imate vklopljeno 'Obračanje / OB', ki zahteva vsaj 2 kosa na poli. Izklopite obračanje ali zmanjšajte format.)");
+                        } else {
+                            alert("Izdelek ne gre na polo! Preverite format (" + itemW + "x" + itemH + " vključno z bleed-om), prijemalec (" + g + "mm) in format stroja.");
+                        }
+                    }
                     return;
                 }
 
@@ -1979,7 +1998,7 @@
                     <div style="font-weight: bold; color: #f59e0b; margin-bottom: 5px;">3. Tisk (Strojno delo)</div>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
                         ${d.print.prepTime > 0 ? `<span>Priprava stroja (${(d.print.prepTime * 60).toFixed(0)} min):</span> <span>${formatPrice(d.print.prepTime * d.print.mRate)}</span>` : ''}
-                        <span>Neto čas tiska (${(d.print.hours * 60).toFixed(0)} min):</span> <span>${formatPrice(d.print.hours * d.print.mRate)}</span>
+                        <span>Neto čas tiska (${(d.print.hours * 60).toFixed(0)} min pri hitrosti <b>${d.print.mSpeed} pol/h</b>):</span> <span>${formatPrice(d.print.hours * d.print.mRate)}</span>
                         <span>Prijemalec (gripper):</span> <span style="color: #fbbf24; font-weight: bold;">${d.print.gripper} mm</span>
                         <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
                         <span style="font-style: italic;">Skupaj strojno delo:</span> <span style="font-weight: bold;">${formatPrice(d.print.cost)}</span>
@@ -2079,6 +2098,42 @@
                 paperCost = totalSourceSheetsNeeded * paperPrice;
             }
 
+            function getDynamicSpeed(baseSpeed, grammage, qty) {
+                let speeds = [];
+                if (grammage <= 160) {
+                    speeds = [
+                        { q: 0, s: 0.16 }, { q: 100, s: 0.19 }, { q: 500, s: 0.30 },
+                        { q: 1000, s: 0.41 }, { q: 5000, s: 0.94 }, { q: 10000, s: 0.97 }, { q: 20000, s: 0.99 }
+                    ];
+                } else if (grammage <= 260) {
+                    speeds = [
+                        { q: 0, s: 0.14 }, { q: 100, s: 0.17 }, { q: 500, s: 0.27 },
+                        { q: 1000, s: 0.37 }, { q: 5000, s: 0.77 }, { q: 10000, s: 0.79 }, { q: 20000, s: 0.81 }
+                    ];
+                } else {
+                    speeds = [
+                        { q: 0, s: 0.14 }, { q: 100, s: 0.17 }, { q: 500, s: 0.27 },
+                        { q: 1000, s: 0.34 }, { q: 5000, s: 0.66 }, { q: 10000, s: 0.67 }, { q: 20000, s: 0.69 }
+                    ];
+                }
+
+                let factor = speeds[speeds.length - 1].s;
+                if (qty <= speeds[0].q) {
+                    factor = speeds[0].s;
+                } else {
+                    for (let i = 0; i < speeds.length - 1; i++) {
+                        if (qty >= speeds[i].q && qty <= speeds[i + 1].q) {
+                            let rangeQ = speeds[i + 1].q - speeds[i].q;
+                            let rangeS = speeds[i + 1].s - speeds[i].s;
+                            let fraction = (qty - speeds[i].q) / rangeQ;
+                            factor = speeds[i].s + fraction * rangeS;
+                            break;
+                        }
+                    }
+                }
+                return Math.round(baseSpeed * factor);
+            }
+
             let frontRaw = parseInt(document.getElementById('calc-color-front').value);
             let front = isNaN(frontRaw) ? 0 : frontRaw;
             let backRaw = parseInt(document.getElementById('calc-color-back').value);
@@ -2104,11 +2159,20 @@
             let totalPrepCost = (platesNum * platesPrice) + prepPrice + (numberOfChanges * changePrice) + washCost;
 
             let mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 0;
-            let mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 10000;
+            let rawMachineSpeed = parseFloat(document.getElementById('calc-machine-speed-max').value) || 10000;
+
+            let printSheets = sheetsNeeded + paperWasteSheets;
+            // Hitrosto izračunamo glede na naklado (qty), ker grafi prikazujejo hitrost v odvisnosti od naklade
+            let mSpeed = getDynamicSpeed(rawMachineSpeed, paperWeight, qty);
+
+            // Posodabljamo prikazovalno polje z dejansko izračunano hitrostjo
+            const mSpeedEl = document.getElementById('calc-machine-speed');
+            if (mSpeedEl) mSpeedEl.value = mSpeed;
+
             let mPrepInp = document.getElementById('calc-machine-prep-time').value;
             let mPrepTime = (mPrepInp === "" ? 10 : parseFloat(mPrepInp)) / 60;
 
-            let printHours = (sheetsNeeded + paperWasteSheets) * mPasses / mSpeed;
+            let printHours = printSheets * mPasses / mSpeed;
             let totalPrintCost = (printHours + mPrepTime) * mRate;
 
             let totalFinishCost = 0;
@@ -2216,6 +2280,7 @@
                     hours: printHours,
                     prepTime: mPrepTime,
                     mRate: mRate,
+                    mSpeed: mSpeed,
                     cost: totalPrintCost,
                     gripper: parseFloat(document.getElementById('gripper').value) || 0
                 },
