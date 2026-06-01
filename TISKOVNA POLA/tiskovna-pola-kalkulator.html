@@ -166,7 +166,7 @@
 
         input::placeholder,
         textarea::placeholder {
-            color: #94a3b8;
+            color: #e2e8f0;
             opacity: 1;
         }
 
@@ -961,9 +961,9 @@
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem;">
                         <div>
                             <!-- Razrez na format -->
-                            <div class="finish-item" id="row-finish-razrez-format">
+                            <div class="finish-item active" id="row-finish-razrez-format">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                    <input type="checkbox" id="f-razrez-format-active"
+                                    <input type="checkbox" id="f-razrez-format-active" checked
                                         onchange="toggleFinishRow('razrez-format')">
                                     Razrez na format
                                 </label>
@@ -980,9 +980,9 @@
                             </div>
 
                             <!-- Razrez materiala (pred tiskom) -->
-                            <div class="finish-item" id="row-finish-precut">
+                            <div class="finish-item active" id="row-finish-precut">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                    <input type="checkbox" id="f-precut-active" onchange="toggleFinishRow('precut')">
+                                    <input type="checkbox" id="f-precut-active" checked onchange="toggleFinishRow('precut')">
                                     Razrez materiala (pred tiskom)
                                 </label>
                                 <div class="form-group" style="margin:0;">
@@ -1007,6 +1007,10 @@
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Priprava (€)</small></label>
                                     <input type="number" id="f-cilinder-prep" value="20.00" onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Ročno ur (h)</small></label>
+                                    <input type="number" id="f-cilinder-hours" value="" placeholder="Avto" step="0.1" onchange="calculatePrice()">
                                 </div>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Urna post. (€/h)</small></label>
@@ -1054,23 +1058,6 @@
                         </div>
 
                         <div>
-                            <!-- Šivanje -->
-                            <div class="finish-item" id="row-finish-sivanje">
-                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                    <input type="checkbox" id="f-sivanje-active" onchange="toggleFinishRow('sivanje')">
-                                    Šivanje
-                                </label>
-                                <div class="form-group" style="margin:0;">
-                                    <label><small>Priprava (€)</small></label>
-                                    <input type="number" id="f-sivanje-prep" value="30.00" onchange="calculatePrice()">
-                                </div>
-                                <div class="form-group" style="margin:0;">
-                                    <label><small>Cena/1000 (€)</small></label>
-                                    <input type="number" id="f-sivanje-per1000" value="15.00"
-                                        onchange="calculatePrice()">
-                                </div>
-                            </div>
-
                             <!-- Lepljenje -->
                             <div class="finish-item" id="row-finish-lepljenje">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
@@ -1338,7 +1325,6 @@
                 list.push(`Zgibanje (${f}x)`);
             }
             if (document.getElementById('f-razrez-format-active').checked) list.push('Razrez');
-            if (document.getElementById('f-sivanje-active').checked) list.push('Šivanje');
             if (document.getElementById('f-lepljenje-active').checked) list.push('Lepljenje');
             if (document.getElementById('f-spiral-active').checked) list.push('Špiraljenje');
             if (document.getElementById('f-extra-active').checked) list.push('Ročno delo');
@@ -2222,10 +2208,18 @@
 
             let totalFinishCost = 0;
             if (document.getElementById('f-cilinder-active').checked) {
-                let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 20;
-                let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 40;
-                let cSpeed = paperWeight > 300 ? 1400 : (document.getElementById('f-tool-active')?.checked ? 1500 : 2000);
-                totalFinishCost += cPrep + (totalSheetsNeeded / cSpeed) * cRate;
+                let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 0;
+                let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 0;
+                let manualHours = parseFloat(document.getElementById('f-cilinder-hours').value);
+                
+                let workHours = 0;
+                if (!isNaN(manualHours) && manualHours > 0) {
+                    workHours = manualHours;
+                } else {
+                    let cSpeed = 2000;
+                    workHours = totalSheetsNeeded / cSpeed;
+                }
+                totalFinishCost += cPrep + (workHours * cRate);
             }
             if (document.getElementById('f-zgibanje-active').checked) {
                 let zFolds = parseInt(document.getElementById('f-zgibanje-folds').value) || 4;
@@ -2237,9 +2231,8 @@
                 const rte = parseFloat(document.getElementById('f-razrez-format-rate').value) || 20;
                 totalFinishCost += (totalSheetsNeeded / spd) * rte;
             }
-            if (document.getElementById('f-sivanje-active').checked) {
-                totalFinishCost += (parseFloat(document.getElementById('f-sivanje-prep').value) || 0) + (qty / 1000) * (parseFloat(document.getElementById('f-sivanje-per1000').value) || 0);
-            }
+
+
             if (document.getElementById('f-lepljenje-active').checked) {
                 totalFinishCost += (parseFloat(document.getElementById('f-lepljenje-prep').value) || 0) + (qty / 1000) * (parseFloat(document.getElementById('f-lepljenje-per1000').value) || 0);
             }
@@ -2338,16 +2331,27 @@
 
             // Collect finishing items
             if (document.getElementById('f-cilinder-active').checked) {
-                let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 20;
-                let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 40;
-                let cSpeed = paperWeight > 300 ? 1400 : ((document.getElementById('f-tool-active') && document.getElementById('f-tool-active').checked) ? 1500 : 2000);
-                let workHours = totalSheetsNeeded / cSpeed;
+                let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 0;
+                let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 0;
+                let manualHours = parseFloat(document.getElementById('f-cilinder-hours').value);
+                
+                let workHours = 0;
+                let isAuto = true;
+                if (!isNaN(manualHours) && manualHours > 0) {
+                    workHours = manualHours;
+                    isAuto = false;
+                } else {
+                    let cSpeed = 2000;
+                    workHours = totalSheetsNeeded / cSpeed;
+                }
+                
                 let cWork = workHours * cRate;
                 let cCost = cPrep + cWork;
+                let hourText = isAuto ? `${workHours.toFixed(2)}h (avto)` : `${workHours.toFixed(2)}h (ročno)`;
                 details.finish.items.push({
                     name: 'Cilinder (izsek)',
                     cost: cCost,
-                    breakdown: `Priprava: ${formatPrice(cPrep)} | Delo: ${workHours.toFixed(1)}h (${formatPrice(cWork)})`
+                    breakdown: `Priprava: ${formatPrice(cPrep)} | Delo: ${hourText} (${formatPrice(cWork)})`
                 });
             }
             if (document.getElementById('f-zgibanje-active').checked) {
@@ -2374,17 +2378,8 @@
                     breakdown: `Norma: ${spd} pol/h | Čas: ${hrs.toFixed(2)} h (${formatPrice(cost)})`
                 });
             }
-            if (document.getElementById('f-sivanje-active').checked) {
-                let sPrep = (parseFloat(document.getElementById('f-sivanje-prep').value) || 0);
-                let sP1000 = (parseFloat(document.getElementById('f-sivanje-per1000').value) || 0);
-                let sWork = (qty / 1000) * sP1000;
-                let sCost = sPrep + sWork;
-                details.finish.items.push({
-                    name: 'Šivanje',
-                    cost: sCost,
-                    breakdown: `Priprava: ${formatPrice(sPrep)} | Delo: ${qty} kos (${formatPrice(sWork)})`
-                });
-            }
+
+
             if (document.getElementById('f-lepljenje-active').checked) {
                 let lPrep = (parseFloat(document.getElementById('f-lepljenje-prep').value) || 0);
                 let lP1000 = (parseFloat(document.getElementById('f-lepljenje-per1000').value) || 0);
@@ -3252,10 +3247,9 @@
                         itemOrientation: gv('item-orientation'),
                         minusPrice: gc('calc-minus-price'),
                         finish: {
-                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
+                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), hours: gv('f-cilinder-hours'), rate: gv('f-cilinder-rate') },
                             zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
                             razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
-                            sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
                             lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
                             spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
@@ -3344,10 +3338,9 @@
                         itemOrientation: gv('item-orientation'),
                         minusPrice: gc('calc-minus-price'),
                         finish: {
-                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
+                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), hours: gv('f-cilinder-hours'), rate: gv('f-cilinder-rate') },
                             zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
                             razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
-                            sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
                             lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
                             spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
@@ -3618,6 +3611,7 @@
                 if (f.cilinder) {
                     document.getElementById('f-cilinder-active').checked = f.cilinder.active;
                     document.getElementById('f-cilinder-prep').value = f.cilinder.prep;
+                    document.getElementById('f-cilinder-hours').value = f.cilinder.hours !== undefined ? f.cilinder.hours : '';
                     document.getElementById('f-cilinder-rate').value = f.cilinder.rate;
                     toggleFinishRow('cilinder');
                 }
@@ -3634,12 +3628,8 @@
                     document.getElementById('f-razrez-format-rate').value = f.razrezFormat.rate || 20.00;
                     toggleFinishRow('razrez-format');
                 }
-                if (f.sivanje) {
-                    document.getElementById('f-sivanje-active').checked = f.sivanje.active;
-                    document.getElementById('f-sivanje-prep').value = f.sivanje.prep;
-                    document.getElementById('f-sivanje-per1000').value = f.sivanje.per1000;
-                    toggleFinishRow('sivanje');
-                }
+
+
                 if (f.lepljenje) {
                     document.getElementById('f-lepljenje-active').checked = f.lepljenje.active;
                     document.getElementById('f-lepljenje-prep').value = f.lepljenje.prep;
@@ -3755,11 +3745,10 @@
                         isObrat: document.getElementById('calc-is-obrat').checked,
                         margin: document.getElementById('calc-margin').value,
                         finish: {
-                            cilinder: { active: document.getElementById('f-cilinder-active').checked, prep: document.getElementById('f-cilinder-prep').value, rate: document.getElementById('f-cilinder-rate').value },
+                            cilinder: { active: document.getElementById('f-cilinder-active').checked, prep: document.getElementById('f-cilinder-prep').value, hours: document.getElementById('f-cilinder-hours').value, rate: document.getElementById('f-cilinder-rate').value },
                             zgibanje: { active: document.getElementById('f-zgibanje-active').checked, folds: document.getElementById('f-zgibanje-folds').value, speed: document.getElementById('f-zgibanje-speed').value },
-                            sivanje: { active: document.getElementById('f-sivanje-active').checked, prep: document.getElementById('f-sivanje-prep').value, per1000: document.getElementById('f-sivanje-per1000').value },
+                            razrezFormat: { active: document.getElementById('f-razrez-format-active').checked, speed: document.getElementById('f-razrez-format-speed').value, rate: document.getElementById('f-razrez-format-rate').value },
                             lepljenje: { active: document.getElementById('f-lepljenje-active').checked, prep: document.getElementById('f-lepljenje-prep').value, per1000: document.getElementById('f-lepljenje-per1000').value },
-                            spiral: { active: document.getElementById('f-spiral-active').checked, price: document.getElementById('f-spiral-price').value },
                             spiral: { active: document.getElementById('f-spiral-active').checked, price: document.getElementById('f-spiral-price').value },
                             extra: { active: document.getElementById('f-extra-active').checked, speed: document.getElementById('f-extra-speed').value, rate: document.getElementById('f-extra-rate').value },
                             precut: { active: document.getElementById('f-precut-active') ? document.getElementById('f-precut-active').checked : false, prep: document.getElementById('f-precut-prep') ? document.getElementById('f-precut-prep').value : 2.50, per1000: document.getElementById('f-precut-per1000') ? document.getElementById('f-precut-per1000').value : 3.60 },
