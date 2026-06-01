@@ -926,9 +926,9 @@
                     </div>
                     <div class="form-group">
                         <label>Maks. hitrost stroja (pol / uro)</label>
-                        <input type="number" id="calc-machine-speed-max" value="6900" step="500"
+                        <input type="number" id="calc-machine-speed-max" value="" placeholder="Avto (6900)" step="500"
                             onchange="calculatePrice()"
-                            title="Vnesite maksimalno hitrost stroja. Dejanska hitrost se izračuna samodejno glede na naklado in gramaturo.">
+                            title="Vnesite maksimalno hitrost stroja. Pustite prazno za privzeto/avtomatsko hitrost stroja.">
                     </div>
                     <div class="form-group">
                         <label style="display:flex; align-items:center; gap:0.4rem;">
@@ -1544,7 +1544,11 @@
             const profile = machineProfiles[mType];
             if (profile) {
                 document.getElementById('calc-machine-rate').value = profile.rate;
-                document.getElementById('calc-machine-speed-max').value = profile.speed;
+                const speedMaxInp = document.getElementById('calc-machine-speed-max');
+                if (speedMaxInp) {
+                    speedMaxInp.value = "";
+                    speedMaxInp.placeholder = "Avto (" + profile.speed + ")";
+                }
                 document.getElementById('calc-machine-prep-time').value = profile.prep;
 
                 // Samodejno nastavi format na 'auto', da sistem sam poišče najboljšo polo ob menjavi stroja
@@ -2190,7 +2194,9 @@
             let totalPrepCost = (platesNum * platesPrice) + prepPrice + (numberOfChanges * changePrice) + washCost;
 
             let mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 0;
-            let rawMachineSpeed = parseFloat(document.getElementById('calc-machine-speed-max').value) || 10000;
+            let mType = document.getElementById('calc-machine-type').value;
+            let mProfile = machineProfiles[mType] || { speed: 6900 };
+            let rawMachineSpeed = parseFloat(document.getElementById('calc-machine-speed-max').value) || mProfile.speed;
 
             let printSheets = sheetsNeeded + paperWasteSheets;
             // Hitrosto izračunamo glede na naklado (qty), ker grafi prikazujejo hitrost v odvisnosti od naklade
@@ -3237,6 +3243,7 @@
                         machineType: gv('calc-machine-type'),
                         machineRate: gv('calc-machine-rate'),
                         machineSpeed: gv('calc-machine-speed'),
+                        machineSpeedMax: gv('calc-machine-speed-max'),
                         machinePrepTime: gv('calc-machine-prep-time'),
                         colorFront: gv('calc-color-front'),
                         colorBack: gv('calc-color-back'),
@@ -3328,6 +3335,7 @@
                         machineType: gv('calc-machine-type'),
                         machineRate: gv('calc-machine-rate'),
                         machineSpeed: gv('calc-machine-speed'),
+                        machineSpeedMax: gv('calc-machine-speed-max'),
                         machinePrepTime: gv('calc-machine-prep-time'),
                         colorFront: gv('calc-color-front'),
                         colorBack: gv('calc-color-back'),
@@ -3595,6 +3603,17 @@
             document.getElementById('calc-machine-type').value = inp.machineType;
             document.getElementById('calc-machine-rate').value = inp.machineRate;
             document.getElementById('calc-machine-speed').value = inp.machineSpeed;
+            if (inp.machineSpeedMax !== undefined) {
+                document.getElementById('calc-machine-speed-max').value = inp.machineSpeedMax;
+                if (inp.machineSpeedMax === "") {
+                    const prof = machineProfiles[inp.machineType] || { speed: 6900 };
+                    document.getElementById('calc-machine-speed-max').placeholder = "Avto (" + prof.speed + ")";
+                }
+            } else {
+                document.getElementById('calc-machine-speed-max').value = "";
+                const prof = machineProfiles[inp.machineType] || { speed: 6900 };
+                document.getElementById('calc-machine-speed-max').placeholder = "Avto (" + prof.speed + ")";
+            }
             if (inp.machinePrepTime !== undefined) document.getElementById('calc-machine-prep-time').value = inp.machinePrepTime;
             document.getElementById('calc-color-front').value = inp.colorFront;
             document.getElementById('calc-color-back').value = inp.colorBack;
@@ -3739,6 +3758,7 @@
                         machineType: document.getElementById('calc-machine-type').value,
                         machineRate: document.getElementById('calc-machine-rate').value,
                         machineSpeed: document.getElementById('calc-machine-speed').value,
+                        machineSpeedMax: document.getElementById('calc-machine-speed-max').value,
                         machinePrepTime: document.getElementById('calc-machine-prep-time').value,
                         colorFront: document.getElementById('calc-color-front').value,
                         colorBack: document.getElementById('calc-color-back').value,
