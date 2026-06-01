@@ -943,7 +943,7 @@
 
                     <div class="form-group">
                         <label>Čas priprave stroja za tisk (minuti)</label>
-                        <input type="number" id="calc-machine-prep-time" value="10" step="5"
+                        <input type="number" id="calc-machine-prep-time" value="" placeholder="Avto" step="5"
                             onchange="calculatePrice()">
                     </div>
                 </div>
@@ -1549,7 +1549,11 @@
                     speedMaxInp.value = "";
                     speedMaxInp.placeholder = "Avto (" + profile.speed + ")";
                 }
-                document.getElementById('calc-machine-prep-time').value = profile.prep;
+                const prepTimeInp = document.getElementById('calc-machine-prep-time');
+                if (prepTimeInp) {
+                    prepTimeInp.value = "";
+                    prepTimeInp.placeholder = "Avto";
+                }
 
                 // Samodejno nastavi format na 'auto', da sistem sam poišče najboljšo polo ob menjavi stroja
                 const mFormatSelect = document.getElementById('machine-format');
@@ -2196,20 +2200,79 @@
             let mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 0;
             let mType = document.getElementById('calc-machine-type').value;
             let mProfile = machineProfiles[mType] || { speed: 6900 };
-            let rawMachineSpeed = parseFloat(document.getElementById('calc-machine-speed-max').value) || mProfile.speed;
-
+            
             let printSheets = sheetsNeeded + paperWasteSheets;
-            // Hitrosto izračunamo glede na naklado (qty), ker grafi prikazujejo hitrost v odvisnosti od naklade
-            let mSpeed = getDynamicSpeed(rawMachineSpeed, paperWeight, qty);
+            let printHours = 0;
+            let mSpeed = 0;
+
+            let speedMaxInpVal = document.getElementById('calc-machine-speed-max').value;
+            if (speedMaxInpVal !== "") {
+                // Če je uporabnik sam vpisal hitrost, uporabimo prejšnjo logiko
+                let rawMachineSpeed = parseFloat(speedMaxInpVal) || mProfile.speed;
+                mSpeed = getDynamicSpeed(rawMachineSpeed, paperWeight, qty);
+                printHours = (printSheets * mPasses) / mSpeed;
+            } else {
+                // Boss logika (avtomatsko)
+                let baseMinPer1000 = 9.0;
+                if (paperWeight <= 69) {
+                    baseMinPer1000 = 9.0;
+                } else if (paperWeight <= 150) {
+                    baseMinPer1000 = 9.3;
+                } else if (paperWeight <= 250) {
+                    baseMinPer1000 = 10.0;
+                } else if (paperWeight <= 350) {
+                    baseMinPer1000 = 11.0;
+                } else {
+                    baseMinPer1000 = 13.0;
+                }
+                
+                // Izračun osnovnega časa tiskanja v minutah
+                let printMin = (printSheets / 1000) * baseMinPer1000 * mPasses;
+                
+                // Vpliv obračalnika (10 % pribitek, če tiskamo z obračanjem)
+                if (isObrat) {
+                    printMin *= 1.10;
+                }
+                
+                // Dodatki/odbitki glede na naklado
+                if (printSheets < 2000) {
+                    printMin += 8.0;
+                } else if (printSheets >= 50000) {
+                    printMin = Math.max(0, printMin - 10.0);
+                } else if (printSheets >= 10000) {
+                    printMin = Math.max(0, printMin - 5.0);
+                }
+                
+                printHours = printMin / 60;
+                mSpeed = printHours > 0 ? ((printSheets * mPasses) / printHours) : 0;
+                
+                // Omejimo dejansko hitrost na profilno maks hitrost stroja, če bi preračunana hitrost presegla fizikalno mejo
+                if (mSpeed > mProfile.speed) {
+                    mSpeed = mProfile.speed;
+                    printHours = (printSheets * mPasses) / mSpeed;
+                }
+            }
 
             // Posodabljamo prikazovalno polje z dejansko izračunano hitrostjo
             const mSpeedEl = document.getElementById('calc-machine-speed');
-            if (mSpeedEl) mSpeedEl.value = mSpeed;
+            if (mSpeedEl) mSpeedEl.value = Math.round(mSpeed);
 
+            // Strojni čas priprave (priprava tiska v minutah)
             let mPrepInp = document.getElementById('calc-machine-prep-time').value;
-            let mPrepTime = (mPrepInp === "" ? 10 : parseFloat(mPrepInp)) / 60;
+            let mPrepMinutes = 10; // Privzeto osnovno
+            if (mPrepInp !== "") {
+                mPrepMinutes = parseFloat(mPrepInp) || 0;
+            } else {
+                // Boss formula za pripravo:
+                // Osnovna priprava (10 min) + Menjava plošč (6 min na agregat/ploščo) + Obračalnik (15 min)
+                mPrepMinutes = 10 + (6 * platesNum) + (isObrat ? 15 : 0);
+                const prepTimeInp = document.getElementById('calc-machine-prep-time');
+                if (prepTimeInp) {
+                    prepTimeInp.placeholder = "Avto (" + mPrepMinutes + " min)";
+                }
+            }
+            let mPrepTime = mPrepMinutes / 60;
 
-            let printHours = printSheets * mPasses / mSpeed;
             let totalPrintCost = (printHours + mPrepTime) * mRate;
 
             let totalFinishCost = 0;
