@@ -1035,17 +1035,29 @@
                                     Zgibanje
                                 </label>
                                 <div class="form-group" style="margin:0;">
-                                    <label><small>Št. zgibov (1-4)</small></label>
-                                    <select id="f-zgibanje-folds" onchange="calculatePrice()">
+                                    <label><small>Št. zgibov (1-5)</small></label>
+                                    <select id="f-zgibanje-folds" onchange="updateZgibanjeDefaults(); calculatePrice()">
                                         <option value="1" selected>1 zgib</option>
                                         <option value="2">2 zgiba</option>
                                         <option value="3">3 zgiba</option>
                                         <option value="4">4 zgibi</option>
+                                        <option value="5">5 zgibov</option>
                                     </select>
+                                    <script>
+                                        function updateZgibanjeDefaults() {
+                                            let folds = parseInt(document.getElementById('f-zgibanje-folds').value) || 1;
+                                            let speedInput = document.getElementById('f-zgibanje-speed');
+                                            if (folds === 1) speedInput.value = 10800;
+                                            else if (folds === 2) speedInput.value = 8500;
+                                            else if (folds === 3) speedInput.value = 7500;
+                                            else if (folds === 4) speedInput.value = 5750;
+                                            else if (folds === 5) speedInput.value = 4500;
+                                        }
+                                    </script>
                                 </div>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Hitrost (kom/h)</small></label>
-                                    <input type="number" id="f-zgibanje-speed" value="10000"
+                                    <input type="number" id="f-zgibanje-speed" value="10800"
                                         onchange="calculatePrice()">
                                 </div>
                             </div>
@@ -2331,9 +2343,11 @@
                 totalFinishCost += cPrep + (workHours * cRate);
             }
             if (document.getElementById('f-zgibanje-active').checked) {
-                let zFolds = parseInt(document.getElementById('f-zgibanje-folds').value) || 4;
-                let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 10000;
-                totalFinishCost += ((zFolds / 4) * 50) + (qty / zSpeed) * 30;
+                let zFolds = parseInt(document.getElementById('f-zgibanje-folds').value) || 1;
+                let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 10800;
+                let zPrep = (zFolds + 1) * 8.40;
+                let zWork = (qty / zSpeed) * 50.76;
+                totalFinishCost += zPrep + zWork;
             }
             if (document.getElementById('f-razrez-format-active').checked) {
                 const spd = parseFloat(document.getElementById('f-razrez-format-speed').value) || 5800;
@@ -2467,16 +2481,16 @@
                 });
             }
             if (document.getElementById('f-zgibanje-active').checked) {
-                let zFolds = parseInt(document.getElementById('f-zgibanje-folds').value) || 4;
-                let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 10000;
+                let zFolds = parseInt(document.getElementById('f-zgibanje-folds').value) || 1;
+                let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 10800;
                 let workHours = qty / zSpeed;
-                let zPrep = (zFolds / 4) * 50;
-                let zWork = workHours * 30;
+                let zPrep = (zFolds + 1) * 8.40;
+                let zWork = workHours * 50.76;
                 let zCost = zPrep + zWork;
                 details.finish.items.push({
                     name: `Zgibanje (${zFolds}x)`,
                     cost: zCost,
-                    breakdown: `Priprava: ${formatPrice(zPrep)} | Delo: ${workHours.toFixed(1)}h (${formatPrice(zWork)})`
+                    breakdown: `Priprava: ${formatPrice(zPrep)} | Delo: ${workHours.toFixed(2)}h (${formatPrice(zWork)})`
                 });
             }
             if (document.getElementById('f-razrez-format-active').checked) {
