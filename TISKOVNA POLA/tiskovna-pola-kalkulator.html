@@ -852,8 +852,17 @@
                         </p>
                     </div>
                     <div class="form-group">
-                        <label>Odpadna makulatura (št. pol) - <small>Samodejno izračunano</small></label>
-                        <input type="number" id="calc-paper-waste" value="320" onchange="calculatePrice()">
+                        <label>Makulatura (št. pol) <small>(Prazno = Boss avto)</small></label>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <div style="flex:1;">
+                                <input type="number" id="calc-paper-waste-manual" value="" placeholder="Avto" onchange="calculatePrice()">
+                            </div>
+                            <div style="flex:1;">
+                                <input type="number" id="calc-paper-waste" value="320" readonly
+                                    style="background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.4); color:#fbbf24; font-weight:bold; cursor:default;"
+                                    title="Samodejno izračunano glede na barve in obračanje">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1129,6 +1138,18 @@
                                 </div>
                             </div>
 
+                            <!-- Personalizacija -->
+                            <div class="finish-item" id="row-finish-personalization">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-personalization-active" onchange="toggleFinishRow('personalization')">
+                                    Personalizacija
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena na polo (€)</small></label>
+                                    <input type="number" id="f-personalization-price" value="0.03" step="0.01" onchange="calculatePrice()">
+                                </div>
+                            </div>
+
                             <!-- Plastifikacija -->
                             <div class="finish-item" id="row-finish-lam">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
@@ -1378,6 +1399,10 @@
                     customer: document.getElementById('calc-customer').value || '',
                     materialCode: document.getElementById('calc-material-code').value || '/',
                     spec: {
+                        usePersonalization: document.getElementById('calc-use-personalization').checked,
+                        useManualWork: document.getElementById('calc-use-manual-work').checked,
+                        wasteManual: document.getElementById('calc-paper-waste-manual').value,
+                        mutPlates: document.getElementById('calc-mut-plates').value,
                         format: document.getElementById('width').value + ' x ' + document.getElementById('height').value + ' mm',
                         paper: document.getElementById('calc-paper-weight').value + 'g ' + (document.getElementById('calc-paper-type').value || ''),
                         colors: document.getElementById('calc-color-front').value + '/' + document.getElementById('calc-color-back').value,
@@ -2114,7 +2139,22 @@
             let paperPrice = parseFloat(document.getElementById('calc-paper-price').value) || 0;
             let paperUnit = document.getElementById('calc-paper-unit').value;
             let paperWeight = parseFloat(document.getElementById('calc-paper-weight').value) || 0;
-            let paperWasteSheets = parseInt(document.getElementById('calc-paper-waste').value) || 0;
+            // Logika za makulaturo po Boss sistemu (preko tabele prepRules)
+            const manualWaste = parseFloat(document.getElementById('calc-paper-waste-manual').value);
+            let paperWasteSheets = 320;
+            if (!isNaN(manualWaste)) {
+                paperWasteSheets = manualWaste;
+            } else {
+                let _front = parseInt(document.getElementById('calc-color-front').value) || 0;
+                let _back = parseInt(document.getElementById('calc-color-back').value) || 0;
+                let _isObrat = document.getElementById('calc-is-obrat').checked;
+                let _colorMode = _front + '/' + (_isObrat ? 'OB' : _back);
+                let _defaultWaste = (_front + _back) * 150;
+                let _rule = prepRules[_colorMode] || { passes: 1, wasteImpressions: _defaultWaste };
+                paperWasteSheets = _rule.wasteImpressions;
+            }
+            const wasteEl = document.getElementById('calc-paper-waste');
+            if (wasteEl) wasteEl.value = paperWasteSheets;
             let totalSheetsNeeded = sheetsNeeded + paperWasteSheets;
 
             let paperCost = 0;
@@ -2319,6 +2359,9 @@
             if (document.getElementById('f-uv-active').checked) {
                 totalFinishCost += (parseFloat(document.getElementById('f-uv-prep').value) || 0) + (totalSheetsNeeded / 1000) * (parseFloat(document.getElementById('f-uv-per1000').value) || 0);
             }
+            if (document.getElementById('f-personalization-active') && document.getElementById('f-personalization-active').checked) {
+                totalFinishCost += sheetsNeeded * (parseFloat(document.getElementById('f-personalization-price').value) || 0);
+            }
             if (document.getElementById('f-precut-active') && document.getElementById('f-precut-active').checked) {
                 let prePrep = parseFloat(document.getElementById('f-precut-prep').value) || 0;
                 let prePer1000 = parseFloat(document.getElementById('f-precut-per1000').value) || 0;
@@ -2498,6 +2541,15 @@
                     name: 'UV lak (tuja)',
                     cost: uCost,
                     breakdown: `Priprava: ${formatPrice(uPrep)} | Delo: ${totalSheetsNeeded} pol (${formatPrice(uWork)})`
+                });
+            }
+            if (document.getElementById('f-personalization-active') && document.getElementById('f-personalization-active').checked) {
+                let pPrice = (parseFloat(document.getElementById('f-personalization-price').value) || 0);
+                let pCost = sheetsNeeded * pPrice;
+                details.finish.items.push({
+                    name: 'Personalizacija',
+                    cost: pCost,
+                    breakdown: `Delo: ${sheetsNeeded} pol po ${formatPrice(pPrice)}/polo = ${formatPrice(pCost)}`
                 });
             }
             if (document.getElementById('f-lam-active').checked) {
@@ -3300,6 +3352,8 @@
                         pWeight: gv('calc-paper-weight'),
                         pType: gv('calc-paper-type'),
                         pWaste: gv('calc-paper-waste'),
+                        wasteManual: gv('calc-paper-waste-manual'),
+                        mutPlates: gv('calc-mut-plates'),
                         platesPrice: gv('calc-plates-price'),
                         prepPrice: gv('calc-prep-price'),
                         changePrice: gv('calc-change-price'),
@@ -3325,6 +3379,7 @@
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
                             uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                            personalization: { active: gc('f-personalization-active'), price: gv('f-personalization-price') },
                             lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
                             delivery: { active: gc('f-delivery-active'), count: gv('f-post-count'), pricePer: gv('f-post-price-per') },
                             deliveryFixed: { active: gc('f-del-fixed-active'), price: gv('f-del-fixed-price') }
@@ -3392,6 +3447,8 @@
                         pWeight: gv('calc-paper-weight'),
                         pType: gv('calc-paper-type'),
                         pWaste: gv('calc-paper-waste'),
+                        wasteManual: gv('calc-paper-waste-manual'),
+                        mutPlates: gv('calc-mut-plates'),
                         platesPrice: gv('calc-plates-price'),
                         prepPrice: gv('calc-prep-price'),
                         changePrice: gv('calc-change-price'),
@@ -3417,6 +3474,7 @@
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
                             uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                            personalization: { active: gc('f-personalization-active'), price: gv('f-personalization-price') },
                             lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
                             delivery: { active: gc('f-delivery-active'), count: gv('f-post-count'), pricePer: gv('f-post-price-per') },
                             deliveryFixed: { active: gc('f-del-fixed-active'), price: gv('f-del-fixed-price') }
@@ -3628,6 +3686,12 @@
 
         // Pomožna funkcija za nalaganje podatkov v polja (skupna za Arhiv in File Import)
         function loadProjectData(proj) {
+            function setV(id, val, isChk = false) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                if (isChk) el.checked = !!val; else el.value = val;
+                updateInputStyles(el);
+            }
             if (!proj || !proj.inputs) return;
             const inp = proj.inputs;
 
@@ -3746,6 +3810,11 @@
                     document.getElementById('f-uv-per1000').value = f.uv.per1000;
                     toggleFinishRow('uv');
                 }
+                if (f.personalization) {
+                    if (document.getElementById('f-personalization-active')) document.getElementById('f-personalization-active').checked = f.personalization.active;
+                    if (document.getElementById('f-personalization-price')) document.getElementById('f-personalization-price').value = f.personalization.price || 0.03;
+                    toggleFinishRow('personalization');
+                }
                 if (f.lam) {
                     document.getElementById('f-lam-active').checked = f.lam.active;
                     if (document.getElementById('f-lam-type')) document.getElementById('f-lam-type').value = f.lam.type;
@@ -3837,6 +3906,7 @@
                             precut: { active: document.getElementById('f-precut-active') ? document.getElementById('f-precut-active').checked : false, prep: document.getElementById('f-precut-prep') ? document.getElementById('f-precut-prep').value : 2.50, per1000: document.getElementById('f-precut-per1000') ? document.getElementById('f-precut-per1000').value : 3.60 },
                             tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
                             uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
+                            personalization: { active: document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false, price: document.getElementById('f-personalization-price') ? document.getElementById('f-personalization-price').value : 0.03 },
                             lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type') ? document.getElementById('f-lam-type').value : '', sides: document.getElementById('f-lam-sides') ? document.getElementById('f-lam-sides').value : 1, per1000: document.getElementById('f-lam-per1000') ? document.getElementById('f-lam-per1000').value : 0, prep: document.getElementById('f-lam-prep') ? document.getElementById('f-lam-prep').value : 0 },
                             delivery: { active: document.getElementById('f-delivery-active').checked, count: document.getElementById('f-post-count').value, pricePer: document.getElementById('f-post-price-per').value },
                             deliveryFixed: { active: document.getElementById('f-del-fixed-active').checked, price: document.getElementById('f-del-fixed-price').value }

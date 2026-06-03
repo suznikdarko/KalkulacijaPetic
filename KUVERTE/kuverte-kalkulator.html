@@ -522,8 +522,18 @@
                         <input type="number" id="calc-qty-ordered" value="0" onchange="calculate()">
                     </div>
                     <div class="form-group">
-                        <label>Dodatek (kos)</label>
-                        <input type="number" id="calc-waste" value="320" onchange="calculate()">
+                        <label>Dodatek kos <small>(Prazno = Avto)</small></label>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <div style="flex:1;">
+                                <input type="number" id="calc-waste-manual" value="" placeholder="Avto"
+                                    onchange="calculate()">
+                            </div>
+                            <div style="flex:1;">
+                                <input type="number" id="calc-waste" value="320" readonly
+                                    style="background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.4); color:#fbbf24; font-weight:bold; cursor:default;"
+                                    title="Samodejno izračunan dodatek">
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Cena materiala (€ / 1000 kos)</label>
@@ -553,9 +563,9 @@
 
                 <div class="calc-section">
                     <h3>2. Tisk in Dodelava</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
                         <div class="form-group">
-                            <label>Število barv (Lice)</label>
+                            <label>Barve (Lice)</label>
                             <select id="calc-colors-front" onchange="updatePlates()">
                                 <option value="0" selected>0</option>
                                 <option value="1">1</option>
@@ -567,7 +577,7 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Število barv (Hrbet)</label>
+                            <label>Barve (Hrbet)</label>
                             <select id="calc-colors-back" onchange="updatePlates()">
                                 <option value="0" selected>0</option>
                                 <option value="1">1</option>
@@ -577,6 +587,14 @@
                                 <option value="5">5</option>
                                 <option value="6">6</option>
                             </select>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end;">
+                            <label
+                                style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding-bottom: 8px;">
+                                <input type="checkbox" id="calc-is-obrat" onchange="updatePlates()"
+                                    style="width: auto;">
+                                Obračanje
+                            </label>
                         </div>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
@@ -1148,6 +1166,19 @@
             return val.toFixed(decimals).replace('.', ',') + " €";
         }
 
+        function updatePlates() {
+            const cFront = parseInt(document.getElementById('calc-colors-front').value) || 0;
+            const cBack = parseInt(document.getElementById('calc-colors-back').value) || 0;
+            const isObr = document.getElementById('calc-is-obrat').checked;
+
+            // Če je obračanje, se plošče uporabijo za obe strani (računamo samo sprednje)
+            // Sicer se seštejejo
+            const autoPlates = cFront + (isObr ? 0 : cBack);
+            document.getElementById('calc-plate-count').value = autoPlates;
+
+            calculate();
+        }
+
         function calculateForSingleQty(q) {
             const qo = parseFloat(document.getElementById('calc-qty-ordered').value) || 0;
             const mPrice = parseFloat(document.getElementById('calc-material-price').value) || 0;
@@ -1166,8 +1197,22 @@
             const margin = parseFloat(document.getElementById('calc-margin').value) || 0;
             const usePers = document.getElementById('calc-use-personalization').checked;
             const useManual = document.getElementById('calc-use-manual-work').checked;
-            const waste = parseFloat(document.getElementById('calc-waste').value) || 0;
             const commercialCost = parseFloat(document.getElementById('calc-commercial').value) || 0;
+
+            // Dodatek (makulatura)
+            const manualWaste = parseFloat(document.getElementById('calc-waste-manual').value);
+            let waste = 320;
+            if (!isNaN(manualWaste)) {
+                waste = manualWaste;
+            } else {
+                const isObr = document.getElementById('calc-is-obrat').checked;
+                if (cFront === 4 && cBack === 4) {
+                    waste = isObr ? 320 : 640;
+                } else {
+                    waste = 320;
+                }
+            }
+            document.getElementById('calc-waste').value = waste;
 
             let deliveryCost = 0;
             if (document.getElementById('f-delivery-active') && document.getElementById('f-delivery-active').checked) {
@@ -1766,7 +1811,8 @@
                         manualWork: document.getElementById('calc-manual-work').value,
                         usePers: document.getElementById('calc-use-personalization').checked,
                         useManual: document.getElementById('calc-use-manual-work').checked,
-                        waste: document.getElementById('calc-waste').value,
+                        isObrat: document.getElementById('calc-is-obrat').checked,
+                        wasteManual: document.getElementById('calc-waste-manual').value,
                         commercial: document.getElementById('calc-commercial').value,
                         deliveryActive: document.getElementById('f-delivery-active') ? document.getElementById('f-delivery-active').checked : false,
                         postCount: document.getElementById('f-post-count') ? document.getElementById('f-post-count').value : '',
@@ -1861,7 +1907,8 @@
             setV('calc-manual-work', inp.manualWork);
             setV('calc-use-personalization', inp.usePers, true);
             setV('calc-use-manual-work', inp.useManual, true);
-            setV('calc-waste', inp.waste);
+            setV('calc-is-obrat', inp.isObrat, true);
+            setV('calc-waste-manual', inp.wasteManual);
             setV('calc-commercial', inp.commercial);
             if (document.getElementById('f-delivery-active')) document.getElementById('f-delivery-active').checked = inp.deliveryActive || false;
             setV('f-post-count', inp.postCount);
