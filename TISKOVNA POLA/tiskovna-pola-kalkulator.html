@@ -550,7 +550,12 @@
                 </div>
                 <div class="header-group" style="grid-column: span 2;">
                     <label for="calc-cust-email">E-mail stranke</label>
-                    <input type="text" id="calc-cust-email" placeholder="E-mail">
+                    <div style="display: flex; gap: 0.2rem; position: relative;">
+                        <input type="text" id="calc-cust-email" placeholder="E-mail" list="email-list" style="flex: 1;">
+                        <button onclick="toggleEmailDropdown()" style="width: 35px; background: #3b82f6; border: none; border-radius: 8px; color: white; cursor: pointer;">▼</button>
+                        <div id="email-dropdown-list" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 1000; margin-top: 5px;"></div>
+                    </div>
+                    <datalist id="email-list"></datalist>
                 </div>
             </div>
 
@@ -933,12 +938,7 @@
                         <label>Urna postavka stroja (€/h)</label>
                         <input type="number" id="calc-machine-rate" value="120.00" step="1">
                     </div>
-                    <div class="form-group">
-                        <label>Maks. hitrost stroja (pol / uro)</label>
-                        <input type="number" id="calc-machine-speed-max" value="" placeholder="Avto (6900)" step="500"
-                            onchange="calculatePrice()"
-                            title="Vnesite maksimalno hitrost stroja. Pustite prazno za privzeto/avtomatsko hitrost stroja.">
-                    </div>
+
                     <div class="form-group">
                         <label style="display:flex; align-items:center; gap:0.4rem;">
                             ⚙️ Dejanska hitrost tiska
@@ -1352,25 +1352,28 @@
 
         function getActiveFinishingList() {
             const list = [];
-            if (document.getElementById('f-cilinder-active').checked) list.push('Cilinder');
-            if (document.getElementById('f-zgibanje-active').checked) {
-                const f = document.getElementById('f-zgibanje-folds').value;
+            const isChecked = (id) => document.getElementById(id) && document.getElementById(id).checked;
+            const getVal = (id) => document.getElementById(id) ? document.getElementById(id).value : '';
+
+            if (isChecked('f-cilinder-active')) list.push('Cilinder');
+            if (isChecked('f-zgibanje-active')) {
+                const f = getVal('f-zgibanje-folds');
                 list.push(`Zgibanje (${f}x)`);
             }
-            if (document.getElementById('f-razrez-format-active').checked) list.push('Razrez');
-            if (document.getElementById('f-lepljenje-active').checked) list.push('Lepljenje Petrata');
-            if (document.getElementById('f-spiral-active').checked) list.push('Špiraljenje');
-            if (document.getElementById('f-extra-active').checked) list.push('Ročno delo');
-            if (document.getElementById('f-tool-active').checked) list.push('Orodje');
-            if (document.getElementById('f-uv-active').checked) list.push('UV lak');
-            if (document.getElementById('f-lam-active').checked) {
-                const t = document.getElementById('f-lam-type').value;
-                const s = document.getElementById('f-lam-sides').value;
+            if (isChecked('f-razrez-format-active')) list.push('Razrez');
+            if (isChecked('f-lepljenje-active')) list.push('Lepljenje Petrata');
+            if (isChecked('f-spiral-active')) list.push('Špiraljenje');
+            if (isChecked('f-extra-active')) list.push('Ročno delo');
+            if (isChecked('f-tool-active')) list.push('Orodje');
+            if (isChecked('f-uv-active')) list.push('UV lak');
+            if (isChecked('f-lam-active')) {
+                const t = getVal('f-lam-type');
+                const s = getVal('f-lam-sides');
                 list.push(`Plastifikacija ${t} ${s === '1' ? '1/0' : '1/1'}`);
             }
-            if (document.getElementById('f-delivery-active').checked) list.push('Dostava (Pošta)');
-            if (document.getElementById('f-del-fixed-active').checked) list.push('Dostava (Ostalo)');
-            if (document.getElementById('f-precut-active') && document.getElementById('f-precut-active').checked) list.push('Razrez');
+            if (isChecked('f-delivery-active')) list.push('Dostava (Pošta)');
+            if (isChecked('f-del-fixed-active')) list.push('Dostava (Ostalo)');
+            if (isChecked('f-precut-active')) list.push('Razrez');
             return list.join(', ');
         }
 
@@ -1379,11 +1382,11 @@
                 // Prepričaj se, da je izračun posodobljen
                 calculate();
 
-                const projectName = document.getElementById('calc-project-name').value || 'Brez imena';
-                const qtyStr = document.getElementById('quantity').value || '0';
+                const projectName = (document.getElementById('calc-project-name') ? document.getElementById('calc-project-name').value : '') || 'Brez imena';
+                const qtyStr = (document.getElementById('quantity') ? document.getElementById('quantity').value : '') || '0';
                 const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
 
-                const oqStr = document.getElementById('ordered-quantity').value || "";
+                const oqStr = (document.getElementById('ordered-quantity') ? document.getElementById('ordered-quantity').value : '') || "";
                 const oqArr = oqStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
 
                 if (qtyArr.length === 0) {
@@ -1408,16 +1411,16 @@
                     id: Date.now(),
                     type: 'Tiskovna pola',
                     name: projectName,
-                    customer: document.getElementById('calc-customer').value || '',
-                    materialCode: document.getElementById('calc-material-code').value || '/',
+                    customer: (document.getElementById('calc-customer') ? document.getElementById('calc-customer').value : '') || '',
+                    materialCode: (document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '') || '/',
                     spec: {
-                        usePersonalization: document.getElementById('calc-use-personalization').checked,
-                        useManualWork: document.getElementById('calc-use-manual-work').checked,
-                        wasteManual: document.getElementById('calc-paper-waste-manual').value,
-                        mutPlates: document.getElementById('calc-mut-plates').value,
-                        format: document.getElementById('width').value + ' x ' + document.getElementById('height').value + ' mm',
-                        paper: document.getElementById('calc-paper-weight').value + 'g ' + (document.getElementById('calc-paper-type').value || ''),
-                        colors: document.getElementById('calc-color-front').value + '/' + document.getElementById('calc-color-back').value,
+                        usePersonalization: document.getElementById('calc-use-personalization') ? document.getElementById('calc-use-personalization').checked : false,
+                        useManualWork: document.getElementById('calc-use-manual-work') ? document.getElementById('calc-use-manual-work').checked : false,
+                        wasteManual: document.getElementById('calc-paper-waste-manual') ? document.getElementById('calc-paper-waste-manual').value : '',
+                        mutPlates: document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : '',
+                        format: (document.getElementById('width') ? document.getElementById('width').value : '') + ' x ' + (document.getElementById('height') ? document.getElementById('height').value : '') + ' mm',
+                        paper: (document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value : '') + 'g ' + (document.getElementById('calc-paper-type') ? document.getElementById('calc-paper-type').value : ''),
+                        colors: (document.getElementById('calc-color-front') ? document.getElementById('calc-color-front').value : '') + '/' + (document.getElementById('calc-color-back') ? document.getElementById('calc-color-back').value : ''),
                         finishing: getActiveFinishingList()
                     },
                     quantities: results.map((r, idx) => {
@@ -1581,11 +1584,7 @@
             const profile = machineProfiles[mType];
             if (profile) {
                 document.getElementById('calc-machine-rate').value = profile.rate;
-                const speedMaxInp = document.getElementById('calc-machine-speed-max');
-                if (speedMaxInp) {
-                    speedMaxInp.value = "";
-                    speedMaxInp.placeholder = "Avto (" + profile.speed + ")";
-                }
+
                 const prepTimeInp = document.getElementById('calc-machine-prep-time');
                 if (prepTimeInp) {
                     prepTimeInp.value = "";
@@ -2298,7 +2297,7 @@
             let printHours = 0;
             let mSpeed = 0;
 
-            let speedMaxInpVal = document.getElementById('calc-machine-speed-max').value;
+            let speedMaxInpVal = document.getElementById('calc-machine-speed-max') ? document.getElementById('calc-machine-speed-max').value : "";
             let _frontC = parseInt(document.getElementById('calc-color-front').value) || 0;
             let _backC = parseInt(document.getElementById('calc-color-back').value) || 0;
             let _isObratC = document.getElementById('calc-is-obrat').checked;
@@ -3200,6 +3199,48 @@
         // --- CUSTOMER LOGIC (Ultra-Safe) ---
         var lastSearch = "";
 
+        function toggleEmailDropdown() {
+            var list = document.getElementById('email-dropdown-list');
+            if (list.style.display === 'block') {
+                list.style.display = 'none';
+            } else {
+                renderEmailList();
+                list.style.display = 'block';
+            }
+        }
+
+        function renderEmailList() {
+            var listDiv = document.getElementById('email-dropdown-list');
+            if (!listDiv) return;
+            listDiv.innerHTML = "";
+            
+            var datalist = document.getElementById('email-list');
+            if (!datalist || datalist.options.length === 0) {
+                listDiv.innerHTML = '<div style="padding: 10px; color: #94a3b8; font-size: 0.8rem;">Ni shranjenih e-mailov.</div>';
+                return;
+            }
+
+            for (var i = 0; i < datalist.options.length; i++) {
+                var em = datalist.options[i].value;
+                var item = document.createElement('div');
+                item.style.padding = "8px 12px";
+                item.style.cursor = "pointer";
+                item.style.borderBottom = "1px solid #334155";
+                item.style.fontSize = "0.9rem";
+                item.innerText = em;
+                item.onclick = (function (emailVal) {
+                    return function () {
+                        document.getElementById('calc-cust-email').value = emailVal;
+                        document.getElementById('email-dropdown-list').style.display = 'none';
+                    };
+                })(em);
+
+                item.onmouseover = function () { this.style.background = "#334155"; };
+                item.onmouseout = function () { this.style.background = "transparent"; };
+                listDiv.appendChild(item);
+            }
+        }
+
         function toggleCustomerDropdown() {
             var list = document.getElementById('cust-dropdown-list');
             if (list.style.display === 'block') {
@@ -3309,20 +3350,48 @@
                 if (raw) arhiv = JSON.parse(raw);
                 if (!Array.isArray(arhiv)) return;
 
-                // Iščemo od ZAČETKA (index 0), dokler ne najdemo PRVEGA projekta s šifro
+                var foundMaterialCode = false;
+                var uniqueEmails = new Set();
+
+                // Iščemo od ZAČETKA (index 0)
                 for (var i = 0; i < arhiv.length; i++) {
                     var p = arhiv[i];
                     if (p && p.customer && p.customer.trim().toLowerCase() === search) {
-                        // Samo če projekt ima vpisano šifro izdelka
-                        if (p.materialCode && p.materialCode.trim().length > 1) {
+                        // 1. Zbiranje e-mailov
+                        if (p.custEmail && p.custEmail.trim() !== "") {
+                            uniqueEmails.add(p.custEmail.trim());
+                        }
+
+                        // 2. Avtomatsko izpolnjevanje šifre (samo prva najdena)
+                        if (!foundMaterialCode && p.materialCode && p.materialCode.trim().length > 1) {
                             var target = document.getElementById('calc-material-code');
                             // Vstavi šifro le, če je polje prazno ali ima samo placeholder tekst
                             if (target && (!target.value || target.value.trim() === "" || target.value.indexOf("npr.") !== -1)) {
                                 target.value = p.materialCode;
                                 logDebug("AVTOMATIKA: Dodeljena PRVA najdena šifra " + p.materialCode);
-                                break; // Najdena veljavna šifra, končaj iskanje!
+                                foundMaterialCode = true;
                             }
                         }
+                    }
+                }
+
+                // Posodobi spustni seznam za e-maile in avtomatsko izpolni, če je samo en
+                var emailTarget = document.getElementById('calc-cust-email');
+                var emailDatalist = document.getElementById('email-list');
+                if (emailTarget && emailDatalist) {
+                    emailDatalist.innerHTML = "";
+                    var emailsArray = Array.from(uniqueEmails);
+                    
+                    emailsArray.forEach(function(em) {
+                        var opt = document.createElement('option');
+                        opt.value = em;
+                        emailDatalist.appendChild(opt);
+                    });
+
+                    // Če je izključno en e-mail v zgodovini in je polje prazno, ga avtomatsko izpolni
+                    if (emailsArray.length === 1 && (!emailTarget.value || emailTarget.value.trim() === "")) {
+                        emailTarget.value = emailsArray[0];
+                        logDebug("AVTOMATIKA: Dodeljen edini najdeni e-mail " + emailsArray[0]);
                     }
                 }
             } catch (e) { logDebug("Napaka v handleCustomerUpdate: " + e.message, true); }
@@ -3383,7 +3452,7 @@
                         machineType: gv('calc-machine-type'),
                         machineRate: gv('calc-machine-rate'),
                         machineSpeed: gv('calc-machine-speed'),
-                        machineSpeedMax: gv('calc-machine-speed-max'),
+
                         machinePrepTime: gv('calc-machine-prep-time'),
                         colorFront: gv('calc-color-front'),
                         colorBack: gv('calc-color-back'),
@@ -3478,7 +3547,7 @@
                         machineType: gv('calc-machine-type'),
                         machineRate: gv('calc-machine-rate'),
                         machineSpeed: gv('calc-machine-speed'),
-                        machineSpeedMax: gv('calc-machine-speed-max'),
+
                         machinePrepTime: gv('calc-machine-prep-time'),
                         colorFront: gv('calc-color-front'),
                         colorBack: gv('calc-color-back'),
@@ -3753,17 +3822,7 @@
             document.getElementById('calc-machine-type').value = inp.machineType;
             document.getElementById('calc-machine-rate').value = inp.machineRate;
             document.getElementById('calc-machine-speed').value = inp.machineSpeed;
-            if (inp.machineSpeedMax !== undefined) {
-                document.getElementById('calc-machine-speed-max').value = inp.machineSpeedMax;
-                if (inp.machineSpeedMax === "") {
-                    const prof = machineProfiles[inp.machineType] || { speed: 6900 };
-                    document.getElementById('calc-machine-speed-max').placeholder = "Avto (" + prof.speed + ")";
-                }
-            } else {
-                document.getElementById('calc-machine-speed-max').value = "";
-                const prof = machineProfiles[inp.machineType] || { speed: 6900 };
-                document.getElementById('calc-machine-speed-max').placeholder = "Avto (" + prof.speed + ")";
-            }
+
             if (inp.machinePrepTime !== undefined) document.getElementById('calc-machine-prep-time').value = inp.machinePrepTime;
             document.getElementById('calc-color-front').value = inp.colorFront;
             document.getElementById('calc-color-back').value = inp.colorBack;
@@ -3913,7 +3972,7 @@
                         machineType: document.getElementById('calc-machine-type').value,
                         machineRate: document.getElementById('calc-machine-rate').value,
                         machineSpeed: document.getElementById('calc-machine-speed').value,
-                        machineSpeedMax: document.getElementById('calc-machine-speed-max').value,
+
                         machinePrepTime: document.getElementById('calc-machine-prep-time').value,
                         colorFront: document.getElementById('calc-color-front').value,
                         colorBack: document.getElementById('calc-color-back').value,

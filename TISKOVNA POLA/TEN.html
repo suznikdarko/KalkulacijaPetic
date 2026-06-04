@@ -522,7 +522,12 @@
                 </div>
                 <div class="header-group" style="grid-column: span 2;">
                     <label for="calc-cust-email">E-mail stranke</label>
-                    <input type="text" id="calc-cust-email" placeholder="E-mail">
+                    <div style="display: flex; gap: 0.2rem; position: relative;">
+                        <input type="text" id="calc-cust-email" placeholder="E-mail" list="email-list" style="flex: 1;">
+                        <button onclick="toggleEmailDropdown()" style="width: 35px; background: #3b82f6; border: none; border-radius: 8px; color: white; cursor: pointer;">▼</button>
+                        <div id="email-dropdown-list" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 1000; margin-top: 5px;"></div>
+                    </div>
+                    <datalist id="email-list"></datalist>
                 </div>
             </div>
 
@@ -3005,6 +3010,48 @@
         // --- CUSTOMER LOGIC (Ultra-Safe) ---
         var lastSearch = "";
 
+        function toggleEmailDropdown() {
+            var list = document.getElementById('email-dropdown-list');
+            if (list.style.display === 'block') {
+                list.style.display = 'none';
+            } else {
+                renderEmailList();
+                list.style.display = 'block';
+            }
+        }
+
+        function renderEmailList() {
+            var listDiv = document.getElementById('email-dropdown-list');
+            if (!listDiv) return;
+            listDiv.innerHTML = "";
+            
+            var datalist = document.getElementById('email-list');
+            if (!datalist || datalist.options.length === 0) {
+                listDiv.innerHTML = '<div style="padding: 10px; color: #94a3b8; font-size: 0.8rem;">Ni shranjenih e-mailov.</div>';
+                return;
+            }
+
+            for (var i = 0; i < datalist.options.length; i++) {
+                var em = datalist.options[i].value;
+                var item = document.createElement('div');
+                item.style.padding = "8px 12px";
+                item.style.cursor = "pointer";
+                item.style.borderBottom = "1px solid #334155";
+                item.style.fontSize = "0.9rem";
+                item.innerText = em;
+                item.onclick = (function (emailVal) {
+                    return function () {
+                        document.getElementById('calc-cust-email').value = emailVal;
+                        document.getElementById('email-dropdown-list').style.display = 'none';
+                    };
+                })(em);
+
+                item.onmouseover = function () { this.style.background = "#334155"; };
+                item.onmouseout = function () { this.style.background = "transparent"; };
+                listDiv.appendChild(item);
+            }
+        }
+
         function toggleCustomerDropdown() {
             var list = document.getElementById('cust-dropdown-list');
             if (list.style.display === 'block') {
@@ -3114,20 +3161,47 @@
                 if (raw) arhiv = JSON.parse(raw);
                 if (!Array.isArray(arhiv)) return;
 
-                // Iščemo od ZAČETKA (index 0), dokler ne najdemo PRVEGA projekta s šifro
+                var foundMaterialCode = false;
+                var uniqueEmails = new Set();
+
+                // Iščemo od ZAČETKA (index 0)
                 for (var i = 0; i < arhiv.length; i++) {
                     var p = arhiv[i];
                     if (p && p.customer && p.customer.trim().toLowerCase() === search) {
-                        // Samo če projekt ima vpisano šifro izdelka
-                        if (p.materialCode && p.materialCode.trim().length > 1) {
+                        // 1. Zbiranje e-mailov
+                        if (p.custEmail && p.custEmail.trim() !== "") {
+                            uniqueEmails.add(p.custEmail.trim());
+                        }
+
+                        // 2. Avtomatsko izpolnjevanje šifre
+                        if (!foundMaterialCode && p.materialCode && p.materialCode.trim().length > 1) {
                             var target = document.getElementById('calc-material-code');
-                            // Vstavi šifro le, če je polje prazno ali ima samo placeholder tekst
                             if (target && (!target.value || target.value.trim() === "" || target.value.indexOf("npr.") !== -1)) {
                                 target.value = p.materialCode;
                                 logDebug("AVTOMATIKA: Dodeljena PRVA najdena šifra " + p.materialCode);
-                                break; // Najdena veljavna šifra, končaj iskanje!
+                                foundMaterialCode = true;
                             }
                         }
+                    }
+                }
+
+                // Posodobi spustni seznam za e-maile in avtomatsko izpolni, če je samo en
+                var emailTarget = document.getElementById('calc-cust-email');
+                var emailDatalist = document.getElementById('email-list');
+                if (emailTarget && emailDatalist) {
+                    emailDatalist.innerHTML = "";
+                    var emailsArray = Array.from(uniqueEmails);
+                    
+                    emailsArray.forEach(function(em) {
+                        var opt = document.createElement('option');
+                        opt.value = em;
+                        emailDatalist.appendChild(opt);
+                    });
+
+                    // Če je izključno en e-mail v zgodovini in je polje prazno, ga avtomatsko izpolni
+                    if (emailsArray.length === 1 && (!emailTarget.value || emailTarget.value.trim() === "")) {
+                        emailTarget.value = emailsArray[0];
+                        logDebug("AVTOMATIKA: Dodeljen edini najdeni e-mail " + emailsArray[0]);
                     }
                 }
             } catch (e) { logDebug("Napaka v handleCustomerUpdate: " + e.message, true); }
