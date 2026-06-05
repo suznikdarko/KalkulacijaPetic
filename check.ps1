@@ -1,0 +1,1 @@
+$html = [System.IO.File]::ReadAllText("TISKOVNA POLA\tiskovna-pola-kalkulator.html"); $matches = [System.Text.RegularExpressions.Regex]::Matches($html, "(?s)<script.*?>(.*?)</script>"); $js = ""; foreach ($m in $matches) { $js += $m.Groups[1].Value + "`n" }; [System.IO.File]::WriteAllText("test_syntax.js", $js)
