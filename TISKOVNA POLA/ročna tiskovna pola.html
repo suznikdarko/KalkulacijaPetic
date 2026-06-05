@@ -567,23 +567,23 @@
                         oninput="if(typeof extractGrammage === 'function') extractGrammage(this, 'calc-paper-weight'); calculate()"
                         style="padding: 0.75rem 1rem; font-size: 0.85rem; width: 100%;">
                 </div>
-                <div style="flex: 2; min-width: 220px; display: none;">
-                    <label style="color: #60a5fa; font-weight: bold;">Dimenzije (Š x V mm)</label>
+                <div style="flex: 2; min-width: 220px;">
+                    <label style="color: #60a5fa; font-weight: bold;">Dimenzije enega kosa (Š x V mm)</label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="text" id="width" value="0" placeholder="Š"
+                        <input type="text" id="width" value="" placeholder="Š"
                             oninput="calculate()"
                             style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); flex: 1;">
                         <span style="color:var(--text-muted); font-weight: bold;">x</span>
-                        <input type="text" id="height" value="0" placeholder="V"
+                        <input type="text" id="height" value="" placeholder="V"
                             oninput="calculate()"
                             style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); flex: 1;">
                     </div>
                 </div>
-                <div style="flex: 0.8; min-width: 80px; display: none;">
+                <div style="flex: 0.8; min-width: 80px;">
                     <label>Bleed (mm)</label>
                     <input type="number" id="bleed" value="0" onchange="calculate()">
                 </div>
-                <div style="flex: 1; min-width: 100px; display: none;">
+                <div style="flex: 1; min-width: 100px;">
                     <label>Prijemalec (mm)</label>
                     <input type="number" id="gripper" value="10" onchange="calculate()">
                 </div>
@@ -624,7 +624,7 @@
                         <option value="Digital (480x320)">Digital (480 x 320 mm)</option>
                     </select>
                 </div>
-                <div style="flex: 1; display: none;">
+                <div style="flex: 1;">
                     <label>Smer vlaken / Rotacija</label>
                     <select id="item-orientation" onchange="calculate()">
                         <option value="auto">Samodejno (Max kosov)</option>
@@ -654,10 +654,13 @@
 
             <div class="header-group" style="grid-column: span 2; display: flex; gap: 0.5rem; align-items: flex-end;">
                 <button class="calculate-btn" onclick="calculate(true)"
-                    style="margin: 0; padding: 0.8rem; flex: 1; background: #3b82f6;">Izračunaj</button>
+                    style="margin: 0; padding: 0.8rem; flex: 1; background: #3b82f6;">Izračunaj posamezen format</button>
+                <button class="calculate-btn" onclick="openManualEditor()"
+                    style="margin: 0; padding: 0.8rem; flex: 1; background: #0ea5e9; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);"
+                    title="Odpre urejevalnik za masovni vnos več formatov in ročno postavitev">🧩 Več formatov / Ročna postavitev</button>
                 <button class="calculate-btn" onclick="document.getElementById('file-input').click()"
-                    style="margin: 0; padding: 0.8rem; flex: 1; background: #f59e0b;"
-                    title="Odpri shranjen projekt iz svoje mape">Odpri</button>
+                    style="margin: 0; padding: 0.8rem; flex: 0.5; background: #f59e0b;"
+                    title="Odpri shranjen projekt iz svoje mape">Odpri projekt</button>
                 <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(event)"
                     accept=".pola.json,.json">
             </div>
@@ -979,12 +982,12 @@
                                 </label>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Normativ (pol/h)</small></label>
-                                    <input type="number" id="f-razrez-format-speed" value="5800"
+                                    <input type="number" id="f-razrez-format-speed" value="" placeholder="Avto"
                                         onchange="calculatePrice()">
                                 </div>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Urna post. (€/h)</small></label>
-                                    <input type="number" id="f-razrez-format-rate" value="20.00"
+                                    <input type="number" id="f-razrez-format-rate" value="" placeholder="Avto"
                                         onchange="calculatePrice()">
                                 </div>
                             </div>
@@ -2101,25 +2104,42 @@
                 let _basicPlates = _front + (_isObrat ? 0 : _back);
                 let mutMultiplier = (_mutPlates > 0 && _basicPlates > 0) ? (_mutPlates / _basicPlates) : 0;
                 
+
+                
+                let mutPlatesVal = _mutPlates;
+                let mutSuffix = "";
+                if (mutPlatesVal === 1) mutSuffix = " + mutacija 1x";
+                else if (mutPlatesVal === 2) mutSuffix = " + mutacija 2x";
+                else if (mutPlatesVal >= 3) mutSuffix = " + mutacija 3x";
+                let baseColorMode = _isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0');
+                let tableMode = baseColorMode + mutSuffix;
+                
                 let newBossTables = {
-                    '4/0': [ {q:1000, waste:320, speed:2200}, {q:5000, waste:320, speed:3050}, {q:10000, waste:320, speed:4250}, {q:50000, waste:320, speed:5500}, {q:100000, waste:320, speed:5750}, {q:300000, waste:320, speed:5750}, {q:500000, waste:625, speed:6100} ],
-                    '4/4': [ {q:1000, waste:1280, speed:2800}, {q:5000, waste:1280, speed:3500}, {q:10000, waste:1280, speed:5200}, {q:50000, waste:1280, speed:5750}, {q:100000, waste:1280, speed:5750}, {q:300000, waste:1500, speed:6100}, {q:500000, waste:2500, speed:6100} ],
-                    '4/OB': [ {q:1000, waste:540, speed:2800}, {q:5000, waste:540, speed:3900}, {q:10000, waste:540, speed:4400}, {q:50000, waste:540, speed:5750}, {q:100000, waste:540, speed:5750}, {q:300000, waste:750, speed:6060}, {q:500000, waste:1250, speed:6060} ]
+                    '4/0': [ {q:1000, waste:320, speed:2600}, {q:5000, waste:320, speed:5070}, {q:10000, waste:320, speed:6400}, {q:50000, waste:320, speed:6800}, {q:100000, waste:320, speed:6800}, {q:300000, waste:320, speed:7140}, {q:500000, waste:625, speed:7140} ],
+                    '4/4': [ {q:1000, waste:1280, speed:2600}, {q:5000, waste:1280, speed:5070}, {q:10000, waste:1280, speed:6400}, {q:50000, waste:1280, speed:6800}, {q:100000, waste:1280, speed:6800}, {q:300000, waste:1500, speed:7140}, {q:500000, waste:2500, speed:7140} ],
+                    '4/OB': [ {q:1000, waste:540, speed:3050}, {q:5000, waste:540, speed:4400}, {q:10000, waste:540, speed:5050}, {q:50000, waste:540, speed:6800}, {q:100000, waste:540, speed:6800}, {q:300000, waste:750, speed:7140}, {q:500000, waste:1250, speed:7140} ],
+                    '4/OB + mutacija 1x': [ {q:1000, waste:940, speed:3050}, {q:5000, waste:940, speed:4400}, {q:10000, waste:940, speed:5050}, {q:50000, waste:940, speed:6800}, {q:100000, waste:940, speed:6800}, {q:300000, waste:1150, speed:7140}, {q:500000, waste:1650, speed:7140} ],
+                    '4/OB + mutacija 2x': [ {q:1000, waste:1340, speed:4100}, {q:5000, waste:1340, speed:4800}, {q:10000, waste:1340, speed:6200}, {q:50000, waste:1340, speed:6800}, {q:100000, waste:1340, speed:6800}, {q:300000, waste:1550, speed:7140}, {q:500000, waste:2050, speed:7140} ],
+                    '4/OB + mutacija 3x': [ {q:1000, waste:1740, speed:4100}, {q:5000, waste:1740, speed:4800}, {q:10000, waste:1740, speed:6200}, {q:50000, waste:1740, speed:6800}, {q:100000, waste:1740, speed:6800}, {q:300000, waste:1950, speed:7140}, {q:500000, waste:2450, speed:7140} ],
+                    '4/4 + mutacija 1x': [ {q:1000, waste:1680, speed:4100}, {q:5000, waste:1680, speed:4800}, {q:10000, waste:1680, speed:6200}, {q:50000, waste:1680, speed:6800}, {q:100000, waste:1680, speed:6800}, {q:300000, waste:1900, speed:7140}, {q:500000, waste:2900, speed:7140} ],
+                    '4/4 + mutacija 2x': [ {q:1000, waste:2080, speed:4100}, {q:5000, waste:2080, speed:4800}, {q:10000, waste:2080, speed:6200}, {q:50000, waste:2080, speed:6800}, {q:100000, waste:2080, speed:6800}, {q:300000, waste:2300, speed:7140}, {q:500000, waste:3300, speed:7140} ],
+                    '4/4 + mutacija 3x': [ {q:1000, waste:2480, speed:4100}, {q:5000, waste:2480, speed:4800}, {q:10000, waste:2480, speed:6200}, {q:50000, waste:2480, speed:6800}, {q:100000, waste:2480, speed:6800}, {q:300000, waste:2700, speed:7140}, {q:500000, waste:3700, speed:7140} ]
                 };
 
-                let bossTable = newBossTables[_colorMode];
+                let bossTable = newBossTables[tableMode] || newBossTables[baseColorMode];
                 if (bossTable) {
                     let w = bossTable[0].waste;
-                    if (qty <= bossTable[0].q) {
+                    let lookupValue = sheetsNeeded; // Lookup waste based on neto sheets
+                    if (lookupValue <= bossTable[0].q) {
                         w = bossTable[0].waste;
-                    } else if (qty >= bossTable[bossTable.length - 1].q) {
+                    } else if (lookupValue >= bossTable[bossTable.length - 1].q) {
                         w = bossTable[bossTable.length - 1].waste;
                     } else {
                         for (let i = 0; i < bossTable.length - 1; i++) {
-                            if (qty >= bossTable[i].q && qty <= bossTable[i + 1].q) {
+                            if (lookupValue >= bossTable[i].q && lookupValue <= bossTable[i + 1].q) {
                                 let rangeQ = bossTable[i + 1].q - bossTable[i].q;
                                 let rangeW = bossTable[i + 1].waste - bossTable[i].waste;
-                                let fraction = (qty - bossTable[i].q) / rangeQ;
+                                let fraction = (lookupValue - bossTable[i].q) / rangeQ;
                                 w = Math.round(bossTable[i].waste + fraction * rangeW);
                                 break;
                             }
@@ -2169,15 +2189,27 @@
                 let _front = parseInt(document.getElementById('calc-color-front').value) || 0;
                 let _back = parseInt(document.getElementById('calc-color-back').value) || 0;
                 let _isObrat = document.getElementById('calc-is-obrat').checked;
-                let speedTableMode = _isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0');
+                let mutPlatesVal = parseInt(document.getElementById('calc-mut-plates').value) || 0;
+                let mutSuffix = "";
+                if (mutPlatesVal === 1) mutSuffix = " + mutacija 1x";
+                else if (mutPlatesVal === 2) mutSuffix = " + mutacija 2x";
+                else if (mutPlatesVal >= 3) mutSuffix = " + mutacija 3x";
+                let baseColorMode = _isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0');
+                let speedTableMode = baseColorMode + mutSuffix;
 
                 let newBossTables = {
-                    '4/0': [ {q:1000, waste:320, speed:2200}, {q:5000, waste:320, speed:3050}, {q:10000, waste:320, speed:4250}, {q:50000, waste:320, speed:5500}, {q:100000, waste:320, speed:5750}, {q:300000, waste:320, speed:5750}, {q:500000, waste:625, speed:6100} ],
-                    '4/4': [ {q:1000, waste:1280, speed:2800}, {q:5000, waste:1280, speed:3500}, {q:10000, waste:1280, speed:5200}, {q:50000, waste:1280, speed:5750}, {q:100000, waste:1280, speed:5750}, {q:300000, waste:1500, speed:6100}, {q:500000, waste:2500, speed:6100} ],
-                    '4/OB': [ {q:1000, waste:540, speed:2800}, {q:5000, waste:540, speed:3900}, {q:10000, waste:540, speed:4400}, {q:50000, waste:540, speed:5750}, {q:100000, waste:540, speed:5750}, {q:300000, waste:750, speed:6060}, {q:500000, waste:1250, speed:6060} ]
+                    '4/0': [ {q:1000, waste:320, speed:2600}, {q:5000, waste:320, speed:5070}, {q:10000, waste:320, speed:6400}, {q:50000, waste:320, speed:6800}, {q:100000, waste:320, speed:6800}, {q:300000, waste:320, speed:7140}, {q:500000, waste:625, speed:7140} ],
+                    '4/4': [ {q:1000, waste:1280, speed:2600}, {q:5000, waste:1280, speed:5070}, {q:10000, waste:1280, speed:6400}, {q:50000, waste:1280, speed:6800}, {q:100000, waste:1280, speed:6800}, {q:300000, waste:1500, speed:7140}, {q:500000, waste:2500, speed:7140} ],
+                    '4/OB': [ {q:1000, waste:540, speed:3050}, {q:5000, waste:540, speed:4400}, {q:10000, waste:540, speed:5050}, {q:50000, waste:540, speed:6800}, {q:100000, waste:540, speed:6800}, {q:300000, waste:750, speed:7140}, {q:500000, waste:1250, speed:7140} ],
+                    '4/OB + mutacija 1x': [ {q:1000, waste:940, speed:3050}, {q:5000, waste:940, speed:4400}, {q:10000, waste:940, speed:5050}, {q:50000, waste:940, speed:6800}, {q:100000, waste:940, speed:6800}, {q:300000, waste:1150, speed:7140}, {q:500000, waste:1650, speed:7140} ],
+                    '4/OB + mutacija 2x': [ {q:1000, waste:1340, speed:4100}, {q:5000, waste:1340, speed:4800}, {q:10000, waste:1340, speed:6200}, {q:50000, waste:1340, speed:6800}, {q:100000, waste:1340, speed:6800}, {q:300000, waste:1550, speed:7140}, {q:500000, waste:2050, speed:7140} ],
+                    '4/OB + mutacija 3x': [ {q:1000, waste:1740, speed:4100}, {q:5000, waste:1740, speed:4800}, {q:10000, waste:1740, speed:6200}, {q:50000, waste:1740, speed:6800}, {q:100000, waste:1740, speed:6800}, {q:300000, waste:1950, speed:7140}, {q:500000, waste:2450, speed:7140} ],
+                    '4/4 + mutacija 1x': [ {q:1000, waste:1680, speed:4100}, {q:5000, waste:1680, speed:4800}, {q:10000, waste:1680, speed:6200}, {q:50000, waste:1680, speed:6800}, {q:100000, waste:1680, speed:6800}, {q:300000, waste:1900, speed:7140}, {q:500000, waste:2900, speed:7140} ],
+                    '4/4 + mutacija 2x': [ {q:1000, waste:2080, speed:4100}, {q:5000, waste:2080, speed:4800}, {q:10000, waste:2080, speed:6200}, {q:50000, waste:2080, speed:6800}, {q:100000, waste:2080, speed:6800}, {q:300000, waste:2300, speed:7140}, {q:500000, waste:3300, speed:7140} ],
+                    '4/4 + mutacija 3x': [ {q:1000, waste:2480, speed:4100}, {q:5000, waste:2480, speed:4800}, {q:10000, waste:2480, speed:6200}, {q:50000, waste:2480, speed:6800}, {q:100000, waste:2480, speed:6800}, {q:300000, waste:2700, speed:7140}, {q:500000, waste:3700, speed:7140} ]
                 };
                 
-                let bossTable = newBossTables[speedTableMode];
+                let bossTable = newBossTables[speedTableMode] || newBossTables[baseColorMode];
                 if (bossTable) {
                     let s = bossTable[0].speed;
                     if (qty <= bossTable[0].q) {
@@ -2195,7 +2227,7 @@
                             }
                         }
                     }
-                    return Math.min(Math.round(s), 6100);
+                    return Math.round(s);
                 }
 
                 return Math.min(baseSpeed, 6100);
@@ -2234,11 +2266,6 @@
             let mSpeed = 0;
 
             let speedMaxInpVal = document.getElementById('calc-machine-speed-max') ? document.getElementById('calc-machine-speed-max').value : "";
-            let _frontC = parseInt(document.getElementById('calc-color-front').value) || 0;
-            let _backC = parseInt(document.getElementById('calc-color-back').value) || 0;
-            let _isObratC = document.getElementById('calc-is-obrat').checked;
-            let _colorModeC = _frontC + '/' + (_isObratC ? 'OB' : _backC);
-
             if (speedMaxInpVal !== "") {
                 let rawMachineSpeed = parseFloat(speedMaxInpVal) || mProfile.speed;
                 mSpeed = getDynamicSpeed(rawMachineSpeed, paperWeight, qty);
@@ -2294,8 +2321,20 @@
                 totalFinishCost += zPrep + zWork;
             }
             if (document.getElementById('f-razrez-format-active').checked) {
-                const spd = parseFloat(document.getElementById('f-razrez-format-speed').value) || 5800;
-                const rte = parseFloat(document.getElementById('f-razrez-format-rate').value) || 20;
+                let autoCutSpeed = 7400;
+                if (paperWeight >= 300) autoCutSpeed = 4100;
+                else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
+                autoCutSpeed = Math.round(autoCutSpeed);
+                let autoCutRate = 25.00;
+
+                document.getElementById('f-razrez-format-speed').placeholder = "Avto (" + autoCutSpeed + ")";
+                document.getElementById('f-razrez-format-rate').placeholder = "Avto (" + autoCutRate + "€)";
+
+                const spdInput = document.getElementById('f-razrez-format-speed').value;
+                const spd = spdInput !== "" ? parseFloat(spdInput) : autoCutSpeed;
+                const rteInput = document.getElementById('f-razrez-format-rate').value;
+                const rte = rteInput !== "" ? parseFloat(rteInput) : autoCutRate;
+
                 totalFinishCost += (totalSheetsNeeded / spd) * rte;
             }
 
@@ -2438,8 +2477,17 @@
                 });
             }
             if (document.getElementById('f-razrez-format-active').checked) {
-                const spd = parseFloat(document.getElementById('f-razrez-format-speed').value) || 5800;
-                const rte = parseFloat(document.getElementById('f-razrez-format-rate').value) || 20;
+                let autoCutSpeed = 7400;
+                if (paperWeight >= 300) autoCutSpeed = 4100;
+                else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
+                autoCutSpeed = Math.round(autoCutSpeed);
+                let autoCutRate = 25.00;
+
+                const spdInput = document.getElementById('f-razrez-format-speed').value;
+                const spd = spdInput !== "" ? parseFloat(spdInput) : autoCutSpeed;
+                const rteInput = document.getElementById('f-razrez-format-rate').value;
+                const rte = rteInput !== "" ? parseFloat(rteInput) : autoCutRate;
+
                 const hrs = totalSheetsNeeded / spd;
                 let cost = hrs * rte;
                 details.finish.items.push({
@@ -3788,8 +3836,8 @@
 
                 if (f.razrezFormat) {
                     document.getElementById('f-razrez-format-active').checked = f.razrezFormat.active;
-                    document.getElementById('f-razrez-format-speed').value = f.razrezFormat.speed || 5800;
-                    document.getElementById('f-razrez-format-rate').value = f.razrezFormat.rate || 20.00;
+                    document.getElementById('f-razrez-format-speed').value = f.razrezFormat.speed || "";
+                    document.getElementById('f-razrez-format-rate').value = f.razrezFormat.rate || "";
                     toggleFinishRow('razrez-format');
                 }
 
@@ -4396,6 +4444,46 @@
             selectManualBox(id);
         }
 
+        function addBulkManualBoxes() {
+            const bulkText = document.getElementById('manual-add-bulk').value;
+            if (!bulkText || bulkText.trim() === '') return;
+            
+            const b = parseFloat(document.getElementById('bleed').value) || 0;
+            // Split by comma or newline
+            const parts = bulkText.split(/[\n,]+/);
+            let added = 0;
+            
+            parts.forEach(part => {
+                const clean = part.trim().toLowerCase();
+                if (!clean) return;
+                
+                // Match patterns like "100x200" or "100 x 200" or "100*200"
+                const match = clean.match(/(\d+(?:\.\d+)?)\s*[x\*]\s*(\d+(?:\.\d+)?)/);
+                if (match) {
+                    const w = parseFloat(match[1]);
+                    const h = parseFloat(match[2]);
+                    if (w > 0 && h > 0) {
+                        m_items.push({
+                            id: Date.now() + added, // Ensure unique IDs
+                            x: 50 + (added * 10), y: 50 + (added * 10), // Offset slightly
+                            w: w + 2 * b,
+                            h: h + 2 * b,
+                            bleed: b,
+                            rot: false
+                        });
+                        added++;
+                    }
+                }
+            });
+            
+            if (added > 0) {
+                renderManualItems();
+                document.getElementById('manual-add-bulk').value = ''; // clear on success
+            } else {
+                alert("Nisem našel nobenih veljavnih formatov. Poskusite v formatu ŠIRINAxVIŠINA (npr. 100x150).");
+            }
+        }
+
         function renderManualItems() {
             const sheet = document.getElementById('manual-sheet');
             sheet.querySelectorAll('.manual-box').forEach(b => b.remove());
@@ -4489,6 +4577,37 @@
             }
         }
 
+        function alignSelected(direction) {
+            if (!m_selectedId) return;
+            const item = m_items.find(i => i.id === m_selectedId);
+            if (!item) return;
+
+            const limitX = g_lastSheetW - item.w;
+            const limitY = g_lastSheetH - item.h;
+
+            switch (direction) {
+                case 'left':
+                    item.x = 0;
+                    break;
+                case 'right':
+                    item.x = limitX - item.w;
+                    break;
+                case 'top':
+                    item.y = 0;
+                    break;
+                case 'bottom':
+                    item.y = limitY - item.h;
+                    break;
+                case 'centerH':
+                    item.x = (limitX - item.w) / 2;
+                    break;
+                case 'centerV':
+                    item.y = (limitY - item.h) / 2;
+                    break;
+            }
+            renderManualItems();
+        }
+
         function startDrag(e, id) {
             e.preventDefault();
             selectManualBox(id);
@@ -4508,8 +4627,48 @@
             const item = m_items.find(it => it.id === m_selectedId);
             if (item) {
                 const rect = document.getElementById('manual-canvas-container').getBoundingClientRect();
-                item.x = ((e.clientX - rect.left) / m_scale) - m_offsetX;
-                item.y = ((e.clientY - rect.top) / m_scale) - m_offsetY;
+                let newX = ((e.clientX - rect.left) / m_scale) - m_offsetX;
+                let newY = ((e.clientY - rect.top) / m_scale) - m_offsetY;
+
+                // Snapping (Magnetic alignment)
+                const SNAP_DIST = 4; // snap distance in mm
+                let snapX = newX;
+                let snapY = newY;
+                
+                // 1. Snap to sheet edges
+                if (Math.abs(newX) < SNAP_DIST) snapX = 0;
+                else if (Math.abs(newX + item.w - g_lastSheetW) < SNAP_DIST) snapX = g_lastSheetW - item.w;
+                
+                if (Math.abs(newY) < SNAP_DIST) snapY = 0;
+                else if (Math.abs(newY + item.h - g_lastSheetH) < SNAP_DIST) snapY = g_lastSheetH - item.h;
+                
+                // 2. Snap to other items
+                m_items.forEach(other => {
+                    if (other.id === item.id) return;
+                    
+                    // Horizontal snapping
+                    // Left to Left
+                    if (Math.abs(newX - other.x) < SNAP_DIST) snapX = other.x;
+                    // Left to Right
+                    else if (Math.abs(newX - (other.x + other.w)) < SNAP_DIST) snapX = other.x + other.w;
+                    // Right to Left
+                    else if (Math.abs((newX + item.w) - other.x) < SNAP_DIST) snapX = other.x - item.w;
+                    // Right to Right
+                    else if (Math.abs((newX + item.w) - (other.x + other.w)) < SNAP_DIST) snapX = other.x + other.w - item.w;
+                    
+                    // Vertical snapping
+                    // Top to Top
+                    if (Math.abs(newY - other.y) < SNAP_DIST) snapY = other.y;
+                    // Top to Bottom
+                    else if (Math.abs(newY - (other.y + other.h)) < SNAP_DIST) snapY = other.y + other.h;
+                    // Bottom to Top
+                    else if (Math.abs((newY + item.h) - other.y) < SNAP_DIST) snapY = other.y - item.h;
+                    // Bottom to Bottom
+                    else if (Math.abs((newY + item.h) - (other.y + other.h)) < SNAP_DIST) snapY = other.y + other.h - item.h;
+                });
+
+                item.x = snapX;
+                item.y = snapY;
 
                 // Constrain to sheet
                 const limitX = g_lastSheetW - item.w;
