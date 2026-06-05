@@ -567,23 +567,23 @@
                         oninput="if(typeof extractGrammage === 'function') extractGrammage(this, 'calc-paper-weight'); calculate()"
                         style="padding: 0.75rem 1rem; font-size: 0.85rem; width: 100%;">
                 </div>
-                <div style="flex: 2; min-width: 220px;">
+                <div style="flex: 2; min-width: 220px; display: none;">
                     <label style="color: #60a5fa; font-weight: bold;">Dimenzije (Š x V mm)</label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="text" id="width" value="" placeholder="Š"
-                            oninput="document.getElementById('items-per-sheet').value=''; calculate()"
+                        <input type="text" id="width" value="0" placeholder="Š"
+                            oninput="calculate()"
                             style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); flex: 1;">
                         <span style="color:var(--text-muted); font-weight: bold;">x</span>
-                        <input type="text" id="height" value="" placeholder="V"
-                            oninput="document.getElementById('items-per-sheet').value=''; calculate()"
+                        <input type="text" id="height" value="0" placeholder="V"
+                            oninput="calculate()"
                             style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); flex: 1;">
                     </div>
                 </div>
-                <div style="flex: 0.8; min-width: 80px;">
+                <div style="flex: 0.8; min-width: 80px; display: none;">
                     <label>Bleed (mm)</label>
-                    <input type="number" id="bleed" value="2" onchange="calculate()">
+                    <input type="number" id="bleed" value="0" onchange="calculate()">
                 </div>
-                <div style="flex: 1; min-width: 100px;">
+                <div style="flex: 1; min-width: 100px; display: none;">
                     <label>Prijemalec (mm)</label>
                     <input type="number" id="gripper" value="10" onchange="calculate()">
                 </div>
@@ -597,10 +597,11 @@
                     <input type="text" id="ordered-quantity" value="" placeholder="npr. 750"
                         oninput="if(typeof formatInputQty === 'function') formatInputQty(this); calculate()">
                 </div>
-                <div style="flex: 0.6; min-width: 80px;">
-                    <label>Stavkov na poli</label>
-                    <input type="number" id="items-per-sheet" value="0"
-                        oninput="if(typeof updatePriceFromManualCount === 'function') updatePriceFromManualCount(); else calculate()">
+                <div style="flex: 0.6; min-width: 120px;">
+                    <label style="color: #60a5fa; font-weight: bold;">Število etiket na poli</label>
+                    <input type="number" id="items-per-sheet" value="1" min="1"
+                        style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1);"
+                        oninput="calculate()">
                 </div>
             </div>
 
@@ -623,7 +624,7 @@
                         <option value="Digital (480x320)">Digital (480 x 320 mm)</option>
                     </select>
                 </div>
-                <div style="flex: 1;">
+                <div style="flex: 1; display: none;">
                     <label>Smer vlaken / Rotacija</label>
                     <select id="item-orientation" onchange="calculate()">
                         <option value="auto">Samodejno (Max kosov)</option>
@@ -662,7 +663,7 @@
             </div>
         </div>
         <!-- SREDINSKI PANEL: VIZUALIZACIJA -->
-        <div class="panel results">
+        <div class="panel results" style="display: none;">
             <div
                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
                 <h2 style="margin: 0;">Optimalen Izkoristek Pol</h2>
@@ -1418,7 +1419,7 @@
                         useManualWork: document.getElementById('calc-use-manual-work') ? document.getElementById('calc-use-manual-work').checked : false,
                         wasteManual: document.getElementById('calc-paper-waste-manual') ? document.getElementById('calc-paper-waste-manual').value : '',
                         mutPlates: document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : '',
-                        format: (document.getElementById('width') ? document.getElementById('width').value : '') + ' x ' + (document.getElementById('height') ? document.getElementById('height').value : '') + ' mm',
+                        format: 'Ročna razporeditev (' + (document.getElementById('items-per-sheet') ? document.getElementById('items-per-sheet').value : '1') + ' etiket na poli)',
                         paper: (document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value : '') + 'g ' + (document.getElementById('calc-paper-type') ? document.getElementById('calc-paper-type').value : ''),
                         colors: (document.getElementById('calc-color-front') ? document.getElementById('calc-color-front').value : '') + '/' + (document.getElementById('calc-color-back') ? document.getElementById('calc-color-back').value : ''),
                         finishing: getActiveFinishingList()
@@ -1777,92 +1778,27 @@
                 const profile = machineProfiles[mType];
 
                 if (q <= 0) return;
-                if (!g_manualLayout && (w <= 0 || h <= 0)) return;
-
-                // Če se dimenzije spremenijo, počistimo ročno postavitev
-                if (w !== g_lastW_calc || h !== g_lastH_calc) {
-                    g_manualLayout = null;
-                }
-                g_lastW_calc = w;
-                g_lastH_calc = h;
-
-                const itemW = w + 2 * b;
-                const itemH = h + 2 * b;
 
                 // Preberi ročni vnos stavkov
                 const itemsInp = document.getElementById('items-per-sheet');
-                let targetCount = parseInt(itemsInp.value) || 0;
-
-                // Če je isManual ali če so se dimenzije spremenile, ne vsiljujemo starega števila stavkov
-                if (!g_manualLayout && (isManual || targetCount === g_autoCount)) {
-                    targetCount = 0;
-                }
+                let targetCount = parseInt(itemsInp.value) || 1;
 
                 let bestSheet = null;
-                let bestLayout = null;
-                let bestScore = -1;
-
-                if (g_manualLayout) {
-                    bestSheet = sheets.find(s => s.w === g_manualLayout.sheetW && s.h === g_manualLayout.sheetH) || sheets.find(s => s.name === mFormat) || sheets[0];
-                    bestLayout = {
-                        count: g_manualLayout.items.length,
-                        items: g_manualLayout.items,
-                        cols: 1, rows: g_manualLayout.items.length, rot: false, isMixed: true, gripEdge: 'H', itemW: 0, itemH: 0
-                    };
+                if (mFormat === 'auto') {
+                    bestSheet = sheets.find(s => {
+                        let fM = true;
+                        if (profile && profile.maxW) fM = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
+                        return ((sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w)) && fM;
+                    }) || sheets.find(s => s.name === 'B2') || sheets[0];
                 } else {
-                    const checkSheet = (s) => {
-                        let fitsSource = (sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w);
-                        let fitsMachine = true;
-                        if (profile && profile.maxW) {
-                            fitsMachine = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
-                        }
-                        if (!fitsSource || !fitsMachine) return;
-
-                        let currLayout = optimizeLayout(s.w, s.h, itemW, itemH, g, fMode);
-                        if (!currLayout) return;
-
-                        const y1 = Math.floor(sw / s.w) * Math.floor(sh / s.h);
-                        const y2 = Math.floor(sw / s.h) * Math.floor(sh / s.w);
-                        const sYield = Math.max(y1, y2, 1);
-
-                        let score;
-                        let isSatisfied = (targetCount > 0 && currLayout.count >= targetCount);
-
-                        if (targetCount > 0) {
-                            if (isSatisfied) {
-                                const sheetArea = s.w * s.h;
-                                score = (sYield * 1000000000) + (1000000000000 / sheetArea) + currLayout.count;
-                            } else {
-                                score = currLayout.count;
-                            }
-                        } else {
-                            score = sYield * currLayout.count;
-                        }
-
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestSheet = s;
-                            bestLayout = currLayout;
-                        }
-                    };
-
-                    if (mFormat === 'auto') {
-                        for (let s of sheets) {
-                            checkSheet(s);
-                        }
-                        if (!bestSheet) {
-                            bestSheet = sheets.find(s => {
-                                let fM = true;
-                                if (profile && profile.maxW) fM = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
-                                return ((sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w)) && fM;
-                            }) || sheets[0];
-                            bestLayout = optimizeLayout(bestSheet.w, bestSheet.h, itemW, itemH, g, fMode);
-                        }
-                    } else {
-                        bestSheet = sheets.find(s => s.name === mFormat) || sheets[0];
-                        bestLayout = optimizeLayout(bestSheet.w, bestSheet.h, itemW, itemH, g, fMode);
-                    }
+                    bestSheet = sheets.find(s => s.name === mFormat) || sheets[0];
                 }
+
+                let bestLayout = {
+                    count: targetCount,
+                    items: [],
+                    cols: 1, rows: targetCount, rot: false, isMixed: true, gripEdge: 'H', itemW: 0, itemH: 0
+                };
 
                 if (bestSheet) {
                     g_lastSheetW = bestSheet.w;
