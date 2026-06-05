@@ -2164,7 +2164,13 @@
             }
             const wasteEl = document.getElementById('calc-paper-waste');
             if (wasteEl) wasteEl.value = paperWasteSheets;
-            let totalSheetsNeeded = sheetsNeeded + paperWasteSheets;
+            
+            let _calcColorBack = parseInt(document.getElementById('calc-color-back').value) || 0;
+            let _calcIsObrat = document.getElementById('calc-is-obrat').checked;
+            let _isDoubleSidedForMat = (_calcColorBack > 0 || _calcIsObrat);
+            let physicalWasteSheets = _isDoubleSidedForMat ? Math.ceil(paperWasteSheets / 2) : paperWasteSheets;
+            
+            let totalSheetsNeeded = sheetsNeeded + physicalWasteSheets;
 
             let paperCost = 0;
             let sourceW = parseFloat(document.getElementById('calc-source-w').value) || 1000;
@@ -2261,7 +2267,7 @@
             let mType = document.getElementById('calc-machine-type').value;
             let mProfile = machineProfiles[mType] || { speed: 6900 };
             
-            let printSheets = sheetsNeeded + paperWasteSheets;
+            let printSheets = totalSheetsNeeded;
             let printHours = 0;
             let mSpeed = 0;
 
@@ -2357,7 +2363,16 @@
                 totalFinishCost += (parseFloat(document.getElementById('f-uv-prep').value) || 0) + (totalSheetsNeeded / 1000) * (parseFloat(document.getElementById('f-uv-per1000').value) || 0);
             }
             if (document.getElementById('f-personalization-active') && document.getElementById('f-personalization-active').checked) {
-                totalFinishCost += sheetsNeeded * (parseFloat(document.getElementById('f-personalization-price').value) || 0);
+                let pMultiplier = (mType === 'S8') ? 2 : 1;
+                totalFinishCost += (sheetsNeeded * pMultiplier) * (parseFloat(document.getElementById('f-personalization-price').value) || 0);
+                
+                if (mType === 'S8') {
+                    let autoCutSpeed = 7400;
+                    if (paperWeight >= 300) autoCutSpeed = 4100;
+                    else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
+                    let cutCost = (totalSheetsNeeded / autoCutSpeed) * 25.00;
+                    totalFinishCost += cutCost;
+                }
             }
             if (document.getElementById('f-precut-active') && document.getElementById('f-precut-active').checked) {
                 let prePrep = parseFloat(document.getElementById('f-precut-prep').value) || 0;
@@ -2550,12 +2565,26 @@
                 });
             }
             if (document.getElementById('f-personalization-active') && document.getElementById('f-personalization-active').checked) {
+                let pMultiplier = (mType === 'S8') ? 2 : 1;
+                let pSheets = sheetsNeeded * pMultiplier;
                 let pPrice = (parseFloat(document.getElementById('f-personalization-price').value) || 0);
-                let pCost = sheetsNeeded * pPrice;
+                let pCost = pSheets * pPrice;
+                let breakdownText = `Delo: ${pSheets} pol po ${formatPrice(pPrice)}/polo = ${formatPrice(pCost)}`;
+                
+                let extraCost = 0;
+                if (mType === 'S8') {
+                    let autoCutSpeed = 7400;
+                    if (paperWeight >= 300) autoCutSpeed = 4100;
+                    else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
+                    let cutCost = (totalSheetsNeeded / autoCutSpeed) * 25.00;
+                    extraCost = cutCost;
+                    breakdownText += ` | Dodaten razrez na pol: ${formatPrice(cutCost)}`;
+                }
+
                 details.finish.items.push({
-                    name: 'Personalizacija',
-                    cost: pCost,
-                    breakdown: `Delo: ${sheetsNeeded} pol po ${formatPrice(pPrice)}/polo = ${formatPrice(pCost)}`
+                    name: 'Personalizacija' + (mType === 'S8' ? ' (Digitalni format - S8)' : ''),
+                    cost: pCost + extraCost,
+                    breakdown: breakdownText
                 });
             }
             if (document.getElementById('f-lam-active').checked) {
