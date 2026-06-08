@@ -1593,6 +1593,15 @@
                 if (mFormatSelect) {
                     mFormatSelect.value = 'auto';
                 }
+
+                if (mType === 'digital') {
+                    const platesInp = document.getElementById('calc-plates-num');
+                    if (platesInp) platesInp.value = "0";
+                    const prepInp = document.getElementById('calc-prep-price');
+                    if (prepInp) prepInp.value = "30";
+                    const mutInp = document.getElementById('calc-mut-plates');
+                    if (mutInp) mutInp.value = "0";
+                }
             }
             filterAvailableFormats();
         }
@@ -1990,9 +1999,9 @@
 
                 <!-- PREP -->
                 <div style="padding: 10px; background: rgba(167, 139, 250, 0.05); border-radius: 8px;">
-                    <div style="font-weight: bold; color: #a78bfa; margin-bottom: 5px;">2. Priprava in Plošče</div>
+                    <div style="font-weight: bold; color: #a78bfa; margin-bottom: 5px;">2. Priprava${d.prep.plates > 0 ? ' in Plošče' : ''}</div>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                        <span>Cena plošč (${d.prep.plates} kos):</span> <span>${formatPrice(d.prep.platesCost)}</span>
+                        ${d.prep.plates > 0 ? `<span>Cena plošč (${d.prep.plates} kos):</span> <span>${formatPrice(d.prep.platesCost)}</span>` : ''}
                         <span>Pavšalna priprava:</span> <span>${formatPrice(d.prep.setup)}</span>
                         ${d.prep.changes > 0 ? `<span>Menjava plošč:</span> <span>${formatPrice(d.prep.changesCost)}</span>` : ''}
                         ${d.prep.washCost > 0 ? `<span>Pranje stroja:</span> <span>${formatPrice(d.prep.washCost)}</span>` : ''}
@@ -2003,8 +2012,11 @@
                 <div style="padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 8px;">
                     <div style="font-weight: bold; color: #f59e0b; margin-bottom: 5px;">3. Tisk (Strojno delo)</div>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                        ${d.print.prepTime > 0 ? `<span>Priprava stroja (${(d.print.prepTime * 60).toFixed(0)} min):</span> <span>${formatPrice(d.print.prepTime * d.print.mRate)}</span>` : ''}
-                        <span>Neto čas tiska (${(d.print.hours * 60).toFixed(0)} min pri hitrosti <b>${d.print.mSpeed} pol/h</b>):</span> <span>${formatPrice(d.print.hours * d.print.mRate)}</span>
+                        ${d.print.mType === 'digital' 
+                            ? `<span>Cena tiska (${d.paper.totalSheets} pol):</span> <span>${formatPrice(d.print.cost)}</span>` 
+                            : (d.print.prepTime > 0 ? `<span>Priprava stroja (${(d.print.prepTime * 60).toFixed(0)} min):</span> <span>${formatPrice(d.print.prepTime * d.print.mRate)}</span>` : '') +
+                              `<span>Neto čas tiska (${(d.print.hours * 60).toFixed(0)} min pri hitrosti <b>${d.print.mSpeed} pol/h</b>):</span> <span>${formatPrice(d.print.hours * d.print.mRate)}</span>`
+                        }
                         <span>Prijemalec (gripper):</span> <span style="color: #fbbf24; font-weight: bold;">${d.print.gripper} mm</span>
                         <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
                         <span style="font-style: italic;">Skupaj strojno delo:</span> <span style="font-weight: bold;">${formatPrice(d.print.cost)}</span>
@@ -2171,9 +2183,12 @@
             let paperWeight = parseFloat(document.getElementById('calc-paper-weight').value) || 0;
             // Logika za makulaturo po Boss sistemu (preko tabele prepRules)
             const manualWaste = parseFloat(document.getElementById('calc-paper-waste-manual').value);
+            let mTypeForWaste = document.getElementById('calc-machine-type').value;
             let paperWasteSheets = 320;
             if (!isNaN(manualWaste)) {
                 paperWasteSheets = manualWaste;
+            } else if (mTypeForWaste === 'digital') {
+                paperWasteSheets = 50;
             } else {
                 let _front = parseInt(document.getElementById('calc-color-front').value) || 0;
                 let _back = parseInt(document.getElementById('calc-color-back').value) || 0;
@@ -2297,6 +2312,27 @@
             let mPrepTime = mPrepMinutes / 60;
 
             let totalPrintCost = printHours * mRate;
+
+            if (mType === 'digital') {
+                platesNum = 0;
+                numberOfChanges = 0;
+                washesNum = 0;
+                washCost = 0;
+                prepPrice = 30;
+                totalPrepCost = 30; // Fiksna priprava za digitalni tisk, brez plošč
+                let isColor = (front > 1 || back > 1);
+                let isDoubleSided = (back > 0 || isObrat);
+
+                let perSheetCost = 0;
+                if (isColor) {
+                    perSheetCost = isDoubleSided ? 0.30 : 0.15;
+                } else {
+                    perSheetCost = isDoubleSided ? 0.10 : 0.05;
+                }
+                
+                totalPrintCost = printSheets * perSheetCost;
+                printHours = 0; // Strojnega časa za tisk ne upoštevamo po uri
+            }
 
             let totalFinishCost = 0;
             if (document.getElementById('f-cilinder-active').checked) {
@@ -2438,6 +2474,7 @@
                     prepTime: mPrepTime,
                     mRate: mRate,
                     mSpeed: mSpeed,
+                    mType: mType,
                     cost: totalPrintCost,
                     gripper: parseFloat(document.getElementById('gripper').value) || 0
                 },
