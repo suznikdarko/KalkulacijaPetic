@@ -4511,6 +4511,160 @@
 
                 
 
+                let bossTable = getBossTables()[tableMode] || getBossTables()[_colorMode];
+
+                if (bossTable) {
+
+                    let w = bossTable[0].waste;
+
+                    let lookupValue = sheetsNeeded; // Lookup waste based on neto sheets
+
+                    if (lookupValue <= bossTable[0].q) {
+
+                        w = bossTable[0].waste;
+
+                    } else if (lookupValue >= bossTable[bossTable.length - 1].q) {
+
+                        w = bossTable[bossTable.length - 1].waste;
+
+                    } else {
+
+                        for (let i = 0; i < bossTable.length - 1; i++) {
+
+                            if (lookupValue >= bossTable[i].q && lookupValue <= bossTable[i + 1].q) {
+
+                                let rangeQ = bossTable[i + 1].q - bossTable[i].q;
+
+                                let rangeW = bossTable[i + 1].waste - bossTable[i].waste;
+
+                                let fraction = (lookupValue - bossTable[i].q) / rangeQ;
+
+                                w = Math.round(bossTable[i].waste + fraction * rangeW);
+
+                                break;
+
+                            }
+
+                        }
+
+                    }
+
+                    if (mutMultiplier > 0) {
+
+                        if (_colorMode === '4/OB') {
+
+                            w += mutMultiplier * 400;
+
+                        } else if (_colorMode === '4/4') {
+
+                            w += mutMultiplier * 2400;
+
+                        } else {
+
+                            w += mutMultiplier * w;
+
+                        }
+
+                    }
+
+                    paperWasteSheets = w;
+
+                } else {
+
+                    let _defaultWaste = (_front + _back) * 150;
+
+                    let _rule = prepRules[_colorMode] || { passes: 1, wasteImpressions: _defaultWaste };
+
+                    let baseWaste = _rule.wasteImpressions;
+
+                    paperWasteSheets = baseWaste + (mutMultiplier * baseWaste);
+
+                }
+
+            }
+
+            const wasteEl = document.getElementById('calc-paper-waste');
+
+            if (wasteEl) wasteEl.value = paperWasteSheets;
+
+
+
+            let _calcColorBack = parseInt(document.getElementById('calc-color-back').value) || 0;
+
+            let _calcIsObrat = document.getElementById('calc-is-obrat').checked;
+
+            let _isDoubleSidedForMat = (_calcColorBack > 0 || _calcIsObrat);
+
+            let physicalWasteSheets = _isDoubleSidedForMat ? Math.ceil(paperWasteSheets / 2) : paperWasteSheets;
+
+
+
+            let totalSheetsNeeded = sheetsNeeded + physicalWasteSheets;
+
+
+
+            let paperCost = 0;
+
+            let sourceW = parseFloat(document.getElementById('calc-source-w').value) || 1000;
+
+            let sourceH = parseFloat(document.getElementById('calc-source-h').value) || 700;
+
+            let sourceYield = parseFloat(document.getElementById('calc-source-yield').value) || 1;
+
+
+
+            // Izračunamo koliko OSNOVNIH pol potrebujemo
+
+            let totalSourceSheetsNeeded = Math.ceil(totalSheetsNeeded / sourceYield);
+
+
+
+            if (paperUnit === 'ton') {
+
+                let areaM2 = (sourceW / 1000) * (sourceH / 1000);
+
+                let weightKg = areaM2 * (paperWeight / 1000) * totalSourceSheetsNeeded;
+
+                paperCost = (weightKg / 1000) * paperPrice;
+
+            } else if (paperUnit === '1000') {
+
+                // Cena na 1000 osnovnih pol
+
+                paperCost = (totalSourceSheetsNeeded / 1000) * paperPrice;
+
+            } else {
+
+                paperCost = totalSourceSheetsNeeded * paperPrice;
+
+            }
+
+
+
+            function getDynamicSpeed(baseSpeed, grammage, qty) {
+
+                let _front = parseInt(document.getElementById('calc-color-front').value) || 0;
+
+                let _back = parseInt(document.getElementById('calc-color-back').value) || 0;
+
+                let _isObrat = document.getElementById('calc-is-obrat').checked;
+
+                let mutPlatesVal = parseInt(document.getElementById('calc-mut-plates').value) || 0;
+
+                let mutSuffix = "";
+
+                if (mutPlatesVal === 1) mutSuffix = " + mutacija 1x";
+
+                else if (mutPlatesVal === 2) mutSuffix = " + mutacija 2x";
+
+                else if (mutPlatesVal >= 3) mutSuffix = " + mutacija 3x";
+
+                let baseColorMode = _isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0');
+
+                let speedTableMode = baseColorMode + mutSuffix;
+
+
+
                 let bossTable = getBossTables()[speedTableMode] || getBossTables()[baseColorMode];
 
                 if (bossTable) {
@@ -4783,7 +4937,7 @@
 
                     let cSpeed = 2000;
 
-                    workHours = totalSheetsNeeded / cSpeed;
+                    workHours = sheetsNeeded / cSpeed;
 
                 }
 
@@ -5087,7 +5241,7 @@
 
                     let cSpeed = 2000;
 
-                    workHours = totalSheetsNeeded / cSpeed;
+                    workHours = sheetsNeeded / cSpeed;
 
                 }
 
@@ -5593,27 +5747,53 @@
 
             const useRotated = y2 > y1;
 
-            const cols = useRotated ? Math.floor(sw / mh) : Math.floor(sw / mw);
+            let cols = useRotated ? Math.floor(sw / mh) : Math.floor(sw / mw);
 
-            const rows = useRotated ? Math.floor(sh / mw) : Math.floor(sh / mh);
+            let rows = useRotated ? Math.floor(sh / mw) : Math.floor(sh / mh);
 
-            const itemW = useRotated ? mh : mw;
+            let itemW = useRotated ? mh : mw;
 
-            const itemH = useRotated ? mw : mh;
+            let itemH = useRotated ? mw : mh;
 
 
+
+            // Always draw with the wider side at the bottom (landscape)
+            const isDrawingRotated = sw < sh;
+            let drawW = sw;
+            let drawH = sh;
+            let grainDirection = 'vertical';
+            
+            if (isDrawingRotated) {
+                drawW = sh;
+                drawH = sw;
+                
+                // Swap rows/cols and item dimensions to rotate layout
+                const tempCols = cols;
+                cols = rows;
+                rows = tempCols;
+                
+                const tempItemW = itemW;
+                itemW = itemH;
+                itemH = tempItemW;
+                
+                // Grain is along sh (horizontal). Flipped: vertical.
+                grainDirection = 'vertical';
+            } else {
+                // Already sw >= sh. Grain is along sh (vertical). Flipped: horizontal.
+                grainDirection = 'horizontal';
+            }
 
             const maxW = 400;
 
             const maxH = 250;
 
-            const scale = Math.min(maxW / sw, maxH / sh);
+            const scale = Math.min(maxW / drawW, maxH / drawH);
 
 
 
-            canvas.width = sw * scale;
+            canvas.width = drawW * scale;
 
-            canvas.height = sh * scale;
+            canvas.height = drawH * scale;
 
 
 
@@ -5641,9 +5821,9 @@
 
 
 
-            const startX = (sw - cols * itemW) / 2;
+            const startX = (drawW - cols * itemW) / 2;
 
-            const startY = (sh - rows * itemH) / 2;
+            const startY = (drawH - rows * itemH) / 2;
 
 
 
@@ -5667,7 +5847,7 @@
 
             ctx.font = '10px Inter';
 
-            ctx.fillText(`${sw} mm`, canvas.width / 2 - 15, canvas.height - 5);
+            ctx.fillText(`${drawW} mm`, canvas.width / 2 - 15, canvas.height - 5);
 
             ctx.save();
 
@@ -5675,79 +5855,79 @@
 
             ctx.rotate(-Math.PI / 2);
 
-            ctx.fillText(`${sh} mm`, 0, 0);
+            ctx.fillText(`${drawH} mm`, 0, 0);
 
             ctx.restore();
 
 
 
-            // Grain direction indicator (always in direction of height 'sh')
-
+            // Grain direction indicator
             ctx.strokeStyle = '#ef4444';
-
             ctx.setLineDash([8, 4]);
-
             ctx.lineWidth = 2;
+            
+            if (grainDirection === 'vertical') {
+                const grainX = canvas.width - 15;
+                ctx.beginPath();
+                ctx.moveTo(grainX, 20);
+                ctx.lineTo(grainX, canvas.height - 20);
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-            const grainX = canvas.width - 15;
+                // Arrowheads
+                ctx.fillStyle = '#ef4444';
+                // Top arrow
+                ctx.beginPath();
+                ctx.moveTo(grainX, 10);
+                ctx.lineTo(grainX - 4, 20);
+                ctx.lineTo(grainX + 4, 20);
+                ctx.fill();
+                // Bottom arrow
+                ctx.beginPath();
+                ctx.moveTo(grainX, canvas.height - 10);
+                ctx.lineTo(grainX - 4, canvas.height - 20);
+                ctx.lineTo(grainX + 4, canvas.height - 20);
+                ctx.fill();
 
-            ctx.beginPath();
+                // Label
+                ctx.save();
+                ctx.translate(grainX - 5, canvas.height / 3);
+                ctx.rotate(-Math.PI / 2);
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 9px Inter';
+                ctx.fillText('SMER VLAKEN', 0, 0);
+                ctx.restore();
+            } else {
+                const grainY = canvas.height - 15;
+                ctx.beginPath();
+                ctx.moveTo(20, grainY);
+                ctx.lineTo(canvas.width - 20, grainY);
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-            ctx.moveTo(grainX, 20);
+                // Arrowheads
+                ctx.fillStyle = '#ef4444';
+                // Left arrow
+                ctx.beginPath();
+                ctx.moveTo(10, grainY);
+                ctx.lineTo(20, grainY - 4);
+                ctx.lineTo(20, grainY + 4);
+                ctx.fill();
+                // Right arrow
+                ctx.beginPath();
+                ctx.moveTo(canvas.width - 10, grainY);
+                ctx.lineTo(canvas.width - 20, grainY - 4);
+                ctx.lineTo(canvas.width - 20, grainY + 4);
+                ctx.fill();
 
-            ctx.lineTo(grainX, canvas.height - 20);
-
-            ctx.stroke();
-
-            ctx.setLineDash([]);
-
-
-
-            // Arrowheads for grain direction
-
-            ctx.fillStyle = '#ef4444';
-
-            // Top arrow
-
-            ctx.beginPath();
-
-            ctx.moveTo(grainX, 10);
-
-            ctx.lineTo(grainX - 4, 20);
-
-            ctx.lineTo(grainX + 4, 20);
-
-            ctx.fill();
-
-            // Bottom arrow
-
-            ctx.beginPath();
-
-            ctx.moveTo(grainX, canvas.height - 10);
-
-            ctx.lineTo(grainX - 4, canvas.height - 20);
-
-            ctx.lineTo(grainX + 4, canvas.height - 20);
-
-            ctx.fill();
-
-
-
-            // Label for grain direction
-
-            ctx.save();
-
-            ctx.translate(grainX - 5, canvas.height / 3);
-
-            ctx.rotate(-Math.PI / 2);
-
-            ctx.textAlign = 'center';
-
-            ctx.font = 'bold 9px Inter';
-
-            ctx.fillText('SMER VLAKEN', 0, 0);
-
-            ctx.restore();
+                // Label
+                ctx.save();
+                ctx.translate(canvas.width / 2, grainY - 5);
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 9px Inter';
+                ctx.fillText('SMER VLAKEN', 0, 0);
+                ctx.restore();
+            }
 
 
 
