@@ -1758,7 +1758,7 @@
 
                             style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; color: #34d399; margin: 0; font-weight: 600;">
 
-                            <input type="checkbox" id="calc-is-obrat" onchange="calculate()"
+                            <input type="checkbox" id="calc-is-obrat" onchange="if(this.checked) { document.getElementById('calc-is-sv').checked = false; } calculate()"
 
                                 style="width: 20px; height: 20px; margin: 0; cursor: pointer;">
 
@@ -1772,6 +1772,18 @@
 
                         </p>
 
+                    </div>
+                    <div class="form-group" id="sv-container"
+                        style="margin-top: 0.5rem; background: rgba(59, 130, 246, 0.1); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                        <label
+                            style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; color: #60a5fa; margin: 0; font-weight: 600;">
+                            <input type="checkbox" id="calc-is-sv" onchange="if(this.checked) { document.getElementById('calc-is-obrat').checked = false; } calculate()"
+                                style="width: 20px; height: 20px; margin: 0; cursor: pointer;">
+                            🔄 Šen Vider tisk (ŠV) - obojestranski tisk v enem prehodu
+                        </label>
+                        <p style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px; margin-left: 2rem;">
+                            Samo en prehod čez stroj, barve na obeh straneh (dodatek in hitrost tiska po tabeli za ŠV / 8/0).
+                        </p>
                     </div>
 
                     <div class="form-group">
@@ -4505,13 +4517,14 @@
 
                 else if (mutPlatesVal >= 3) mutSuffix = " + mutacija 3x";
 
-                let baseColorMode = _isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0');
+                let isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
+                let baseColorMode = isSV ? '8/0' : (_isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0'));
 
                 let tableMode = baseColorMode + mutSuffix;
 
                 
 
-                let bossTable = getBossTables()[tableMode] || getBossTables()[_colorMode];
+                let bossTable = getBossTables()[tableMode] || getBossTables()[isSV ? '8/0' : _colorMode];
 
                 if (bossTable) {
 
@@ -4593,7 +4606,8 @@
 
             let _calcIsObrat = document.getElementById('calc-is-obrat').checked;
 
-            let _isDoubleSidedForMat = (_calcColorBack > 0 || _calcIsObrat);
+            let _isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
+            let _isDoubleSidedForMat = (_calcColorBack > 0 || _calcIsObrat) && !_isSV;
 
             let physicalWasteSheets = _isDoubleSidedForMat ? Math.ceil(paperWasteSheets / 2) : paperWasteSheets;
 
@@ -4659,7 +4673,8 @@
 
                 else if (mutPlatesVal >= 3) mutSuffix = " + mutacija 3x";
 
-                let baseColorMode = _isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0');
+                let isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
+                let baseColorMode = isSV ? '8/0' : (_isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0'));
 
                 let speedTableMode = baseColorMode + mutSuffix;
 
@@ -7273,7 +7288,8 @@
 
                         colorBack: gv('calc-color-back'),
 
-                        isObrat: gc('calc-is-obrat'),
+                        isObrat: gc('calc-is-obrat'),
+                        isSV: gc('calc-is-sv'),
 
                         commercial: gv('calc-commercial'),
 
@@ -7463,7 +7479,8 @@
 
                         colorBack: gv('calc-color-back'),
 
-                        isObrat: gc('calc-is-obrat'),
+                        isObrat: gc('calc-is-obrat'),
+                        isSV: gc('calc-is-sv'),
 
                         commercial: gv('calc-commercial'),
 
@@ -8091,7 +8108,8 @@
 
             document.getElementById('calc-color-back').value = inp.colorBack;
 
-            document.getElementById('calc-is-obrat').checked = inp.isObrat;
+            document.getElementById('calc-is-obrat').checked = inp.isObrat;
+            if (document.getElementById('calc-is-sv')) document.getElementById('calc-is-sv').checked = inp.isSV || false;
 
             if (document.getElementById('calc-commercial')) document.getElementById('calc-commercial').value = inp.commercial || 10;
 
@@ -8391,7 +8409,8 @@
 
                         colorBack: document.getElementById('calc-color-back').value,
 
-                        isObrat: document.getElementById('calc-is-obrat').checked,
+                        isObrat: document.getElementById('calc-is-obrat').checked,
+                        isSV: document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false,
 
                         margin: document.getElementById('calc-margin').value,
 
@@ -8909,7 +8928,8 @@
 
             let isObrat = document.getElementById('calc-is-obrat').checked;
 
-            let colors = front + '/' + (isObrat ? 'OB' : back);
+            let isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
+            let colors = isSV ? (front + '/' + back + ' (ŠV)') : (front + '/' + (isObrat ? 'OB' : back));
 
 
 
