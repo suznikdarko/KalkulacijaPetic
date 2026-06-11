@@ -8972,6 +8972,15 @@
             let isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
             let colors = isSV ? (front + '/' + back + ' (ŠV)') : (front + '/' + (isObrat ? 'OB' : back));
 
+            let tiskMode = "1 prehod";
+            if (isSV) {
+                tiskMode = "obračanje (Šen Vider)";
+            } else if (isObrat) {
+                tiskMode = "obračanje";
+            } else if (back > 0) {
+                tiskMode = "prvi/drugi (2 prehoda)";
+            }
+
 
 
             // Razrez details
@@ -9008,6 +9017,8 @@
 
             let finishList = getActiveFinishingList();
 
+            let hasTool = document.getElementById('f-tool-active') && document.getElementById('f-tool-active').checked;
+
             let physicalWasteSheets = totalSheets - calcRes.sheetsNeeded;
 
             let givenDodatekInput = document.getElementById('calc-given-sheets') ? parseInt(document.getElementById('calc-given-sheets').value) : NaN;
@@ -9029,6 +9040,16 @@
                 finalSourceSheets = Math.ceil(finalTotalSheets / sourceYield);
 
             }
+
+            let prepPasses = front > 0 ? (Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0)) : 1;
+            let colorMode = front + '/' + (isObrat ? 'OB' : back);
+            let rule = prepRules[colorMode] || { passes: prepPasses };
+            let mPasses = isSV ? 1 : rule.passes;
+            let dnPrintHours = (finalTotalSheets * mPasses) / 6000;
+
+            let roundedPrepTime = Math.round(d.print.prepTime * 4) / 4;
+            let roundedPrepMinutes = Math.round(roundedPrepTime * 60);
+            let roundedPrintTime = Math.round(dnPrintHours * 4) / 4;
 
 
 
@@ -9058,19 +9079,19 @@
 
                 <style>
 
-                    body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.2; color: #000; margin: 0; padding: 0; }
+                    body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.25; color: #000; margin: 0; padding: 0; }
 
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
 
-                    td, th { padding: 4px 0; vertical-align: top; }
+                    td, th { padding: 2px 0; vertical-align: top; }
 
-                    .header-top { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px; }
+                    .header-top { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
 
                     .bold { font-weight: bold; }
 
                     .title { font-size: 16px; font-weight: bold; text-transform: uppercase; }
 
-                    .row-divider { border-top: 1px dashed #000; margin: 15px 0; }
+                    .row-divider { border-top: 1px dashed #000; margin: 10px 0; }
 
                     .urgent { color: red; font-size: 18px; font-weight: bold; text-transform: uppercase; }
 
@@ -9184,7 +9205,7 @@
 
                         <td style="width: 15%;">06 razrez:</td>
 
-                        <td class="bold">${sourceSheets.toLocaleString('de-DE')} pol &nbsp;&nbsp; ${sourceW/10} x ${sourceH/10} cm &nbsp;&nbsp; na &nbsp;&nbsp; ${totalSheets.toLocaleString('de-DE')} pol ${sheetW}x${sheetH} mm (${sourceYield} iz pole)</td>
+                        <td class="bold">${sourceSheets.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp; ${sourceW/10} x ${sourceH/10} cm &nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp; ${totalSheets.toLocaleString('de-DE')} pol ${sheetW}x${sheetH} mm &nbsp;&nbsp; (${sourceYield} iz pole)</td>
 
                     </tr>
 
@@ -9192,29 +9213,17 @@
 
 
 
-                <table style="margin-top: 10px;">
+                <table style="margin-top: 5px;">
 
                     <tr>
 
                         <td style="width: 15%;">Kop. plošč:</td>
 
-                        <td class="bold">${d.prep.plates} kom. ${d.print.mType} &nbsp;&nbsp;&nbsp;&nbsp; (${itemsPerSheet} sest. na formi)</td>
+                        <td style="width: 15%;">${d.print.mType} priprava:</td>
 
-                    </tr>
+                        <td class="bold" style="width: 55%;">${tiskMode}</td>
 
-                </table>
-
-                <div style="margin-left: 15%; margin-top: 5px; font-style: italic;">(Pred tiskom preveri smer teka papirja)</div>
-
-
-
-                <table style="margin-top: 10px;">
-
-                    <tr>
-
-                        <td style="width: 15%;">${d.print.mType} of.priprava:</td>
-
-                        <td class="bold"></td>
+                        <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">priprava:</span> ${roundedPrepTime.toFixed(2)} h</td>
 
                     </tr>
 
@@ -9222,7 +9231,9 @@
 
                         <td>Tisk:</td>
 
-                        <td class="bold">${calcRes.sheetsNeeded.toLocaleString('de-DE')} + ${finalDodatek.toLocaleString('de-DE')} (dodatek) = ${finalTotalSheets.toLocaleString('de-DE')} tisk. pol</td>
+                        <td class="bold" style="width: 55%; white-space: nowrap;">${calcRes.sheetsNeeded.toLocaleString('de-DE')} + ${finalDodatek.toLocaleString('de-DE')} = ${finalTotalSheets.toLocaleString('de-DE')} tisk. pol &nbsp;&nbsp; (${mPasses}x skozi stroj)</td>
+
+                        <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">tisk:</span> ${roundedPrintTime.toFixed(2)} h</td>
 
                     </tr>
 
@@ -9243,6 +9254,18 @@
                         <td class="bold">${finishList ? finishList : 'Brez posebne dodelave'}</td>
 
                     </tr>
+
+                    ${hasTool ? `
+
+                    <tr>
+
+                        <td style="width: 15%; padding-top: 10px; color: #ef4444; font-weight: bold;">Orodje:</td>
+
+                        <td class="bold" style="padding-top: 10px; color: #ef4444; font-weight: bold;">izdelava novega orodja Smole Branko</td>
+
+                    </tr>
+
+                    ` : ''}
 
                     <tr>
 
@@ -9268,7 +9291,7 @@
 
                         <td style="width: 15%;">of. plošče:</td>
 
-                        <td>${d.prep.plates} kos (${d.print.mType})</td>
+                        <td>${d.prep.plates} kos (<strong>${d.print.mType}</strong>)</td>
 
                     </tr>
 
@@ -9280,13 +9303,17 @@
 
                     </tr>
 
-                </table>
-
-
-
                 <div class="row-divider"></div>
 
+                <table style="width: 100%; margin-bottom: 10px;">
+                    <tr>
+                        <td style="width: 33%;"><span class="bold">Št. ponudbe:</span> ${quoteNum || '/'}</td>
+                        <td style="width: 33%; text-align: center;"><span class="bold">Cena za kos:</span> ${formatPrice(calcRes.perItemFinal, 4)} €</td>
+                        <td style="width: 33%; text-align: right;"><span class="bold">Skupaj:</span> ${formatPrice(calcRes.totalPrice, 2)} €</td>
+                    </tr>
+                </table>
 
+                <div class="row-divider"></div>
 
                 <table>
 
