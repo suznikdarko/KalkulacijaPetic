@@ -385,6 +385,26 @@
                     <label>Šifra izdelka</label>
                     <input type="text" id="calc-material-code" placeholder="npr. KUV-123">
                 </div>
+                <div>
+                    <label for="calc-dn-number">Številka D.N.</label>
+                    <input type="text" id="calc-dn-number" placeholder="npr. 0830/26">
+                </div>
+                <div>
+                    <label for="calc-dn-old">Stari D.N. (za montažo)</label>
+                    <input type="text" id="calc-dn-old" placeholder="npr. SDN 0682/26">
+                </div>
+                <div>
+                    <label for="calc-dn-deadline">Rok izdelave</label>
+                    <input type="text" id="calc-dn-deadline" placeholder="npr. četrtek 4.6.2026">
+                </div>
+                <div style="display:flex; align-items:center; gap: 0.5rem; margin-top: 10px;">
+                    <input type="checkbox" id="calc-dn-urgent" style="width:auto; height:auto;">
+                    <label for="calc-dn-urgent" style="color: #ef4444; font-weight: bold; margin:0;">NUJNO!</label>
+                </div>
+                <div>
+                    <label for="calc-dn-packaging">Pakiranje (D.N.)</label>
+                    <input type="text" id="calc-dn-packaging" placeholder="npr. Ovoj po 500 kom">
+                </div>
             </div>
 
             <div class="header-group">
@@ -760,6 +780,9 @@
             <button class="calculate-btn" onclick="openQuotePreview(true)" id="btn-open-quote-at"
                 style="margin: 0; width: auto; background: #ef4444; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">🇦🇹
                 Ponudba (AT)</button>
+            <button class="calculate-btn" onclick="printWorkOrder()" id="btn-print-dn"
+                style="margin: 0; width: auto; background: #8b5cf6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold;">📋
+                Natisni DN</button>
         </div>
     </div>
 
@@ -1092,6 +1115,242 @@
                 setTimeout(() => { printWindow.print(); }, 500);
             } catch (e) {
                 alert("Napaka pri pripravi ponudbe: " + e.message);
+                console.error(e);
+            }
+        }
+
+        function getActiveFinishingList() {
+            let list = [];
+            if (document.getElementById('calc-use-personalization').checked) {
+                const pCount = parseFloat(document.getElementById('calc-personalization').value) || 0;
+                list.push(`Personalizacija (${formatQty(pCount)} kos)`);
+            }
+            if (document.getElementById('calc-use-manual-work').checked) {
+                list.push("Ročna dela");
+            }
+            if (document.getElementById('f-delivery-active') && document.getElementById('f-delivery-active').checked) {
+                list.push("Dostava pošta");
+            }
+            if (document.getElementById('f-del-fixed-active') && document.getElementById('f-del-fixed-active').checked) {
+                list.push("Fiksna dostava");
+            }
+            return list.join(', ');
+        }
+
+        function getWorkOrderHTML() {
+            const quantitiesStr = document.getElementById('calc-quantities').value || '';
+            const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, ''))).filter(n => !isNaN(n) && n > 0);
+            const q = qList[0] || 1000;
+
+            const qo = parseFloat(document.getElementById('calc-qty-ordered').value) || 0;
+            const oqVal = qo || q;
+
+            let calcRes = calculateForSingleQty(q);
+            if (!calcRes) return "Napaka pri generiranju naloga.";
+            let d = calcRes.details;
+
+            let customer = document.getElementById('calc-customer').value || "Ni vpisano";
+            let customerCode = document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "";
+            let custAddress = document.getElementById('calc-cust-address').value || "";
+            let custEmail = document.getElementById('calc-cust-email') ? document.getElementById('calc-cust-email').value : "";
+            let deliveryAddress = document.getElementById('calc-delivery-address').value || "";
+
+            let dnNum = document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value : "";
+            let dnOld = document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : "";
+            let deadline = document.getElementById('calc-dn-deadline') ? document.getElementById('calc-dn-deadline').value : "";
+            let urgent = document.getElementById('calc-dn-urgent') && document.getElementById('calc-dn-urgent').checked;
+            let packaging = document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : "";
+
+            let quoteNum = document.getElementById('calc-quote-number').value || "";
+            let product = document.getElementById('calc-project-name').value || "Ni vpisano";
+
+            let qty = q;
+
+            let materialCode = document.getElementById('calc-material-code').value || "";
+            let envType = document.getElementById('envelope-preset').options[document.getElementById('envelope-preset').selectedIndex].text;
+            let formatW = document.getElementById('width').value || 0;
+            let formatH = document.getElementById('height').value || 0;
+
+            let date = new Date().toLocaleDateString('sl-SI');
+
+            // Formatiranje barv
+            const cFront = parseFloat(document.getElementById('calc-colors-front').value) || 0;
+            const cBack = parseFloat(document.getElementById('calc-colors-back').value) || 0;
+            const isObr = document.getElementById('calc-is-obrat').checked;
+            let colors = cFront + ' / ' + (isObr ? 'obračanje' : cBack);
+
+            let tiskMode = "enostransko";
+            if (isObr) {
+                tiskMode = "obračanje";
+            } else if (cBack > 0) {
+                tiskMode = "obojestransko (2 prehoda)";
+            }
+
+            let waste = d.material.waste || 0;
+            let totalQ = q + qo + waste;
+
+            let roundedPrintTime = totalQ / d.print.speed;
+            let roundedPrepTime = d.plates.plateCount * 0.15; // 0.15h per plate as setup estimation
+
+            let finishList = getActiveFinishingList();
+
+            let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Delovni Nalog - ${dnNum || product}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.25; color: #000; margin: 0; padding: 0; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+                    td, th { padding: 2px 0; vertical-align: top; }
+                    .header-top { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
+                    .bold { font-weight: bold; }
+                    .title { font-size: 16px; font-weight: bold; text-transform: uppercase; }
+                    .row-divider { border-top: 1px dashed #000; margin: 10px 0; }
+                    .urgent { color: red; font-size: 18px; font-weight: bold; text-transform: uppercase; }
+                    @media print { .no-print { display: none !important; } }
+                    .editable-area:focus { outline: 2px dashed #3b82f6; background-color: #eff6ff; }
+                </style>
+            </head>
+            <body>
+                <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 10px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
+                    <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI DN</button>
+                    <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
+                    <div style="font-size: 12px; color: #475569; margin-left: 10px;">💡 Kliknite na poljubno besedilo spodaj, da ga spremenite pred tiskom.</div>
+                </div>
+                <div class="editable-area" contenteditable="true" style="padding: 20px;">
+                <div class="header-top">
+                    <div style="width: 50%;">
+                        <div class="bold" style="font-size: 14px;">${customer} &nbsp;&nbsp;&nbsp; (Šifra stranke: ${customerCode})</div>
+                        <div>${custAddress.replace(/\\n/g, '<br>')}</div>
+                        <div>${custEmail ? '<br>' + custEmail : ''}</div>
+                    </div>
+                    <div style="width: 50%; text-align: right; font-size: 16px; font-weight: bold;">
+                        Tiskarna PETRIČ
+                    </div>
+                </div>
+
+                <table style="margin-top: 10px;">
+                    <tr>
+                        <td style="width: 50%;">
+                            ${urgent ? '<div class="urgent">NUJNO!</div>' : ''}
+                            <div><span class="bold">Rok izdelave:</span> ${deadline}</div>
+                        </td>
+                        <td style="width: 50%; text-align: right;">
+                            <div class="bold" style="font-size: 16px;">D.N.: ${dnNum}</div>
+                            ${dnOld ? `<div>Stari D.N. (montaža): ${dnOld}</div>` : ''}
+                            <div>Datum naloga: ${date}</div>
+                        </td>
+                    </tr>
+                </table>
+
+                <table style="margin-top: 15px; width: 100%;">
+                    <tr>
+                        <td class="bold" style="font-size: 15px; width: 50%;">${product}</td>
+                        <td style="width: 50%; text-align: right;">Ponudba: ${quoteNum}</td>
+                    </tr>
+                </table>
+
+                <table style="margin-top: 5px; width: 100%;">
+                    <tr><td style="width: 15%;">Količina:</td><td class="bold" style="font-size: 15px;">${qty.toLocaleString('de-DE')} kos</td></tr>
+                    <tr><td>Format:</td><td class="bold">${envType} (${formatW} x ${formatH} mm)</td></tr>
+                    <tr><td>Tisk:</td><td class="bold">${colors}</td></tr>
+                    <tr><td>Material:</td><td class="bold">Kuverte - šifra: ${materialCode}</td></tr>
+                </table>
+
+                <div class="row-divider"></div>
+
+                <table style="margin-top: 5px;">
+                    <tr>
+                        <td style="width: 15%;">Kop. plošč:</td>
+                        <td class="bold">${d.plates.plateCount} kom. <strong>S4</strong></td>
+                    </tr>
+                </table>
+                <table style="margin-top: 5px; width: 100%;">
+                    <tr>
+                        <td style="width: 15%; font-weight: bold;"><strong>S4</strong> priprava:</td>
+                        <td class="bold" style="width: 55%;">${tiskMode}</td>
+                        <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">priprava:</span> ${roundedPrepTime.toFixed(2)} h</td>
+                    </tr>
+                    <tr>
+                        <td>Tisk:</td>
+                        <td class="bold" style="width: 55%; white-space: nowrap;">${qty.toLocaleString('de-DE')} + ${waste.toLocaleString('de-DE')} = ${totalQ.toLocaleString('de-DE')} kuvert</td>
+                        <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">tisk:</span> ${roundedPrintTime.toFixed(2)} h</td>
+                    </tr>
+                </table>
+
+                <div class="row-divider"></div>
+
+                <table>
+                    <tr>
+                        <td style="width: 15%;">Dodelava:</td>
+                        <td class="bold">${finishList ? finishList : 'Brez posebne dodelave'}</td>
+                    </tr>
+                    <tr>
+                        <td style="width: 15%; padding-top: 10px;">Pakiranje:</td>
+                        <td class="bold" style="padding-top: 10px;">${packaging}</td>
+                    </tr>
+                </table>
+
+                <div class="row-divider"></div>
+
+                <div class="bold" style="margin-bottom: 5px;">Poraba materiala:</div>
+                <table>
+                    <tr>
+                        <td style="width: 15%;">of. plošče:</td>
+                        <td>${d.plates.plateCount} kos (<strong>S4</strong>)</td>
+                    </tr>
+                    <tr>
+                        <td>Material:</td>
+                        <td>${totalQ.toLocaleString('de-DE')} kos kuvert - ${envType} [Šifra: ${materialCode}]</td>
+                    </tr>
+                </table>
+
+                <div class="row-divider"></div>
+
+                <table>
+                    <tr>
+                        <td style="width: 50%;" class="bold">Izdobaviti točno naročeno količino!</td>
+                        <td style="width: 50%; text-align: right;" class="bold">${deliveryAddress ? 'Dostava na naslov!' : 'Naša dostava!'}</td>
+                    </tr>
+                    <tr>
+                        <td>Obvezno par vzorcev tiskovine v nalog:</td>
+                        <td style="text-align: right;">Pred dostavo pokliči!</td>
+                    </tr>
+                </table>
+
+                <div class="row-divider"></div>
+
+                <table style="width: 100%; margin-bottom: 5px; font-size: 11px;">
+                    <tr>
+                        <td style="width: 25%;"><span class="bold">Št. ponudbe:</span> ${quoteNum || '/'}</td>
+                        <td style="width: 25%; text-align: center;"><span class="bold">Cena za kos:</span> ${formatPrice(calcRes.pricePerItem, 4)} €</td>
+                        <td style="width: 25%; text-align: center;"><span class="bold">Cena za 1000 kos:</span> ${formatPrice(calcRes.pricePerItem * 1000, 2)} €</td>
+                        <td style="width: 25%; text-align: right;"><span class="bold">Skupaj:</span> ${formatPrice(calcRes.finalTotal, 2)} €</td>
+                    </tr>
+                </table>
+
+                </div>
+            </body>
+            </html>
+            `;
+            return html;
+        }
+
+        function printWorkOrder() {
+            try {
+                const html = getWorkOrderHTML();
+                const printWindow = window.open('', '', 'width=850,height=900');
+                if (printWindow) {
+                    printWindow.document.write(html);
+                    printWindow.document.close();
+                    printWindow.focus();
+                } else {
+                    alert("Pojavno okno je blokirano. Prosimo, dovolite pojavna okna za to stran.");
+                }
+            } catch (e) {
+                alert("Napaka pri pripravi delovnega naloga: " + e.message);
                 console.error(e);
             }
         }
