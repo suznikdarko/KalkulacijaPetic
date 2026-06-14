@@ -734,9 +734,24 @@
                         <div class="value" id="res-price-1000-stat">0.00 €</div>
                         <div class="label">Cena za 1000 kos</div>
                     </div>
+
                     <div class="stat-card full-width">
                         <div class="value" id="res-sheets-needed">0</div>
                         <div class="label">Potrebno število pol za tisk</div>
+                    </div>
+                    <div class="stat-card full-width" id="stat-dodatek" style="border-left: 3px solid #f59e0b; background: rgba(245, 158, 11, 0.05);">
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
+                            <div>
+                                <div class="value" id="res-dodatek-sheets" style="color:#f59e0b;">0</div>
+                                <div class="label" style="color:#f59e0b;">➕ Dodatek (pol)</div>
+                            </div>
+                            <div style="flex:1; max-width:200px;">
+                                <input type="number" id="f-dodatek-sheets" value="0" min="0" step="1"
+                                    placeholder="Vpiši dodatek..."
+                                    onchange="calculatePrice()"
+                                    style="width:100%; padding:0.4rem; border-radius:6px; border:1px solid #f59e0b; background:rgba(0,0,0,0.3); color:#fff; text-align:center;">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1058,18 +1073,7 @@
                                 </div>
                             </div>
 
-                            <!-- Dodatek -->
-                            <div class="finish-item" id="row-finish-dodatek" style="border-left: 3px solid #f59e0b; background: rgba(245, 158, 11, 0.05);">
-                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; color: #f59e0b;">
-                                    ➕ Dodatek (pol)
-                                </label>
-                                <div class="form-group" style="margin:0;">
-                                    <label><small>Število pol dodatka</small></label>
-                                    <input type="number" id="f-dodatek-sheets" value="0" min="0" step="1"
-                                        placeholder="Vpiši dodatek..."
-                                        onchange="calculatePrice()">
-                                </div>
-                            </div>
+
                         </div>
 
                         <div>
@@ -4106,6 +4110,176 @@
             }
         }
 
+        function printDN() {
+            try {
+                const dnNumber = document.getElementById('calc-dn-number').value || '/';
+                const dnOld = document.getElementById('calc-dn-old').value || '/';
+                const dnDeadline = document.getElementById('calc-dn-deadline').value || '/';
+                const dnPackaging = document.getElementById('calc-dn-packaging').value || '/';
+                const customer = document.getElementById('calc-customer').value || '';
+                const custAddress = document.getElementById('calc-cust-address').value || '';
+                const deliveryAddress = document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '';
+                const customerCode = document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : '/';
+                const projectName = document.getElementById('calc-project-name').value || '/';
+                const materialCode = document.getElementById('calc-material-code').value || '/';
+                const materialDesc = document.getElementById('calc-material-desc') ? document.getElementById('calc-material-desc').value : '';
+                const qtyStr = document.getElementById('quantity').value || '0';
+                const date = new Date().toLocaleDateString('sl-SI');
+                const preparedBy = document.getElementById('calc-prepared-by').value || '';
+
+                const w = document.getElementById('width').value || '-';
+                const h = document.getElementById('height').value || '-';
+                const bleed = document.getElementById('bleed').value || '0';
+                const sheetName = document.getElementById('res-sheet') ? document.getElementById('res-sheet').innerText : '-';
+                const sheetSize = document.getElementById('res-size') ? document.getElementById('res-size').innerText : '-';
+                const itemsPerSheet = document.getElementById('res-count') ? document.getElementById('res-count').innerText : '-';
+                const sheetsNeeded = document.getElementById('res-sheets-needed') ? document.getElementById('res-sheets-needed').innerText : '-';
+                const paperWeight = document.getElementById('calc-paper-weight').value || '-';
+                const paperType = document.getElementById('calc-paper-type').value || '';
+                const colorFront = document.getElementById('calc-color-front').value || '0';
+                const colorBack = document.getElementById('calc-color-back').value || '0';
+                const finishing = getActiveFinishingList() || '/';
+                const notes = document.getElementById('calc-notes') ? document.getElementById('calc-notes').value : '';
+
+                let dimensionDisplay = `${w} x ${h} mm (+${bleed} mm bleed)`;
+                if (g_manualLayout) {
+                    const countsByDim = {};
+                    g_manualLayout.items.forEach(it => {
+                        const key = `${it.w - 2 * it.bleed} x ${it.h - 2 * it.bleed}`;
+                        countsByDim[key] = (countsByDim[key] || 0) + 1;
+                    });
+                    dimensionDisplay = Object.entries(countsByDim).map(([dim, count]) => `${count}x ${dim} mm`).join(', ');
+                    dimensionDisplay += ` (+${bleed} mm bleed)`;
+                }
+
+                const html = `
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>Delovni Nalog - ${dnNumber}</title>
+                    <style>
+                        body { font-family: 'Arial', sans-serif; padding: 30px; color: #000; font-size: 12px; line-height: 1.4; }
+                        h1 { text-align: center; font-size: 22px; margin-bottom: 5px; letter-spacing: 2px; }
+                        .subtitle { text-align: center; font-size: 11px; color: #666; margin-bottom: 20px; }
+                        .dn-header { display: flex; justify-content: space-between; border: 2px solid #000; padding: 10px 15px; margin-bottom: 15px; }
+                        .dn-header div { font-size: 13px; }
+                        .dn-header .label { font-size: 9px; color: #666; text-transform: uppercase; }
+                        .dn-header .value { font-weight: bold; font-size: 14px; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+                        th, td { border: 1px solid #000; padding: 6px 10px; text-align: left; font-size: 11px; }
+                        th { background: #f0f0f0; font-weight: bold; width: 25%; }
+                        td { width: 25%; }
+                        .section-title { background: #333; color: #fff; padding: 5px 10px; font-weight: bold; font-size: 12px; margin-top: 15px; }
+                        .notes-box { border: 1px solid #000; padding: 10px; min-height: 40px; margin-bottom: 15px; font-size: 11px; }
+                        .footer { display: flex; justify-content: space-between; margin-top: 30px; border-top: 1px solid #000; padding-top: 10px; font-size: 10px; }
+                        .sign-box { border: 1px solid #000; width: 150px; height: 40px; }
+                        @media print { body { padding: 15px; } }
+                    </style>
+                </head>
+                <body>
+                    <h1>DELOVNI NALOG</h1>
+                    <div class="subtitle">Tiskarna Petrič d.o.o. | Tovarniška cesta 8, 3210 Slovenske Konjice</div>
+
+                    <div class="dn-header">
+                        <div><div class="label">Št. DN</div><div class="value">${dnNumber}</div></div>
+                        <div><div class="label">Stari D.N.</div><div class="value">${dnOld}</div></div>
+                        <div><div class="label">Datum</div><div class="value">${date}</div></div>
+                        <div><div class="label">Rok izdelave</div><div class="value">${dnDeadline}</div></div>
+                    </div>
+
+                    <table>
+                        <tr>
+                            <th>Stranka</th>
+                            <td>${customer}</td>
+                            <th>Šifra stranke</th>
+                            <td>${customerCode}</td>
+                        </tr>
+                        <tr>
+                            <th>Naslov stranke</th>
+                            <td colspan="3">${custAddress.replace(/\n/g, '<br>')}</td>
+                        </tr>
+                        ${deliveryAddress ? `<tr><th>Naslov za dostavo</th><td colspan="3">${deliveryAddress.replace(/\n/g, '<br>')}</td></tr>` : ''}
+                    </table>
+
+                    <div class="section-title">📋 PODATKI O IZDELKU</div>
+                    <table>
+                        <tr>
+                            <th>Izdelek</th>
+                            <td>${projectName}</td>
+                            <th>Šifra izdelka</th>
+                            <td>${materialCode}</td>
+                        </tr>
+                        <tr>
+                            <th>Dimenzije izdelka</th>
+                            <td>${dimensionDisplay}</td>
+                            <th>Format pole</th>
+                            <td>${sheetName} (${sheetSize} mm)</td>
+                        </tr>
+                        <tr>
+                            <th>Kosov na polo</th>
+                            <td>${itemsPerSheet}</td>
+                            <th>Potrebno pol</th>
+                            <td>${sheetsNeeded}</td>
+                        </tr>
+                        <tr>
+                            <th>Material</th>
+                            <td>${paperWeight}g ${paperType}</td>
+                            <th>Tisk (Lice/Hrbet)</th>
+                            <td>${colorFront}/${colorBack}</td>
+                        </tr>
+                        <tr>
+                            <th>Dodelava</th>
+                            <td colspan="3">${finishing}</td>
+                        </tr>
+                        <tr>
+                            <th>Pakiranje</th>
+                            <td colspan="3">${dnPackaging}</td>
+                        </tr>
+                    </table>
+
+                    <div class="section-title">📦 NAKLADA</div>
+                    <table>
+                        <tr>
+                            <th>Naklada</th>
+                            <td style="font-size: 16px; font-weight: bold;">${qtyStr} kos</td>
+                            <th>Pripravil</th>
+                            <td>${preparedBy}</td>
+                        </tr>
+                    </table>
+
+                    ${notes ? `
+                    <div class="section-title">📝 OPOMBE / POSEBNOSTI</div>
+                    <div class="notes-box">${notes.replace(/\n/g, '<br>')}</div>
+                    ` : ''}
+
+                    <div class="footer">
+                        <div>
+                            <div style="margin-bottom: 5px;">Podpis naročnika: _________________</div>
+                            <div style="margin-top: 35px; border-top: 1px solid #999; padding-top: 3px; font-size: 9px;">Podpis in žig</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="margin-bottom: 5px;">Podpis izvajalca: _________________</div>
+                            <div style="margin-top: 35px; border-top: 1px solid #999; padding-top: 3px; font-size: 9px;">Podpis in žig</div>
+                        </div>
+                    </div>
+                </body>
+                </html>`;
+
+                const printWindow = window.open('', '', 'width=800,height=900');
+                if (!printWindow) {
+                    alert("Prosimo omogočite pojavna okna (pop-ups) za ta zavihek.");
+                    return;
+                }
+                printWindow.document.write(html);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => { printWindow.print(); }, 500);
+            } catch (e) {
+                alert("Napaka pri pripravi delovnega naloga: " + e.message);
+                console.error(e);
+            }
+        }
+
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -4436,6 +4610,10 @@
                 style="margin: 0; width: auto; background: #818cf8; padding: 0.5rem 1.2rem; font-size:0.85rem;"
                 title="Internal Montaža">🛠️
                 Montažni list</button>
+            <button class="calculate-btn" onclick="printDN()"
+                style="margin: 0; width: auto; background: #ef4444; padding: 0.5rem 1.2rem; font-size:0.85rem; font-weight: bold; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);"
+                title="Delovni nalog">📋
+                DN</button>
         </div>
         <div id="debug-log" style="display: none;"></div>
     </div>
