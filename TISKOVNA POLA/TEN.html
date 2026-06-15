@@ -780,6 +780,14 @@
                 </div>
                 <div
                     style="padding: 10px; background: rgba(15, 23, 42, 0.4); display: flex; gap: 8px; border-top: 1px solid var(--glass-border);">
+                    <button onclick="printWorkOrder()"
+                        style="flex: 1; background: #8b5cf6; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 5px; margin-bottom: 5px;">
+                        D. NALOG
+                    </button>
+                    <button onclick="printProductionOrder()"
+                        style="flex: 1; background: #6b7280; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 5px; margin-bottom: 5px;">STARI
+                        DN
+                    </button>
                     <button onclick="printQuote()"
                         style="flex: 1; background: #3b82f6; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 5px;">
                         🖨️ PONUDBA
@@ -4110,174 +4118,230 @@
             }
         }
 
-        function printDN() {
-            try {
-                const dnNumber = document.getElementById('calc-dn-number').value || '/';
-                const dnOld = document.getElementById('calc-dn-old').value || '/';
-                const dnDeadline = document.getElementById('calc-dn-deadline').value || '/';
-                const dnPackaging = document.getElementById('calc-dn-packaging').value || '/';
-                const customer = document.getElementById('calc-customer').value || '';
-                const custAddress = document.getElementById('calc-cust-address').value || '';
-                const deliveryAddress = document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '';
-                const customerCode = document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : '/';
-                const projectName = document.getElementById('calc-project-name').value || '/';
-                const materialCode = document.getElementById('calc-material-code').value || '/';
-                const materialDesc = document.getElementById('calc-material-desc') ? document.getElementById('calc-material-desc').value : '';
-                const qtyStr = document.getElementById('quantity').value || '0';
-                const date = new Date().toLocaleDateString('sl-SI');
-                const preparedBy = document.getElementById('calc-prepared-by').value || '';
+        function getWorkOrderHTML() {
+            const qtyStr = document.getElementById('quantity').value || '0';
+            const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+            const q = qtyArr[0] || 0;
+            let calcRes = calculateForSingleQty(q);
+            if (!calcRes) return "Napaka pri generiranju naloga.";
+            let d = calcRes.details;
 
-                const w = document.getElementById('width').value || '-';
-                const h = document.getElementById('height').value || '-';
-                const bleed = document.getElementById('bleed').value || '0';
-                const sheetName = document.getElementById('res-sheet') ? document.getElementById('res-sheet').innerText : '-';
-                const sheetSize = document.getElementById('res-size') ? document.getElementById('res-size').innerText : '-';
-                const itemsPerSheet = document.getElementById('res-count') ? document.getElementById('res-count').innerText : '-';
-                const sheetsNeeded = document.getElementById('res-sheets-needed') ? document.getElementById('res-sheets-needed').innerText : '-';
-                const paperWeight = document.getElementById('calc-paper-weight').value || '-';
-                const paperType = document.getElementById('calc-paper-type').value || '';
-                const colorFront = document.getElementById('calc-color-front').value || '0';
-                const colorBack = document.getElementById('calc-color-back').value || '0';
-                const finishing = getActiveFinishingList() || '/';
-                const notes = document.getElementById('calc-notes') ? document.getElementById('calc-notes').value : '';
+            let customer = document.getElementById('calc-customer').value || "Ni vpisano";
+            let customerCode = document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "";
+            let custAddress = document.getElementById('calc-cust-address').value || "";
+            let custEmail = document.getElementById('calc-cust-email') ? document.getElementById('calc-cust-email').value : "";
+            let deliveryAddress = document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : "";
+            let dnNum = document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value : "";
+            let dnOld = document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : "";
+            let deadline = document.getElementById('calc-dn-deadline') ? document.getElementById('calc-dn-deadline').value : "";
+            let packaging = document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : "";
+            let quoteNum = document.getElementById('calc-quote-number').value || "";
+            let product = document.getElementById('calc-project-name').value || "Ni vpisano";
+            let materialDesc = document.getElementById('calc-material-desc') ? document.getElementById('calc-material-desc').value : "";
+            let paperType = document.getElementById('calc-paper-type').value || "";
+            let paperWeight = document.getElementById('calc-paper-weight').value || "";
+            let date = new Date().toLocaleDateString('sl-SI');
 
-                let dimensionDisplay = `${w} x ${h} mm (+${bleed} mm bleed)`;
-                if (g_manualLayout) {
-                    const countsByDim = {};
-                    g_manualLayout.items.forEach(it => {
-                        const key = `${it.w - 2 * it.bleed} x ${it.h - 2 * it.bleed}`;
-                        countsByDim[key] = (countsByDim[key] || 0) + 1;
-                    });
-                    dimensionDisplay = Object.entries(countsByDim).map(([dim, count]) => `${count}x ${dim} mm`).join(', ');
-                    dimensionDisplay += ` (+${bleed} mm bleed)`;
-                }
+            let front = parseInt(document.getElementById('calc-color-front').value) || 0;
+            let back = parseInt(document.getElementById('calc-color-back').value) || 0;
+            let isObrat = document.getElementById('calc-is-obrat').checked;
+            let colors = front + '/' + (isObrat ? 'OB' : back);
+            let tiskMode = "1 prehod";
+            if (isObrat) { tiskMode = "obračanje"; } else if (back > 0) { tiskMode = "prvi/drugi (2 prehoda)"; }
 
-                const html = `
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <title>Delovni Nalog - ${dnNumber}</title>
-                    <style>
-                        body { font-family: 'Arial', sans-serif; padding: 30px; color: #000; font-size: 12px; line-height: 1.4; }
-                        h1 { text-align: center; font-size: 22px; margin-bottom: 5px; letter-spacing: 2px; }
-                        .subtitle { text-align: center; font-size: 11px; color: #666; margin-bottom: 20px; }
-                        .dn-header { display: flex; justify-content: space-between; border: 2px solid #000; padding: 10px 15px; margin-bottom: 15px; }
-                        .dn-header div { font-size: 13px; }
-                        .dn-header .label { font-size: 9px; color: #666; text-transform: uppercase; }
-                        .dn-header .value { font-weight: bold; font-size: 14px; }
-                        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-                        th, td { border: 1px solid #000; padding: 6px 10px; text-align: left; font-size: 11px; }
-                        th { background: #f0f0f0; font-weight: bold; width: 25%; }
-                        td { width: 25%; }
-                        .section-title { background: #333; color: #fff; padding: 5px 10px; font-weight: bold; font-size: 12px; margin-top: 15px; }
-                        .notes-box { border: 1px solid #000; padding: 10px; min-height: 40px; margin-bottom: 15px; font-size: 11px; }
-                        .footer { display: flex; justify-content: space-between; margin-top: 30px; border-top: 1px solid #000; padding-top: 10px; font-size: 10px; }
-                        .sign-box { border: 1px solid #000; width: 150px; height: 40px; }
-                        @media print { body { padding: 15px; } }
-                    </style>
-                </head>
-                <body>
-                    <h1>DELOVNI NALOG</h1>
-                    <div class="subtitle">Tiskarna Petrič d.o.o. | Tovarniška cesta 8, 3210 Slovenske Konjice</div>
-
-                    <div class="dn-header">
-                        <div><div class="label">Št. DN</div><div class="value">${dnNumber}</div></div>
-                        <div><div class="label">Stari D.N.</div><div class="value">${dnOld}</div></div>
-                        <div><div class="label">Datum</div><div class="value">${date}</div></div>
-                        <div><div class="label">Rok izdelave</div><div class="value">${dnDeadline}</div></div>
-                    </div>
-
-                    <table>
-                        <tr>
-                            <th>Stranka</th>
-                            <td>${customer}</td>
-                            <th>Šifra stranke</th>
-                            <td>${customerCode}</td>
-                        </tr>
-                        <tr>
-                            <th>Naslov stranke</th>
-                            <td colspan="3">${custAddress.replace(/\n/g, '<br>')}</td>
-                        </tr>
-                        ${deliveryAddress ? `<tr><th>Naslov za dostavo</th><td colspan="3">${deliveryAddress.replace(/\n/g, '<br>')}</td></tr>` : ''}
-                    </table>
-
-                    <div class="section-title">📋 PODATKI O IZDELKU</div>
-                    <table>
-                        <tr>
-                            <th>Izdelek</th>
-                            <td>${projectName}</td>
-                            <th>Šifra izdelka</th>
-                            <td>${materialCode}</td>
-                        </tr>
-                        <tr>
-                            <th>Dimenzije izdelka</th>
-                            <td>${dimensionDisplay}</td>
-                            <th>Format pole</th>
-                            <td>${sheetName} (${sheetSize} mm)</td>
-                        </tr>
-                        <tr>
-                            <th>Kosov na polo</th>
-                            <td>${itemsPerSheet}</td>
-                            <th>Potrebno pol</th>
-                            <td>${sheetsNeeded}</td>
-                        </tr>
-                        <tr>
-                            <th>Material</th>
-                            <td>${paperWeight}g ${paperType}</td>
-                            <th>Tisk (Lice/Hrbet)</th>
-                            <td>${colorFront}/${colorBack}</td>
-                        </tr>
-                        <tr>
-                            <th>Dodelava</th>
-                            <td colspan="3">${finishing}</td>
-                        </tr>
-                        <tr>
-                            <th>Pakiranje</th>
-                            <td colspan="3">${dnPackaging}</td>
-                        </tr>
-                    </table>
-
-                    <div class="section-title">📦 NAKLADA</div>
-                    <table>
-                        <tr>
-                            <th>Naklada</th>
-                            <td style="font-size: 16px; font-weight: bold;">${qtyStr} kos</td>
-                            <th>Pripravil</th>
-                            <td>${preparedBy}</td>
-                        </tr>
-                    </table>
-
-                    ${notes ? `
-                    <div class="section-title">📝 OPOMBE / POSEBNOSTI</div>
-                    <div class="notes-box">${notes.replace(/\n/g, '<br>')}</div>
-                    ` : ''}
-
-                    <div class="footer">
-                        <div>
-                            <div style="margin-bottom: 5px;">Podpis naročnika: _________________</div>
-                            <div style="margin-top: 35px; border-top: 1px solid #999; padding-top: 3px; font-size: 9px;">Podpis in žig</div>
-                        </div>
-                        <div style="text-align: right;">
-                            <div style="margin-bottom: 5px;">Podpis izvajalca: _________________</div>
-                            <div style="margin-top: 35px; border-top: 1px solid #999; padding-top: 3px; font-size: 9px;">Podpis in žig</div>
-                        </div>
-                    </div>
-                </body>
-                </html>`;
-
-                const printWindow = window.open('', '', 'width=800,height=900');
-                if (!printWindow) {
-                    alert("Prosimo omogočite pojavna okna (pop-ups) za ta zavihek.");
-                    return;
-                }
-                printWindow.document.write(html);
-                printWindow.document.close();
-                printWindow.focus();
-                setTimeout(() => { printWindow.print(); }, 500);
-            } catch (e) {
-                alert("Napaka pri pripravi delovnega naloga: " + e.message);
-                console.error(e);
+            let sourceW = d.paper.sourceW || 0;
+            let sourceH = d.paper.sourceH || 0;
+            let resSizeTxt = document.getElementById('res-size') ? document.getElementById('res-size').innerText.split('x') : [];
+            let sheetW = resSizeTxt.length === 2 ? parseFloat(resSizeTxt[0].trim()) : 0;
+            let sheetH = resSizeTxt.length === 2 ? parseFloat(resSizeTxt[1].trim()) : 0;
+            let sourceYield = d.paper.sourceYield || 1;
+            let sourceSheets = d.paper.sourceSheets || 0;
+            let totalSheets = d.paper.totalSheets || 0;
+            let itemsPerSheet = document.getElementById('items-per-sheet').value || "1";
+            let formatW = document.getElementById('width').value || 0;
+            let formatH = document.getElementById('height').value || 0;
+            let finishList = getActiveFinishingList();
+            let hasTool = document.getElementById('f-tool-active') && document.getElementById('f-tool-active').checked;
+            let physicalWasteSheets = totalSheets - calcRes.sheetsNeeded;
+            let givenDodatekInput = document.getElementById('f-dodatek-sheets') ? parseInt(document.getElementById('f-dodatek-sheets').value) : NaN;
+            let finalDodatek = physicalWasteSheets;
+            let finalTotalSheets = totalSheets;
+            let finalSourceSheets = sourceSheets;
+            if (!isNaN(givenDodatekInput) && givenDodatekInput >= 0) {
+                finalDodatek = givenDodatekInput;
+                finalTotalSheets = calcRes.sheetsNeeded + givenDodatekInput;
+                finalSourceSheets = Math.ceil(finalTotalSheets / sourceYield);
             }
+            let prepPasses = front > 0 ? (Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0)) : 1;
+            let colorMode = front + '/' + (isObrat ? 'OB' : back);
+            let rule = prepRules[colorMode] || { passes: prepPasses };
+            let mPasses = rule.passes;
+            let dnPrintHours = (finalTotalSheets * mPasses) / 6000;
+            let roundedPrepTime = Math.round(d.print.prepTime * 4) / 4;
+            let roundedPrintTime = Math.round(dnPrintHours * 4) / 4;
+            let sourceWCm = (sourceW / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+            let sourceHCm = (sourceH / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+            let sheetWCm = (sheetW / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+            let sheetHCm = (sheetH / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+
+            let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Delovni Nalog - ${dnNum || product}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.25; color: #000; margin: 0; padding: 0; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+                    td, th { padding: 2px 0; vertical-align: top; }
+                    .header-top { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
+                    .bold { font-weight: bold; }
+                    .title { font-size: 16px; font-weight: bold; text-transform: uppercase; }
+                    .row-divider { border-top: 1px dashed #000; margin: 10px 0; }
+                    @media print { .no-print { display: none !important; } }
+                    .editable-area:focus { outline: 2px dashed #3b82f6; background-color: #eff6ff; }
+                </style>
+            </head>
+            <body>
+                <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 10px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
+                    <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI DN</button>
+                    <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
+                    <div style="font-size: 12px; color: #475569; margin-left: 10px;">✏️ Kliknite na poljubno besedilo spodaj, da ga spremenite pred tiskom.</div>
+                </div>
+                <div class="editable-area" contenteditable="true" style="padding: 20px;">
+                <div class="header-top">
+                    <div style="width: 50%;">
+                        <div class="bold" style="font-size: 14px;">${customer} &nbsp;&nbsp;&nbsp; (Šifra stranke: ${customerCode})</div>
+                        <div>${custAddress.replace(/\n/g, '<br>')}</div>
+                        <div>${custEmail ? '<br>' + custEmail : ''}</div>
+                    </div>
+                    <div style="width: 50%; text-align: right; font-size: 16px; font-weight: bold;">
+                        Tiskarna PETRIČ
+                    </div>
+                </div>
+                <table style="margin-top: 10px;">
+                    <tr>
+                        <td style="width: 50%;">
+                            <div><span class="bold">Rok izdelave:</span> ${deadline}</div>
+                        </td>
+                        <td style="width: 50%; text-align: right;">
+                            <div class="bold" style="font-size: 16px;">D.N.: ${dnNum}</div>
+                            ${dnOld ? `<div>Stari D.N. (montaža): ${dnOld}</div>` : ''}
+                            <div>Datum naloga: ${date}</div>
+                        </td>
+                    </tr>
+                </table>
+                <table style="margin-top: 15px; width: 100%;">
+                    <tr>
+                        <td class="bold" style="font-size: 15px; width: 50%;">${product}</td>
+                        <td style="width: 50%; text-align: right;">Ponudba: ${quoteNum}</td>
+                    </tr>
+                </table>
+                <table style="margin-top: 5px; width: 100%;">
+                    <tr><td style="width: 15%;">Količina:</td><td class="bold" style="font-size: 15px;">${q.toLocaleString('de-DE')} kos</td></tr>
+                    <tr><td>Format:</td><td class="bold">${formatW} x ${formatH} mm</td></tr>
+                    <tr><td>Tisk:</td><td class="bold">${colors}</td></tr>
+                    <tr><td>Material:</td><td class="bold">${paperWeight}g ${paperType} ${materialDesc}</td></tr>
+                </table>
+                <div class="row-divider"></div>
+                <table>
+                    <tr>
+                        <td style="width: 15%;">06 razrez:</td>
+                        <td class="bold">${finalSourceSheets.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCm} x ${sourceHCm} cm &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${finalTotalSheets.toLocaleString('de-DE')} pol ${sheetWCm} x ${sheetHCm} cm &nbsp;&nbsp; (${sourceYield} iz pole)</td>
+                    </tr>
+                </table>
+                <table style="margin-top: 5px;">
+                    <tr>
+                        <td style="width: 15%;">Kop. plošč:</td>
+                        <td class="bold">${d.prep.plates} kom. <strong>${d.print.mType || 'S4'}</strong> &nbsp;&nbsp;&nbsp;&nbsp; (${itemsPerSheet} sest. na formi)</td>
+                    </tr>
+                </table>
+                <table style="margin-top: 5px; width: 100%;">
+                    <tr>
+                        <td style="width: 15%; font-weight: bold;"><strong>${d.print.mType || 'S4'}</strong> priprava:</td>
+                        <td class="bold" style="width: 55%;">${tiskMode}</td>
+                        <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">priprava:</span> ${roundedPrepTime.toFixed(2)} h</td>
+                    </tr>
+                    <tr>
+                        <td>Tisk:</td>
+                        <td class="bold" style="width: 55%; white-space: nowrap;">${calcRes.sheetsNeeded.toLocaleString('de-DE')} + ${finalDodatek.toLocaleString('de-DE')} = ${finalTotalSheets.toLocaleString('de-DE')} tisk. pol &nbsp;&nbsp; (${mPasses}x skozi stroj)</td>
+                        <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">tisk:</span> ${roundedPrintTime.toFixed(2)} h</td>
+                    </tr>
+                </table>
+                <div class="row-divider"></div>
+                <table>
+                    <tr>
+                        <td style="width: 15%;">Dodelava:</td>
+                        <td class="bold">${finishList ? finishList : 'Brez posebne dodelave'}</td>
+                    </tr>
+                    ${hasTool ? `
+                    <tr>
+                        <td style="width: 15%; padding-top: 10px; color: #ef4444; font-weight: bold;">Orodje:</td>
+                        <td class="bold" style="padding-top: 10px; color: #ef4444; font-weight: bold;">izdelava novega orodja Smole Branko</td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                        <td style="width: 15%; padding-top: 10px;">Pakiranje:</td>
+                        <td class="bold" style="padding-top: 10px;">${packaging}</td>
+                    </tr>
+                </table>
+                <div class="row-divider"></div>
+                <div class="bold" style="margin-bottom: 5px;">Poraba materiala:</div>
+                <table>
+                    <tr>
+                        <td>of. plošče (<strong>${d.print.mType || 'S4'}</strong>):</td>
+                        <td style="text-align: right;" class="bold">${d.prep.plates} kos</td>
+                    </tr>
+                    <tr>
+                        <td>Papir (${sourceWCm} x ${sourceHCm} cm) - ${paperWeight}g ${paperType}:</td>
+                        <td style="text-align: right;" class="bold">${finalSourceSheets.toLocaleString('de-DE')} pol</td>
+                    </tr>
+                <div class="row-divider"></div>
+                <table>
+                    <tr>
+                        <td style="width: 50%;" class="bold">Izdobaviti točno naročeno količino!</td>
+                        <td style="width: 50%; text-align: right;" class="bold">${deliveryAddress ? 'Dostava na naslov!' : 'Naša dostava!'}</td>
+                    </tr>
+                    <tr>
+                        <td>Obvezno par vzorcev tiskovine v nalog:</td>
+                        <td style="text-align: right;">Pred dostavo pokliči!</td>
+                    </tr>
+                </table>
+                <div class="row-divider"></div>
+                <table style="width: 100%; margin-bottom: 5px; font-size: 11px;">
+                    <tr>
+                        <td style="width: 25%;"><span class="bold">Št. ponudbe:</span> ${quoteNum || '/'}</td>
+                        <td style="width: 25%; text-align: center;"><span class="bold">Cena za kos:</span> ${formatPrice(calcRes.perItemFinal, 4)} €</td>
+                        <td style="width: 25%; text-align: center;"><span class="bold">Cena za 1000 kos:</span> ${formatPrice(calcRes.perItemFinal * 1000, 2)} €</td>
+                        <td style="width: 25%; text-align: right;"><span class="bold">Skupaj:</span> ${formatPrice(calcRes.totalPrice, 2)} €</td>
+                    </tr>
+                </table>
+                </div>
+            </body>
+            </html>
+            `;
+            return html;
+        }
+
+        function printWorkOrder() {
+            try {
+                const html = getWorkOrderHTML();
+                const printWindow = window.open('', '', 'width=850,height=900');
+                if (printWindow) {
+                    printWindow.document.write(html);
+                    printWindow.document.close();
+                    printWindow.focus();
+                } else {
+                    alert("Pojavno okno je blokirano. Prosimo, dovolite pojavna okna za to stran.");
+                }
+            } catch (e) {
+                console.error("Napaka pri tisku delovnega naloga:", e);
+                alert("Napaka pri generiranju delovnega naloga: " + e.message);
+            }
+        }
+
+        function printDN() {
+            printWorkOrder();
         }
 
         function handleFileSelect(event) {
