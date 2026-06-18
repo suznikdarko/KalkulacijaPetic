@@ -564,8 +564,6 @@
                         onblur="if (!this.value) this.value = this.oldValue || '';"
                         style="padding: 0.75rem 1rem; font-size: 0.85rem; width: 100%;">
                     <datalist id="product-formats">
-                        <option value="B1 (700 x 1000 mm)"></option>
-                        <option value="A1 (594 x 841 mm)"></option>
                         <option value="A2 (420 x 594 mm)"></option>
                         <option value="A3 (297 x 420 mm)"></option>
                         <option value="A4 (210 x 297 mm)"></option>
@@ -968,7 +966,6 @@
                             <option value="SM4+lak">SM4+lak</option>
                             <option value="CD UV">CD UV</option>
                             <option value="digital">Digitalni stroj</option>
-                            <option value="cooperation">Kooperacija (B1/A1)</option>
                         </select>
                     </div>
                     
@@ -988,19 +985,6 @@
                         </div>
                     </div>
 
-                    <div id="cooperation-inputs-group" style="display: none; background: rgba(245, 158, 11, 0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.2); margin-top: 10px; flex-direction: column; gap: 0.75rem;">
-                        <div class="form-group" style="margin: 0;">
-                            <label style="color: #fbbf24; font-weight: bold;">Cena tiska kooperanta (EUR)</label>
-                            <input type="number" id="calc-cooperation-price" value="150.00" step="1" onchange="calculatePrice()">
-                        </div>
-                        <div class="form-group" style="margin: 0;">
-                            <label style="color: #fbbf24; font-weight: bold;">Način obračuna</label>
-                            <select id="calc-cooperation-unit" onchange="calculatePrice()">
-                                <option value="flat">Fiksni pavšal</option>
-                                <option value="sheet">Na tiskano polo</option>
-                            </select>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- 4. Dodelava -->
@@ -1542,8 +1526,6 @@
         function handleFormatChange(val) {
             if (!val) return;
             const standardFormats = {
-                'b1': [700, 1000],
-                'a1': [594, 841],
                 'a2': [420, 594],
                 'a3': [297, 420],
                 'a4': [210, 297],
@@ -1578,27 +1560,14 @@
                         itemsPerSheet.value = '';
                     }
                     
-                    const cleaned = val.trim().toLowerCase();
-                    if (cleaned.startsWith('a1') || cleaned.startsWith('b1')) {
-                        const mTypeSelect = document.getElementById('calc-machine-type');
-                        if (mTypeSelect) {
-                            mTypeSelect.value = 'cooperation';
-                            if (typeof applyMachineDefaults === 'function') {
-                                applyMachineDefaults();
-                            }
-                        }
-                    } else {
-                        if (typeof calculate === 'function') {
-                            calculate();
-                        }
+                    if (typeof calculate === 'function') {
+                        calculate();
                     }
                 }
             }
         }
 
         const sheets = [
-            { name: "B1", w: 1000, h: 700 },
-            { name: "A1", w: 841, h: 594 },
             { name: "B2", w: 698, h: 498 },
             { name: "6 iz B1", w: 349, h: 332 },
             { name: "638x448", w: 638, h: 448 },
@@ -1638,8 +1607,7 @@
             'CD': { rate: 180, speed: 8000, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'SM4+lak': { rate: 160, speed: 7000, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'CD UV': { rate: 280, speed: 6000, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
-            'digital': { rate: 40, speed: 2000, prep: 10, useDynamic: false, defaultFormat: 'Digital (480x320)', maxW: 480, maxH: 320 },
-            'cooperation': { rate: 0, speed: 6000, prep: 0, useDynamic: false, defaultFormat: 'B1', maxW: 1000, maxH: 707 }
+            'digital': { rate: 40, speed: 2000, prep: 10, useDynamic: false, defaultFormat: 'Digital (480x320)', maxW: 480, maxH: 320 }
         };
 
         let g_lastBestLayout = null;
@@ -1724,11 +1692,8 @@
             const mType = document.getElementById('calc-machine-type').value;
             const profile = machineProfiles[mType];
             
-            const isCoop = (mType === 'cooperation');
             const machineInputs = document.getElementById('machine-inputs-group');
-            const coopInputs = document.getElementById('cooperation-inputs-group');
-            if (machineInputs) machineInputs.style.display = isCoop ? 'none' : 'block';
-            if (coopInputs) coopInputs.style.display = isCoop ? 'flex' : 'none';
+            if (machineInputs) machineInputs.style.display = 'block';
             
             if (profile) {
                 document.getElementById('calc-machine-rate').value = profile.rate;
@@ -1737,7 +1702,7 @@
 
                 const mFormatSelect = document.getElementById('machine-format');
                 if (mFormatSelect) {
-                    mFormatSelect.value = isCoop ? 'B1' : 'auto';
+                    mFormatSelect.value = 'auto';
                 }
             }
             filterAvailableFormats();
@@ -2330,18 +2295,6 @@
             let printHours = (sheetsNeeded + paperWasteSheets) * mPasses / mSpeed;
             let totalPrintCost = printHours * mRate;
             
-            if (mType === 'cooperation') {
-                totalPrepCost = 0;
-                let coopPrice = parseFloat(document.getElementById('calc-cooperation-price').value) || 0;
-                let coopUnit = document.getElementById('calc-cooperation-unit').value;
-                if (coopUnit === 'flat') {
-                    totalPrintCost = coopPrice;
-                } else {
-                    totalPrintCost = coopPrice * totalSheetsNeeded;
-                }
-                printHours = 0;
-            }
-
             let totalFinishCost = 0;
             if (document.getElementById('f-cilinder-active').checked) {
                 let cPrep = getFloatValue('f-cilinder-prep', 20.80);
