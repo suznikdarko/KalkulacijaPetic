@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="sl">
 
 <head>
@@ -753,6 +753,7 @@
                     <div class="stat-card full-width"
                         style="margin-top: 5px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3);">
                         <input type="number" id="calc-given-sheets" placeholder="Vpiši dodatek..."
+                            oninput="calculatePrice()" onchange="calculatePrice()"
                             style="width: 100%; text-align: center; font-size: 1.25rem; font-weight: bold; border: none; background: transparent; padding: 5px; color: #ffffff;">
                         <div class="label" style="text-align: center;">Dodatne pole tiskarju (samo za nalog)</div>
                     </div>
@@ -1150,14 +1151,40 @@
                             </div>
                             <!-- Razrez materiala - PREMAKNJENO NA VRH -->
                             <!-- UV tuja usluga -->
-                            <div class="finish-item" id="row-finish-uv">
-                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                            <div class="finish-item" id="row-finish-uv" style="display: grid; grid-template-columns: 120px 1.2fr 1fr 1fr 1fr 1fr; gap: 0.4rem; align-items: center;">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; margin: 0;">
                                     <input type="checkbox" id="f-uv-active" onchange="toggleFinishRow('uv')">
                                     UV lak (tuja)
                                 </label>
                                 <div class="form-group" style="margin:0;">
+                                    <label><small>Tip laka</small></label>
+                                    <select id="f-uv-type" onchange="updateUVLakPrice(); calculatePrice()" style="padding: 0.2rem; font-size: 0.75rem;">
+                                        <option value="manual" selected>Ročni vnos</option>
+                                        <option value="sijajni">Odtis - Sijajni</option>
+                                        <option value="mat">Odtis - Mat</option>
+                                        <option value="relief">Relief</option>
+                                        <option value="rubl">Rubl</option>
+                                        <option value="blescice">Bleščice 10%</option>
+                                        <option value="rubl_sij">Rubl + Sij lak</option>
+                                        <option value="rubl_mat">Rubl + Mat lak</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Format</small></label>
+                                    <select id="f-uv-format" onchange="updateUVLakPrice(); calculatePrice()" style="padding: 0.2rem; font-size: 0.75rem;">
+                                        <option value="auto" selected>Avto (Pola)</option>
+                                        <option value="50x35">50 x 35</option>
+                                        <option value="70x33">70 x 33</option>
+                                        <option value="70x50">70 x 50</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin:0;">
                                     <label><small>Priprava ( )</small></label>
                                     <input type="number" id="f-uv-prep" value="90.00" onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Tiskar (odpad)</small></label>
+                                    <input type="number" id="f-uv-extra-waste" value="50" oninput="calculatePrice()" onchange="calculatePrice()">
                                 </div>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Cena/1000 ( )</small></label>
@@ -1699,6 +1726,51 @@
                 }
             }
         }
+        function updateUVLakPrice() {
+            const typeSelect = document.getElementById('f-uv-type');
+            if (!typeSelect) return;
+            const type = typeSelect.value;
+            const formatSelect = document.getElementById('f-uv-format').value;
+            
+            if (type === 'manual') {
+                return;
+            }
+            
+            let format = formatSelect;
+            if (format === 'auto') {
+                const w = g_lastSheetW || 1000;
+                const h = g_lastSheetH || 700;
+                const maxDim = Math.max(w, h);
+                const minDim = Math.min(w, h);
+                
+                if (maxDim <= 500 && minDim <= 350) {
+                    format = '50x35';
+                } else if (maxDim <= 700 && minDim <= 330) {
+                    format = '70x33';
+                } else {
+                    format = '70x50';
+                }
+            }
+            
+            const uvLakTable = {
+                'sijajni': { '50x35': 0.136, '70x33': 0.150, '70x50': 0.159 },
+                'mat': { '50x35': 0.177, '70x33': 0.195, '70x50': 0.207 },
+                'relief': { '50x35': 0.223, '70x33': 0.259, '70x50': 0.335 },
+                'rubl': { '50x35': 0.277, '70x33': 0.408, '70x50': 0.470 },
+                'blescice': { '50x35': 0.340, '70x33': 0.435, '70x50': 0.479 },
+                'rubl_sij': { '50x35': 0.413, '70x33': 0.558, '70x50': 0.629 },
+                'rubl_mat': { '50x35': 0.454, '70x33': 0.603, '70x50': 0.677 }
+            };
+            
+            const pricePerSheet = uvLakTable[type] ? uvLakTable[type][format] : 0.025;
+            const pricePer1000 = pricePerSheet * 1000;
+            
+            const per1000Input = document.getElementById('f-uv-per1000');
+            if (per1000Input) {
+                per1000Input.value = pricePer1000.toFixed(2);
+                updateInputStyles(per1000Input);
+            }
+        }
         function getLaminationPricePerSheet(w, h, type) {
             let area = w * h;
             let formatClass = 'B1';
@@ -1828,6 +1900,9 @@
                     const lamPricePerSheet = getLaminationPricePerSheet(bestSheet.w, bestSheet.h, lamType);
                     if (lamPricePerSheet > 0) {
                         document.getElementById('f-lam-per1000').value = lamPricePerSheet.toFixed(4);
+                    }
+                    if (typeof updateUVLakPrice === 'function') {
+                        updateUVLakPrice();
                     }
                 }
                 if (!bestLayout) {
@@ -2283,7 +2358,7 @@
                 let _mutPlates = parseInt(document.getElementById('calc-mut-plates').value) || 0;
                 let _basicPlates = _front + (_isObrat ? 0 : _back);
                 let mutMultiplier = (_mutPlates > 0 && _basicPlates > 0) ? (_mutPlates / _basicPlates) : 0;
-                let mutPlatesVal = _mutPlates;
+                let mutPlatesVal = (_basicPlates > 0) ? Math.ceil(_mutPlates / _basicPlates) : _mutPlates;
                 let mutSuffix = "";
                 if (mutPlatesVal === 1) mutSuffix = " + mutacija 1x";
                 else if (mutPlatesVal === 2) mutSuffix = " + mutacija 2x";
@@ -2310,7 +2385,8 @@
                             }
                         }
                     }
-                    if (mutMultiplier > 0) {
+                    let tableMatchedDirectly = !!getBossTables()[tableMode];
+                    if (mutMultiplier > 0 && !tableMatchedDirectly) {
                         if (_colorMode === '4/OB') {
                             w += mutMultiplier * 400;
                         } else if (_colorMode === '4/4') {
@@ -2523,7 +2599,12 @@
                 totalFinishCost += (parseFloat(document.getElementById('f-tool-cost').value) || 0);
             }
             if (document.getElementById('f-uv-active').checked) {
-                totalFinishCost += (parseFloat(document.getElementById('f-uv-prep').value) || 0) + (totalSheetsNeeded / 1000) * (parseFloat(document.getElementById('f-uv-per1000').value) || 0);
+                let uPrep = parseFloat(document.getElementById('f-uv-prep').value) || 0;
+                let uP1000 = parseFloat(document.getElementById('f-uv-per1000').value) || 0;
+                let pricePerSheet = uP1000 / 1000;
+                let extraWaste = parseFloat(document.getElementById('f-uv-extra-waste').value) || 0;
+                let uvSheetsCalculated = sheetsNeeded + (extraWaste / 2);
+                totalFinishCost += uPrep + (uvSheetsCalculated * pricePerSheet);
             }
             if (document.getElementById('f-personalization-active') && document.getElementById('f-personalization-active').checked) {
                 let pMultiplier = (mType === 'S8') ? 2 : 1;
@@ -2704,14 +2785,17 @@
                 });
             }
             if (document.getElementById('f-uv-active').checked) {
-                let uPrep = (parseFloat(document.getElementById('f-uv-prep').value) || 0);
-                let uP1000 = (parseFloat(document.getElementById('f-uv-per1000').value) || 0);
-                let uWork = (totalSheetsNeeded / 1000) * uP1000;
+                let uPrep = parseFloat(document.getElementById('f-uv-prep').value) || 0;
+                let uP1000 = parseFloat(document.getElementById('f-uv-per1000').value) || 0;
+                let pricePerSheet = uP1000 / 1000;
+                let extraWaste = parseFloat(document.getElementById('f-uv-extra-waste').value) || 0;
+                let uvSheetsCalculated = sheetsNeeded + (extraWaste / 2);
+                let uWork = uvSheetsCalculated * pricePerSheet;
                 let uCost = uPrep + uWork;
                 details.finish.items.push({
                     name: 'UV lak (tuja)',
                     cost: uCost,
-                    breakdown: `Priprava: ${formatPrice(uPrep)} | Delo: ${totalSheetsNeeded} pol (${formatPrice(uWork)})`
+                    breakdown: `Priprava: ${formatPrice(uPrep)} | Delo: ${sheetsNeeded} (neto) + ${extraWaste}/2 (tiskar) = ${uvSheetsCalculated.toFixed(0)} pol po ${pricePerSheet.toFixed(3)} € (${formatPrice(uWork)})`
                 });
             }
             if (document.getElementById('f-personalization-active') && document.getElementById('f-personalization-active').checked) {
@@ -5087,6 +5171,20 @@
             renderSavedProjects();
             updateCustomerDatalist();
             renderBasket();
+            
+            const givenSheetsInput = document.getElementById('calc-given-sheets');
+            const uvExtraWasteInput = document.getElementById('f-uv-extra-waste');
+            if (givenSheetsInput && uvExtraWasteInput) {
+                givenSheetsInput.addEventListener('input', () => {
+                    uvExtraWasteInput.value = givenSheetsInput.value;
+                    updateInputStyles(uvExtraWasteInput);
+                });
+                uvExtraWasteInput.addEventListener('input', () => {
+                    givenSheetsInput.value = uvExtraWasteInput.value;
+                    updateInputStyles(givenSheetsInput);
+                });
+            }
+            
             setTimeout(calculate, 200); // Give it a moment to stabilize
         } catch (e) {
             alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack);
