@@ -587,6 +587,7 @@
                         onblur="if (!this.value) this.value = this.oldValue || '';"
                         style="padding: 0.75rem 1rem; font-size: 0.85rem; width: 100%;">
                     <datalist id="product-formats">
+                        <option value="B1 (700 x 1000 mm)"></option>
                         <option value="A1 (594 x 841 mm)"></option>
                         <option value="A2 (420 x 594 mm)"></option>
                         <option value="A3 (297 x 420 mm)"></option>
@@ -648,6 +649,8 @@
                     <select id="machine-format"
                         onchange="document.getElementById('items-per-sheet').value=''; if(typeof filterAvailableFormats === 'function') filterAvailableFormats(); calculate();">
                         <option value="auto">Samodejno (B2 max)</option>
+                        <option value="B1">B1 (1000 x 700 mm)</option>
+                        <option value="A1">A1 (841 x 594 mm)</option>
                         <option value="B2">B2 (698 x 498 mm)</option>
                         <option value="6 iz B1">6 iz B1 (349 x 332 mm)</option>
                         <option value="638x448">Izrez (638 x 448 mm)</option>
@@ -980,26 +983,44 @@
                             <option value="SM4+lak">SM4+lak</option>
                             <option value="CD UV">CD UV</option>
                             <option value="digital">Digitalni stroj</option>
+                            <option value="cooperation">Kooperacija (B1/A1)</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Urna postavka stroja ( /h)</label>
-                        <input type="number" id="calc-machine-rate" value="120.00" step="1">
+                    
+                    <div id="machine-inputs-group">
+                        <div class="form-group">
+                            <label>Urna postavka stroja (EUR/h)</label>
+                            <input type="number" id="calc-machine-rate" value="120.00" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label style="display:flex; align-items:center; gap:0.4rem;">
+                                Dejanska hitrost tiska
+                                <span style="font-size:0.7rem; color:#94a3b8;">(samodejno glede na naklado &amp; gramaturo)</span>
+                            </label>
+                            <input type="number" id="calc-machine-speed" readonly
+                                style="background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.4); color: #fbbf24; font-weight: bold; cursor: default;"
+                                title="Samodejno izračunana dejanska hitrost tiska">
+                        </div>
+                        <div class="form-group">
+                            <label>Čas priprave stroja za tisk (minuti)</label>
+                            <input type="number" id="calc-machine-prep-time" value="" placeholder="Avto" step="5"
+                                onchange="calculatePrice()">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label style="display:flex; align-items:center; gap:0.4rem;">
-                            & Dejanska hitrost tiska
-                            <span style="font-size:0.7rem; color:#94a3b8;">(samodejno glede na naklado &amp;
-                                gramaturo)</span>
-                        </label>
-                        <input type="number" id="calc-machine-speed" readonly
-                            style="background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.4); color: #fbbf24; font-weight: bold; cursor: default;"
-                            title="Samodejno izračunana dejanska hitrost tiska">
-                    </div>
-                    <div class="form-group">
-                        <label>Čas priprave stroja za tisk (minuti)</label>
-                        <input type="number" id="calc-machine-prep-time" value="" placeholder="Avto" step="5"
-                            onchange="calculatePrice()">
+
+                    <div id="cooperation-inputs-group" style="display: none; background: rgba(245, 158, 11, 0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.2); margin-top: 10px; flex-direction: column; gap: 0.75rem;">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="color: #fbbf24; font-weight: bold;">Cena tiska kooperanta (EUR)</label>
+                            <input type="number" id="calc-cooperation-price" value="150.00" step="1" onchange="calculatePrice()">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="color: #fbbf24; font-weight: bold;">Način obračuna</label>
+                            <select id="calc-cooperation-unit" onchange="calculatePrice()">
+                                <option value="flat">Fiksni pavšal</option>
+                                <option value="sheet">Na tiskano polo</option>
+                            </select>
+                        </div>
+                    </div>                       onchange="calculatePrice()">
                     </div>
                 </div>
                 <!-- 4. Dodelava -->
@@ -1529,6 +1550,7 @@
         function handleFormatChange(val) {
             if (!val) return;
             const standardFormats = {
+                'b1': [700, 1000],
                 'a1': [594, 841],
                 'a2': [420, 594],
                 'a3': [297, 420],
@@ -1563,14 +1585,28 @@
                     if (itemsPerSheet) {
                         itemsPerSheet.value = '';
                     }
-                    if (typeof calculate === 'function') {
-                        calculate();
+                    
+                    const cleaned = val.trim().toLowerCase();
+                    if (cleaned.startsWith('a1') || cleaned.startsWith('b1')) {
+                        const mTypeSelect = document.getElementById('calc-machine-type');
+                        if (mTypeSelect) {
+                            mTypeSelect.value = 'cooperation';
+                            if (typeof applyMachineDefaults === 'function') {
+                                applyMachineDefaults();
+                            }
+                        }
+                    } else {
+                        if (typeof calculate === 'function') {
+                            calculate();
+                        }
                     }
                 }
             }
         }
 
         const sheets = [
+            { name: "B1", w: 1000, h: 700 },
+            { name: "A1", w: 841, h: 594 },
             { name: "B2", w: 698, h: 498 },
             { name: "6 iz B1", w: 349, h: 332 },
             { name: "638x448", w: 638, h: 448 },
@@ -1608,7 +1644,8 @@
             'CD': { rate: 180, speed: 6900, prep: 10, useDynamic: true, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'SM4+lak': { rate: 160, speed: 6900, prep: 10, useDynamic: true, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'CD UV': { rate: 280, speed: 6900, prep: 10, useDynamic: true, maxW: 698, maxH: 498, defaultFormat: 'B2' },
-            'digital': { rate: 40, speed: 1800, prep: 10, useDynamic: false, defaultFormat: 'Digital (480x320)', maxW: 480, maxH: 320 }
+            'digital': { rate: 40, speed: 1800, prep: 10, useDynamic: false, defaultFormat: 'Digital (480x320)', maxW: 480, maxH: 320 },
+            'cooperation': { rate: 0, speed: 6000, prep: 0, useDynamic: false, defaultFormat: 'B1', maxW: 1000, maxH: 707 }
         };
         let g_lastBestLayout = null;
         let g_manualLayout = null;
@@ -1642,6 +1679,13 @@
             if (itemsInp) itemsInp.value = "";
             const mType = document.getElementById('calc-machine-type').value;
             const profile = machineProfiles[mType];
+            
+            const isCoop = (mType === 'cooperation');
+            const machineInputs = document.getElementById('machine-inputs-group');
+            const coopInputs = document.getElementById('cooperation-inputs-group');
+            if (machineInputs) machineInputs.style.display = isCoop ? 'none' : 'block';
+            if (coopInputs) coopInputs.style.display = isCoop ? 'flex' : 'none';
+            
             if (profile) {
                 document.getElementById('calc-machine-rate').value = profile.rate;
                 const prepTimeInp = document.getElementById('calc-machine-prep-time');
@@ -1649,10 +1693,9 @@
                     prepTimeInp.value = "";
                     prepTimeInp.placeholder = "Avto";
                 }
-                // Samodejno nastavi format na 'auto', da sistem sam poišče najboljšo polo ob menjavi stroja
                 const mFormatSelect = document.getElementById('machine-format');
                 if (mFormatSelect) {
-                    mFormatSelect.value = 'auto';
+                    mFormatSelect.value = isCoop ? 'B1' : 'auto';
                 }
                 if (mType === 'digital') {
                     const platesInp = document.getElementById('calc-plates-num');
@@ -1666,8 +1709,12 @@
                 } else if (mType === 'CD UV') {
                     const prepInp = document.getElementById('calc-prep-price');
                     if (prepInp) prepInp.value = "70";
-                    const changeInp = document.getElementById('calc-change-price');
-                    if (changeInp) changeInp.value = "40";
+                    const platesInp = document.getElementById('calc-plates-num');
+                    if (platesInp) platesInp.value = "4";
+                    const mutInp = document.getElementById('calc-mut-plates');
+                    if (mutInp) mutInp.value = "0";
+                    const precutPrepInp = document.getElementById('f-precut-prep');
+                    if (precutPrepInp) precutPrepInp.value = "15";
                 } else {
                     const prepInp = document.getElementById('calc-prep-price');
                     if (prepInp) prepInp.value = "25";
@@ -2611,7 +2658,18 @@
                 totalPrintCost = printSheets * perSheetCost;
                 printHours = 0; // Strojnega časa za tisk ne upoštevamo po uri
             }
-            let totalFinishCost = 0;
+    let totalFinishCost = 0;
+    if (mType === 'cooperation') {
+        totalPrepCost = 0;
+        let coopPrice = parseFloat(document.getElementById('calc-cooperation-price').value) || 0;
+        let coopUnit = document.getElementById('calc-cooperation-unit').value;
+        if (coopUnit === 'flat') {
+            totalPrintCost = coopPrice;
+        } else {
+            totalPrintCost = coopPrice * totalSheetsNeeded;
+        }
+        printHours = 0;
+    }
             if (document.getElementById('f-cilinder-active').checked) {
                 let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 0;
                 let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 0;
