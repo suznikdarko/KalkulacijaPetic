@@ -1369,6 +1369,8 @@
 
         document.addEventListener('input', (e) => updateInputStyles(e.target));
         document.addEventListener('change', (e) => updateInputStyles(e.target));
+        let g_editedQuoteHTML = '';
+        let g_editedWorkOrderHTML = '';
         let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
         renderBasket();
         updateWarnings();
@@ -3377,6 +3379,8 @@
                     preparedBy: gv('calc-prepared-by'),
                     materialCode: gv('calc-material-code'),
                     notes: gv('calc-notes'),
+                    editedQuoteHTML: g_editedQuoteHTML,
+                    editedWorkOrderHTML: g_editedWorkOrderHTML,
                     inputs: {
                         machine_format: gv('machine-format'),
                         item_w: gv('width'),
@@ -3475,6 +3479,8 @@
                     preparedBy: gv('calc-prepared-by'),
                     materialCode: gv('calc-material-code'),
                     notes: gv('calc-notes'),
+                    editedQuoteHTML: g_editedQuoteHTML,
+                    editedWorkOrderHTML: g_editedWorkOrderHTML,
                     inputs: {
                         machine_format: gv('machine-format'),
                         item_w: gv('width'),
@@ -3724,6 +3730,8 @@
         // Pomožna funkcija za nalaganje podatkov v polja (skupna za Arhiv in File Import)
         function loadProjectData(proj) {
             if (!proj || !proj.inputs) return;
+            g_editedQuoteHTML = proj.editedQuoteHTML || '';
+            g_editedWorkOrderHTML = proj.editedWorkOrderHTML || '';
             const inp = proj.inputs;
 
             document.getElementById('calc-customer').value = proj.customer || "";
@@ -4100,20 +4108,7 @@
                 `;
             }).join('');
 
-            return `
-                ${htmlHeader}
-                <head><meta charset="utf-8"><title>Ponudba</title>
-                <style>
-                    body { font-family: 'Arial', sans-serif; padding: ${isWord ? '10px' : '30px'}; color: #000; line-height: 1.1; font-size: 11px; }
-                    .info-table { border-collapse: collapse; margin-left: auto; margin-right: 0; }
-                    .info-table td { padding: 1px 0 1px 15px; text-align: right; }
-                    .info-table td:first-child { font-weight: normal; color: #555; }
-                    .info-table td:last-child { font-weight: bold; }
-                    h1 { font-size: 14px; font-weight: bold; margin-top: 10px; margin-bottom: 5px; letter-spacing: 1px; border-bottom: 1px solid #000; padding-bottom: 3px; }
-                    .notes { margin-top: 10px; text-align: justify; font-size: 9px; line-height: 1.1; color: #444; }
-                </style>
-                </head>
-                <body>
+            const defaultContent = `
                     <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #f99c26; padding-bottom: 5px;" cellpadding="0" cellspacing="0">
                         <tr>
                             <td style="width: 32%; vertical-align: top;">
@@ -4137,6 +4132,69 @@
                     <p style="margin: 5px 0;"><strong>Predloga:</strong> Naročnik dostavi visokoresolucijski PDF z dodatkom za obrez!</p>
                     <p class="notes">Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.</p>
                     <div style="margin-top: 10px; font-size: 10px; font-style: italic;">Kalkulacijo pripravil: ${preparedBy}</div>
+            `;
+            const contentToRender = g_editedQuoteHTML ? g_editedQuoteHTML : defaultContent;
+
+            return `
+                ${htmlHeader}
+                <head><meta charset="utf-8"><title>Ponudba</title>
+                <style>
+                    body { font-family: 'Arial', sans-serif; padding: ${isWord ? '10px' : '0'}; color: #000; line-height: 1.1; font-size: 11px; margin: 0; }
+                    .info-table { border-collapse: collapse; margin-left: auto; margin-right: 0; }
+                    .info-table td { padding: 1px 0 1px 15px; text-align: right; }
+                    .info-table td:first-child { font-weight: normal; color: #555; }
+                    .info-table td:last-child { font-weight: bold; }
+                    h1 { font-size: 14px; font-weight: bold; margin-top: 10px; margin-bottom: 5px; letter-spacing: 1px; border-bottom: 1px solid #000; padding-bottom: 3px; }
+                    .notes { margin-top: 10px; text-align: justify; font-size: 9px; line-height: 1.1; color: #444; }
+                    @media print { .no-print { display: none !important; } }
+                    .editable-area:focus { outline: 2px dashed #f99c26; background-color: #fffbeb; }
+                    .editable-area p, .editable-area div:not(.header-top) { margin: 0; padding: 0; }
+                </style>
+                </head>
+                <body>
+                    ${!isWord ? `
+                    <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 10px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
+                        <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI PONUDBO</button>
+                        <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
+                        <button onclick="if(confirm('Ali želite ponastaviti ponudbo na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.g_editedQuoteHTML='';} window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
+                        <div style="font-size: 12px; color: #475569; margin-left: 10px;">💾 Spremembe besedila se samodejno shranjujejo v kalkulacijo.</div>
+                    </div>
+                    ` : ''}
+                    <div class="editable-area" ${!isWord ? 'contenteditable="true"' : ''} style="padding: ${isWord ? '10px' : '30px'};">
+                        ${contentToRender}
+                    </div>
+                    <script>
+                        // Sync changes to parent window
+                        const area = document.querySelector('.editable-area');
+                        if (area) {
+                            const sync = () => {
+                                if (window.opener && !window.opener.closed) {
+                                    window.opener.g_editedQuoteHTML = area.innerHTML;
+                                }
+                            };
+                            area.addEventListener('input', sync);
+                            area.addEventListener('blur', sync);
+                            window.addEventListener('beforeunload', sync);
+                        }
+
+                        document.addEventListener('keydown', function(e) {
+                            if (e.key === 'Enter') {
+                                let selection = window.getSelection();
+                                if (!selection.rangeCount) return;
+                                let container = selection.getRangeAt(0).commonAncestorContainer;
+                                while (container && container !== document.body) {
+                                    if (container.nodeType === 1 && container.getAttribute('contenteditable') === 'true') {
+                                        break;
+                                    }
+                                    container = container.parentNode;
+                                }
+                                if (container && container !== document.body) {
+                                    e.preventDefault();
+                                    document.execCommand('insertLineBreak', false, null);
+                                }
+                            }
+                        });
+                    <\/script>
                 </body></html>`;
         }
 
@@ -4255,7 +4313,7 @@
                 finalSourceSheets = Math.ceil(finalTotalSheets / sourceYield);
             }
             let prepPasses = front > 0 ? (Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0)) : 1;
-            let colorMode = front + '/' + (isObrat ? 'OB' : back);
+let colorMode = front + '/' + (isObrat ? 'OB' : back);
             let rule = prepRules[colorMode] || { passes: prepPasses };
             let mPasses = rule.passes;
             let dnPrintHours = (finalTotalSheets * mPasses) / 6000;
@@ -4266,36 +4324,12 @@
             let sheetWCm = (sheetW / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
             let sheetHCm = (sheetH / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
 
-            let html = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <title>Delovni Nalog - ${dnNum || product}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.25; color: #000; margin: 0; padding: 0; }
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
-                    td, th { padding: 2px 0; vertical-align: top; }
-                    .header-top { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
-                    .bold { font-weight: bold; }
-                    .title { font-size: 16px; font-weight: bold; text-transform: uppercase; }
-                    .row-divider { border-top: 1px dashed #000; margin: 10px 0; }
-                    @media print { .no-print { display: none !important; } }
-                    .editable-area:focus { outline: 2px dashed #3b82f6; background-color: #eff6ff; }
-                </style>
-            </head>
-            <body>
-                <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 10px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
-                    <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI DN</button>
-                    <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
-                    <div style="font-size: 12px; color: #475569; margin-left: 10px;">✏️ Kliknite na poljubno besedilo spodaj, da ga spremenite pred tiskom.</div>
-                </div>
-                <div class="editable-area" contenteditable="true" style="padding: 20px;">
+            const defaultContent = `
                 <div class="header-top">
                     <div style="width: 50%;">
                         <div class="bold" style="font-size: 14px;">${customer} &nbsp;&nbsp;&nbsp; (Šifra stranke: ${customerCode})</div>
                         <div>${custAddress.replace(/\n/g, '<br>')}</div>
-                        <div>${custEmail ? '<br>' + custEmail : ''}</div>
+                        <div>${custEmail ? custEmail + '<br>' : ''}</div>
                     </div>
                     <div style="width: 50%; text-align: right; font-size: 16px; font-weight: bold;">
                         Tiskarna PETRIČ
@@ -4304,19 +4338,19 @@
                 <table style="margin-top: 10px;">
                     <tr>
                         <td style="width: 50%;">
-                            <div><span class="bold">Rok izdelave:</span> ${deadline}</div>
+                            <div style="font-size: 18px;"><span class="bold">Rok izdelave:</span> ${deadline}</div>
                         </td>
                         <td style="width: 50%; text-align: right;">
-                            <div class="bold" style="font-size: 16px;">D.N.: ${dnNum}</div>
-                            ${dnOld ? `<div>Stari D.N. (montaža): ${dnOld}</div>` : ''}
+                            <div class="bold" style="font-size: 20px;">D.N.: ${dnNum}</div>
+                            ${dnOld ? `<div style="font-size: 18px; margin-top: 2px;">Stari D.N. (montaža): ${dnOld}</div>` : ''}
                             <div>Datum naloga: ${date}</div>
                         </td>
                     </tr>
                 </table>
-                <table style="margin-top: 15px; width: 100%;">
+                <table style="margin-top: 10px; width: 100%;">
                     <tr>
-                        <td class="bold" style="font-size: 15px; width: 50%;">${product}</td>
-                        <td style="width: 50%; text-align: right;">Ponudba: ${quoteNum}</td>
+                        <td class="bold" style="font-size: 20px; width: 50%;">${product}</td>
+                        <td style="width: 50%; text-align: right; font-size: 18px;">Ponudba: ${quoteNum}</td>
                     </tr>
                 </table>
                 <table style="margin-top: 5px; width: 100%;">
@@ -4330,12 +4364,6 @@
                     <tr>
                         <td style="width: 15%;">06 razrez:</td>
                         <td class="bold">${finalSourceSheets.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCm} x ${sourceHCm} cm &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${finalTotalSheets.toLocaleString('de-DE')} pol ${sheetWCm} x ${sheetHCm} cm &nbsp;&nbsp; (${sourceYield} iz pole)</td>
-                    </tr>
-                </table>
-                <table style="margin-top: 5px;">
-                    <tr>
-                        <td style="width: 15%;">Kop. plošč:</td>
-                        <td class="bold">${d.prep.plates} kom. <strong>${d.print.mType || 'S4'}</strong> &nbsp;&nbsp;&nbsp;&nbsp; (${itemsPerSheet} sest. na formi)</td>
                     </tr>
                 </table>
                 <table style="margin-top: 5px; width: 100%;">
@@ -4378,6 +4406,7 @@
                         <td>Papir (${sourceWCm} x ${sourceHCm} cm) - ${paperWeight}g ${paperType}:</td>
                         <td style="text-align: right;" class="bold">${finalSourceSheets.toLocaleString('de-DE')} pol</td>
                     </tr>
+                </table>
                 <div class="row-divider"></div>
                 <table>
                     <tr>
@@ -4398,13 +4427,75 @@
                         <td style="width: 25%; text-align: right;"><span class="bold">Skupaj:</span> ${formatPrice(calcRes.totalPrice, 2)} €</td>
                     </tr>
                 </table>
+            `;
+            const contentToRender = g_editedWorkOrderHTML ? g_editedWorkOrderHTML : defaultContent;
+
+            let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Delovni Nalog - ${dnNum || product}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.25; color: #000; margin: 0; padding: 0; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+                    td, th { padding: 4px; vertical-align: top; }
+                    .main-table th { background: #eee; border: 1px solid #ccc; font-size: 11px; }
+                    .main-table td { border: 1px solid #ccc; }
+                    .header-top { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
+                    .bold { font-weight: bold; }
+                    .row-divider { border-top: 1px dashed #000; margin: 10px 0; }
+                    @media print { .no-print { display: none !important; } }
+                    .editable-area:focus { outline: 2px dashed #3b82f6; background-color: #eff6ff; }
+                    .editable-area p, .editable-area div:not(.header-top) { margin: 0; padding: 0; }
+                </style>
+            </head>
+            <body>
+                <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 10px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
+                    <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI DN</button>
+                    <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
+                    <button onclick="if(confirm('Ali želite ponastaviti delovni nalog na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.g_editedWorkOrderHTML='';} window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
+                    <div style="font-size: 12px; color: #475569; margin-left: 10px;">💾 Spremembe besedila se samodejno shranjujejo v kalkulacijo.</div>
                 </div>
+                <div class="editable-area" contenteditable="true" style="padding: 20px;">
+                    ${contentToRender}
+                </div>
+                <script>
+                    const area = document.querySelector('.editable-area');
+                    if (area) {
+                        const sync = () => {
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.g_editedWorkOrderHTML = area.innerHTML;
+                            }
+                        };
+                        area.addEventListener('input', sync);
+                        area.addEventListener('blur', sync);
+                        window.addEventListener('beforeunload', sync);
+                    }
+
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') {
+                            let selection = window.getSelection();
+                            if (!selection.rangeCount) return;
+                            let container = selection.getRangeAt(0).commonAncestorContainer;
+                            while (container && container !== document.body) {
+                                if (container.nodeType === 1 && container.getAttribute('contenteditable') === 'true') {
+                                    break;
+                                }
+                                container = container.parentNode;
+                            }
+                            if (container && container !== document.body) {
+                                e.preventDefault();
+                                document.execCommand('insertLineBreak', false, null);
+                            }
+                        }
+                    });
+                <\/script>
             </body>
             </html>
             `;
             return html;
         }
-
         function printWorkOrder() {
             try {
                 const html = getWorkOrderHTML();
