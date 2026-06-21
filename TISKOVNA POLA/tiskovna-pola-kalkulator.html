@@ -2939,16 +2939,39 @@
                 let pCost = pSheets * pPrice;
                 let breakdownText = `Delo: ${pSheets} pol po ${formatPrice(pPrice)}/polo = ${formatPrice(pCost)}`;
                 let extraCost = 0;
-                if (mType === 'S8') {
+                
+                // Preveri ali je B2 format (698x498) in dodaj razrez na 318x448
+                let currentSheetW = g_lastSheetW || 0;
+                let currentSheetH = g_lastSheetH || 0;
+                let isB2Sheet = (currentSheetW === 698 && currentSheetH === 498) || (currentSheetW === 498 && currentSheetH === 698);
+                
+                if (isB2Sheet) {
+                    // Razrez B2 (698x498) na 2 poli 318x448 za personalizacijo
+                    let razrezSheets = totalSheetsNeeded * 2; // Vsaka polo se razreže na 2
+                    let autoCutSpeed = 7400;
+                    if (paperWeight >= 300) autoCutSpeed = 4100;
+                    else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
+                    autoCutSpeed = Math.round(autoCutSpeed);
+                    let razrezCost = (razrezSheets / autoCutSpeed) * 30.00;
+                    extraCost += razrezCost;
+                    breakdownText += ` | Razrez B2->2x(318x448): ${formatPrice(razrezCost)}`;
+                    
+                    // Dodaj opozorilo
+                    if (!window.g_personalizationCutWarningShown) {
+                        console.warn('⚠️ PERSONALIZACIJA: B2 polo (698x498) bo razrezana na 2 poli 318x448 za personalizacijo!');
+                        window.g_personalizationCutWarningShown = true;
+                    }
+                } else if (mType === 'S8') {
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
                     else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
                     let cutCost = (totalSheetsNeeded / autoCutSpeed) * 30.00;
-                    extraCost = cutCost;
+                    extraCost += cutCost;
                     breakdownText += ` | Dodaten razrez na pol: ${formatPrice(cutCost)}`;
                 }
+                
                 details.finish.items.push({
-                    name: 'Personalizacija' + (mType === 'S8' ? ' (Digitalni format - S8)' : ''),
+                    name: 'Personalizacija' + (isB2Sheet ? ' (B2->2x 318x448)' : (mType === 'S8' ? ' (Digitalni format - S8)' : '')),
                     cost: pCost + extraCost,
                     breakdown: breakdownText
                 });
@@ -4824,7 +4847,7 @@ let colorMode = front + '/' + (isObrat ? 'OB' : back);
                     .main-table td { border: 1px solid #ccc; }
                     .header-top { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
                     .bold { font-weight: bold; }
-                    .row-divider { border-top: 1px dashed #000; margin: 10px 0; }
+                     .row-divider { border-top: 1px dashed #000; margin: 2px 0; }
                     @media print { .no-print { display: none !important; } }
                      .editable-area:focus { outline: 2px dashed #3b82f6; background-color: #eff6ff; }
                      .editable-area p, .editable-area div:not(.header-top) { margin: 0; padding: 0; }
@@ -4833,13 +4856,34 @@ let colorMode = front + '/' + (isObrat ? 'OB' : back);
                  </style>
              </head>
              <body>
-                 <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 10px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
+                 <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 10px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%; flex-wrap: wrap;">
                      <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI DN</button>
                      <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
                      <button onclick="if(confirm('Ali želite ponastaviti delovni nalog na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.g_editedWorkOrderHTML='';} window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
+                     
+                     <div style="display: flex; gap: 4px; align-items: center; background: #cbd5e1; padding: 3px; border-radius: 6px;">
+                         <button onclick="document.execCommand('bold', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-weight: bold; cursor: pointer; color: #000; font-size: 14px;" title="Krepko (Bold)">B</button>
+                         <button onclick="document.execCommand('italic', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-style: italic; cursor: pointer; color: #000; font-size: 14px; font-family: Georgia, serif;" title="Ležeče (Italic)">I</button>
+                         <button onclick="document.execCommand('underline', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; text-decoration: underline; cursor: pointer; color: #000; font-size: 14px;" title="Podčrtano (Underline)">U</button>
+                         <select onchange="const sel = window.getSelection(); if (sel.rangeCount) { const range = sel.getRangeAt(0); if (range.toString().length > 0) { const span = document.createElement('span'); span.style.fontSize = this.value; span.appendChild(range.extractContents()); range.insertNode(span); } }; this.value='';" style="background: white; border: none; border-radius: 4px; height: 28px; padding: 0 5px; font-size: 12px; cursor: pointer; color: #000;">
+                             <option value="" disabled selected>Velikost</option>
+                             <option value="9px">9 px</option>
+                             <option value="10px">10 px</option>
+                             <option value="11px">11 px</option>
+                             <option value="12px">12 px</option>
+                             <option value="13px">13 px</option>
+                             <option value="14px">14 px</option>
+                             <option value="16px">16 px</option>
+                             <option value="18px">18 px</option>
+                             <option value="20px">20 px</option>
+                             <option value="24px">24 px</option>
+                             <option value="28px">28 px</option>
+                         </select>
+                     </div>
+
                      <div style="font-size: 12px; color: #475569; margin-left: 10px;">💾 Spremembe besedila se samodejno shranjujejo v kalkulacijo.</div>
                  </div>
-                  <div class="editable-area" contenteditable="true" style="padding: 20px; word-wrap: break-word; overflow-wrap: break-word; max-width: 794px; box-sizing: border-box; overflow-x: hidden;">
+                  <div class="editable-area" contenteditable="true" style="padding: 20px; word-wrap: break-word; overflow-wrap: break-word; max-width: 794px; box-sizing: border-box; overflow-x: hidden; line-height: 1.1;">
                       ${contentToRender}
                   </div>
                 <script>
