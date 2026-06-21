@@ -4597,45 +4597,79 @@
             const qtyStr = document.getElementById('quantity').value || '0';
             const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
             const q = qtyArr[0] || 0;
-            const oqStr = document.getElementById('ordered-quantity') ? document.getElementById('ordered-quantity').value : '';
-            const oqArr = oqStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
-            const oqVal = oqArr[0] || q;
-            let calcRes = calculateForSingleQty(q, undefined, undefined, undefined, oqVal);
+            
+            let calcRes = calculateForSingleQty(q);
             if (!calcRes) return "Napaka pri generiranju naloga.";
+            
+            // Preberi dodatek iz polja "Dodatne pole tiskarju" (ID: calc-given-sheets)
+            const givenDodatekInput = document.getElementById('calc-given-sheets') ? parseInt(document.getElementById('calc-given-sheets').value) : NaN;
+            
+            // Preračunaj vrednosti glede na dodatek
+            if (!isNaN(givenDodatekInput) && givenDodatekInput >= 0) {
+                const sourceYield = calcRes.details.paper.sourceYield || 1;
+                const newTotalSheets = calcRes.sheetsNeeded + givenDodatekInput;
+                const newSourceSheets = Math.ceil(newTotalSheets / sourceYield);
+                
+                // Preračunaj stroške papirja
+                const paperPrice = parseFloat(document.getElementById('calc-paper-price').value) || 0;
+                const paperUnit = document.getElementById('calc-paper-unit').value;
+                const paperWeight = parseFloat(document.getElementById('calc-paper-weight').value) || 0;
+                const sourceW = calcRes.details.paper.sourceW || 1000;
+                const sourceH = calcRes.details.paper.sourceH || 700;
+                
+                let newPaperCost = 0;
+                if (paperUnit === 'ton') {
+                    let areaM2 = (sourceW / 1000) * (sourceH / 1000);
+                    let weightKg = areaM2 * (paperWeight / 1000) * newSourceSheets;
+                    newPaperCost = (weightKg / 1000) * paperPrice;
+                } else if (paperUnit === '1000') {
+                    newPaperCost = (newSourceSheets / 1000) * paperPrice;
+                } else {
+                    newPaperCost = newSourceSheets * paperPrice;
+                }
+                
+                // Preračunaj skupno ceno
+                const oldPaperCost = calcRes.paperCost;
+                const diffPaperCost = newPaperCost - oldPaperCost;
+                calcRes.paperCost = newPaperCost;
+                calcRes.totalPrice += diffPaperCost;
+                calcRes.perItemFinal = calcRes.totalPrice / q;
+                
+                // Posodobi podrobnosti za prikaz
+                calcRes.details.paper.totalSheets = newTotalSheets;
+                calcRes.details.paper.sourceSheets = newSourceSheets;
+                
+                // Shrani nove vrednosti za kasnejšo uporabo
+                calcRes.finalTotalSheets = newTotalSheets;
+                calcRes.finalSourceSheets = newSourceSheets;
+                calcRes.finalDodatek = givenDodatekInput;
+            }
             let d = calcRes.details;
+
             let customer = document.getElementById('calc-customer').value || "Ni vpisano";
             let customerCode = document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "";
             let custAddress = document.getElementById('calc-cust-address').value || "";
             let custEmail = document.getElementById('calc-cust-email') ? document.getElementById('calc-cust-email').value : "";
-            let deliveryAddress = document.getElementById('calc-delivery-address').value || "";
-            let contact = document.getElementById('calc-customer-contact') ? document.getElementById('calc-customer-contact').value : "";
+            let deliveryAddress = document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : "";
             let dnNum = document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value : "";
             let dnOld = document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : "";
             let deadline = document.getElementById('calc-dn-deadline') ? document.getElementById('calc-dn-deadline').value : "";
-            let urgent = document.getElementById('calc-dn-urgent') && document.getElementById('calc-dn-urgent').checked;
             let packaging = document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : "";
             let quoteNum = document.getElementById('calc-quote-number').value || "";
             let product = document.getElementById('calc-project-name').value || "Ni vpisano";
-            let qty = calcRes.qty || q || 0;
-            let materialDesc = document.getElementById('calc-material-desc').value || "";
+            let materialDesc = document.getElementById('calc-material-desc') ? document.getElementById('calc-material-desc').value : "";
             let paperType = document.getElementById('calc-paper-type').value || "";
             let paperWeight = document.getElementById('calc-paper-weight').value || "";
             let date = new Date().toLocaleDateString('sl-SI');
-            // Formatiranje barv
+
             let front = parseInt(document.getElementById('calc-color-front').value) || 0;
             let back = parseInt(document.getElementById('calc-color-back').value) || 0;
             let isObrat = document.getElementById('calc-is-obrat').checked;
             let isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
             let colors = (isObrat || isSV) ? (front + '/' + front) : (front + '/' + back);
             let tiskMode = "1 prehod";
-            if (isSV) {
-                tiskMode = "obračanje (Šen Vider)";
-            } else if (isObrat) {
-                tiskMode = "obračanje";
-            } else if (back > 0) {
-                tiskMode = "prvi/drugi (2 prehoda)";
-            }
-            // Razrez details
+            if (isObrat) { tiskMode = "obračanje"; } else if (back > 0) { tiskMode = "prvi/drugi (2 prehoda)"; }
+
             let sourceW = d.paper.sourceW || 0;
             let sourceH = d.paper.sourceH || 0;
             let resSizeTxt = document.getElementById('res-size') ? document.getElementById('res-size').innerText.split('x') : [];
@@ -4644,15 +4678,12 @@
             let sourceYield = d.paper.sourceYield || 1;
             let sourceSheets = d.paper.sourceSheets || 0;
             let totalSheets = d.paper.totalSheets || 0;
-            let baseWaste = d.paper.paperWasteSheets || 0;
             let itemsPerSheet = document.getElementById('items-per-sheet').value || "1";
-            // Dodelava lista
             let formatW = document.getElementById('width').value || 0;
             let formatH = document.getElementById('height').value || 0;
             let finishList = getActiveFinishingList();
             let hasTool = document.getElementById('f-tool-active') && document.getElementById('f-tool-active').checked;
             let physicalWasteSheets = totalSheets - calcRes.sheetsNeeded;
-            let givenDodatekInput = document.getElementById('calc-given-sheets') ? parseInt(document.getElementById('calc-given-sheets').value) : NaN;
             let finalDodatek = physicalWasteSheets;
             let finalTotalSheets = totalSheets;
             let finalSourceSheets = sourceSheets;
@@ -4662,33 +4693,23 @@
                 finalSourceSheets = Math.ceil(finalTotalSheets / sourceYield);
             }
             let prepPasses = front > 0 ? (Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0)) : 1;
-            let colorMode = front + '/' + (isObrat ? 'OB' : back);
+let colorMode = front + '/' + (isObrat ? 'OB' : back);
             let rule = prepRules[colorMode] || { passes: prepPasses };
-            let mPasses = isSV ? 1 : rule.passes;
+            let mPasses = rule.passes;
             let dnPrintHours = (finalTotalSheets * mPasses) / 6000;
             let roundedPrepTime = Math.round(d.print.prepTime * 4) / 4;
-            let roundedPrepMinutes = Math.round(roundedPrepTime * 60);
             let roundedPrintTime = Math.round(dnPrintHours * 4) / 4;
             let sourceWCm = (sourceW / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
             let sourceHCm = (sourceH / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
             let sheetWCm = (sheetW / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
             let sheetHCm = (sheetH / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
-            let pWeight = paperWeight;
-            let pType = paperType;
-            let notes = document.getElementById('calc-project-notes') ? document.getElementById('calc-project-notes').value : '';
-            let bleed = document.getElementById('bleed').value || 0;
-            let wasteTotal = d.paper.paperWasteSheets || 0;
-            let pWaste = Math.round((wasteTotal / calcRes.sheetsNeeded) * 100);
-            let wasteManual = false;
-            let sheetName = "";
-            let sourceName = "";
-            let machineSpeed = 6000;
+
             const defaultContent = `
                 <div class="header-top">
                     <div style="width: 50%;">
                         <div class="bold" style="font-size: 14px;">${customer} &nbsp;&nbsp;&nbsp; (Šifra stranke: ${customerCode})</div>
                         <div>${custAddress.replace(/\n/g, '<br>')}</div>
-                        <div>${contact} ${custEmail ? '<br>' + custEmail : ''}</div>
+                        <div>${custEmail ? custEmail + '<br>' : ''}</div>
                     </div>
                     <div style="width: 50%; text-align: right; font-size: 16px; font-weight: bold;">
                         Tiskarna PETRIČ
@@ -4697,7 +4718,6 @@
                 <table style="margin-top: 10px;">
                     <tr>
                         <td style="width: 50%;">
-                            ${urgent ? '<div class="urgent">NUJNO!</div>' : ''}
                             <div style="font-size: 18px;"><span class="bold">Rok izdelave:</span> ${deadline}</div>
                         </td>
                         <td style="width: 50%; text-align: right;">
@@ -4712,50 +4732,59 @@
                         <td class="bold" style="font-size: 20px; width: 50%;">${product}</td>
                         <td style="width: 50%; text-align: right; font-size: 18px;">Ponudba: ${quoteNum}</td>
                     </tr>
+                </table>
+                <table style="margin-top: 5px; width: 100%;">
+                    <tr><td style="width: 15%;">Količina:</td><td class="bold" style="font-size: 15px;">${q.toLocaleString('de-DE')} kos</td></tr>
+                    <tr><td>Format:</td><td class="bold">${formatW} x ${formatH} mm</td></tr>
+                    <tr><td>Tisk:</td><td class="bold">${colors}</td></tr>
+                    <tr><td>Material:</td><td class="bold">${paperWeight}g ${paperType} ${materialDesc}</td></tr>
+                </table>
+                <div class="row-divider"></div>
+                <table>
                     <tr>
-                        <td colspan="2"><span class="bold">Opis dela:</span> ${notes}</td>
+                        <td style="width: 15%;">06 razrez:</td>
+                        <td class="bold">${finalSourceSheets.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCm} x ${sourceHCm} cm &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${finalTotalSheets.toLocaleString('de-DE')} pol ${sheetWCm} x ${sheetHCm} cm &nbsp;&nbsp; (${sourceYield} iz pole)</td>
+                    </tr>
+                </table>
+                <table style="margin-top: 5px; width: 100%;">
+                    <tr>
+                        <td style="width: 15%; font-weight: bold;"><strong>${d.print.mType || 'S4'}</strong> priprava:</td>
+                        <td class="bold" style="width: 55%;">${tiskMode}</td>
+                        <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">priprava:</span> ${roundedPrepTime.toFixed(2)} h</td>
+                    </tr>
+                    <tr>
+                        <td>Tisk:</td>
+                        <td class="bold" style="width: 55%; white-space: nowrap;">${calcRes.sheetsNeeded.toLocaleString('de-DE')} + ${finalDodatek.toLocaleString('de-DE')} = ${finalTotalSheets.toLocaleString('de-DE')} tisk. pol &nbsp;&nbsp; (${mPasses}x skozi stroj)</td>
+                        <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">tisk:</span> ${roundedPrintTime.toFixed(2)} h</td>
                     </tr>
                 </table>
                 <div class="row-divider"></div>
-                <table class="main-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 45%; text-align: left;">SPECIFIKACIJA NALOGA</th>
-                            <th style="width: 25%; text-align: left;">PORABA PAPIRJA</th>
-                            <th style="width: 30%; text-align: left;">TISK IN STROJ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>
-                                <span class="bold">Naročena kol:</span> ${oqVal.toLocaleString()} kos (Izračunana: ${q.toLocaleString()})<br>
-                                <span class="bold">Končni format:</span> ${formatW} x ${formatH} mm (+${bleed} mm bleed)<br>
-                                <span class="bold">Dodelava:</span> ${finishList ? finishList : 'Brez posebne dodelave'}<br>
-                            </td>
-                            <td>
-                                <span class="bold">Papir:</span> ${pWeight}g ${pType}<br>
-                                <span class="bold">V kosu:</span> ${itemsPerSheet} kos / pola<br>
-                                <span class="bold">Naklada pol:</span> <span class="bold" style="font-size:15px; text-decoration:underline;">${finalTotalSheets.toLocaleString()}</span> pol (neto + kala)<br>
-                                <span class="bold">Format pol:</span> ${sheetWCm} x ${sheetHCm} cm<br>
-                                <span class="bold">Kala:</span> ${wasteTotal.toLocaleString()} pol (${pWaste}%)
-                            </td>
-                            <td>
-                                <span class="bold">Barve:</span> ${colors}<br>
-                                <span class="bold">Prehodov:</span> ${mPasses}<br>
-                                <span class="bold">Priprava:</span> ${roundedPrepMinutes} min (${roundedPrepTime} h)<br>
-                                <span class="bold">Tisk:</span> ${roundedPrintTime} h
-                            </td>
-                        </tr>
-                    </tbody>
+                <table>
+                    <tr>
+                        <td style="width: 15%;">Dodelava:</td>
+                        <td class="bold">${finishList ? finishList : 'Brez posebne dodelave'}</td>
+                    </tr>
+                    ${hasTool ? `
+                    <tr>
+                        <td style="width: 15%; padding-top: 10px; color: #ef4444; font-weight: bold;">Orodje:</td>
+                        <td class="bold" style="padding-top: 10px; color: #ef4444; font-weight: bold;">izdelava novega orodja Smole Branko</td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                        <td style="width: 15%; padding-top: 10px;">Pakiranje:</td>
+                        <td class="bold" style="padding-top: 10px;">${packaging}</td>
+                    </tr>
                 </table>
                 <div class="row-divider"></div>
                 <div class="bold" style="margin-bottom: 5px;">Poraba materiala:</div>
-                <table style="width: 100%;">
+                <table>
                     <tr>
-                        <td style="width: 25%;">of. plošče:</td>
-                        <td class="bold">${d.prep.plates} kos</td>
-                        <td style="width: 25%;">Papir za razrez:</td>
-                        <td style="text-align: right;" class="bold">${finalSourceSheets.toLocaleString()} pol</td>
+                        <td>of. plošče (<strong>${d.print.mType || 'S4'}</strong>):</td>
+                        <td style="text-align: right;" class="bold">${d.prep.plates} kos</td>
+                    </tr>
+                    <tr>
+                        <td>Papir (${sourceWCm} x ${sourceHCm} cm) - ${paperWeight}g ${paperType}:</td>
+                        <td style="text-align: right;" class="bold">${finalSourceSheets.toLocaleString('de-DE')} pol</td>
                     </tr>
                 </table>
                 <div class="row-divider"></div>
@@ -4764,18 +4793,23 @@
                         <td style="width: 50%;" class="bold">Izdobaviti točno naročeno količino!</td>
                         <td style="width: 50%; text-align: right;" class="bold">${deliveryAddress ? 'Dostava na naslov!' : 'Naša dostava!'}</td>
                     </tr>
+                    <tr>
+                        <td>Obvezno par vzorcev tiskovine v nalog:</td>
+                        <td style="text-align: right;">Pred dostavo pokliči!</td>
+                    </tr>
                 </table>
-                <p style="margin: 10px 0; min-height: 1.2em; width: 100%; clear: both; font-size: 11px;"></p>
                 <div class="row-divider"></div>
                 <table style="width: 100%; margin-bottom: 5px; font-size: 11px;">
                     <tr>
                         <td style="width: 25%;"><span class="bold">Št. ponudbe:</span> ${quoteNum || '/'}</td>
                         <td style="width: 25%; text-align: center;"><span class="bold">Cena za kos:</span> ${formatPrice(calcRes.perItemFinal, 4)} €</td>
+                        <td style="width: 25%; text-align: center;"><span class="bold">Cena za 1000 kos:</span> ${formatPrice(calcRes.perItemFinal * 1000, 2)} €</td>
                         <td style="width: 25%; text-align: right;"><span class="bold">Skupaj:</span> ${formatPrice(calcRes.totalPrice, 2)} €</td>
                     </tr>
                 </table>
             `;
-            const contentToRender = (typeof g_editedWorkOrderHTML !== 'undefined' && g_editedWorkOrderHTML) ? g_editedWorkOrderHTML : defaultContent;
+            const contentToRender = g_editedWorkOrderHTML ? g_editedWorkOrderHTML : defaultContent;
+
             let html = `
             <!DOCTYPE html>
             <html>
@@ -4791,38 +4825,17 @@
                     .header-top { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
                     .bold { font-weight: bold; }
                     .row-divider { border-top: 1px dashed #000; margin: 10px 0; }
-                    .urgent { color: red; font-size: 18px; font-weight: bold; text-transform: uppercase; }
                     @media print { .no-print { display: none !important; } }
                     .editable-area:focus { outline: 2px dashed #3b82f6; background-color: #eff6ff; }
                     .editable-area p, .editable-area div:not(.header-top) { margin: 0; padding: 0; }
                 </style>
             </head>
             <body>
-                <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 15px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
+                <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 10px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
                     <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI DN</button>
                     <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
                     <button onclick="if(confirm('Ali želite ponastaviti delovni nalog na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.g_editedWorkOrderHTML='';} window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
-                    <div style="display: flex; gap: 4px; align-items: center; background: #cbd5e1; padding: 3px; border-radius: 6px;">
-                        <button onclick="document.execCommand('bold', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-weight: bold; cursor: pointer; color: #000; font-size: 14px;" title="Krepko (Bold)">B</button>
-                        <button onclick="document.execCommand('italic', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-style: italic; cursor: pointer; color: #000; font-size: 14px; font-family: Georgia, serif;" title="Ležeče (Italic)">I</button>
-                        <button onclick="document.execCommand('underline', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; text-decoration: underline; cursor: pointer; color: #000; font-size: 14px;" title="Podčrtano (Underline)">U</button>
-                        <select onchange="const sel = window.getSelection(); if (sel.rangeCount) { const range = sel.getRangeAt(0); if (range.toString().length > 0) { const span = document.createElement('span'); span.style.fontSize = this.value; span.appendChild(range.extractContents()); range.insertNode(span); } }; this.value='';" style="background: white; border: none; border-radius: 4px; height: 28px; padding: 0 5px; font-size: 12px; cursor: pointer; color: #000; width: 90px;" title="Velikost pisave">
-                            <option value="" disabled selected>Velikost</option>
-                            <option value="9px">9 px</option>
-                            <option value="10px">10 px</option>
-                            <option value="11px">11 px</option>
-                            <option value="12px">12 px</option>
-                            <option value="13px">13 px</option>
-                            <option value="14px">14 px</option>
-                            <option value="16px">16 px</option>
-                            <option value="18px">18 px</option>
-                            <option value="20px">20 px</option>
-                            <option value="24px">24 px</option>
-                            <option value="28px">28 px</option>
-                        </select>
-                        <button onclick="const p = document.createElement('p'); p.style.margin = '10px 0'; p.style.minHeight = '1.2em'; p.style.width = '100%'; p.style.clear = 'both'; p.style.fontSize = '12px'; p.innerText = 'Nova vrstica besedila...'; const sel = window.getSelection(); if (sel.rangeCount) { const range = sel.getRangeAt(0); range.insertNode(p); } else { document.querySelector('.editable-area').appendChild(p); }" style="background: white; border: none; border-radius: 4px; height: 28px; padding: 0 8px; font-size: 12px; cursor: pointer; color: #000; font-weight: bold;" title="Dodaj vrstico besedila preko cele strani">+ Dodaj vrstico</button>
-                    </div>
-                    <div style="font-size: 12px; color: #475569; margin-left: 5px;">💾 Spremembe besedila se samodejno shranjujejo.</div>
+                    <div style="font-size: 12px; color: #475569; margin-left: 10px;">💾 Spremembe besedila se samodejno shranjujejo v kalkulacijo.</div>
                 </div>
                 <div class="editable-area" contenteditable="true" style="padding: 20px;">
                     ${contentToRender}
@@ -4839,6 +4852,7 @@
                         area.addEventListener('blur', sync);
                         window.addEventListener('beforeunload', sync);
                     }
+
                     document.addEventListener('keydown', function(e) {
                         if (e.key === 'Enter') {
                             let selection = window.getSelection();
