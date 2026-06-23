@@ -432,8 +432,11 @@
                     <label for="calc-cust-email">E-mail stranke</label>
                     <div style="display: flex; gap: 0.2rem; position: relative;">
                         <input type="text" id="calc-cust-email" placeholder="E-mail" list="email-list" style="flex: 1;">
-                        <button onclick="toggleEmailDropdown()" style="width: 35px; background: #3b82f6; border: none; border-radius: 8px; color: white; cursor: pointer;">▼</button>
-                        <div id="email-dropdown-list" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 1000; margin-top: 5px;"></div>
+                        <button onclick="toggleEmailDropdown()"
+                            style="width: 35px; background: #3b82f6; border: none; border-radius: 8px; color: white; cursor: pointer;">▼</button>
+                        <div id="email-dropdown-list"
+                            style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 1000; margin-top: 5px;">
+                        </div>
                     </div>
                     <datalist id="email-list"></datalist>
                 </div>
@@ -514,7 +517,8 @@
                 style="margin-top: 15px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 10px;">
                 <input type="number" id="calc-given-sheets" placeholder="Vpiši dodatek..."
                     style="width: 100%; text-align: center; font-size: 1.25rem; font-weight: bold; border: none; background: transparent; padding: 5px; color: #ffffff; outline: none;">
-                <div class="label" style="text-align: center; color: var(--text-muted); font-size: 0.8rem;">Dodatne kuverte tiskarju (samo za nalog)</div>
+                <div class="label" style="text-align: center; color: var(--text-muted); font-size: 0.8rem;">Dodatne
+                    kuverte tiskarju (samo za nalog)</div>
             </div>
         </div>
 
@@ -810,6 +814,12 @@
     </div>
 
     <script>
+        var g_editedQuoteHTML = '';
+        var g_editedQuoteATHTML = '';
+        var g_editedWorkOrderHTML = '';
+        window.g_editedQuoteHTML = g_editedQuoteHTML;
+        window.g_editedQuoteATHTML = g_editedQuoteATHTML;
+        window.g_editedWorkOrderHTML = g_editedWorkOrderHTML;
         let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
         renderBasket();
 
@@ -1016,29 +1026,8 @@
                     </div>
                 `;
             });
-            return `
-                <html>
-                <head>
-                    <style>
-                        body { font-family: sans-serif; padding: 40px; }
-                        h1 { color: #1e293b; font-size: 24px; border-bottom: 2px solid #f99c26; padding-bottom: 10px; }
-                        .header-line { border-bottom: 2px solid #f99c26; margin-bottom: 20px; padding-bottom: 10px; }
-                        .brand-name { font-size: 32px; font-weight: bold; color: #f99c26; text-transform: uppercase; }
-                        .brand-sub { font-size: 12px; color: #64748b; letter-spacing: 2px; }
-                        .info-grid { display: flex; justify-content: space-between; margin-bottom: 30px; }
-                        .customer-box { width: 60%; }
-                        .meta-box { width: 30%; font-size: 12px; }
-                        .meta-table { width: 100%; border-collapse: collapse; }
-                        .meta-table td { padding: 2px 5px; }
-                        .footer-notes { font-size: 9px; color: #64748b; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-                        .signature-section { margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; }
-                        .prepared-by { font-weight: bold; }
-                        @media print {
-                            .no-print { display: none; }
-                        }
-                    </style>
-                </head>
-                <body>
+
+            const defaultContent = `
                     <div class="header-line">
                         <table style="width: 100%;">
                             <tr>
@@ -1102,6 +1091,124 @@
                             ${isAT ? 'Dieses Angebot hat für Sie erstellt:' : 'Kalkulacijo pripravil:'} ${preparedBy}
                         </div>
                     </div>
+            `;
+
+            const contentToRender = isAT
+                ? (window.g_editedQuoteATHTML ? window.g_editedQuoteATHTML : defaultContent)
+                : (window.g_editedQuoteHTML ? window.g_editedQuoteHTML : defaultContent);
+
+            if (isWord) {
+                return `<html><body>${contentToRender}</body></html>`;
+            }
+
+            return `
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <style>
+                        body { font-family: 'Arial', sans-serif; padding: ${isWord ? '10px' : '0'}; color: #000; line-height: 1.1; font-size: 11px; margin: 0; }
+                        h1 { color: #1e293b; font-size: 14px; font-weight: bold; margin-top: 10px; margin-bottom: 5px; letter-spacing: 1px; border-bottom: 1px solid #000; padding-bottom: 3px; }
+                        .header-line { border-bottom: 2px solid #f99c26; margin-bottom: 20px; padding-bottom: 10px; }
+                        .brand-name { font-size: 32px; font-weight: bold; color: #f99c26; text-transform: uppercase; }
+                        .brand-sub { font-size: 12px; color: #64748b; letter-spacing: 2px; }
+                        .info-grid { display: flex; justify-content: space-between; margin-bottom: 30px; }
+                        .customer-box { width: 60%; }
+                        .meta-box { width: 30%; font-size: 12px; }
+                        .meta-table { width: 100%; border-collapse: collapse; }
+                        .meta-table td { padding: 2px 5px; }
+                        .footer-notes { font-size: 9px; color: #64748b; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+                        .signature-section { margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; }
+                        .prepared-by { font-weight: bold; }
+                        @media print {
+                            .no-print { display: none !important; }
+                        }
+                        .editable-area:focus { outline: 2px dashed #f99c26; background-color: #fffbeb; }
+                        .editable-area p, .editable-area div:not(.header-top) { margin: 0; padding: 0; }
+                        .editable-area { word-wrap: break-word; overflow-wrap: break-word; }
+                    </style>
+                </head>
+                <body>
+                    <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 15px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%; flex-wrap: wrap;">
+                        <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI PONUDBO</button>
+                        <button onclick="exportQuoteWord(${isAT})" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">SHRANI V WORD</button>
+                        <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
+                        <button onclick="if(confirm('Ali želite ponastaviti ponudbo na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){ if(${isAT}) { window.opener.g_editedQuoteATHTML=''; } else { window.opener.g_editedQuoteHTML=''; } } window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
+                        
+                        <div style="display: flex; gap: 4px; align-items: center; background: #cbd5e1; padding: 3px; border-radius: 6px;">
+                            <button onclick="document.execCommand('bold', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-weight: bold; cursor: pointer; color: #000; font-size: 14px;" title="Krepko (Bold)">B</button>
+                            <button onclick="document.execCommand('italic', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-style: italic; cursor: pointer; color: #000; font-size: 14px; font-family: Georgia, serif;" title="Ležeče (Italic)">I</button>
+                            <button onclick="document.execCommand('underline', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; text-decoration: underline; cursor: pointer; color: #000; font-size: 14px;" title="Podčrtano (Underline)">U</button>
+                            <select onchange="const sel = window.getSelection(); if (sel.rangeCount) { const range = sel.getRangeAt(0); if (range.toString().length > 0) { const span = document.createElement('span'); span.style.fontSize = this.value; span.appendChild(range.extractContents()); range.insertNode(span); } }; this.value='';" style="background: white; border: none; border-radius: 4px; height: 28px; padding: 0 5px; font-size: 12px; cursor: pointer; color: #000; width: 90px;" title="Velikost pisave">
+                                <option value="" disabled selected>Velikost</option>
+                                <option value="9px">9 px</option>
+                                <option value="10px">10 px</option>
+                                <option value="11px">11 px</option>
+                                <option value="12px">12 px</option>
+                                <option value="13px">13 px</option>
+                                <option value="14px">14 px</option>
+                                <option value="16px">16 px</option>
+                                <option value="18px">18 px</option>
+                                <option value="20px">20 px</option>
+                                <option value="24px">24 px</option>
+                                <option value="28px">28 px</option>
+                            </select>
+                            <button onclick="const p = document.createElement('p'); p.style.margin = '10px 0'; p.style.minHeight = '1.2em'; p.style.width = '100%'; p.style.clear = 'both'; p.style.fontSize = '12px'; p.innerText = 'Nova vrstica besedila...'; const sel = window.getSelection(); if (sel.rangeCount) { const range = sel.getRangeAt(0); range.insertNode(p); } else { document.querySelector('.editable-area').appendChild(p); }" style="background: white; border: none; border-radius: 4px; height: 28px; padding: 0 8px; font-size: 12px; cursor: pointer; color: #000; font-weight: bold;" title="Dodaj vrstico besedila preko cele strani">+ Dodaj vrstico</button>
+                        </div>
+                        <div style="font-size: 12px; color: #475569; margin-left: 5px;">💾 Spremembe besedila se samodejno shranjujejo v kalkulacijo.</div>
+                    </div>
+                    <div class="editable-area" contenteditable="true" style="padding: 30px;">
+                        ${contentToRender}
+                    </div>
+                    <script>
+                        // Sync changes to parent window
+                        const area = document.querySelector('.editable-area');
+                        if (area) {
+                            const sync = () => {
+                                if (window.opener && !window.opener.closed) {
+                                    if (${isAT}) {
+                                        window.opener.g_editedQuoteATHTML = area.innerHTML;
+                                    } else {
+                                        window.opener.g_editedQuoteHTML = area.innerHTML;
+                                    }
+                                }
+                            };
+                            area.addEventListener('input', sync);
+                            area.addEventListener('blur', sync);
+                            window.addEventListener('beforeunload', sync);
+                        }
+
+                        function exportQuoteWord(isAT) {
+                            const content = document.querySelector('.editable-area').innerHTML;
+                            const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
+                            const footer = "</body></html>";
+                            const sourceHTML = header + content + footer;
+                            const blob = new Blob(['\\ufeff', sourceHTML], { type: 'application/msword' });
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = isAT ? 'Angebot.doc' : 'Ponudba.doc';
+                            link.click();
+                            URL.revokeObjectURL(url);
+                        }
+
+                        document.addEventListener('keydown', function(e) {
+                            if (e.key === 'Enter') {
+                                let selection = window.getSelection();
+                                if (!selection.rangeCount) return;
+                                let container = selection.getRangeAt(0).commonAncestorContainer;
+                                let editable = null;
+                                if (container.nodeType === 1) {
+                                    editable = container.closest('[contenteditable="true"]');
+                                } else if (container.parentNode) {
+                                    editable = container.parentNode.closest('[contenteditable="true"]');
+                                }
+                                if (editable) {
+                                    e.preventDefault();
+                                    document.execCommand('insertLineBreak', false, null);
+                                }
+                            }
+                        });
+                    <\/script>
                 </body>
                 </html>
             `;
@@ -1207,32 +1314,7 @@
 
             let finishList = getActiveFinishingList();
 
-            let html = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <title>Delovni Nalog - ${dnNum || product}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.25; color: #000; margin: 0; padding: 0; }
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
-                    td, th { padding: 2px 0; vertical-align: top; }
-                    .header-top { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
-                    .bold { font-weight: bold; }
-                    .title { font-size: 16px; font-weight: bold; text-transform: uppercase; }
-                    .row-divider { border-top: 1px dashed #000; margin: 10px 0; }
-                    .urgent { color: red; font-size: 18px; font-weight: bold; text-transform: uppercase; }
-                    @media print { .no-print { display: none !important; } }
-                    .editable-area:focus { outline: 2px dashed #3b82f6; background-color: #eff6ff; }
-                </style>
-            </head>
-            <body>
-                <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 10px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
-                    <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI DN</button>
-                    <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
-                    <div style="font-size: 12px; color: #475569; margin-left: 10px;">💡 Kliknite na poljubno besedilo spodaj, da ga spremenite pred tiskom.</div>
-                </div>
-                <div class="editable-area" contenteditable="true" style="padding: 20px;">
+            const defaultContent = `
                 <div class="header-top">
                     <div style="width: 50%;">
                         <div class="bold" style="font-size: 14px;">${customer} &nbsp;&nbsp;&nbsp; (Šifra stranke: ${customerCode})</div>
@@ -1343,8 +1425,92 @@
                         <td style="width: 25%; text-align: right;"><span class="bold">Skupaj:</span> ${formatPrice(calcRes.finalTotal, 2)} €</td>
                     </tr>
                 </table>
+            `;
 
+            const contentToRender = window.g_editedWorkOrderHTML ? window.g_editedWorkOrderHTML : defaultContent;
+
+            return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Delovni Nalog - ${dnNum || product}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.25; color: #000; margin: 0; padding: 0; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+                    td, th { padding: 2px 0; vertical-align: top; }
+                    .header-top { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
+                    .bold { font-weight: bold; }
+                    .title { font-size: 16px; font-weight: bold; text-transform: uppercase; }
+                    .row-divider { border-top: 1px dashed #000; margin: 10px 0; }
+                    .urgent { color: red; font-size: 18px; font-weight: bold; text-transform: uppercase; }
+                    @media print { .no-print { display: none !important; } }
+                    .editable-area:focus { outline: 2px dashed #3b82f6; background-color: #eff6ff; }
+                </style>
+            </head>
+            <body>
+                <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 15px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%; flex-wrap: wrap;">
+                    <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI DN</button>
+                    <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
+                    <button onclick="if(confirm('Ali želite ponastaviti delovni nalog na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.g_editedWorkOrderHTML='';} window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
+                    
+                    <div style="display: flex; gap: 4px; align-items: center; background: #cbd5e1; padding: 3px; border-radius: 6px;">
+                        <button onclick="document.execCommand('bold', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-weight: bold; cursor: pointer; color: #000; font-size: 14px;" title="Krepko (Bold)">B</button>
+                        <button onclick="document.execCommand('italic', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-style: italic; cursor: pointer; color: #000; font-size: 14px; font-family: Georgia, serif;" title="Ležeče (Italic)">I</button>
+                        <button onclick="document.execCommand('underline', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; text-decoration: underline; cursor: pointer; color: #000; font-size: 14px;" title="Podčrtano (Underline)">U</button>
+                        <select onchange="const sel = window.getSelection(); if (sel.rangeCount) { const range = sel.getRangeAt(0); if (range.toString().length > 0) { const span = document.createElement('span'); span.style.fontSize = this.value; span.appendChild(range.extractContents()); range.insertNode(span); } }; this.value='';" style="background: white; border: none; border-radius: 4px; height: 28px; padding: 0 5px; font-size: 12px; cursor: pointer; color: #000; width: 90px;" title="Velikost pisave">
+                            <option value="" disabled selected>Velikost</option>
+                            <option value="9px">9 px</option>
+                            <option value="10px">10 px</option>
+                            <option value="11px">11 px</option>
+                            <option value="12px">12 px</option>
+                            <option value="13px">13 px</option>
+                            <option value="14px">14 px</option>
+                            <option value="16px">16 px</option>
+                            <option value="18px">18 px</option>
+                            <option value="20px">20 px</option>
+                            <option value="24px">24 px</option>
+                            <option value="28px">28 px</option>
+                        </select>
+                        <button onclick="const p = document.createElement('p'); p.style.margin = '10px 0'; p.style.minHeight = '1.2em'; p.style.width = '100%'; p.style.clear = 'both'; p.style.fontSize = '12px'; p.innerText = 'Nova vrstica besedila...'; const sel = window.getSelection(); if (sel.rangeCount) { const range = sel.getRangeAt(0); range.insertNode(p); } else { document.querySelector('.editable-area').appendChild(p); }" style="background: white; border: none; border-radius: 4px; height: 28px; padding: 0 8px; font-size: 12px; cursor: pointer; color: #000; font-weight: bold;" title="Dodaj vrstico besedila preko cele strani">+ Dodaj vrstico</button>
+                    </div>
+                    <div style="font-size: 12px; color: #475569; margin-left: 5px;">💾 Spremembe besedila se samodejno shranjujejo v kalkulacijo.</div>
                 </div>
+                <div class="editable-area" contenteditable="true" style="padding: 20px;">
+                    ${contentToRender}
+                </div>
+                <script>
+                    // Sync changes to parent window
+                    const area = document.querySelector('.editable-area');
+                    if (area) {
+                        const sync = () => {
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.g_editedWorkOrderHTML = area.innerHTML;
+                            }
+                        };
+                        area.addEventListener('input', sync);
+                        area.addEventListener('blur', sync);
+                        window.addEventListener('beforeunload', sync);
+                    }
+
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') {
+                            let selection = window.getSelection();
+                            if (!selection.rangeCount) return;
+                            let container = selection.getRangeAt(0).commonAncestorContainer;
+                            let editable = null;
+                            if (container.nodeType === 1) {
+                                  editable = container.closest('[contenteditable="true"]');
+                            } else if (container.parentNode) {
+                                  editable = container.parentNode.closest('[contenteditable="true"]');
+                            }
+                            if (editable) {
+                                e.preventDefault();
+                                document.execCommand('insertLineBreak', false, null);
+                            }
+                        }
+                    });
+                <\/script>
             </body>
             </html>
             `;
@@ -1387,52 +1553,20 @@
         }
 
         function openQuotePreview(isAT = false) {
-            const quoteHTML = getQuoteHTML(false, isAT);
-            const previewWindow = window.open('', '', 'width=900,height=900');
-
-            const toolbarHTML = `
-                <div id="preview-toolbar" style="background: #1e293b; padding: 15px; display: flex; gap: 10px; justify-content: center; position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid #f99c26;">
-                    <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px;">
-                        <span>🖨️</span> Natisni Ponudbo
-                    </button>
-                    <button id="btn-word" style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px;">
-                        <span>📝</span> Shrani v Word
-                    </button>
-                    <button onclick="window.close()" style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                        Zapri
-                    </button>
-                </div>
-                <style>
-                    @media print { #preview-toolbar { display: none !important; } body { padding: 0 !important; } }
-                </style>
-            `;
-
-            previewWindow.document.write(toolbarHTML + quoteHTML);
-
-            // Add Word export logic to the new window
-            const script = previewWindow.document.createElement('script');
-            script.text = `
-                document.getElementById('btn-word').onclick = function() {
-                    const content = document.body.innerHTML;
-                    // Remove the toolbar from the content
-                    const cleanContent = content.split('</style>')[1]; 
-                    
-                    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
-                    const footer = "</body></html>";
-                    const sourceHTML = header + cleanContent + footer;
-                    
-                    const blob = new Blob(['\\ufeff', sourceHTML], { type: 'application/msword' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'Ponudba.doc';
-                    link.click();
-                    URL.revokeObjectURL(url);
-                };
-            `;
-            previewWindow.document.body.appendChild(script);
-            previewWindow.document.close();
+            try {
+                const html = getQuoteHTML(false, isAT);
+                const previewWindow = window.open('', '', 'width=950,height=900');
+                if (previewWindow) {
+                    previewWindow.document.write(html);
+                    previewWindow.document.close();
+                    previewWindow.focus();
+                } else {
+                    alert("Pojavno okno je blokirano. Prosimo, dovolite pojavna okna za to stran.");
+                }
+            } catch (e) {
+                alert("Napaka pri pripravi ponudbe: " + e.message);
+                console.error(e);
+            }
         }
 
         const sheetB3 = { w: 500, h: 350, name: "B3" };
@@ -1897,7 +2031,7 @@
             var listDiv = document.getElementById('email-dropdown-list');
             if (!listDiv) return;
             listDiv.innerHTML = "";
-            
+
             var datalist = document.getElementById('email-list');
             if (!datalist || datalist.options.length === 0) {
                 listDiv.innerHTML = '<div style="padding: 10px; color: #94a3b8; font-size: 0.8rem;">Ni shranjenih e-mailov.</div>';
@@ -2041,8 +2175,8 @@
                 if (emailTarget && emailDatalist) {
                     emailDatalist.innerHTML = "";
                     var emailsArray = Array.from(uniqueEmails);
-                    
-                    emailsArray.forEach(function(em) {
+
+                    emailsArray.forEach(function (em) {
                         var opt = document.createElement('option');
                         opt.value = em;
                         emailDatalist.appendChild(opt);
@@ -2075,6 +2209,9 @@
                 preparedBy: document.getElementById('calc-prepared-by').value,
                 materialCode: document.getElementById('calc-material-code').value,
                 notes: document.getElementById('calc-notes') ? document.getElementById('calc-notes').value : '',
+                editedQuoteHTML: window.g_editedQuoteHTML || '',
+                editedQuoteATHTML: window.g_editedQuoteATHTML || '',
+                editedWorkOrderHTML: window.g_editedWorkOrderHTML || '',
                 inputs: {
                     item_w: document.getElementById('width').value,
                     item_h: document.getElementById('height').value,
@@ -2137,6 +2274,9 @@
                     preparedBy: document.getElementById('calc-prepared-by').value,
                     materialCode: document.getElementById('calc-material-code').value,
                     notes: document.getElementById('calc-notes') ? document.getElementById('calc-notes').value : '',
+                    editedQuoteHTML: window.g_editedQuoteHTML || '',
+                    editedQuoteATHTML: window.g_editedQuoteATHTML || '',
+                    editedWorkOrderHTML: window.g_editedWorkOrderHTML || '',
                     timestamp: Date.now(),
                     inputs: {
                         item_w: document.getElementById('width').value,
@@ -2234,6 +2374,13 @@
             setV('calc-prepared-by', proj.preparedBy);
             setV('calc-material-code', proj.materialCode);
             setV('calc-notes', proj.notes);
+
+            g_editedQuoteHTML = proj.editedQuoteHTML || '';
+            g_editedQuoteATHTML = proj.editedQuoteATHTML || '';
+            g_editedWorkOrderHTML = proj.editedWorkOrderHTML || '';
+            window.g_editedQuoteHTML = g_editedQuoteHTML;
+            window.g_editedQuoteATHTML = g_editedQuoteATHTML;
+            window.g_editedWorkOrderHTML = g_editedWorkOrderHTML;
 
             setV('width', inp.item_w);
             setV('height', inp.item_h);
