@@ -1433,7 +1433,12 @@
         document.addEventListener('input', (e) => updateInputStyles(e.target));
         document.addEventListener('change', (e) => updateInputStyles(e.target));
         var g_editedQuoteHTML = '';
+        var g_editedQuoteATHTML = '';
         var g_editedWorkOrderHTML = '';
+        var currentLoadedProjectId = null;
+        var prevQuoteHTML = null;
+        var prevQuoteATHTML = null;
+        var prevDNHTML = null;
         
         function updateCustomDocsPreview() {
             var container = document.getElementById('custom-docs-preview');
@@ -1484,6 +1489,50 @@
             qCard.appendChild(qLabel);
             container.appendChild(qCard);
             
+            // Ponudba AT
+            var hasQuoteAT = (typeof g_editedQuoteATHTML !== 'undefined' && g_editedQuoteATHTML.trim() !== "");
+            var qaCard = document.createElement('div');
+            qaCard.style.width = "70px";
+            qaCard.style.height = "99px";
+            qaCard.style.border = hasQuoteAT ? "2px solid #ef4444" : "1px dashed #64748b";
+            qaCard.style.background = hasQuoteAT ? "#fef2f2" : "transparent";
+            qaCard.style.borderRadius = "4px";
+            qaCard.style.cursor = "pointer";
+            qaCard.style.display = "flex";
+            qaCard.style.flexDirection = "column";
+            qaCard.style.alignItems = "center";
+            qaCard.style.justifyContent = "center";
+            qaCard.style.boxShadow = hasQuoteAT ? "0 4px 6px rgba(0,0,0,0.1)" : "none";
+            qaCard.style.position = "relative";
+            qaCard.style.transition = "all 0.2s";
+            qaCard.title = hasQuoteAT ? "Ponudba AT (prilagojena) - Klikni za odpiranje" : "Ponudba AT (avtomatska) - Klikni za odpiranje";
+            qaCard.onclick = function() { printQuoteAT(); };
+            qaCard.onmouseover = function() { this.style.transform = "scale(1.05)"; };
+            qaCard.onmouseout = function() { this.style.transform = "scale(1)"; };
+            
+            var qaLabel = document.createElement('div');
+            qaLabel.style.fontSize = "10px";
+            qaLabel.style.fontWeight = "bold";
+            qaLabel.style.color = hasQuoteAT ? "#b91c1c" : "#94a3b8";
+            qaLabel.innerText = "PON. AT";
+            
+            if (hasQuoteAT) {
+                var checkAT = document.createElement('div');
+                checkAT.innerHTML = "✎";
+                checkAT.style.fontSize = "24px";
+                checkAT.style.color = "#ef4444";
+                qaCard.appendChild(checkAT);
+            } else {
+                var fileIconAT = document.createElement('div');
+                fileIconAT.innerHTML = "📄";
+                fileIconAT.style.fontSize = "20px";
+                fileIconAT.style.color = "#94a3b8";
+                fileIconAT.style.opacity = "0.5";
+                qaCard.appendChild(fileIconAT);
+            }
+            qaCard.appendChild(qaLabel);
+            container.appendChild(qaCard);
+            
             // Delovni nalog
             var hasDN = (typeof g_editedWorkOrderHTML !== 'undefined' && g_editedWorkOrderHTML.trim() !== "");
             var dCard = document.createElement('div');
@@ -1527,6 +1576,18 @@
             }
             dCard.appendChild(dLabel);
             container.appendChild(dCard);
+            
+            var changed = false;
+            if (prevQuoteHTML !== null && g_editedQuoteHTML !== prevQuoteHTML) changed = true;
+            if (prevQuoteATHTML !== null && g_editedQuoteATHTML !== prevQuoteATHTML) changed = true;
+            if (prevDNHTML !== null && g_editedWorkOrderHTML !== prevDNHTML) changed = true;
+            prevQuoteHTML = g_editedQuoteHTML;
+            prevQuoteATHTML = g_editedQuoteATHTML;
+            prevDNHTML = g_editedWorkOrderHTML;
+            
+            if (changed && currentLoadedProjectId) {
+                saveCurrentProject(null, true);
+            }
         }
         // Osvežuj predogled vsako sekundo (ker se podatki urejajo v drugem oknu)
         setInterval(updateCustomDocsPreview, 1000);
@@ -3900,17 +3961,19 @@
                 custInput.addEventListener('blur', function (e) { handleCustomerUpdate(e.target.value); });
             }
         } catch (e) { alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack); logDebug("Napaka pri povezovanju dogodkov: " + e.message, true); }
-        function saveCurrentProject(btn = null) {
+        function saveCurrentProject(btn = null, silent = false) {
             try {
                 let name = document.getElementById('calc-project-name').value.trim();
                 if (!name) {
-                    alert("Prosimo vnesite izdelek (polje 'Vnesite izdelek' zgoraj levo)!");
+                    if (!silent) alert("Prosimo vnesite izdelek (polje 'Vnesite izdelek' zgoraj levo)!");
                     return;
                 }
                 function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
                 function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
+                
+                var projectId = currentLoadedProjectId ? currentLoadedProjectId : Date.now();
                 const data = {
-                    id: Date.now(),
+                    id: projectId,
                     name: name,
                     _source: 'pola',
                     date: new Date().toLocaleString('de-DE'),
@@ -3925,6 +3988,7 @@
                     materialCode: gv('calc-material-code'),
                     notes: gv('calc-notes'),
                     editedQuoteHTML: g_editedQuoteHTML,
+                    editedQuoteATHTML: g_editedQuoteATHTML,
                     editedWorkOrderHTML: g_editedWorkOrderHTML,
                     inputs: {
                         machine_format: gv('machine-format'),
@@ -3977,20 +4041,26 @@
                     }
                 };
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                if (currentLoadedProjectId) {
+                    arhiv = arhiv.filter(p => p.id !== currentLoadedProjectId);
+                }
                 arhiv.push(data);
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
+                currentLoadedProjectId = projectId;
                 renderSavedProjects();
                 updateCustomerDatalist();
-                if (btn) {
-                    const oldHTML = btn.innerHTML;
-                    btn.innerHTML = "' SHRANJENO";
-                    btn.style.background = "#10b981";
-                    setTimeout(() => {
-                        btn.innerHTML = oldHTML;
-                        btn.style.background = "#8b5cf6";
-                    }, 2000);
-                } else {
-                    alert("Projekt '" + name + "' uspešno shranjen v arhiv!");
+                if (!silent) {
+                    if (btn) {
+                        const oldHTML = btn.innerHTML;
+                        btn.innerHTML = " ✓ SHRANJENO";
+                        btn.style.background = "#10b981";
+                        setTimeout(() => {
+                            btn.innerHTML = oldHTML;
+                            btn.style.background = "#8b5cf6";
+                        }, 2000);
+                    } else {
+                        alert("Projekt '" + name + "' uspešno shranjen v arhiv!");
+                    }
                 }
             } catch (err) {
                 alert("Napaka pri shranjevanju: " + err.message);
@@ -4017,6 +4087,7 @@
                     materialCode: gv('calc-material-code'),
                     notes: gv('calc-notes'),
                     editedQuoteHTML: g_editedQuoteHTML,
+                    editedQuoteATHTML: g_editedQuoteATHTML,
                     editedWorkOrderHTML: g_editedWorkOrderHTML,
                     inputs: {
                         machine_format: gv('machine-format'),
@@ -4292,6 +4363,7 @@
             }
             if (!proj || !proj.inputs) return;
             g_editedQuoteHTML = proj.editedQuoteHTML || '';
+            g_editedQuoteATHTML = proj.editedQuoteATHTML || '';
             g_editedWorkOrderHTML = proj.editedWorkOrderHTML || '';
             const inp = proj.inputs;
             document.getElementById('calc-customer').value = proj.customer || "";
@@ -4427,6 +4499,7 @@
             let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
             let proj = arhiv.find(p => p.id === id);
             if (!proj) return;
+            currentLoadedProjectId = id;
             // Prikaži samo projekte pola (ali stare brez tipa)
             arhiv = arhiv.filter(p => !p.calcType || p.calcType === 'tiskovna-pola' || p._source === 'pola');
             loadProjectData(proj);
@@ -4451,6 +4524,7 @@
                     materialCode: document.getElementById('calc-material-code').value,
                     timestamp: Date.now(),
                     editedQuoteHTML: g_editedQuoteHTML,
+                    editedQuoteATHTML: g_editedQuoteATHTML,
                     editedWorkOrderHTML: g_editedWorkOrderHTML,
                     inputs: {
                         machine_format: document.getElementById('machine-format').value,
@@ -4668,7 +4742,9 @@
                     <p class="notes">${isAT ? 'Dieses Angebot ist gültig für 30 Tage. Zahlung erfolgt nach 30 Tagen ab Lieferung der Ware. Wir danken Ihnen für Ihre mögliche Bestellung, and wünschen Ihnen einen angenehmen Tag.' : 'Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.'}</p>
                     <div style="margin-top: 10px; font-size: 10px; font-style: italic;">${isAT ? 'Dieses Angebot hat für Sie erstellt:' : 'Kalkulacijo pripravil:'} ${preparedBy}</div>
             `;
-            const contentToRender = (typeof g_editedQuoteHTML !== 'undefined' && g_editedQuoteHTML) ? g_editedQuoteHTML : defaultContent;
+            const contentToRender = (isAT && typeof g_editedQuoteATHTML !== 'undefined' && g_editedQuoteATHTML) ? g_editedQuoteATHTML : 
+                                    (!isAT && typeof g_editedQuoteHTML !== 'undefined' && g_editedQuoteHTML) ? g_editedQuoteHTML : defaultContent;
+            const editedHTMLVar = isAT ? 'g_editedQuoteATHTML' : 'g_editedQuoteHTML';
 
             return `
                 ${htmlHeader}
@@ -4691,7 +4767,7 @@
                     <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 15px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
                         <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI PONUDBO</button>
                         <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
-                        <button onclick="if(confirm('Ali želite ponastaviti ponudbo na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.g_editedQuoteHTML='';} window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
+                        <button onclick="if(confirm('Ali želite ponastaviti ponudbo na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.${editedHTMLVar}='';} window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
                         
                         <div style="display: flex; gap: 4px; align-items: center; background: #cbd5e1; padding: 3px; border-radius: 6px;">
                             <button onclick="document.execCommand('bold', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-weight: bold; cursor: pointer; color: #000; font-size: 14px;" title="Krepko (Bold)">B</button>
@@ -4725,7 +4801,7 @@
                         if (area) {
                             const sync = () => {
                                 if (window.opener && !window.opener.closed) {
-                                    window.opener.g_editedQuoteHTML = area.innerHTML;
+                                    window.opener.${editedHTMLVar} = area.innerHTML;
                                 }
                             };
                             area.addEventListener('input', sync);
