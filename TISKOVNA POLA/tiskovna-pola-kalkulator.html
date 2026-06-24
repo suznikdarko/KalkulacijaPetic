@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="sl">
 
 <head>
@@ -550,6 +550,8 @@
                     <option value="Sašo Slemenšek">Sašo Slemenšek</option>
                     <option value="Tilen Petrič">Tilen Petrič</option>
                 </select>
+                <!-- Predogled dokumentov -->
+                <div id="custom-docs-preview" style="display: flex; gap: 10px; margin-top: 10px; justify-content: center;"></div>
             </div>
             <div class="header-group"
                 style="grid-column: span 4; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; background: rgba(15, 23, 42, 0.4); padding: 15px; border-radius: 12px; border: 1px dashed var(--glass-border);">
@@ -1432,6 +1434,103 @@
         document.addEventListener('change', (e) => updateInputStyles(e.target));
         let g_editedQuoteHTML = '';
         let g_editedWorkOrderHTML = '';
+        
+        function updateCustomDocsPreview() {
+            var container = document.getElementById('custom-docs-preview');
+            if (!container) return;
+            container.innerHTML = "";
+            
+            // Ponudba
+            var hasQuote = (typeof g_editedQuoteHTML !== 'undefined' && g_editedQuoteHTML.trim() !== "");
+            var qCard = document.createElement('div');
+            qCard.style.width = "70px";
+            qCard.style.height = "99px"; // A4 aspect ratio
+            qCard.style.border = hasQuote ? "2px solid #10b981" : "1px dashed #64748b";
+            qCard.style.background = hasQuote ? "#ecfdf5" : "transparent";
+            qCard.style.borderRadius = "4px";
+            qCard.style.cursor = "pointer";
+            qCard.style.display = "flex";
+            qCard.style.flexDirection = "column";
+            qCard.style.alignItems = "center";
+            qCard.style.justifyContent = "center";
+            qCard.style.boxShadow = hasQuote ? "0 4px 6px rgba(0,0,0,0.1)" : "none";
+            qCard.style.position = "relative";
+            qCard.style.transition = "all 0.2s";
+            qCard.title = hasQuote ? "Ponudba (prilagojena) - Klikni za odpiranje" : "Ponudba (avtomatska) - Klikni za odpiranje";
+            qCard.onclick = function() { printQuote(); };
+            qCard.onmouseover = function() { this.style.transform = "scale(1.05)"; };
+            qCard.onmouseout = function() { this.style.transform = "scale(1)"; };
+            
+            var qLabel = document.createElement('div');
+            qLabel.style.fontSize = "10px";
+            qLabel.style.fontWeight = "bold";
+            qLabel.style.color = hasQuote ? "#047857" : "#94a3b8";
+            qLabel.innerText = "PONUDBA";
+            
+            if (hasQuote) {
+                var check = document.createElement('div');
+                check.innerHTML = "✎";
+                check.style.fontSize = "24px";
+                check.style.color = "#10b981";
+                qCard.appendChild(check);
+            } else {
+                var fileIcon = document.createElement('div');
+                fileIcon.innerHTML = "📄";
+                fileIcon.style.fontSize = "20px";
+                fileIcon.style.color = "#94a3b8";
+                fileIcon.style.opacity = "0.5";
+                qCard.appendChild(fileIcon);
+            }
+            qCard.appendChild(qLabel);
+            container.appendChild(qCard);
+            
+            // Delovni nalog
+            var hasDN = (typeof g_editedWorkOrderHTML !== 'undefined' && g_editedWorkOrderHTML.trim() !== "");
+            var dCard = document.createElement('div');
+            dCard.style.width = "70px";
+            dCard.style.height = "99px";
+            dCard.style.border = hasDN ? "2px solid #8b5cf6" : "1px dashed #64748b";
+            dCard.style.background = hasDN ? "#f5f3ff" : "transparent";
+            dCard.style.borderRadius = "4px";
+            dCard.style.cursor = "pointer";
+            dCard.style.display = "flex";
+            dCard.style.flexDirection = "column";
+            dCard.style.alignItems = "center";
+            dCard.style.justifyContent = "center";
+            dCard.style.boxShadow = hasDN ? "0 4px 6px rgba(0,0,0,0.1)" : "none";
+            dCard.style.position = "relative";
+            dCard.style.transition = "all 0.2s";
+            dCard.title = hasDN ? "Delovni Nalog (prilagojen) - Klikni za odpiranje" : "Delovni Nalog (avtomatski) - Klikni za odpiranje";
+            dCard.onclick = function() { printWorkOrder(); };
+            dCard.onmouseover = function() { this.style.transform = "scale(1.05)"; };
+            dCard.onmouseout = function() { this.style.transform = "scale(1)"; };
+            
+            var dLabel = document.createElement('div');
+            dLabel.style.fontSize = "10px";
+            dLabel.style.fontWeight = "bold";
+            dLabel.style.color = hasDN ? "#6d28d9" : "#94a3b8";
+            dLabel.innerText = "D. NALOG";
+            
+            if (hasDN) {
+                var dcheck = document.createElement('div');
+                dcheck.innerHTML = "✎";
+                dcheck.style.fontSize = "24px";
+                dcheck.style.color = "#8b5cf6";
+                dCard.appendChild(dcheck);
+            } else {
+                var dIcon = document.createElement('div');
+                dIcon.innerHTML = "📄";
+                dIcon.style.fontSize = "20px";
+                dIcon.style.color = "#94a3b8";
+                dIcon.style.opacity = "0.5";
+                dCard.appendChild(dIcon);
+            }
+            dCard.appendChild(dLabel);
+            container.appendChild(dCard);
+        }
+        // Osvežuj predogled vsako sekundo (ker se podatki urejajo v drugem oknu)
+        setInterval(updateCustomDocsPreview, 1000);
+
         let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
         renderBasket();
         updateWarnings();
@@ -3658,12 +3757,25 @@
                 list.style.display = 'block';
             }
         }
+        function getAllArchives() {
+            var keys = ['tisk_kalkulator_arhiv', 'kuverte_kalkulator_arhiv', 'darko_brosura_arhiv', 'darko_blok_arhiv'];
+            var combined = [];
+            for (var k = 0; k < keys.length; k++) {
+                try {
+                    var raw = localStorage.getItem(keys[k]);
+                    if (raw) {
+                        var parsed = JSON.parse(raw);
+                        if (Array.isArray(parsed)) {
+                            combined = combined.concat(parsed);
+                        }
+                    }
+                } catch (e) {}
+            }
+            return combined;
+        }
         function renderCustomerList() {
             try {
-                var raw = localStorage.getItem(STORAGE_KEY);
-                var arhiv = [];
-                if (raw) arhiv = JSON.parse(raw);
-                if (!Array.isArray(arhiv)) arhiv = [];
+                var arhiv = getAllArchives();
                 var customers = [];
                 for (var i = 0; i < arhiv.length; i++) {
                     var p = arhiv[i];
@@ -3704,10 +3816,7 @@
         }
         function updateCustomerDatalist() {
             try {
-                var raw = localStorage.getItem(STORAGE_KEY);
-                var arhiv = [];
-                if (raw) arhiv = JSON.parse(raw);
-                if (!Array.isArray(arhiv)) arhiv = [];
+                var arhiv = getAllArchives();
                 var customers = [];
                 for (var i = 0; i < arhiv.length; i++) {
                     var p = arhiv[i];
@@ -3740,10 +3849,7 @@
                 var search = val.trim().toLowerCase();
                 if (!search) return;
                 logDebug("Iščem šifro za: " + search);
-                var raw = localStorage.getItem(STORAGE_KEY);
-                var arhiv = [];
-                if (raw) arhiv = JSON.parse(raw);
-                if (!Array.isArray(arhiv)) return;
+                var arhiv = getAllArchives();
                 var foundMaterialCode = false;
                 var uniqueEmails = new Set();
                 // Iščemo od ZAČETKA (index 0)
