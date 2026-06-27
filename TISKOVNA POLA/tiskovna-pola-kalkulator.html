@@ -1531,7 +1531,8 @@
                         style="margin-top: 5px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3);">
 
                         <input type="number" id="calc-given-sheets" placeholder="Vpiši dodatek..."
-                            oninput="calculatePrice()" onchange="calculatePrice()"
+                            oninput="g_editedWorkOrderHTML = ''; calculatePrice()"
+                            onchange="g_editedWorkOrderHTML = ''; calculatePrice()"
                             style="width: 100%; text-align: center; font-size: 1.25rem; font-weight: bold; border: none; background: transparent; padding: 5px; color: #ffffff;">
 
                         <div class="label" style="text-align: center;">Dodatne pole tiskarju (samo za nalog)</div>
@@ -9411,7 +9412,7 @@
 
                         <tr>
 
-                            <td style="width: 50%; vertical-align: top;"><span style="font-size: 13px;"><strong>${customer}</strong></span><br>${custAddress ? custAddress.replace(/\n/g, '<br>') + '<br>' : ''}${custEmail ? custEmail + '<br>' : ''}${deliveryAddress ? '<br><strong>Dostava na naslov:</strong><br>' + deliveryAddress.replace(/\n/g, '<br>') : ''}</td>
+                            <td style="width: 50%; vertical-align: top;"><span style="font-size: 13px;"><strong>${customer}</strong></span><br>${custAddress ? custAddress.replace(/\n/g, '<br>') + '<br>' : ''}${custEmail ? custEmail + '<br>' : ''}</td>
 
                             <td style="width: 50%; vertical-align: top;" align="right"><table class="info-table" cellpadding="0" cellspacing="0"><tr><td>Datum</td><td>${date}</td></tr><tr><td>${isAT ? 'Kunde' : 'Šifra stranke'}</td><td>${customerCode}</td></tr><tr><td>${isAT ? 'Angebot' : 'Ponudba'}</td><td>${quoteNum}</td></tr></table></td>
 
@@ -9669,40 +9670,7 @@
 
             // Preračunaj vrednosti glede na dodatek
 
-            if (!isNaN(givenDodatekInput) && givenDodatekInput >= 0) {
-
-                const sourceYield = calcRes.details.paper.sourceYield || 1;
-
-                const newTotalSheets = calcRes.sheetsNeeded + givenDodatekInput;
-
-                const newSourceSheets = Math.ceil(newTotalSheets / sourceYield);
-
-
-
-                // Opozorilo: Namerno NE preračunamo skupne cene ali stroška papirja,
-
-                // saj želimo, da dodatek velja samo za prikaz na delovnem nalogu.
-
-                // Posodobi podrobnosti za prikaz
-
-                calcRes.details.paper.totalSheets = newTotalSheets;
-
-                calcRes.details.paper.sourceSheets = newSourceSheets;
-
-
-
-                // Shrani nove vrednosti za kasnejšo uporabo
-
-                calcRes.finalTotalSheets = newTotalSheets;
-
-                calcRes.finalSourceSheets = newSourceSheets;
-
-                calcRes.finalDodatek = givenDodatekInput;
-
-            }
-
             let d = calcRes.details;
-
 
 
             let customer = document.getElementById('calc-customer').value || "Ni vpisano";
@@ -9782,19 +9750,16 @@
             let physicalWasteSheets = totalSheets - calcRes.sheetsNeeded;
 
             let finalDodatek = physicalWasteSheets;
-
             let finalTotalSheets = totalSheets;
-
             let finalSourceSheets = sourceSheets;
 
+            let printMathString = `${calcRes.sheetsNeeded.toLocaleString('de-DE')} + ${finalDodatek.toLocaleString('de-DE')} = ${finalTotalSheets.toLocaleString('de-DE')} tisk. pol`;
+
             if (!isNaN(givenDodatekInput) && givenDodatekInput >= 0) {
-
                 finalDodatek = givenDodatekInput;
-
                 finalTotalSheets = calcRes.sheetsNeeded + givenDodatekInput;
-
                 finalSourceSheets = Math.ceil(finalTotalSheets / sourceYield);
-
+                printMathString = `${calcRes.sheetsNeeded.toLocaleString('de-DE')} pol + ${finalDodatek.toLocaleString('de-DE')} pol = ${finalTotalSheets.toLocaleString('de-DE')} pol`;
             }
 
             let prepPasses = front > 0 ? (Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0)) : 1;
@@ -9923,7 +9888,7 @@
 
                         <td>Tisk:</td>
 
-                        <td class="bold" style="width: 55%; white-space: nowrap;">${calcRes.sheetsNeeded.toLocaleString('de-DE')} + ${finalDodatek.toLocaleString('de-DE')} = ${finalTotalSheets.toLocaleString('de-DE')} tisk. pol &nbsp;&nbsp; (${mPasses}x skozi stroj)</td>
+                        <td class="bold" style="width: 55%; white-space: nowrap;">${printMathString} &nbsp;&nbsp; (${mPasses}x skozi stroj)</td>
 
                         <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">tisk:</span> ${roundedPrintTime.toFixed(2)} h</td>
 
@@ -10115,7 +10080,7 @@
 
                     <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
 
-                    <button onclick="if(confirm('Ali želite ponastaviti delovni nalog na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.g_editedWorkOrderHTML='';} window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
+                    <button onclick="if(confirm('Ali želite ponastaviti delovni nalog na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.g_editedWorkOrderHTML=''; window.close();} else { g_editedWorkOrderHTML=''; document.getElementById('modal-work-order').querySelector('.editable-area').innerHTML = getWorkOrderHTML(); } }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
 
                     
 
