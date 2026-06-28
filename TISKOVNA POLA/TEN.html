@@ -638,35 +638,30 @@
             </div>
 
             <div class="header-group"
-                style="grid-column: span 2; background: rgba(59, 130, 246, 0.1); padding: 10px; border-radius: 8px; border: 1px dashed rgba(59, 130, 246, 0.3); display: flex; gap: 1rem; align-items: flex-end;">
-                <div style="flex: 2;">
+                style="grid-column: span 4; background: rgba(59, 130, 246, 0.1); padding: 10px; border-radius: 8px; border: 1px dashed rgba(59, 130, 246, 0.3); display: flex; gap: 1rem; align-items: flex-end;">
+                <div style="flex: 3;">
                     <label>Osnovni format (Š x V)</label>
                     <div style="display: flex; gap: 0.3rem; align-items: center;">
                         <select id="calc-source-presets" onchange="applySourcePreset(this.value)"
-                            style="max-width: 130px; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; font-size: 0.8rem; padding: 0.5rem; color: white;">
+                            style="flex: 1.2; min-width: 120px; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; font-size: 0.8rem; padding: 0.5rem; color: white; border-radius: 6px;">
                             <option value="">Izberi...</option>
                             <option value="1000x700">1000 x 700</option>
                             <option value="900x640">900 x 640</option>
                         </select>
                         <input type="number" id="calc-source-w" value="" placeholder="Š"
+                            style="flex: 1; min-width: 70px; text-align: center; padding: 0.5rem;"
                             oninput="filterAvailableFormats(); calculate();">
                         <span style="color:var(--text-muted);">x</span>
                         <input type="number" id="calc-source-h" value="" placeholder="V"
+                            style="flex: 1; min-width: 70px; text-align: center; padding: 0.5rem;"
                             oninput="filterAvailableFormats(); calculate();">
                     </div>
                 </div>
-                <div style="flex: 1;">
+                <div style="flex: 1; min-width: 80px;">
                     <label>Izkoristek</label>
-                    <input type="number" id="calc-source-yield" value="2" onchange="calculate();">
+                    <input type="number" id="calc-source-yield" value="2" onchange="calculate();"
+                        style="padding: 0.5rem; text-align: center; width: 100%;">
                 </div>
-            </div>
-
-            <div class="header-group" style="grid-column: span 2; display: flex; gap: 0.5rem; align-items: flex-end;">
-                <button class="calculate-btn" onclick="calculate(true)"
-                    style="margin: 0; padding: 0.8rem; flex: 1; background: #3b82f6;">Izračunaj</button>
-                <button class="calculate-btn" onclick="document.getElementById('file-input').click()"
-                    style="margin: 0; padding: 0.8rem; flex: 1; background: #f59e0b;"
-                    title="Odpri shranjen projekt iz svoje mape">Odpri</button>
                 <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(event)"
                     accept=".pola.json,.json">
             </div>
@@ -951,7 +946,24 @@
                             <option value="SM4+lak">SM4+lak</option>
                             <option value="CD UV">CD UV</option>
                             <option value="digital">Digitalni stroj</option>
+                            <option value="cooperation">Kooperacija (B1/A1)</option>
                         </select>
+                    </div>
+
+                    <div id="cooperation-inputs-group"
+                        style="display: none; background: rgba(245, 158, 11, 0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.2); margin-top: 10px; flex-direction: column; gap: 0.75rem;">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="color: #fbbf24; font-weight: bold;">Cena tiska kooperanta (EUR)</label>
+                            <input type="number" id="calc-cooperation-price" value="150.00" step="1"
+                                onchange="calculatePrice()">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="color: #fbbf24; font-weight: bold;">Način obračuna</label>
+                            <select id="calc-cooperation-unit" onchange="calculatePrice()">
+                                <option value="flat">Fiksni pavšal</option>
+                                <option value="sheet">Na tiskano polo</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div id="machine-inputs-group">
@@ -1556,6 +1568,8 @@
         }
 
         const sheets = [
+            { name: "B1", w: 1000, h: 700 },
+            { name: "A1", w: 841, h: 594 },
             { name: "B2", w: 698, h: 498 },
             { name: "6 iz B1", w: 349, h: 332 },
             { name: "638x448", w: 638, h: 448 },
@@ -1595,7 +1609,8 @@
             'CD': { rate: 180, speed: 8000, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'SM4+lak': { rate: 160, speed: 7000, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'CD UV': { rate: 280, speed: 6000, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
-            'digital': { rate: 40, speed: 2000, prep: 10, useDynamic: false, defaultFormat: 'Digital (480x320)', maxW: 480, maxH: 320 }
+            'digital': { rate: 40, speed: 2000, prep: 10, useDynamic: false, defaultFormat: 'Digital (480x320)', maxW: 480, maxH: 320 },
+            'cooperation': { rate: 0, speed: 6000, prep: 0, useDynamic: false, defaultFormat: 'B1', maxW: 1000, maxH: 707 }
         };
 
         let g_lastBestLayout = null;
@@ -1689,10 +1704,13 @@
             if (itemsInp) itemsInp.value = "";
             const mType = document.getElementById('calc-machine-type').value;
             const profile = machineProfiles[mType];
-
+            const isCoop = (mType === 'cooperation');
+            
             const machineInputs = document.getElementById('machine-inputs-group');
-            if (machineInputs) machineInputs.style.display = 'block';
-
+            const coopInputs = document.getElementById('cooperation-inputs-group');
+            if (machineInputs) machineInputs.style.display = isCoop ? 'none' : 'block';
+            if (coopInputs) coopInputs.style.display = isCoop ? 'flex' : 'none';
+            
             if (profile) {
                 document.getElementById('calc-machine-rate').value = profile.rate;
                 document.getElementById('calc-machine-speed').value = profile.speed;
@@ -1700,7 +1718,7 @@
 
                 const mFormatSelect = document.getElementById('machine-format');
                 if (mFormatSelect) {
-                    mFormatSelect.value = 'auto';
+                    mFormatSelect.value = isCoop ? 'B1' : 'auto';
                 }
             }
             filterAvailableFormats();
@@ -1978,6 +1996,35 @@
                 }
 
                 if (!bestLayout) {
+                    // Poskusimo samodejno preklopiti na stroj, ki podpira ta format
+                    let foundMachine = null;
+                    for (let mKey in machineProfiles) {
+                        if (mKey === mType) continue;
+                        const prof = machineProfiles[mKey];
+                        // Preverimo, ali ta stroj in njegove razpoložljive pole podpirajo format izdelka
+                        for (let s of sheets) {
+                            let fitsSource = (sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w);
+                            let fitsMachine = true;
+                            if (prof && prof.maxW) {
+                                fitsMachine = (s.w <= prof.maxW && s.h <= prof.maxH) || (s.h <= prof.maxW && s.w <= prof.maxH);
+                            }
+                            if (fitsSource && fitsMachine) {
+                                let lay = optimizeLayout(s.w, s.h, itemW, itemH, g, fMode);
+                                if (lay && lay.count > 0) {
+                                    foundMachine = mKey;
+                                    break;
+                                }
+                            }
+                        }
+                        if (foundMachine) break;
+                    }
+
+                    if (foundMachine) {
+                        document.getElementById('calc-machine-type').value = foundMachine;
+                        applyMachineDefaults();
+                        return; // Prekinemo trenutni izračun, saj bo applyMachineDefaults sprožil novega
+                    }
+
                     if (isManual) alert("Izdelek ne gre na polo!");
                     return;
                 }
@@ -2268,7 +2315,18 @@
             let mPrepTime = (mPrepInp === "" ? 10 : parseLocaleFloat(mPrepInp)) / 60;
 
             let printHours = (sheetsNeeded + paperWasteSheets) * mPasses / mSpeed;
-            let totalPrintCost = printHours * mRate;
+            let totalPrintCost = 0;
+            if (mType === 'cooperation') {
+                let coopPrice = getFloatValue('calc-cooperation-price', 150);
+                let coopUnit = document.getElementById('calc-cooperation-unit') ? document.getElementById('calc-cooperation-unit').value : 'flat';
+                if (coopUnit === 'sheet') {
+                    totalPrintCost = (sheetsNeeded + paperWasteSheets) * coopPrice;
+                } else {
+                    totalPrintCost = coopPrice;
+                }
+            } else {
+                totalPrintCost = printHours * mRate;
+            }
 
             let totalFinishCost = 0;
             if (document.getElementById('f-cilinder-active').checked) {
@@ -4525,9 +4583,6 @@
             <button class="calculate-btn" onclick="addToBasket()"
                 style="margin: 0; width: auto; background: #f59e0b; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);">
                 🛒 DODAJ</button>
-            <button class="calculate-btn" onclick="calculate(true)"
-                style="margin: 0; width: auto; background: #10b981; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold;">
-                ✨ IZRAČUNAJ</button>
             <button class="calculate-btn" onclick="saveProjectToFile()"
                 style="margin: 0; width: auto; background: #6366f1; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
                 💾 SHRANI</button>
