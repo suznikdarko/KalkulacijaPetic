@@ -60,20 +60,16 @@
                 const f = document.getElementById('f-zgibanje-folds').value;
                 list.push(`Zgibanje (${f}x)`);
             }
-            if (document.getElementById('f-noz-active').checked) list.push('Razrez');
+            
             if (document.getElementById('f-razrez-format-active').checked) list.push('Razrez na format');
-            if (document.getElementById('f-sivanje-active').checked) list.push('Šivanje');
-            if (document.getElementById('f-lepljenje-active').checked) list.push('Lepljenje');
-            if (document.getElementById('f-spiral-active').checked) list.push('Špiraljenje');
+            
+            
+            
             if (document.getElementById('f-extra-active').checked) list.push('Ročno delo');
             if (document.getElementById('f-tool-active').checked) list.push('Orodje');
-            if (document.getElementById('f-uv-active').checked) list.push('UV lak');
-            if (document.getElementById('f-lam-active').checked) {
-                const t = document.getElementById('f-lam-type').value;
-                const s = document.getElementById('f-lam-sides').value;
-                list.push(`Plastifikacija ${t} ${s === '1' ? '1/0' : '1/1'}`);
-            }
-            if (document.getElementById('f-delivery-active').checked) list.push('Dostava (Pošta)');
+            
+            
+            
             if (document.getElementById('f-del-fixed-active').checked) list.push('Dostava (Ostalo)');
             if (document.getElementById('f-precut-active') && document.getElementById('f-precut-active').checked) list.push('Razrez pred tiskom');
             return list.join(', ');
@@ -276,8 +272,8 @@
         };
 
         const machineProfiles = {
-            'S4': { rate: 120, speed: 6000, prep: 10, useDynamic: true, maxW: 518, maxH: 348, defaultFormat: 'B3' },
-            'S8': { rate: 150, speed: 6000, prep: 10, useDynamic: true, maxW: 698, maxH: 498, defaultFormat: 'B2' },
+            'S4': { rate: 120, speed: 6900, prep: 10, useDynamic: true, maxW: 518, maxH: 348, defaultFormat: 'B3' },
+            'S8': { rate: 150, speed: 6900, prep: 10, useDynamic: true, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'CD': { rate: 180, speed: 8000, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'SM4+lak': { rate: 160, speed: 7000, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'CD UV': { rate: 280, speed: 6000, prep: 10, useDynamic: false, maxW: 698, maxH: 498, defaultFormat: 'B2' },
@@ -288,6 +284,197 @@
         let g_lastBestLayout = null;
         let g_lastSheetW = 0, g_lastSheetH = 0, g_lastG = 0;
         let g_autoCount = 0;
+
+        function getBossTables(machineType) {
+            let mType = machineType || (document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : 'S4');
+            if (mType === 'S4') {
+                return {
+                    "8/0": [
+                        { q: 1000, waste: 720, s150: 3460, s250: 3200, s350: 3100 },
+                        { q: 5000, waste: 720, s150: 6350, s250: 5960, s350: 5300 },
+                        { q: 10000, waste: 720, s150: 6400, s250: 5960, s350: 5450 },
+                        { q: 50000, waste: 1250, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 1250, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 300000, waste: 1500, s150: 7100, s250: 6600, s350: 6000 },
+                        { q: 500000, waste: 1500, s150: 7100, s250: 6600, s350: 6000 }
+                    ],
+                    "4/0": [
+                        { q: 1000, waste: 320, s150: 3100, s250: 3100, s350: 2900 },
+                        { q: 5000, waste: 320, s150: 6600, s250: 6600, s350: 5480 },
+                        { q: 10000, waste: 320, s150: 6600, s250: 6000, s350: 5480 },
+                        { q: 50000, waste: 320, s150: 6800, s250: 6800, s350: 5700 },
+                        { q: 100000, waste: 500, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 300000, waste: 320, s150: 7140, s250: 6600, s350: 6060 },
+                        { q: 500000, waste: 625, s150: 7140, s250: 6600, s350: 6060 }
+                    ],
+                    "4/4": [
+                        { q: 1000, waste: 1280, s150: 3800, s250: 3800, s350: 3300 },
+                        { q: 5000, waste: 1280, s150: 6600, s250: 6600, s350: 5400 },
+                        { q: 10000, waste: 1280, s150: 6900, s250: 6900, s350: 5700 },
+                        { q: 50000, waste: 1280, s150: 7140, s250: 7140, s350: 6050 },
+                        { q: 100000, waste: 1280, s150: 7140, s250: 7140, s350: 6050 },
+                        { q: 300000, waste: 1500, s150: 7140, s250: 7140, s350: 6050 },
+                        { q: 500000, waste: 2500, s150: 7140, s250: 7140, s350: 6050 }
+                    ],
+                    "4/OB": [
+                        { q: 1000, waste: 540, s150: 4200, s250: 4200, s350: 3600 },
+                        { q: 5000, waste: 540, s150: 6600, s250: 6600, s350: 5400 },
+                        { q: 10000, waste: 540, s150: 6900, s250: 6900, s350: 5700 },
+                        { q: 50000, waste: 540, s150: 7140, s250: 7140, s350: 6000 },
+                        { q: 100000, waste: 1000, s150: 7140, s250: 7140, s350: 6000 },
+                        { q: 300000, waste: 1000, s150: 7140, s250: 7140, s350: 6000 },
+                        { q: 500000, waste: 1250, s150: 7140, s250: 7140, s350: 6000 }
+                    ],
+                    "4/OB + mutacija 1x": [
+                        { q: 1000, waste: 940, s150: 4600, s250: 4600, s350: 3900 },
+                        { q: 5000, waste: 940, s150: 6600, s250: 6600, s350: 5400 },
+                        { q: 10000, waste: 940, s150: 6900, s250: 6900, s350: 5700 },
+                        { q: 50000, waste: 940, s150: 7140, s250: 7140, s350: 6000 },
+                        { q: 100000, waste: 940, s150: 7140, s250: 7140, s350: 6000 },
+                        { q: 300000, waste: 1150, s150: 7140, s250: 7140, s350: 6000 },
+                        { q: 500000, waste: 1650, s150: 7140, s250: 7140, s350: 6000 }
+                    ],
+                    "4/OB + mutacija 2x": [
+                        { q: 1000, waste: 1340, s150: 4600, s250: 4600, s350: 3900 },
+                        { q: 5000, waste: 1340, s150: 6600, s250: 6600, s350: 5400 },
+                        { q: 10000, waste: 1340, s150: 6900, s250: 6900, s350: 5700 },
+                        { q: 50000, waste: 1340, s150: 7140, s250: 7140, s350: 6000 },
+                        { q: 100000, waste: 1340, s150: 7140, s250: 7140, s350: 6000 },
+                        { q: 300000, waste: 1550, s150: 7140, s250: 7140, s350: 6000 },
+                        { q: 500000, waste: 2050, s150: 7140, s250: 7140, s350: 6000 }
+                    ],
+                    "4/OB + mutacija 3x": [
+                        { q: 1000, waste: 1740, s150: 5070, s250: 5070, s350: 4200 },
+                        { q: 5000, waste: 1740, s150: 6600, s250: 6600, s350: 5400 },
+                        { q: 10000, waste: 1740, s150: 6900, s250: 6900, s350: 5700 },
+                        { q: 50000, waste: 1740, s150: 7140, s250: 7140, s350: 6050 },
+                        { q: 100000, waste: 1740, s150: 7140, s250: 7140, s350: 6050 },
+                        { q: 300000, waste: 1950, s150: 7140, s250: 7140, s350: 6050 },
+                        { q: 500000, waste: 2450, s150: 7140, s250: 7140, s350: 6050 }
+                    ],
+                    "4/4 + mutacija 1x": [
+                        { q: 1000, waste: 3680, s150: 6600, s250: 6600, s350: 5450 },
+                        { q: 5000, waste: 3680, s150: 6600, s250: 6600, s350: 5450 },
+                        { q: 10000, waste: 3680, s150: 6900, s250: 6900, s350: 5700 },
+                        { q: 50000, waste: 3680, s150: 7140, s250: 6900, s350: 5700 },
+                        { q: 100000, waste: 3680, s150: 7140, s250: 6900, s350: 5700 },
+                        { q: 300000, waste: 3900, s150: 7140, s250: 6900, s350: 5700 },
+                        { q: 500000, waste: 4900, s150: 7140, s250: 6900, s350: 5700 }
+                    ],
+                    "4/4 + mutacija 2x": [
+                        { q: 1000, waste: 6080, s150: 6600, s250: 6600, s350: 5450 },
+                        { q: 5000, waste: 6080, s150: 6900, s250: 6600, s350: 5450 },
+                        { q: 10000, waste: 6080, s150: 6900, s250: 6600, s350: 5700 },
+                        { q: 50000, waste: 6080, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 100000, waste: 6080, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 300000, waste: 6300, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 500000, waste: 7300, s150: 7140, s250: 6600, s350: 6050 }
+                    ],
+                    "4/4 + mutacija 3x": [
+                        { q: 1000, waste: 8480, s150: 6600, s250: 6600, s350: 5450 },
+                        { q: 5000, waste: 8480, s150: 6900, s250: 6600, s350: 5450 },
+                        { q: 10000, waste: 8480, s150: 6900, s250: 6600, s350: 5700 },
+                        { q: 50000, waste: 8480, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 100000, waste: 8480, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 300000, waste: 8700, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 500000, waste: 9700, s150: 7140, s250: 6600, s350: 6050 }
+                    ]
+                };
+            } else {
+                return {
+                    "8/0": [
+                        { q: 1000, waste: 720, s150: 3460, s250: 3200, s350: 3100 },
+                        { q: 5000, waste: 720, s150: 6350, s250: 5960, s350: 5300 },
+                        { q: 10000, waste: 720, s150: 6400, s250: 5960, s350: 5450 },
+                        { q: 50000, waste: 1250, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 1250, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 300000, waste: 1500, s150: 7100, s250: 6600, s350: 6000 },
+                        { q: 500000, waste: 1500, s150: 7100, s250: 6600, s350: 6000 }
+                    ],
+                    "4/0": [
+                        { q: 1000, waste: 320, s150: 3100, s250: 3000, s350: 2900 },
+                        { q: 5000, waste: 320, s150: 5070, s250: 4750, s350: 4250 },
+                        { q: 10000, waste: 320, s150: 6400, s250: 6000, s350: 5400 },
+                        { q: 50000, waste: 320, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 320, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 300000, waste: 320, s150: 7140, s250: 6600, s350: 6060 },
+                        { q: 500000, waste: 625, s150: 7140, s250: 6600, s350: 6060 }
+                    ],
+                    "4/4": [
+                        { q: 1000, waste: 1280, s150: 3600, s250: 3200, s350: 3000 },
+                        { q: 5000, waste: 1280, s150: 5070, s250: 5600, s350: 5150 },
+                        { q: 10000, waste: 1280, s150: 6400, s250: 6000, s350: 5450 },
+                        { q: 50000, waste: 1280, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 1280, s150: 6800, s250: 6600, s350: 6050 },
+                        { q: 300000, waste: 1500, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 500000, waste: 2500, s150: 7140, s250: 6600, s350: 6050 }
+                    ],
+                    "4/OB": [
+                        { q: 1000, waste: 540, s150: 3580, s250: 3300, s350: 3250 },
+                        { q: 5000, waste: 540, s150: 4400, s250: 4400, s350: 4400 },
+                        { q: 10000, waste: 540, s150: 5050, s250: 6000, s350: 5450 },
+                        { q: 50000, waste: 540, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 540, s150: 6800, s250: 6600, s350: 6060 },
+                        { q: 300000, waste: 750, s150: 7140, s250: 6600, s350: 6060 },
+                        { q: 500000, waste: 1250, s150: 7140, s250: 6600, s350: 6060 }
+                    ],
+                    "4/OB + mutacija 1x": [
+                        { q: 1000, waste: 940, s150: 4000, s250: 3800, s350: 3600 },
+                        { q: 5000, waste: 940, s150: 5500, s250: 5100, s350: 4700 },
+                        { q: 10000, waste: 940, s150: 6450, s250: 6000, s350: 5450 },
+                        { q: 50000, waste: 940, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 940, s150: 6800, s250: 6600, s350: 6050 },
+                        { q: 300000, waste: 1150, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 500000, waste: 1650, s150: 7140, s250: 6600, s350: 6050 }
+                    ],
+                    "4/OB + mutacija 2x": [
+                        { q: 1000, waste: 1340, s150: 4100, s250: 3800, s350: 3600 },
+                        { q: 5000, waste: 1340, s150: 4800, s250: 5100, s350: 4700 },
+                        { q: 10000, waste: 1340, s150: 6200, s250: 6000, s350: 5450 },
+                        { q: 50000, waste: 1340, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 1340, s150: 6800, s250: 6600, s350: 6050 },
+                        { q: 300000, waste: 1550, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 500000, waste: 2050, s150: 7140, s250: 6600, s350: 6050 }
+                    ],
+                    "4/OB + mutacija 3x": [
+                        { q: 1000, waste: 1740, s150: 4100, s250: 3800, s350: 3600 },
+                        { q: 5000, waste: 1740, s150: 4800, s250: 5100, s350: 4700 },
+                        { q: 10000, waste: 1740, s150: 6200, s250: 6000, s350: 5450 },
+                        { q: 50000, waste: 1740, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 1740, s150: 6800, s250: 6600, s350: 6050 },
+                        { q: 300000, waste: 1950, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 500000, waste: 2450, s150: 7140, s250: 6600, s350: 6050 }
+                    ],
+                    "4/4 + mutacija 1x": [
+                        { q: 1000, waste: 3680, s150: 6400, s250: 5900, s350: 5450 },
+                        { q: 5000, waste: 3680, s150: 6400, s250: 6000, s350: 5490 },
+                        { q: 10000, waste: 3680, s150: 6200, s250: 6000, s350: 5490 },
+                        { q: 50000, waste: 3680, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 3680, s150: 6800, s250: 6600, s350: 6050 },
+                        { q: 300000, waste: 3900, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 500000, waste: 4900, s150: 7140, s250: 6600, s350: 6050 }
+                    ],
+                    "4/4 + mutacija 2x": [
+                        { q: 1000, waste: 6080, s150: 6400, s250: 6000, s350: 5450 },
+                        { q: 5000, waste: 6080, s150: 6400, s250: 6000, s350: 5450 },
+                        { q: 10000, waste: 6080, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 50000, waste: 6080, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 6080, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 300000, waste: 6300, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 500000, waste: 7300, s150: 7140, s250: 6600, s350: 6050 }
+                    ],
+                    "4/4 + mutacija 3x": [
+                        { q: 1000, waste: 8480, s150: 6400, s250: 6000, s350: 5450 },
+                        { q: 5000, waste: 8480, s150: 6800, s250: 6000, s350: 5450 },
+                        { q: 10000, waste: 8480, s150: 6200, s250: 6300, s350: 5700 },
+                        { q: 50000, waste: 8480, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 8480, s150: 6800, s250: 6600, s350: 6050 },
+                        { q: 300000, waste: 8700, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 500000, waste: 9700, s150: 7140, s250: 6600, s350: 6050 }
+                    ]
+                };
+            }
+        }
 
         function parseLocaleFloat(val) {
             if (val == null) return 0;
@@ -530,33 +717,7 @@
             }
         }
 
-        function getLaminationPricePerSheet(w, h, type) {
-            let area = w * h;
-            let formatClass = 'B1';
-            if (area <= 100000) formatClass = 'B4';
-            else if (area <= 200000) formatClass = 'B3';
-            else if (area <= 400000) formatClass = 'B2';
-            else formatClass = 'B1';
-
-            let basePrice = 0;
-            if (type === 'sijaj') {
-                if (formatClass === 'B1') basePrice = 0.132;
-                else if (formatClass === 'B2') basePrice = 0.074;
-                else if (formatClass === 'B3') basePrice = 0.049;
-                else if (formatClass === 'B4') basePrice = 0.037;
-            } else if (type === 'mat') {
-                if (formatClass === 'B1') basePrice = 0.234;
-                else if (formatClass === 'B2') basePrice = 0.12;
-                else if (formatClass === 'B3') basePrice = 0.074;
-                else if (formatClass === 'B4') basePrice = 0.049;
-            } else if (type === 'soft' || type === 'anti') {
-                if (formatClass === 'B1') basePrice = 0.234 * 2;
-                else if (formatClass === 'B2') basePrice = 0.12 * 2;
-                else if (formatClass === 'B3') basePrice = 0.074 * 2;
-                else if (formatClass === 'B4') basePrice = 0.049 * 2;
-            }
-            return basePrice;
-        }
+        
 
         let g_lastW_calc = 0, g_lastH_calc = 0;
 
@@ -659,12 +820,6 @@
                     const y1 = Math.floor(sw / bestSheet.w) * Math.floor(sh / bestSheet.h);
                     const y2 = Math.floor(sw / bestSheet.h) * Math.floor(sh / bestSheet.w);
                     document.getElementById('calc-source-yield').value = Math.max(y1, y2, 1);
-
-                    const lamType = document.getElementById('f-lam-type').value;
-                    const lamPricePerSheet = getLaminationPricePerSheet(bestSheet.w, bestSheet.h, lamType);
-                    if (lamPricePerSheet > 0) {
-                        document.getElementById('f-lam-per1000').value = lamPricePerSheet.toFixed(4);
-                    }
                 }
 
                 if (!bestLayout) {
@@ -777,6 +932,9 @@
             document.getElementById('res-count').innerText = r.itemsPerSheet;
             document.getElementById('res-count-mini').innerText = r.itemsPerSheet;
             document.getElementById('res-sheets-needed').innerText = r.sheetsNeeded;
+            if (document.getElementById('res-dodatek-sheets')) {
+                document.getElementById('res-dodatek-sheets').innerText = document.getElementById('f-dodatek-sheets').value || '0';
+            }
             document.getElementById('res-price-paper').innerText = r.paperCost.toFixed(2) + " €";
             document.getElementById('res-price-prep').innerText = r.totalPrepCost.toFixed(2) + " €";
             document.getElementById('res-price-print').innerText = r.totalPrintCost.toFixed(2) + " €";
@@ -906,11 +1064,60 @@
         }
 
         function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH) {
+            function getDynamicSpeed(baseSpeed, grammage, qty) {
+                let _front = parseInt(document.getElementById('calc-color-front').value) || 0;
+                let _back = parseInt(document.getElementById('calc-color-back').value) || 0;
+                let _isObrat = document.getElementById('calc-is-obrat').checked;
+                let mutPlatesVal = parseInt(document.getElementById('calc-mut-plates').value) || 0;
+                let mutSuffix = "";
+                if (mutPlatesVal === 1) mutSuffix = " + mutacija 1x";
+                else if (mutPlatesVal === 2) mutSuffix = " + mutacija 2x";
+                else if (mutPlatesVal >= 3) mutSuffix = " + mutacija 3x";
+                let isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
+                let baseColorMode = isSV ? '8/0' : (_isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0'));
+                let speedTableMode = baseColorMode + mutSuffix;
+                let bossTable = getBossTables()[speedTableMode] || getBossTables()[baseColorMode];
+                if (bossTable) {
+                    let getS = (obj) => {
+                        if (paperWeight <= 150) return obj.s150;
+                        if (paperWeight <= 250) {
+                            let f = (paperWeight - 150) / 100;
+                            return obj.s150 + f * (obj.s250 - obj.s150);
+                        }
+                        if (paperWeight <= 350) {
+                            let f = (paperWeight - 250) / 100;
+                            return obj.s250 + f * (obj.s350 - obj.s250);
+                        }
+                        return obj.s350;
+                    };
+                    let s = getS(bossTable[0]);
+                    if (qty <= bossTable[0].q) {
+                        s = getS(bossTable[0]);
+                    } else if (qty >= bossTable[bossTable.length - 1].q) {
+                        s = getS(bossTable[bossTable.length - 1]);
+                    } else {
+                        for (let i = 0; i < bossTable.length - 1; i++) {
+                            if (qty >= bossTable[i].q && qty <= bossTable[i + 1].q) {
+                                let rangeQ = bossTable[i + 1].q - bossTable[i].q;
+                                let speed1 = getS(bossTable[i]);
+                                let speed2 = getS(bossTable[i + 1]);
+                                let rangeS = speed2 - speed1;
+                                let fraction = (qty - bossTable[i].q) / rangeQ;
+                                s = speed1 + fraction * rangeS;
+                                break;
+                            }
+                        }
+                    }
+                    return Math.round(s);
+                }
+                return Math.min(baseSpeed, 6100);
+            }
+
             let itemsPerSheet = getIntValue('items-per-sheet');
             let sheetsNeeded = sheetsNeededIn;
 
-            // TEN LOGIKA: Material, zgibanje in cilinder se delijo na pol
-            const effectiveQty = qty / 2;
+            // TEN LOGIKA: Naklada se ne deli več na pol (ustrezno popravljeno na polno količino)
+            const effectiveQty = qty;
 
             if (itemsPerSheet > 0) {
                 sheetsNeeded = Math.ceil(effectiveQty / itemsPerSheet);
@@ -938,7 +1145,7 @@
             let paperWeight = getFloatValue('calc-paper-weight');
             let paperWasteSheets = getIntValue('calc-paper-waste');
             let dodatekSheets = getIntValue('f-dodatek-sheets');
-            let totalSheetsNeeded = sheetsNeeded + paperWasteSheets + dodatekSheets;
+            let totalSheetsNeeded = sheetsNeeded + paperWasteSheets;
 
             let paperCost = 0;
             let sourceW = getFloatValue('calc-source-w', 1000);
@@ -982,7 +1189,18 @@
             let totalPrepCost = (platesNum * platesPrice) + prepPrice + (numberOfChanges * changePrice) + washCost;
 
             let mRate = getFloatValue('calc-machine-rate', 120);
-            let mSpeed = getFloatValue('calc-machine-speed', 6000);
+            let mProfile = machineProfiles[mType] || { speed: 6900 };
+            let mSpeed = mProfile.speed;
+            if (mProfile.useDynamic) {
+                mSpeed = getDynamicSpeed(mProfile.speed, paperWeight, qty);
+            }
+            const mSpeedEl = document.getElementById('calc-machine-speed');
+            let qStr = document.getElementById('quantity').value || "0";
+            let qArr = qStr.split(',').map(x => parseLocaleFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+            let activeQ = qArr[0] || 0;
+            if (mSpeedEl && qty === activeQ) {
+                mSpeedEl.value = Math.round(mSpeed);
+            }
             let mPrepInp = document.getElementById('calc-machine-prep-time').value;
             let mPrepTime = (mPrepInp === "" ? 10 : parseLocaleFloat(mPrepInp)) / 60;
 
@@ -1022,23 +1240,15 @@
                 let zRate = rateMap[zFolds] || 50.80;
                 totalFinishCost += zPrep + (effectiveQty / zSpeed) * zRate;
             }
-            if (document.getElementById('f-noz-active').checked) {
-                totalFinishCost += 2.80 + ((getFloatValue('f-noz-time') / 60) * getFloatValue('f-noz-rate'));
-            }
+            
             if (document.getElementById('f-razrez-format-active').checked) {
                 const spd = getFloatValue('f-razrez-format-speed', 5800);
                 const rte = getFloatValue('f-razrez-format-rate', 20);
                 totalFinishCost += (totalSheetsNeeded / spd) * rte;
             }
-            if (document.getElementById('f-sivanje-active').checked) {
-                totalFinishCost += getFloatValue('f-sivanje-prep') + (effectiveQty / 1000) * getFloatValue('f-sivanje-per1000');
-            }
-            if (document.getElementById('f-lepljenje-active').checked) {
-                totalFinishCost += getFloatValue('f-lepljenje-prep') + (effectiveQty / 1000) * getFloatValue('f-lepljenje-per1000');
-            }
-            if (document.getElementById('f-spiral-active').checked) {
-                totalFinishCost += effectiveQty * getFloatValue('f-spiral-price');
-            }
+            
+            
+            
             if (document.getElementById('f-extra-active').checked) {
                 const spd = getFloatValue('f-extra-speed', 1);
                 const rte = getFloatValue('f-extra-rate', 20);
@@ -1047,23 +1257,15 @@
             if (document.getElementById('f-tool-active').checked) {
                 totalFinishCost += getFloatValue('f-tool-cost');
             }
-            if (document.getElementById('f-uv-active').checked) {
-                totalFinishCost += getFloatValue('f-uv-prep') + (totalSheetsNeeded / 1000) * getFloatValue('f-uv-per1000');
-            }
+            
             if (document.getElementById('f-precut-active') && document.getElementById('f-precut-active').checked) {
                 let prePrep = getFloatValue('f-precut-prep', 2.50);
                 let prePer1000 = getFloatValue('f-precut-per1000', 3.60);
                 totalFinishCost += prePrep + (totalSourceSheetsNeeded / 1000) * prePer1000;
             }
-            if (document.getElementById('f-lam-active').checked) {
-                totalFinishCost += sheetsNeeded * getFloatValue('f-lam-per1000') * getIntValue('f-lam-sides', 1);
-            }
+            
             let deliveryCost = 0;
-            if (document.getElementById('f-delivery-active').checked) {
-                let pCount = getFloatValue('f-post-count');
-                let pPricePer = getFloatValue('f-post-price-per');
-                deliveryCost += (pCount * pPricePer);
-            }
+            
             if (document.getElementById('f-del-fixed-active').checked) {
                 deliveryCost += getFloatValue('f-del-fixed-price');
             }
@@ -1153,16 +1355,7 @@
                     breakdown: `Priprava: ${formatPrice(zPrep)} | Delo: ${workHours.toFixed(1)}h (${formatPrice(zWork)})`
                 });
             }
-            if (document.getElementById('f-noz-active').checked) {
-                let nTime = getFloatValue('f-noz-time');
-                let nRate = getFloatValue('f-noz-rate');
-                let nCost = (nTime / 60) * nRate;
-                details.finish.items.push({
-                    name: 'Razrez',
-                    cost: nCost,
-                    breakdown: `Čas dela: ${nTime} min | Urna post.: ${formatPrice(nRate)}/h`
-                });
-            }
+            
             if (document.getElementById('f-razrez-format-active').checked) {
                 const spd = getFloatValue('f-razrez-format-speed', 5800);
                 const rte = getFloatValue('f-razrez-format-rate', 20);
@@ -1174,37 +1367,9 @@
                     breakdown: `Norma: ${spd} pol/h | Čas: ${hrs.toFixed(2)} h (${formatPrice(cost)})`
                 });
             }
-            if (document.getElementById('f-sivanje-active').checked) {
-                let sPrep = getFloatValue('f-sivanje-prep');
-                let sP1000 = getFloatValue('f-sivanje-per1000');
-                let sWork = (effectiveQty / 1000) * sP1000;
-                let sCost = sPrep + sWork;
-                details.finish.items.push({
-                    name: 'Šivanje',
-                    cost: sCost,
-                    breakdown: `Priprava: ${formatPrice(sPrep)} | Delo: ${effectiveQty} kos (${formatPrice(sWork)})`
-                });
-            }
-            if (document.getElementById('f-lepljenje-active').checked) {
-                let lPrep = getFloatValue('f-lepljenje-prep');
-                let lP1000 = getFloatValue('f-lepljenje-per1000');
-                let lWork = (effectiveQty / 1000) * lP1000;
-                let lCost = lPrep + lWork;
-                details.finish.items.push({
-                    name: 'Lepljenje',
-                    cost: lCost,
-                    breakdown: `Priprava: ${formatPrice(lPrep)} | Delo: ${effectiveQty} kos (${formatPrice(lWork)})`
-                });
-            }
-            if (document.getElementById('f-spiral-active').checked) {
-                let sPrice = getFloatValue('f-spiral-price');
-                let sCost = effectiveQty * sPrice;
-                details.finish.items.push({
-                    name: 'Špiraljenje',
-                    cost: sCost,
-                    breakdown: `${formatQty(effectiveQty)} kos * ${formatPrice(sPrice)}/kos`
-                });
-            }
+            
+            
+            
 
             if (document.getElementById('f-extra-active').checked) {
                 const spd = getFloatValue('f-extra-speed', 1);
@@ -1225,39 +1390,9 @@
                     breakdown: `Strošek izdelave orodja`
                 });
             }
-            if (document.getElementById('f-uv-active').checked) {
-                let uPrep = getFloatValue('f-uv-prep');
-                let uP1000 = getFloatValue('f-uv-per1000');
-                let uWork = (totalSheetsNeeded / 1000) * uP1000;
-                let uCost = uPrep + uWork;
-                details.finish.items.push({
-                    name: 'UV lak (tuja)',
-                    cost: uCost,
-                    breakdown: `Priprava: ${formatPrice(uPrep)} | Delo: ${totalSheetsNeeded} pol (${formatPrice(uWork)})`
-                });
-            }
-            if (document.getElementById('f-lam-active').checked) {
-                let lP1000 = getFloatValue('f-lam-per1000');
-                let lSides = getIntValue('f-lam-sides', 1);
-                let lWork = sheetsNeeded * lP1000 * lSides;
-                let lCost = lWork;
-                details.finish.items.push({
-                    name: `Plastifikacija (${lSides}/0)`,
-                    cost: lCost,
-                    breakdown: `Delo: ${sheetsNeeded} pol (${formatPrice(lWork)})`
-                });
-            }
-            if (document.getElementById('f-delivery-active').checked) {
-                let pCount = getFloatValue('f-post-count');
-                let pPricePer = getFloatValue('f-post-price-per');
-                let totalD = pCount * pPricePer;
-
-                details.finish.items.push({
-                    name: 'Dostava (Pošta)',
-                    cost: totalD,
-                    breakdown: pCount > 0 ? `${pCount}x pošta (${formatPrice(pPricePer)}/dost)` : '0.00 €'
-                });
-            }
+            
+            
+            
             if (document.getElementById('f-del-fixed-active').checked) {
                 let fPrice = getFloatValue('f-del-fixed-price');
                 details.finish.items.push({
@@ -1305,7 +1440,6 @@
                 row.classList.add('active');
                 // Če je pošta in je število 0, daj na 1 za lažji izračun
                 if (type === 'delivery') {
-                    const cnt = document.getElementById('f-post-count');
                     if (cnt && (cnt.value === '0' || cnt.value === '')) {
                         cnt.value = '1';
                         updateInputStyles(cnt);
@@ -2057,16 +2191,9 @@
                         finish: {
                             cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
                             zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
-                            noz: { active: gc('f-noz-active'), time: gv('f-noz-time'), rate: gv('f-noz-rate') },
                             razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
-                            sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
-                            lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
-                            spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
-                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
-                            lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
-                            delivery: { active: gc('f-delivery-active'), count: gv('f-post-count'), pricePer: gv('f-post-price-per') },
                             deliveryFixed: { active: gc('f-del-fixed-active'), price: gv('f-del-fixed-price') },
                             dodatek: { sheets: gv('f-dodatek-sheets') }
                         }
@@ -2159,16 +2286,9 @@
                         finish: {
                             cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
                             zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
-                            noz: { active: gc('f-noz-active'), time: gv('f-noz-time'), rate: gv('f-noz-rate') },
                             razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
-                            sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
-                            lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
-                            spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
-                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
-                            lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
-                            delivery: { active: gc('f-delivery-active'), count: gv('f-post-count'), pricePer: gv('f-post-price-per') },
                             deliveryFixed: { active: gc('f-del-fixed-active'), price: gv('f-del-fixed-price') }
                         }
                     },
@@ -2449,35 +2569,16 @@
                     document.getElementById('f-zgibanje-speed').value = f.zgibanje.speed;
                     toggleFinishRow('zgibanje');
                 }
-                if (f.noz) {
-                    document.getElementById('f-noz-active').checked = f.noz.active;
-                    document.getElementById('f-noz-time').value = f.noz.time;
-                    document.getElementById('f-noz-rate').value = f.noz.rate;
-                    toggleFinishRow('noz');
-                }
+                
                 if (f.razrezFormat) {
                     document.getElementById('f-razrez-format-active').checked = f.razrezFormat.active;
                     document.getElementById('f-razrez-format-speed').value = f.razrezFormat.speed || 5800;
                     document.getElementById('f-razrez-format-rate').value = f.razrezFormat.rate || 20.00;
                     toggleFinishRow('razrez-format');
                 }
-                if (f.sivanje) {
-                    document.getElementById('f-sivanje-active').checked = f.sivanje.active;
-                    document.getElementById('f-sivanje-prep').value = f.sivanje.prep;
-                    document.getElementById('f-sivanje-per1000').value = f.sivanje.per1000;
-                    toggleFinishRow('sivanje');
-                }
-                if (f.lepljenje) {
-                    document.getElementById('f-lepljenje-active').checked = f.lepljenje.active;
-                    document.getElementById('f-lepljenje-prep').value = f.lepljenje.prep;
-                    document.getElementById('f-lepljenje-per1000').value = f.lepljenje.per1000;
-                    toggleFinishRow('lepljenje');
-                }
-                if (f.spiral) {
-                    document.getElementById('f-spiral-active').checked = f.spiral.active;
-                    document.getElementById('f-spiral-price').value = f.spiral.price || 0;
-                    toggleFinishRow('spiral');
-                }
+                
+                
+                
                 if (f.extra) {
                     document.getElementById('f-extra-active').checked = f.extra.active;
                     if (f.extra.speed) document.getElementById('f-extra-speed').value = f.extra.speed;
@@ -2495,26 +2596,9 @@
                     document.getElementById('f-tool-cost').value = f.tool.cost;
                     toggleFinishRow('tool');
                 }
-                if (f.uv) {
-                    document.getElementById('f-uv-active').checked = f.uv.active;
-                    document.getElementById('f-uv-prep').value = f.uv.prep;
-                    document.getElementById('f-uv-per1000').value = f.uv.per1000;
-                    toggleFinishRow('uv');
-                }
-                if (f.lam) {
-                    document.getElementById('f-lam-active').checked = f.lam.active;
-                    if (document.getElementById('f-lam-type')) document.getElementById('f-lam-type').value = f.lam.type;
-                    if (document.getElementById('f-lam-sides')) document.getElementById('f-lam-sides').value = f.lam.sides;
-                    if (document.getElementById('f-lam-per1000')) document.getElementById('f-lam-per1000').value = f.lam.per1000;
-                    if (document.getElementById('f-lam-prep')) document.getElementById('f-lam-prep').value = f.lam.prep;
-                    toggleFinishRow('lam');
-                }
-                if (f.delivery) {
-                    document.getElementById('f-delivery-active').checked = f.delivery.active;
-                    document.getElementById('f-post-count').value = f.delivery.count || 0;
-                    document.getElementById('f-post-price-per').value = f.delivery.pricePer || 0;
-                    toggleFinishRow('delivery');
-                }
+                
+                
+                
                 if (f.deliveryFixed) {
                     document.getElementById('f-del-fixed-active').checked = f.deliveryFixed.active;
                     document.getElementById('f-del-fixed-price').value = f.deliveryFixed.price || 0;
@@ -2589,17 +2673,9 @@
                         finish: {
                             cilinder: { active: document.getElementById('f-cilinder-active').checked, prep: document.getElementById('f-cilinder-prep').value, rate: document.getElementById('f-cilinder-rate').value },
                             zgibanje: { active: document.getElementById('f-zgibanje-active').checked, folds: document.getElementById('f-zgibanje-folds').value, speed: document.getElementById('f-zgibanje-speed').value },
-                            noz: { active: document.getElementById('f-noz-active').checked, time: document.getElementById('f-noz-time').value, rate: document.getElementById('f-noz-rate').value },
-                            sivanje: { active: document.getElementById('f-sivanje-active').checked, prep: document.getElementById('f-sivanje-prep').value, per1000: document.getElementById('f-sivanje-per1000').value },
-                            lepljenje: { active: document.getElementById('f-lepljenje-active').checked, prep: document.getElementById('f-lepljenje-prep').value, per1000: document.getElementById('f-lepljenje-per1000').value },
-                            spiral: { active: document.getElementById('f-spiral-active').checked, price: document.getElementById('f-spiral-price').value },
-                            spiral: { active: document.getElementById('f-spiral-active').checked, price: document.getElementById('f-spiral-price').value },
                             extra: { active: document.getElementById('f-extra-active').checked, speed: document.getElementById('f-extra-speed').value, rate: document.getElementById('f-extra-rate').value },
                             precut: { active: document.getElementById('f-precut-active') ? document.getElementById('f-precut-active').checked : false, prep: document.getElementById('f-precut-prep') ? document.getElementById('f-precut-prep').value : 2.50, per1000: document.getElementById('f-precut-per1000') ? document.getElementById('f-precut-per1000').value : 3.60 },
                             tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
-                            uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
-                            lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type') ? document.getElementById('f-lam-type').value : '', sides: document.getElementById('f-lam-sides') ? document.getElementById('f-lam-sides').value : 1, per1000: document.getElementById('f-lam-per1000') ? document.getElementById('f-lam-per1000').value : 0, prep: document.getElementById('f-lam-prep') ? document.getElementById('f-lam-prep').value : 0 },
-                            delivery: { active: document.getElementById('f-delivery-active').checked, count: document.getElementById('f-post-count').value, pricePer: document.getElementById('f-post-price-per').value },
                             deliveryFixed: { active: document.getElementById('f-del-fixed-active').checked, price: document.getElementById('f-del-fixed-price').value },
                             dodatek: { sheets: document.getElementById('f-dodatek-sheets') ? document.getElementById('f-dodatek-sheets').value : 0 }
                         }
