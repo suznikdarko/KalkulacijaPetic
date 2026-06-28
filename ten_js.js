@@ -2184,6 +2184,8 @@
                         commercial: gv('calc-commercial'),
                         margin: gv('calc-margin'),
                         itemsPerSheet: gv('items-per-sheet'),
+                        version: gv('calc-project-version'),
+                        pagesPerItem: gv('f-pages-per-item'),
                         itemOrientation: gv('item-orientation'),
                         minusPrice: gc('calc-minus-price'),
                         sourceW: gv('calc-source-w'),
@@ -2279,6 +2281,8 @@
                         commercial: gv('calc-commercial'),
                         margin: gv('calc-margin'),
                         itemsPerSheet: gv('items-per-sheet'),
+                        version: gv('calc-project-version'),
+                        pagesPerItem: gv('f-pages-per-item'),
                         itemOrientation: gv('item-orientation'),
                         minusPrice: gc('calc-minus-price'),
                         sourceW: gv('calc-source-w'),
@@ -2548,7 +2552,9 @@
             document.getElementById('calc-is-obrat').checked = inp.isObrat;
             if (document.getElementById('calc-commercial')) document.getElementById('calc-commercial').value = inp.commercial || 10;
             if (document.getElementById('calc-margin')) document.getElementById('calc-margin').value = inp.margin || 0;
+            if (document.getElementById('calc-project-version')) document.getElementById('calc-project-version').value = inp.version || '';
             if (inp.itemsPerSheet !== undefined) document.getElementById('items-per-sheet').value = inp.itemsPerSheet;
+            if (inp.pagesPerItem !== undefined) document.getElementById('f-pages-per-item').value = inp.pagesPerItem;
             if (inp.itemOrientation !== undefined) document.getElementById('item-orientation').value = inp.itemOrientation;
             if (document.getElementById('calc-minus-price')) document.getElementById('calc-minus-price').checked = inp.minusPrice || false;
             if (inp.sourceW !== undefined) document.getElementById('calc-source-w').value = inp.sourceW;

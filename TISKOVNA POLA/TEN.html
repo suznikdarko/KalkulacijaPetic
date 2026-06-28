@@ -438,6 +438,12 @@
             </div>
 
             <div class="header-group" style="grid-column: span 2;">
+                <label for="calc-project-version">Verzija</label>
+                <input type="text" id="calc-project-version" placeholder="Vnesite verzijo izdelka (npr. v1, v2...)"
+                    onchange="calculate()">
+            </div>
+
+            <div class="header-group" style="grid-column: span 2;">
                 <label for="calc-customer">Stranka</label>
                 <div style="display: flex; gap: 0.2rem; position: relative;">
                     <input type="text" id="calc-customer" list="customer-list" placeholder="Izberite stranko"
@@ -602,6 +608,10 @@
                     <label>Stavkov na poli</label>
                     <input type="number" id="items-per-sheet" value="0"
                         oninput="if(typeof updatePriceFromManualCount === 'function') updatePriceFromManualCount(); else calculate()">
+                </div>
+                <div style="flex: 1; min-width: 120px;">
+                    <label>Strani v stavku</label>
+                    <input type="number" id="f-pages-per-item" value="0" min="0" step="1" oninput="calculatePrice()">
                 </div>
             </div>
 
@@ -834,15 +844,16 @@
                         <label>Vrsta materiala (mat, glos...)</label>
                         <input type="text" id="calc-paper-type" value="" placeholder="npr. mat" onchange="calculate()">
                     </div>
-                    <div class="form-group">
-                        <label>Število barv (Lice / Hrbet)</label>
+                    <div class="form-group"
+                        style="border: 2px solid #fbbf24; padding: 10px; border-radius: 10px; background: rgba(251, 191, 36, 0.05); box-shadow: 0 0 10px rgba(251, 191, 36, 0.15);">
+                        <label style="color: #fbbf24; font-weight: bold;">Število barv (Lice / Hrbet)</label>
                         <div class="input-group" style="display: flex; gap: 0.5rem;">
                             <select id="calc-color-front" onchange="updateWasteAndPrice()">
-                                <option value="0">0</option>
+                                <option value="0" selected>0</option>
                                 <option value="1">1</option>
                                 <option value="2">2</option>
                                 <option value="3">3</option>
-                                <option value="4" selected>4</option>
+                                <option value="4">4</option>
                                 <option value="5">5</option>
                                 <option value="6">6</option>
                                 <option value="7">7</option>
@@ -1311,6 +1322,7 @@
                     id: Date.now(),
                     type: 'Tiskovna pola',
                     name: projectName,
+                    version: document.getElementById('calc-project-version') ? document.getElementById('calc-project-version').value : '',
                     customer: document.getElementById('calc-customer').value || '',
                     materialCode: document.getElementById('calc-material-code').value || '/',
                     spec: {
@@ -3392,6 +3404,8 @@
                         commercial: gv('calc-commercial'),
                         margin: gv('calc-margin'),
                         itemsPerSheet: gv('items-per-sheet'),
+                        version: gv('calc-project-version'),
+                        pagesPerItem: gv('f-pages-per-item'),
                         itemOrientation: gv('item-orientation'),
                         minusPrice: gc('calc-minus-price'),
                         sourceW: gv('calc-source-w'),
@@ -3487,6 +3501,8 @@
                         commercial: gv('calc-commercial'),
                         margin: gv('calc-margin'),
                         itemsPerSheet: gv('items-per-sheet'),
+                        version: gv('calc-project-version'),
+                        pagesPerItem: gv('f-pages-per-item'),
                         itemOrientation: gv('item-orientation'),
                         minusPrice: gc('calc-minus-price'),
                         sourceW: gv('calc-source-w'),
@@ -3756,7 +3772,9 @@
             document.getElementById('calc-is-obrat').checked = inp.isObrat;
             if (document.getElementById('calc-commercial')) document.getElementById('calc-commercial').value = inp.commercial || 10;
             if (document.getElementById('calc-margin')) document.getElementById('calc-margin').value = inp.margin || 0;
+            if (document.getElementById('calc-project-version')) document.getElementById('calc-project-version').value = inp.version || '';
             if (inp.itemsPerSheet !== undefined) document.getElementById('items-per-sheet').value = inp.itemsPerSheet;
+            if (inp.pagesPerItem !== undefined) document.getElementById('f-pages-per-item').value = inp.pagesPerItem;
             if (inp.itemOrientation !== undefined) document.getElementById('item-orientation').value = inp.itemOrientation;
             if (document.getElementById('calc-minus-price')) document.getElementById('calc-minus-price').checked = inp.minusPrice || false;
             if (inp.sourceW !== undefined) document.getElementById('calc-source-w').value = inp.sourceW;
@@ -3941,6 +3959,7 @@
 
                 itemsToPrint = [{
                     name: projectName,
+                    version: document.getElementById('calc-project-version') ? document.getElementById('calc-project-version').value : '',
                     type: 'Tiskovna pola',
                     customer: customer,
                     materialCode: document.getElementById('calc-material-code').value,
@@ -4019,6 +4038,7 @@
                                 <td style="width: 85%; vertical-align: top; padding-left: 10px;">
                                     <table style="width: 100%; border-collapse: collapse;">
                                         <tr><td style="width: 90px; font-weight: bold;">Izdelek:</td><td>${item.name || '/'}</td></tr>
+                                        ${item.version ? `<tr><td style="font-weight: bold;">Verzija:</td><td>${item.version}</td></tr>` : ''}
                                         <tr><td style="font-weight: bold;">Format:</td><td>${(item.spec && item.spec.format) ? item.spec.format : '/'}</td></tr>
                                         ${(item.spec && item.spec.paper) ? `<tr><td style="font-weight: bold;">Papir:</td><td>${item.spec.paper}</td></tr>` : ''}
                                         <tr><td style="font-weight: bold;">Tisk:</td><td>${(item.spec && item.spec.colors) ? item.spec.colors : '/'}</td></tr>
@@ -4198,6 +4218,8 @@
             let custEmail = document.getElementById('calc-cust-email') ? document.getElementById('calc-cust-email').value : "";
             let deliveryAddress = document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : "";
             let dnNum = document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value : "";
+            let projectVersion = document.getElementById('calc-project-version') ? document.getElementById('calc-project-version').value : "";
+            let pagesPerItem = document.getElementById('f-pages-per-item') ? document.getElementById('f-pages-per-item').value : "";
             let dnOld = document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : "";
             let deadline = document.getElementById('calc-dn-deadline') ? document.getElementById('calc-dn-deadline').value : "";
             let packaging = document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : "";
@@ -4225,6 +4247,18 @@
             let sourceSheets = d.paper.sourceSheets || 0;
             let totalSheets = d.paper.totalSheets || 0;
             let itemsPerSheet = document.getElementById('items-per-sheet').value || "1";
+            let itemsPerSheetVal = parseInt(itemsPerSheet) || 0;
+            let stavkiText = "";
+            let mod100 = itemsPerSheetVal % 100;
+            if (mod100 === 1) {
+                stavkiText = itemsPerSheetVal + " stavek na TP";
+            } else if (mod100 === 2) {
+                stavkiText = itemsPerSheetVal + " stavka na TP";
+            } else if (mod100 === 3 || mod100 === 4) {
+                stavkiText = itemsPerSheetVal + " stavki na TP";
+            } else {
+                stavkiText = itemsPerSheetVal + " stavkov na TP";
+            }
             let formatW = document.getElementById('width').value || 0;
             let formatH = document.getElementById('height').value || 0;
             let finishList = getActiveFinishingList();
@@ -4276,14 +4310,17 @@
                 </table>
                 <table style="margin-top: 10px; width: 100%;">
                     <tr>
-                        <td class="bold" style="font-size: 20px; width: 50%;">${product}</td>
+                        <td class="bold" style="font-size: 20px; width: 50%;">
+                            ${product}
+                            ${projectVersion ? `<div style="font-size: 13px; font-weight: normal; margin-top: 4px; color: #475569;">Verzija: ${projectVersion}</div>` : ''}
+                        </td>
                         <td style="width: 50%; text-align: right; font-size: 18px;">Ponudba: ${quoteNum}</td>
                     </tr>
                 </table>
                 <table style="margin-top: 5px; width: 100%;">
                     <tr><td style="width: 15%;">Količina:</td><td class="bold" style="font-size: 15px;">${q.toLocaleString('de-DE')} kos</td></tr>
-                    <tr><td>Format:</td><td class="bold">${formatW} x ${formatH} mm</td></tr>
-                    <tr><td>Tisk:</td><td class="bold">${colors}</td></tr>
+                    <tr><td>Format:</td><td class="bold">${formatW} x ${formatH} mm (${stavkiText})</td></tr>
+                    <tr><td>Tisk:</td><td class="bold">${colors}${pagesPerItem && pagesPerItem !== '0' ? ' (' + pagesPerItem + ' str)' : ''}</td></tr>
                     <tr><td>Material:</td><td class="bold">${paperWeight}g ${paperType} ${materialDesc}</td></tr>
                 </table>
                 <div class="row-divider"></div>
