@@ -4172,6 +4172,7 @@
         }
         var g_projectsDirHandle = null;
         var g_diskProjects = [];
+        var g_diskProjectsMetadata = {};
         async function syncWithFolder() {
             try {
                 g_projectsDirHandle = await window.showDirectoryPicker();
@@ -4257,13 +4258,26 @@
                 let diskFiltered = g_diskProjects;
                 if (filter) diskFiltered = g_diskProjects.filter(e => e.name.toLowerCase().includes(filter));
                 diskFiltered.forEach(entry => {
+                    let meta = g_diskProjectsMetadata[entry.name];
+                    let dateStr = "Lokalna datoteka";
+                    let totalStr = "-";
+                    let sf = "";
+                    let cust = "";
+                    if (meta) {
+                        if (meta.timestamp) dateStr = new Date(meta.timestamp).toLocaleDateString('sl-SI');
+                        if (meta.results && meta.results.total) totalStr = meta.results.total;
+                        let preset = (meta.inputs && meta.inputs.sourcePreset && meta.inputs.sourcePreset !== 'custom') ? ` ${meta.inputs.sourcePreset}` : "";
+                        if (meta.inputs && meta.inputs.sourceW && meta.inputs.sourceH) sf = ` | Osnovni format:${preset} (${meta.inputs.sourceW}x${meta.inputs.sourceH})`;
+                        if (meta.customer) cust = `<div style="font-size: 0.7rem; color: #6ee7b7;">${meta.customer}</div>`;
+                    }
                     html += `
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
                             <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProjectFromDisk('${entry.name}'); toggleProjectsDropdown();">
                                 <div style="font-weight: bold; color: #10b981; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
                                     = ${entry.name}
                                 </div>
-                                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">Lokalna datoteka</div>
+                                ${cust}
+                                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${dateStr} | ${totalStr}${sf}</div>
                             </div>
                         </div>`;
                 });
@@ -4284,7 +4298,8 @@
                 filtered.forEach(proj => {
                     const codeDisplay = proj.materialCode ? `<span style="color:#60a5fa; margin-left:5px;">[${proj.materialCode}]</span>` : "";
                     const custDisplay = proj.customer ? `<div style="font-size: 0.7rem; color: #6ee7b7;">${proj.customer}</div>` : "";
-                    const sourceFormatDisplay = (proj.inputs && proj.inputs.sourceW && proj.inputs.sourceH) ? ` | Osnovni format: ${proj.inputs.sourceW}x${proj.inputs.sourceH}` : "";
+                    let preset = (proj.inputs && proj.inputs.sourcePreset && proj.inputs.sourcePreset !== 'custom') ? ` ${proj.inputs.sourcePreset}` : "";
+                    const sourceFormatDisplay = (proj.inputs && proj.inputs.sourceW && proj.inputs.sourceH) ? ` | Osnovni format:${preset} (${proj.inputs.sourceW}x${proj.inputs.sourceH})` : "";
                     html += `
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
                             <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProject(${proj.id}); toggleProjectsDropdown();">
