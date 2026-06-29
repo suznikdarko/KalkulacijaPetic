@@ -3822,20 +3822,28 @@
             }
             return combined;
         }
+        function getUniqueCustomers() {
+            var arhiv = getAllArchives();
+            var customers = [];
+            for (var i = 0; i < arhiv.length; i++) {
+                if (arhiv[i] && arhiv[i].customer) {
+                    var c = arhiv[i].customer.trim();
+                    if (c && customers.indexOf(c) === -1) customers.push(c);
+                }
+            }
+            try {
+                var cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                for (var k = 0; k < cache.length; k++) {
+                    var cc = cache[k].trim();
+                    if (cc && customers.indexOf(cc) === -1) customers.push(cc);
+                }
+            } catch (e) { }
+            customers.sort();
+            return customers;
+        }
         function renderCustomerList() {
             try {
-                var arhiv = getAllArchives();
-                var customers = [];
-                for (var i = 0; i < arhiv.length; i++) {
-                    var p = arhiv[i];
-                    if (p && p.customer) {
-                        var c = p.customer.trim();
-                        if (c && customers.indexOf(c) === -1) {
-                            customers.push(c);
-                        }
-                    }
-                }
-                customers.sort();
+                var customers = getUniqueCustomers();
                 var listDiv = document.getElementById('cust-dropdown-list');
                 if (!listDiv) return;
                 listDiv.innerHTML = "";
@@ -3865,18 +3873,7 @@
         }
         function updateCustomerDatalist() {
             try {
-                var arhiv = getAllArchives();
-                var customers = [];
-                for (var i = 0; i < arhiv.length; i++) {
-                    var p = arhiv[i];
-                    if (p && p.customer) {
-                        var c = p.customer.trim();
-                        if (c && customers.indexOf(c) === -1) {
-                            customers.push(c);
-                        }
-                    }
-                }
-                customers.sort();
+                var customers = getUniqueCustomers();
                 // 1. Posodobi standardni datalist
                 var dl = document.getElementById('customer-list');
                 if (dl) {
@@ -4196,6 +4193,32 @@
                     }
                 }
             } catch (err) { console.error(err); }
+            extractCustomersFromDisk();
+        }
+        async function extractCustomersFromDisk() {
+            if (!g_diskProjects || g_diskProjects.length === 0) return;
+            try {
+                let cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                let changed = false;
+                for (let i = 0; i < g_diskProjects.length; i++) {
+                    try {
+                        const file = await g_diskProjects[i].getFile();
+                        const content = await file.text();
+                        const data = JSON.parse(content);
+                        if (data && data.customer) {
+                            const c = data.customer.trim();
+                            if (c && cache.indexOf(c) === -1) {
+                                cache.push(c);
+                                changed = true;
+                            }
+                        }
+                    } catch (e) { }
+                }
+                if (changed) {
+                    localStorage.setItem('petric_customers_cache', JSON.stringify(cache));
+                    updateCustomerDatalist();
+                }
+            } catch (e) { }
         }
         async function loadProjectFromDisk(fileName) {
             const entry = g_diskProjects.find(e => e.name === fileName);
@@ -4537,6 +4560,17 @@
         async function exportToFile() {
             try {
                 let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
+                let customerName = document.getElementById('calc-customer').value.trim();
+                if (customerName) {
+                    try {
+                        let cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                        if (cache.indexOf(customerName) === -1) {
+                            cache.push(customerName);
+                            localStorage.setItem('petric_customers_cache', JSON.stringify(cache));
+                            updateCustomerDatalist();
+                        }
+                    } catch (e) { }
+                }
                 const data = {
                     name: name,
                     _source: 'tiskovna-pola-kalkulator',
