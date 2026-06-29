@@ -3586,19 +3586,38 @@
             let bestC = Math.min(layout.cols, uniformCount);
             let bestR = Math.ceil(uniformCount / (bestC || 1));
             const isObratChecked = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
+            let foundPerfect = false;
             if (!layout.isMixed) {
+                let bestPerfectDiff = 999999;
                 for (let tempC = 1; tempC <= layout.cols; tempC++) {
-                    let tempR = Math.ceil(targetCount / tempC);
-                    if (tempR <= layout.rows) {
-                        let diff = Math.abs(tempC - tempR);
-                        let bestDiff = Math.abs(bestC - bestR);
-                        if (isObratChecked) {
-                            if (bestC % 2 !== 0) bestDiff += 1000;
-                            if (tempC % 2 !== 0) diff += 1000;
+                    if (targetCount % tempC === 0) {
+                        let tempR = targetCount / tempC;
+                        if (tempR <= layout.rows) {
+                            let diff = Math.abs(tempC - tempR);
+                            if (isObratChecked && tempC % 2 !== 0) diff += 1000;
+                            if (!foundPerfect || diff < bestPerfectDiff || (diff === bestPerfectDiff && tempC > bestC)) {
+                                bestC = tempC;
+                                bestR = tempR;
+                                bestPerfectDiff = diff;
+                                foundPerfect = true;
+                            }
                         }
-                        if (diff < bestDiff || (diff === bestDiff && tempC > bestC)) {
-                            bestC = tempC;
-                            bestR = tempR;
+                    }
+                }
+                if (!foundPerfect) {
+                    for (let tempC = 1; tempC <= layout.cols; tempC++) {
+                        let tempR = Math.ceil(targetCount / tempC);
+                        if (tempR <= layout.rows) {
+                            let diff = Math.abs(tempC - tempR);
+                            let currentBestDiff = Math.abs(bestC - bestR);
+                            if (isObratChecked) {
+                                if (bestC % 2 !== 0) currentBestDiff += 1000;
+                                if (tempC % 2 !== 0) diff += 1000;
+                            }
+                            if (diff < currentBestDiff || (diff === currentBestDiff && tempC > bestC)) {
+                                bestC = tempC;
+                                bestR = tempR;
+                            }
                         }
                     }
                 }
@@ -3730,6 +3749,15 @@
                         }
                     }
                 }
+            }
+            if (!layout.isMixed && targetCount > 0 && !foundPerfect) {
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+                ctx.fillRect(0, 0, canvas.width, 30);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`⚠️ OPOZORILO: ${targetCount} kosov ni mogoče simetrično razporediti na to polo!`, canvas.width / 2, 15);
             }
         }
         // INITIAL CALLS ON LOAD (MOVED TO BOTTOM)
