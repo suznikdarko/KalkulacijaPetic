@@ -610,22 +610,38 @@
                     <label>Stavkov na poli</label>
                     <input type="number" id="items-per-sheet" value="0" oninput="calculate()">
                 </div>
-                <div style="flex: 1; min-width: 160px;">
-                    <label>Združeno v blok (Š x V)</label>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <div
+                    style="flex: 2; min-width: 250px; display: flex; flex-direction: column; background: rgba(16, 185, 129, 0.05); padding: 8px; border-radius: 8px; border: 1px dashed rgba(16, 185, 129, 0.3);">
+                    <label style="color: #10b981;">Združeno v blok (orodje)</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 6px;">
                         <input type="number" id="group-cols" value="1" min="1" step="1"
                             oninput="document.getElementById('items-per-sheet').value=''; calculate()"
-                            style="width: 75px; padding: 0.5rem; font-size: 1.1rem; text-align: center; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); border-radius: 8px; font-weight: bold;">
-                        <span style="color:var(--text-muted); font-weight: bold; font-size: 1.2rem;">x</span>
+                            style="width: 60px; padding: 0.3rem; font-size: 1rem; text-align: center; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); border-radius: 6px; font-weight: bold;">
+                        <span style="color:var(--text-muted); font-weight: bold;">x</span>
                         <input type="number" id="group-rows" value="1" min="1" step="1"
                             oninput="document.getElementById('items-per-sheet').value=''; calculate()"
-                            style="width: 75px; padding: 0.5rem; font-size: 1.1rem; text-align: center; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); border-radius: 8px; font-weight: bold;">
+                            style="width: 60px; padding: 0.3rem; font-size: 1rem; text-align: center; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); border-radius: 6px; font-weight: bold;">
                     </div>
-                </div>
-                <div style="flex: 0.8; min-width: 80px;">
-                    <label>Razmak (mm)</label>
-                    <input type="number" id="block-gap" value="0" min="0" step="1"
-                        oninput="document.getElementById('items-per-sheet').value=''; calculate()">
+                    <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.7rem;">Notr. razmak</label>
+                            <input type="number" id="block-inner-gap" value="0" min="0" step="1" oninput="calculate()"
+                                style="width: 100%; padding: 0.3rem;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.7rem;">Zunanji rob</label>
+                            <input type="number" id="block-outer-margin" value="" placeholder="=Bleed" min="0" step="1"
+                                oninput="calculate()" style="width: 100%; padding: 0.3rem;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.7rem;">Med bloki</label>
+                            <input type="number" id="block-gap" value="0" min="0" step="1" oninput="calculate()"
+                                style="width: 100%; padding: 0.3rem;">
+                        </div>
+                    </div>
+                    <div id="block-dim-label"
+                        style="font-size: 0.8rem; color: #10b981; margin-top: 5px; font-weight: bold; height: 14px;">
+                    </div>
                 </div>
                 <div style="flex: 1; min-width: 120px;">
                     <label>Strani v stavku</label>
@@ -2079,14 +2095,39 @@
                 let gCols = parseInt(document.getElementById('group-cols').value) || 1;
                 let gRows = parseInt(document.getElementById('group-rows').value) || 1;
                 let blockGap = parseFloat(document.getElementById('block-gap')?.value) || 0;
+                let innerGap = parseFloat(document.getElementById('block-inner-gap')?.value) || 0;
+                let outerMarginStr = document.getElementById('block-outer-margin')?.value;
+
                 if (gCols < 1) gCols = 1;
                 if (gRows < 1) gRows = 1;
                 if (blockGap < 0) blockGap = 0;
+                if (innerGap < 0) innerGap = 0;
 
-                const singleItemW = w + 2 * b;
-                const singleItemH = h + 2 * b;
-                const itemW = (singleItemW * gCols) + blockGap;
-                const itemH = (singleItemH * gRows) + blockGap;
+                let outerMargin = b;
+                if (outerMarginStr && outerMarginStr.trim() !== '') {
+                    outerMargin = parseFloat(outerMarginStr);
+                }
+
+                let blockBaseW = (w * gCols) + Math.max(0, gCols - 1) * innerGap;
+                let blockBaseH = (h * gRows) + Math.max(0, gRows - 1) * innerGap;
+
+                let itemW, itemH;
+                if (gCols > 1 || gRows > 1) {
+                    itemW = blockBaseW + 2 * outerMargin + blockGap;
+                    itemH = blockBaseH + 2 * outerMargin + blockGap;
+                } else {
+                    itemW = w + 2 * b + blockGap;
+                    itemH = h + 2 * b + blockGap;
+                }
+
+                const blockDimLabel = document.getElementById('block-dim-label');
+                if (blockDimLabel) {
+                    if (gCols > 1 || gRows > 1) {
+                        blockDimLabel.innerText = `Skupni nož/rob: ${blockBaseW + 2 * outerMargin} x ${blockBaseH + 2 * outerMargin} mm`;
+                    } else {
+                        blockDimLabel.innerText = '';
+                    }
+                }
 
                 // Preberi ročni vnos stavkov
                 const itemsInp = document.getElementById('items-per-sheet');
@@ -2222,7 +2263,8 @@
                 document.getElementById('res-size').innerText = bestSheet.w + " x " + bestSheet.h;
 
                 const isOverride = currentCount !== bestLayout.count;
-                drawAllLayouts(bestSheet.w, bestSheet.h, bestLayout, g, w, h, b, sw, sh, isOverride, currentCount, blockGap);
+                let drawingBleed = (gCols > 1 || gRows > 1) ? outerMargin : b;
+                drawAllLayouts(bestSheet.w, bestSheet.h, bestLayout, g, w, h, drawingBleed, sw, sh, isOverride, currentCount, blockGap);
 
                 updateWasteAndPrice(Math.ceil(q / currentCount), q, bestSheet.w, bestSheet.h);
 
@@ -3567,6 +3609,8 @@
                         groupCols: gv('group-cols'),
                         groupRows: gv('group-rows'),
                         blockGap: gv('block-gap'),
+                        blockInnerGap: gv('block-inner-gap'),
+                        blockOuterMargin: gv('block-outer-margin'),
                         version: gv('calc-project-version'),
                         pagesPerItem: gv('f-pages-per-item'),
                         itemOrientation: gv('item-orientation'),
@@ -3667,6 +3711,8 @@
                         groupCols: gv('group-cols'),
                         groupRows: gv('group-rows'),
                         blockGap: gv('block-gap'),
+                        blockInnerGap: gv('block-inner-gap'),
+                        blockOuterMargin: gv('block-outer-margin'),
                         version: gv('calc-project-version'),
                         pagesPerItem: gv('f-pages-per-item'),
                         itemOrientation: gv('item-orientation'),
@@ -3945,6 +3991,8 @@
             if (inp.groupCols !== undefined && document.getElementById('group-cols')) document.getElementById('group-cols').value = inp.groupCols;
             if (inp.groupRows !== undefined && document.getElementById('group-rows')) document.getElementById('group-rows').value = inp.groupRows;
             if (inp.blockGap !== undefined && document.getElementById('block-gap')) document.getElementById('block-gap').value = inp.blockGap;
+            if (inp.blockInnerGap !== undefined && document.getElementById('block-inner-gap')) document.getElementById('block-inner-gap').value = inp.blockInnerGap;
+            if (inp.blockOuterMargin !== undefined && document.getElementById('block-outer-margin')) document.getElementById('block-outer-margin').value = inp.blockOuterMargin;
             if (inp.pagesPerItem !== undefined) document.getElementById('f-pages-per-item').value = inp.pagesPerItem;
             if (inp.itemOrientation !== undefined) document.getElementById('item-orientation').value = inp.itemOrientation;
             if (document.getElementById('calc-minus-price')) document.getElementById('calc-minus-price').checked = inp.minusPrice || false;
