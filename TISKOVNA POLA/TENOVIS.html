@@ -562,7 +562,7 @@
                     <label style="color: #60a5fa; font-weight: bold;">Odprt format (Š x V mm)</label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <select id="calc-dim-presets" onchange="applyDimPreset(this.value)"
-                            style="max-width: 130px; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; font-size: 0.8rem; padding: 0.5rem;">
+                            style="flex: 1; min-width: 150px; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; font-size: 0.8rem; padding: 0.5rem;">
                             <option value="">Izberi format...</option>
                             <option value="226x140">226 x 140 (odprt format mala 4 str.)</option>
                             <option value="272x149">272 x 149 (odprt format 4 str.)</option>
@@ -572,11 +572,11 @@
                         </select>
                         <input type="text" id="width" value="" placeholder="Š"
                             oninput="document.getElementById('items-per-sheet').value=''; calculate()"
-                            style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); flex: 1;">
+                            style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); flex: 1.5;">
                         <span style="color:var(--text-muted); font-weight: bold;">x</span>
                         <input type="text" id="height" value="" placeholder="V"
                             oninput="document.getElementById('items-per-sheet').value=''; calculate()"
-                            style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); flex: 1;">
+                            style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); flex: 1.5;">
                     </div>
                 </div>
                 <div style="flex: 2.5; min-width: 220px;">
@@ -589,6 +589,9 @@
                             style="font-size: 1.2rem; font-weight: 800; border-color: #10b981; background: rgba(16, 185, 129, 0.1); flex: 1;">
                     </div>
                 </div>
+            </div>
+
+            <div class="header-group" style="grid-column: span 2; display: flex; flex-wrap: wrap; gap: 1rem;">
                 <div style="flex: 0.8; min-width: 80px;">
                     <label>Bleed (mm)</label>
                     <input type="number" id="bleed" value="2" onchange="calculate()">
@@ -605,8 +608,24 @@
                 </div>
                 <div style="flex: 1; min-width: 120px;">
                     <label>Stavkov na poli</label>
-                    <input type="number" id="items-per-sheet" value="0"
-                        oninput="if(typeof updatePriceFromManualCount === &#39;function&#39;) updatePriceFromManualCount(); else calculate()">
+                    <input type="number" id="items-per-sheet" value="0" oninput="calculate()">
+                </div>
+                <div style="flex: 1; min-width: 160px;">
+                    <label>Združeno v blok (Š x V)</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="number" id="group-cols" value="1" min="1" step="1"
+                            oninput="document.getElementById('items-per-sheet').value=''; calculate()"
+                            style="width: 75px; padding: 0.5rem; font-size: 1.1rem; text-align: center; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); border-radius: 8px; font-weight: bold;">
+                        <span style="color:var(--text-muted); font-weight: bold; font-size: 1.2rem;">x</span>
+                        <input type="number" id="group-rows" value="1" min="1" step="1"
+                            oninput="document.getElementById('items-per-sheet').value=''; calculate()"
+                            style="width: 75px; padding: 0.5rem; font-size: 1.1rem; text-align: center; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); border-radius: 8px; font-weight: bold;">
+                    </div>
+                </div>
+                <div style="flex: 0.8; min-width: 80px;">
+                    <label>Razmak (mm)</label>
+                    <input type="number" id="block-gap" value="0" min="0" step="1"
+                        oninput="document.getElementById('items-per-sheet').value=''; calculate()">
                 </div>
                 <div style="flex: 1; min-width: 120px;">
                     <label>Strani v stavku</label>
@@ -614,11 +633,11 @@
                 </div>
             </div>
 
-            <div class="header-group" style="grid-column: span 2; display: flex; gap: 1.25rem;">
+            <div class="header-group" style="grid-column: 3 / span 2; display: flex; gap: 1.25rem;">
                 <div style="flex: 1;">
                     <label>Format tiskovne forme</label>
                     <select id="machine-format"
-                        onchange="document.getElementById(&#39;items-per-sheet&#39;).value=&#39;&#39;; if(typeof filterAvailableFormats === &#39;function&#39;) filterAvailableFormats(); calculate();">
+                        onchange="if(typeof filterAvailableFormats === 'function') filterAvailableFormats(); calculate();">
                         <option value="auto">Samodejno (B2 max)</option>
                         <option value="B1" disabled="">B1 (1000 x 700 mm)</option>
                         <option value="A1" disabled="">A1 (841 x 594 mm)</option>
@@ -2057,16 +2076,26 @@
                 g_lastW_calc = w;
                 g_lastH_calc = h;
 
-                const itemW = w + 2 * b;
-                const itemH = h + 2 * b;
+                let gCols = parseInt(document.getElementById('group-cols').value) || 1;
+                let gRows = parseInt(document.getElementById('group-rows').value) || 1;
+                let blockGap = parseFloat(document.getElementById('block-gap')?.value) || 0;
+                if (gCols < 1) gCols = 1;
+                if (gRows < 1) gRows = 1;
+                if (blockGap < 0) blockGap = 0;
+
+                const singleItemW = w + 2 * b;
+                const singleItemH = h + 2 * b;
+                const itemW = (singleItemW * gCols) + blockGap;
+                const itemH = (singleItemH * gRows) + blockGap;
 
                 // Preberi ročni vnos stavkov
                 const itemsInp = document.getElementById('items-per-sheet');
-                let targetCount = parseInt(itemsInp.value) || 0;
+                let manualTotalCount = parseInt(itemsInp.value) || 0;
+                let targetBlockCount = manualTotalCount > 0 ? Math.ceil(manualTotalCount / (gCols * gRows)) : 0;
 
-                // Če je isManual ali če so se dimenzije spremenile, ne vsiljujemo starega števila stavkov
-                if (isManual || targetCount === g_autoCount) {
-                    targetCount = 0;
+                let isForcingCount = (!isManual && manualTotalCount > 0 && manualTotalCount !== g_autoCount);
+                if (!isForcingCount) {
+                    targetBlockCount = 0; // standard optimization
                 }
 
                 let bestSheet = null;
@@ -2089,9 +2118,9 @@
                     const sYield = Math.max(y1, y2, 1);
 
                     let score;
-                    let isSatisfied = (targetCount > 0 && currLayout.count >= targetCount);
+                    let isSatisfied = (targetBlockCount > 0 && currLayout.count >= targetBlockCount);
 
-                    if (targetCount > 0) {
+                    if (targetBlockCount > 0) {
                         if (isSatisfied) {
                             // Če dosegamo želeno število, optimiziramo sYield in porabo papirja
                             const sheetArea = s.w * s.h;
@@ -2176,13 +2205,15 @@
                 document.getElementById('res-sheet-mini').innerText = bestSheet.name;
                 document.getElementById('res-count-mini').innerText = bestLayout.count;
 
-                // Samodejno posodobi polje za vnos stavkov, če je bilo v "auto" načinu
-                if (isManual || itemsInp.value == "0" || itemsInp.value == "" || parseInt(itemsInp.value) === g_autoCount || targetCount === 0) {
-                    itemsInp.value = bestLayout.count;
-                    g_autoCount = bestLayout.count;
+                if (bestLayout) {
+                    if (isForcingCount && bestLayout.count >= targetBlockCount) {
+                        bestLayout.count = targetBlockCount;
+                        bestLayout.rects = bestLayout.rects.slice(0, targetBlockCount);
+                    }
+                    g_autoCount = bestLayout.count * (gCols * gRows);
+                    itemsInp.value = g_autoCount;
+                    g_lastBestLayout = bestLayout;
                 }
-
-                g_lastBestLayout = bestLayout;
 
                 const currentCount = parseInt(itemsInp.value) || bestLayout.count;
                 let usage = (currentCount * itemW * itemH) / (bestSheet.w * bestSheet.h);
@@ -2191,7 +2222,7 @@
                 document.getElementById('res-size').innerText = bestSheet.w + " x " + bestSheet.h;
 
                 const isOverride = currentCount !== bestLayout.count;
-                drawAllLayouts(bestSheet.w, bestSheet.h, bestLayout, g, w, h, b, sw, sh, isOverride, currentCount);
+                drawAllLayouts(bestSheet.w, bestSheet.h, bestLayout, g, w, h, b, sw, sh, isOverride, currentCount, blockGap);
 
                 updateWasteAndPrice(Math.ceil(q / currentCount), q, bestSheet.w, bestSheet.h);
 
@@ -2232,7 +2263,7 @@
 
             totalItemsFormArr.forEach(qty => {
                 let currentNeeded = Math.ceil(qty / (parseInt(document.getElementById('items-per-sheet').value) || 1));
-                let res = calculateForSingleQty(qty, currentNeeded, dw, dh);
+                let res = calculateForSingleQty(qty, currentNeeded, dw, dh, bestLayout);
                 results.push(res);
                 if (qty === q) r = res;
             });
@@ -2762,7 +2793,7 @@
             calculatePrice();
         }
 
-        function drawAllLayouts(sheetW, sheetH, layout, gripper, origW, origH, bleed, sourceW, sourceH, isOverride = false, currentCount = 0) {
+        function drawAllLayouts(sheetW, sheetH, layout, gripper, origW, origH, bleed, sourceW, sourceH, isOverride = false, currentCount = 0, blockGap = 0) {
             g_lastSheetW = sheetW;
             g_lastSheetH = sheetH;
             g_lastG = gripper;
@@ -2772,7 +2803,7 @@
             document.getElementById('machine-dim-label').innerText = `${sheetW} x ${sheetH} mm`;
 
             drawSourceCanvas(sourceW, sourceH, sheetW, sheetH);
-            drawMachineCanvas(sheetW, sheetH, layout, gripper, origW, origH, bleed, isOverride, currentCount);
+            drawMachineCanvas(sheetW, sheetH, layout, gripper, origW, origH, bleed, isOverride, currentCount, blockGap);
         }
 
         function drawSourceCanvas(sw, sh, mw, mh) {
@@ -2869,7 +2900,7 @@
             ctx.fillText(`Izkoristek: ${cols * rows}x`, 10, 20);
         }
 
-        function drawMachineCanvas(sheetW, sheetH, layout, gripper, origW, origH, bleed, isOverride = false, currentCount = 0) {
+        function drawMachineCanvas(sheetW, sheetH, layout, gripper, origW, origH, bleed, isOverride = false, currentCount = 0, blockGap = 0) {
             const canvas = document.getElementById('canvas-machine');
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
@@ -3131,25 +3162,63 @@
             let slotsToDraw = [];
             let itemsToDraw = targetCount;
 
-            function drawOneItem(ctx, x, y, iw, ih, innerW, innerH, b, sc) {
+            function drawOneItem(ctx, x, y, iw, ih, singleInnerW, singleInnerH, b, sc) {
+                let actW = iw - blockGap;
+                let actH = ih - blockGap;
+
                 ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
                 ctx.strokeStyle = '#3b82f6';
                 ctx.lineWidth = 1;
-                ctx.fillRect(x, y, iw * sc, ih * sc);
-                ctx.strokeRect(x, y, iw * sc, ih * sc);
+                ctx.fillRect(x, y, actW * sc, actH * sc);
+                ctx.strokeRect(x, y, actW * sc, actH * sc);
 
+                let gCols = document.getElementById('group-cols') ? parseInt(document.getElementById('group-cols').value) || 1 : 1;
+                let gRows = document.getElementById('group-rows') ? parseInt(document.getElementById('group-rows').value) || 1 : 1;
+
+                // Determine if the block is rotated
+                let isRotated = false;
+                const expectedBlockW = (getFloatValue('width') + 2 * b) * gCols + blockGap;
+                if (Math.abs(iw - expectedBlockW) > 0.5 && Math.abs(ih - expectedBlockW) < 0.5) {
+                    isRotated = true; // iw became ih, so it's rotated
+                }
+
+                let drawCols = isRotated ? gRows : gCols;
+                let drawRows = isRotated ? gCols : gRows;
+
+                if (drawCols > 1 || drawRows > 1) {
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath();
+                    let stepX = (actW * sc) / drawCols;
+                    for (let c = 1; c < drawCols; c++) {
+                        ctx.moveTo(x + c * stepX, y);
+                        ctx.lineTo(x + c * stepX, y + actH * sc);
+                    }
+                    let stepY = (actH * sc) / drawRows;
+                    for (let r = 1; r < drawRows; r++) {
+                        ctx.moveTo(x, y + r * stepY);
+                        ctx.lineTo(x + actW * sc, y + r * stepY);
+                    }
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // Inner safe area for the ENTIRE block
+                let blockInnerW = actW - 2 * b;
+                let blockInnerH = actH - 2 * b;
                 ctx.setLineDash([2, 3]);
                 ctx.strokeStyle = '#1e3a8a';
-                ctx.strokeRect(x + (b * sc), y + (b * sc), innerW * sc, innerH * sc);
+                ctx.strokeRect(x + (b * sc), y + (b * sc), blockInnerW * sc, blockInnerH * sc);
                 ctx.setLineDash([]);
 
                 ctx.fillStyle = '#1e3a8a';
                 ctx.font = 'bold 9px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                const dimLabel = `${Math.round(innerW)}x${Math.round(innerH)}`;
-                if (iw * sc > 30 && ih * sc > 15) {
-                    ctx.fillText(dimLabel, x + (iw * sc) / 2, y + (ih * sc) / 2);
+                const dimLabel = `${Math.round(singleInnerW)}x${Math.round(singleInnerH)}`;
+                if (actW * sc > 30 && actH * sc > 15) {
+                    ctx.fillText(dimLabel, x + (actW * sc) / 2, y + (actH * sc) / 2);
                 }
             }
 
@@ -3495,6 +3564,9 @@
                         commercial: gv('calc-commercial'),
                         margin: gv('calc-margin'),
                         itemsPerSheet: gv('items-per-sheet'),
+                        groupCols: gv('group-cols'),
+                        groupRows: gv('group-rows'),
+                        blockGap: gv('block-gap'),
                         version: gv('calc-project-version'),
                         pagesPerItem: gv('f-pages-per-item'),
                         itemOrientation: gv('item-orientation'),
@@ -3592,6 +3664,9 @@
                         commercial: gv('calc-commercial'),
                         margin: gv('calc-margin'),
                         itemsPerSheet: gv('items-per-sheet'),
+                        groupCols: gv('group-cols'),
+                        groupRows: gv('group-rows'),
+                        blockGap: gv('block-gap'),
                         version: gv('calc-project-version'),
                         pagesPerItem: gv('f-pages-per-item'),
                         itemOrientation: gv('item-orientation'),
@@ -3867,6 +3942,9 @@
             if (document.getElementById('calc-margin')) document.getElementById('calc-margin').value = inp.margin || 0;
             if (document.getElementById('calc-project-version')) document.getElementById('calc-project-version').value = inp.version || '';
             if (inp.itemsPerSheet !== undefined) document.getElementById('items-per-sheet').value = inp.itemsPerSheet;
+            if (inp.groupCols !== undefined && document.getElementById('group-cols')) document.getElementById('group-cols').value = inp.groupCols;
+            if (inp.groupRows !== undefined && document.getElementById('group-rows')) document.getElementById('group-rows').value = inp.groupRows;
+            if (inp.blockGap !== undefined && document.getElementById('block-gap')) document.getElementById('block-gap').value = inp.blockGap;
             if (inp.pagesPerItem !== undefined) document.getElementById('f-pages-per-item').value = inp.pagesPerItem;
             if (inp.itemOrientation !== undefined) document.getElementById('item-orientation').value = inp.itemOrientation;
             if (document.getElementById('calc-minus-price')) document.getElementById('calc-minus-price').checked = inp.minusPrice || false;
@@ -4357,6 +4435,11 @@
                 stavkiText = itemsPerSheetVal + " stavki na TP";
             } else {
                 stavkiText = itemsPerSheetVal + " stavkov na TP";
+            }
+            let groupCols = document.getElementById('group-cols') ? parseInt(document.getElementById('group-cols').value) || 1 : 1;
+            let groupRows = document.getElementById('group-rows') ? parseInt(document.getElementById('group-rows').value) || 1 : 1;
+            if (groupCols > 1 || groupRows > 1) {
+                stavkiText += ` (Združeno v orodju: ${groupCols} x ${groupRows})`;
             }
             let formatW = document.getElementById('width').value || 0;
             let formatH = document.getElementById('height').value || 0;
