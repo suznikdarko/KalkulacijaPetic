@@ -655,8 +655,6 @@
                     <select id="machine-format"
                         onchange="if(typeof filterAvailableFormats === 'function') filterAvailableFormats(); calculate();">
                         <option value="auto">Samodejno (B2 max)</option>
-                        <option value="B1" disabled="">B1 (1000 x 700 mm)</option>
-                        <option value="A1" disabled="">A1 (841 x 594 mm)</option>
                         <option value="B2" disabled="">B2 (698 x 498 mm)</option>
                         <option value="6 iz B1">6 iz B1 (349 x 332 mm)</option>
                         <option value="638x448" disabled="">Izrez (638 x 448 mm)</option>
@@ -1584,8 +1582,6 @@
         }
 
         const sheets = [
-            { name: "B1", w: 1000, h: 700 },
-            { name: "A1", w: 841, h: 594 },
             { name: "B2", w: 698, h: 498 },
             { name: "6 iz B1", w: 349, h: 332 },
             { name: "638x448", w: 638, h: 448 },
@@ -2094,9 +2090,12 @@
 
                 let gCols = parseInt(document.getElementById('group-cols').value) || 1;
                 let gRows = parseInt(document.getElementById('group-rows').value) || 1;
-                let blockGap = parseFloat(document.getElementById('block-gap')?.value) || 0;
-                let innerGap = parseFloat(document.getElementById('block-inner-gap')?.value) || 0;
-                let outerMarginStr = document.getElementById('block-outer-margin')?.value;
+                let _bgEl = document.getElementById('block-gap');
+                let _igEl = document.getElementById('block-inner-gap');
+                let _omEl = document.getElementById('block-outer-margin');
+                let blockGap = _bgEl ? (parseFloat(_bgEl.value) || 0) : 0;
+                let innerGap = _igEl ? (parseFloat(_igEl.value) || 0) : 0;
+                let outerMarginStr = _omEl ? _omEl.value : "";
 
                 if (gCols < 1) gCols = 1;
                 if (gRows < 1) gRows = 1;
@@ -2132,7 +2131,7 @@
                 // Preberi ročni vnos stavkov
                 const itemsInp = document.getElementById('items-per-sheet');
                 let manualTotalCount = parseInt(itemsInp.value) || 0;
-                let targetBlockCount = manualTotalCount > 0 ? Math.ceil(manualTotalCount / (gCols * gRows)) : 0;
+                let targetBlockCount = manualTotalCount > 0 ? manualTotalCount : 0;
 
                 let isForcingCount = (!isManual && manualTotalCount > 0 && manualTotalCount !== g_autoCount);
                 if (!isForcingCount) {
@@ -2251,7 +2250,7 @@
                         bestLayout.count = targetBlockCount;
                         bestLayout.rects = bestLayout.rects.slice(0, targetBlockCount);
                     }
-                    g_autoCount = bestLayout.count * (gCols * gRows);
+                    g_autoCount = bestLayout.count;
                     itemsInp.value = g_autoCount;
                     g_lastBestLayout = bestLayout;
                 }
@@ -2268,7 +2267,10 @@
 
                 updateWasteAndPrice(Math.ceil(q / currentCount), q, bestSheet.w, bestSheet.h);
 
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+                alert("Napaka pri izračunu: " + e.message);
+            }
         }
 
 
@@ -2305,7 +2307,7 @@
 
             totalItemsFormArr.forEach(qty => {
                 let currentNeeded = Math.ceil(qty / (parseInt(document.getElementById('items-per-sheet').value) || 1));
-                let res = calculateForSingleQty(qty, currentNeeded, dw, dh, bestLayout);
+                let res = calculateForSingleQty(qty, currentNeeded, dw, dh);
                 results.push(res);
                 if (qty === q) r = res;
             });
@@ -2315,8 +2317,13 @@
 
 
 
-            document.getElementById('res-count').innerText = r.itemsPerSheet;
-            document.getElementById('res-count-mini').innerText = r.itemsPerSheet;
+            if (r.itemsPerBlock > 1) {
+                document.getElementById('res-count').innerText = `${r.itemsPerSheet} bl. (x${r.itemsPerBlock} = ${r.totalItemsPerSheet} kom)`;
+                if (document.getElementById('res-count-mini')) document.getElementById('res-count-mini').innerText = `${r.itemsPerSheet} bl. (x${r.itemsPerBlock} = ${r.totalItemsPerSheet} kom)`;
+            } else {
+                document.getElementById('res-count').innerText = r.itemsPerSheet;
+                if (document.getElementById('res-count-mini')) document.getElementById('res-count-mini').innerText = r.itemsPerSheet;
+            }
             document.getElementById('res-sheets-needed').innerText = r.sheetsNeeded;
             if (document.getElementById('res-dodatek-sheets')) {
                 document.getElementById('res-dodatek-sheets').innerText = document.getElementById('f-dodatek-sheets').value || '0';
@@ -2506,13 +2513,20 @@
             // TEN LOGIKA: Naklada se ne deli več na pol (ustrezno popravljeno na polno količino)
             const effectiveQty = qty;
 
-            if (itemsPerSheet > 0) {
-                sheetsNeeded = Math.ceil(effectiveQty / itemsPerSheet);
-            } else {
-                let autCount = g_lastBestLayout ? g_lastBestLayout.count : (parseInt(document.getElementById('res-count').innerText) || 1);
-                itemsPerSheet = autCount;
-                sheetsNeeded = Math.ceil(effectiveQty / autCount);
-            }
+            let _gColsEl = document.getElementById('group-cols');
+            let _gRowsEl = document.getElementById('group-rows');
+            let gCols = _gColsEl ? (parseInt(_gColsEl.value) || 1) : 1;
+            let gRows = _gRowsEl ? (parseInt(_gRowsEl.value) || 1) : 1;
+            if (gCols < 1) gCols = 1;
+            if (gRows < 1) gRows = 1;
+            let itemsPerBlock = gCols * gRows;
+
+            let autCount = g_lastBestLayout ? g_lastBestLayout.count : (parseInt(document.getElementById('res-count').innerText) || 1);
+            let finalBlockCount = itemsPerSheet > 0 ? itemsPerSheet : autCount;
+            let totalItemsPerSheet = finalBlockCount * itemsPerBlock;
+
+            sheetsNeeded = Math.ceil(effectiveQty / totalItemsPerSheet);
+            itemsPerSheet = finalBlockCount; // Use block count for the rest of the logic
 
             if (sheetsNeeded === 0) sheetsNeeded = 1;
 
@@ -2795,6 +2809,8 @@
             return {
                 qty: qty,
                 itemsPerSheet: itemsPerSheet,
+                itemsPerBlock: itemsPerBlock,
+                totalItemsPerSheet: totalItemsPerSheet,
                 sheetsNeeded: sheetsNeeded,
                 paperCost: paperCost,
                 totalPrepCost: totalPrepCost,
@@ -3137,6 +3153,7 @@
             const usableH = layout.gripEdge === 'H' ? sheetH - gripper : sheetH;
 
             const targetCount = currentCount || layout.count;
+            const isObratChecked = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
 
             // Simplified grid calculation for drawing
             let usedCols = layout.cols;
@@ -3263,8 +3280,6 @@
                     ctx.fillText(dimLabel, x + (actW * sc) / 2, y + (actH * sc) / 2);
                 }
             }
-
-            const isObratChecked = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
 
             if (isObratChecked) {
                 let midC = Math.floor(usedCols / 2);
