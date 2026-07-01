@@ -1557,10 +1557,16 @@
             if (standardFormats[cleaned]) {
                 [w, h] = standardFormats[cleaned];
             } else {
-                const match = val.match(/\((\d+)\s*[xX*×,]\s*(\d+)\s*(?:mm)?\)/);
+                let match = val.match(/\((\d+(?:\.\d+)?)\s*[xX*×,]\s*(\d+(?:\.\d+)?)\s*(?:mm)?\)/);
                 if (match) {
-                    w = parseInt(match[1]);
-                    h = parseInt(match[2]);
+                    w = parseFloat(match[1]);
+                    h = parseFloat(match[2]);
+                } else {
+                    match = val.match(/(\d+(?:\.\d+)?)\s*[xX*×,]\s*(\d+(?:\.\d+)?)/);
+                    if (match) {
+                        w = parseFloat(match[1]);
+                        h = parseFloat(match[2]);
+                    }
                 }
             }
             if (w && h) {
@@ -2233,6 +2239,35 @@
                         applyMachineDefaults();
                         return; // Prekinemo trenutni izračun, saj bo applyMachineDefaults sprožil novega
                     }
+
+                    document.getElementById('empty-state').style.display = 'block';
+                    if (w > 0 && h > 0) {
+                        document.getElementById('empty-state').innerText = "⚠️ Tiskovina je prevelika za izbran stroj ali format!";
+                    } else {
+                        document.getElementById('empty-state').innerText = "Vnesite dimenzije zgoraj za samodejni izračun";
+                    }
+                    if (document.getElementById('stats')) document.getElementById('stats').style.display = 'none';
+                    if (document.getElementById('source-layout-container')) document.getElementById('source-layout-container').style.display = 'none';
+                    if (document.getElementById('machine-layout-container')) document.getElementById('machine-layout-container').style.display = 'none';
+                    
+                    // Reset sticky footer prices to 0.00
+                    const stickyTotal = document.getElementById('sticky-price-total');
+                    const stickyPerItem = document.getElementById('sticky-price-per-item');
+                    const sticky1000 = document.getElementById('sticky-price-1000');
+                    const stickyQty = document.getElementById('sticky-qty');
+                    if (stickyQty) stickyQty.innerText = '-';
+                    if (stickyTotal) stickyTotal.innerText = '0.00 €';
+                    if (stickyPerItem) stickyPerItem.innerText = '0.000 €';
+                    if (sticky1000) sticky1000.innerText = '0.00 €';
+
+                    const spPaper = document.getElementById('sticky-p-paper');
+                    const spPrep = document.getElementById('sticky-p-prep');
+                    const spPrint = document.getElementById('sticky-p-print');
+                    const spFinish = document.getElementById('sticky-p-finish');
+                    if (spPaper) spPaper.innerText = '0.00 €';
+                    if (spPrep) spPrep.innerText = '0.00 €';
+                    if (spPrint) spPrint.innerText = '0.00 €';
+                    if (spFinish) spFinish.innerText = '0.00 €';
 
                     if (isManual) alert("Izdelek ne gre na polo!");
                     return;

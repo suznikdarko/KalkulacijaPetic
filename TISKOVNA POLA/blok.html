@@ -1004,7 +1004,7 @@
                                     readonly />
                             </label>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
                             <div class="form-group">
                                 <label>Cena plošče (€)</label>
                                 <input id="calc-plates-price-leaves" onchange="calculatePrice()" step="0.5"
@@ -1014,6 +1014,11 @@
                                 <label>Pavšal priprave (€)</label>
                                 <input id="calc-prep-price-leaves" onchange="calculatePrice()" step="1" type="number"
                                     value="25.00" />
+                            </div>
+                            <div class="form-group">
+                                <label>Menjava plošč (€/kos)</label>
+                                <input id="calc-change-price-leaves" onchange="calculatePrice()" step="1" type="number"
+                                    value="10.00" />
                             </div>
                         </div>
                         <div class="form-group">
@@ -1113,7 +1118,7 @@
                                     readonly />
                             </label>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
                             <div class="form-group">
                                 <label>Cena plošče (€)</label>
                                 <input id="calc-plates-price-cover" onchange="calculatePrice()" step="0.5" type="number"
@@ -1123,6 +1128,11 @@
                                 <label>Pavšal priprave (€)</label>
                                 <input id="calc-prep-price-cover" onchange="calculatePrice()" step="1" type="number"
                                     value="25.00" />
+                            </div>
+                            <div class="form-group">
+                                <label>Menjava plošč (€/kos)</label>
+                                <input id="calc-change-price-cover" onchange="calculatePrice()" step="1" type="number"
+                                    value="10.00" />
                             </div>
                         </div>
                         <div class="form-group">
@@ -1557,10 +1567,16 @@
                 if (standardFormats[cleaned]) {
                     [w, h] = standardFormats[cleaned];
                 } else {
-                    const match = val.match(/\((\d+)\s*[xX*×,]\s*(\d+)\s*(?:mm)?\)/);
+                    let match = val.match(/\((\d+(?:\.\d+)?)\s*[xX*×,]\s*(\d+(?:\.\d+)?)\s*(?:mm)?\)/);
                     if (match) {
-                        w = parseInt(match[1]);
-                        h = parseInt(match[2]);
+                        w = parseFloat(match[1]);
+                        h = parseFloat(match[2]);
+                    } else {
+                        match = val.match(/(\d+(?:\.\d+)?)\s*[xX*×,]\s*(\d+(?:\.\d+)?)/);
+                        if (match) {
+                            w = parseFloat(match[1]);
+                            h = parseFloat(match[2]);
+                        }
                     }
                 }
                 if (w && h) {
@@ -1819,10 +1835,11 @@
                     setV('calc-source-yield', sourceYieldL);
                     setT('res-source-yield-info', `Izkoristek: ${sourceYieldL} x`);
                 } else {
+                    if (document.getElementById('stats')) document.getElementById('stats').style.display = 'none';
                     const esL = document.getElementById('empty-state-leaves');
                     if (esL) {
                         if (w > 0 && h > 0) {
-                            esL.innerText = "⚠️ Tiskovina je prevelika za izbran format!";
+                            esL.innerText = "⚠️ Tiskovina je prevelika za izbran stroj ali format!";
                             esL.style.display = 'flex';
                         } else {
                             esL.innerText = "Vnesite dimenzije listov";
@@ -1832,6 +1849,16 @@
                     if (document.getElementById('canvas-leaves')) document.getElementById('canvas-leaves').style.display = 'none';
                     setT('res-sheets-needed', '0');
                     setT('header-sheets-val', '0');
+                    
+                    // Reset pricing outputs
+                    if (document.getElementById('sticky-spec-paper')) document.getElementById('sticky-spec-paper').innerText = "0.00 €";
+                    if (document.getElementById('sticky-spec-prep')) document.getElementById('sticky-spec-prep').innerText = "0.00 €";
+                    if (document.getElementById('sticky-spec-print')) document.getElementById('sticky-spec-print').innerText = "0.00 €";
+                    if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = "0.00 €";
+                    if (document.getElementById('sticky-qty')) document.getElementById('sticky-qty').innerText = "-";
+                    if (document.getElementById('sticky-price-total')) document.getElementById('sticky-price-total').innerText = "0.00 €";
+                    if (document.getElementById('sticky-price-per-item')) document.getElementById('sticky-price-per-item').innerText = "0.000 €";
+                    if (document.getElementById('sticky-price-1000')) document.getElementById('sticky-price-1000').innerText = "0.00 €";
                 }
 
                 // --- OPTIMIZATION FOR COVER ---
@@ -2000,12 +2027,12 @@
             }
 
             const machineProfiles = {
-                'S4': { rate: 120, speed: 4500, prep: 10, useDynamic: true, platePrice: 10.00, prepPrice: 25.00, changePrice: 10.00, limitW: 498, limitH: 348 },
-                'S8': { rate: 150, speed: 5400, prep: 10, useDynamic: true, platePrice: 10.00, prepPrice: 40.00, changePrice: 10.00, limitW: 718, limitH: 518 },
-                'CD': { rate: 180, speed: 7200, prep: 10, useDynamic: false, platePrice: 10.00, prepPrice: 35.00, changePrice: 10.00, limitW: 718, limitH: 518 },
-                'SM4+lak': { rate: 160, speed: 6300, prep: 10, useDynamic: false, platePrice: 10.00, prepPrice: 30.00, changePrice: 10.00, limitW: 718, limitH: 518 },
-                'CD UV': { rate: 280, speed: 5400, prep: 10, useDynamic: false, platePrice: 10.00, prepPrice: 50.00, changePrice: 10.00, limitW: 718, limitH: 518 },
-                'digital': { rate: 40, speed: 1800, prep: 10, useDynamic: false, platePrice: 0.00, prepPrice: 5.00, changePrice: 0.00, defaultFormat: 'Digital (480x320)', limitW: 480, limitH: 320 }
+                'S4': { rate: 120, speed: 6900, prep: 10, useDynamic: true, platePrice: 10.00, prepPrice: 25.00, changePrice: 10.00, limitW: 498, limitH: 348 },
+                'S8': { rate: 150, speed: 6900, prep: 10, useDynamic: true, platePrice: 10.00, prepPrice: 25.00, changePrice: 10.00, limitW: 718, limitH: 518 },
+                'CD': { rate: 180, speed: 6900, prep: 10, useDynamic: false, platePrice: 10.00, prepPrice: 25.00, changePrice: 10.00, limitW: 718, limitH: 518 },
+                'SM4+lak': { rate: 160, speed: 6900, prep: 10, useDynamic: false, platePrice: 10.00, prepPrice: 25.00, changePrice: 10.00, limitW: 718, limitH: 518 },
+                'CD UV': { rate: 280, speed: 6900, prep: 10, useDynamic: false, platePrice: 10.00, prepPrice: 70.00, changePrice: 10.00, limitW: 718, limitH: 518 },
+                'digital': { rate: 40, speed: 1800, prep: 10, useDynamic: false, platePrice: 0.00, prepPrice: 30.00, changePrice: 0.00, defaultFormat: 'Digital (480x320)', limitW: 480, limitH: 320 }
             };
 
             function getBossTables(mType) {
@@ -2262,6 +2289,7 @@
                     setV('calc-machine-prep-time-' + comp, profile.prep);
                     setV('calc-plates-price-' + comp, profile.platePrice);
                     setV('calc-prep-price-' + comp, profile.prepPrice);
+                    setV('calc-change-price-' + comp, profile.changePrice);
 
                     /* Avtomatsko nastavljanje formata onemogočeno po želji uporabnika */
                     // if (profile.defaultFormat && comp === 'leaves') {
@@ -2569,7 +2597,9 @@
                         let platesNumL = parseInt(document.getElementById('calc-plates-num-leaves').value) || 0;
                         let platesPriceL = parseFloat(document.getElementById('calc-plates-price-leaves').value) || 0;
                         let prepPriceL = parseFloat(document.getElementById('calc-prep-price-leaves').value) || 0;
-                        totalPrepCostL = (platesNumL * platesPriceL) + prepPriceL;
+                        let changePriceL = parseFloat(document.getElementById('calc-change-price-leaves').value) || 0;
+                        let numberOfChangesL = Math.max(0, platesNumL - 1);
+                        totalPrepCostL = (platesNumL * platesPriceL) + prepPriceL + (numberOfChangesL * changePriceL);
 
                         let mRateL = parseFloat(document.getElementById('calc-machine-rate-leaves').value) || 0;
                         let mTypeL = document.getElementById('calc-machine-type-leaves').value;
@@ -2606,7 +2636,9 @@
                         let platesNumC = parseInt(document.getElementById('calc-plates-num-cover').value) || 0;
                         let platesPriceC = parseFloat(document.getElementById('calc-plates-price-cover').value) || 0;
                         let prepPriceC = parseFloat(document.getElementById('calc-prep-price-cover').value) || 0;
-                        totalPrepCostC = (platesNumC * platesPriceC) + prepPriceC;
+                        let changePriceC = parseFloat(document.getElementById('calc-change-price-cover').value) || 0;
+                        let numberOfChangesC = Math.max(0, platesNumC - 1);
+                        totalPrepCostC = (platesNumC * platesPriceC) + prepPriceC + (numberOfChangesC * changePriceC);
 
                         let mRateC = parseFloat(document.getElementById('calc-machine-rate-cover').value) || 0;
                         let mTypeC = document.getElementById('calc-machine-type-cover').value;
@@ -3848,6 +3880,7 @@
                             platesNumL: gv('calc-plates-num-leaves'),
                             platesPriceL: gv('calc-plates-price-leaves'),
                             prepPriceL: gv('calc-prep-price-leaves'),
+                            changePriceL: gv('calc-change-price-leaves'),
                             wasteL: gv('calc-paper-waste-leaves'),
                             colorWashesLeaves: gv('calc-color-washes-leaves'),
                             washPriceLeaves: gv('calc-wash-price-leaves'),
@@ -3862,6 +3895,7 @@
                             platesNumC: gv('calc-plates-num-cover'),
                             platesPriceC: gv('calc-plates-price-cover'),
                             prepPriceC: gv('calc-prep-price-cover'),
+                            changePriceC: gv('calc-change-price-cover'),
                             wasteC: gv('calc-paper-waste-cover'),
                             colorWashesCover: gv('calc-color-washes-cover'),
                             washPriceCover: gv('calc-wash-price-cover'),
@@ -4103,6 +4137,7 @@
                 setV('calc-plates-num-leaves', inp.platesNumL);
                 setV('calc-plates-price-leaves', inp.platesPriceL);
                 setV('calc-prep-price-leaves', inp.prepPriceL);
+                setV('calc-change-price-leaves', inp.changePriceL !== undefined ? inp.changePriceL : 10.00);
                 setV('calc-paper-waste-leaves', inp.wasteL);
                 setV('calc-color-washes-leaves', inp.colorWashesLeaves || 0);
                 setV('calc-wash-price-leaves', inp.washPriceLeaves || 25);
@@ -4119,6 +4154,7 @@
                 setV('calc-plates-num-cover', inp.platesNumC);
                 setV('calc-plates-price-cover', inp.platesPriceC);
                 setV('calc-prep-price-cover', inp.prepPriceC);
+                setV('calc-change-price-cover', inp.changePriceC !== undefined ? inp.changePriceC : 10.00);
                 setV('calc-paper-waste-cover', inp.wasteC);
 
                 setV('calc-cardboard-price', inp.cbPrice);
@@ -4321,6 +4357,7 @@
                             platesNumL: gv('calc-plates-num-leaves'),
                             platesPriceL: gv('calc-plates-price-leaves'),
                             prepPriceL: gv('calc-prep-price-leaves'),
+                            changePriceL: gv('calc-change-price-leaves'),
                             wasteL: gv('calc-paper-waste-leaves'),
                             mTypeC: gv('calc-machine-type-cover'),
                             mRateC: gv('calc-machine-rate-cover'),
@@ -4333,6 +4370,7 @@
                             platesNumC: gv('calc-plates-num-cover'),
                             platesPriceC: gv('calc-plates-price-cover'),
                             prepPriceC: gv('calc-prep-price-cover'),
+                            changePriceC: gv('calc-change-price-cover'),
                             wasteC: gv('calc-paper-waste-cover'),
                             commercial: gv('calc-commercial'),
                             margin: gv('calc-margin'),
