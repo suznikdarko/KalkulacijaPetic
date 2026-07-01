@@ -784,6 +784,10 @@
                         <div class="value" id="res-sheets-needed">0</div>
                         <div class="label">Potrebno število pol za tisk</div>
                     </div>
+                    <div class="stat-card full-width" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3);">
+                        <div class="value" id="res-source-sheets-needed" style="color: #f59e0b;">0</div>
+                        <div class="label" style="color: #f59e0b;">Potrebno število osnovnih pol (za razrez)</div>
+                    </div>
                     <div class="stat-card full-width"
                         style="margin-top: 5px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
                         <input type="number" id="calc-ordered-sheets" placeholder="Naročene osnovne pole..."
@@ -2254,11 +2258,17 @@
                         return; // Prekinemo trenutni izračun, saj bo applyMachineDefaults sprožil novega
                     }
 
-                    document.getElementById('empty-state').style.display = 'block';
-                    if (w > 0 && h > 0) {
-                        document.getElementById('empty-state').innerText = "⚠️ Tiskovina je prevelika za izbran stroj ali format!";
-                    } else {
-                        document.getElementById('empty-state').innerText = "Vnesite dimenzije zgoraj za samodejni izračun";
+                    const emptyStateEl = document.getElementById('empty-state');
+                    if (emptyStateEl) {
+                        emptyStateEl.style.display = 'block';
+                        if (w > 0 && h > 0) {
+                            emptyStateEl.innerText = "⚠️ Tiskovina je prevelika za izbran stroj ali format!";
+                        } else {
+                            emptyStateEl.innerText = "Vnesite dimenzije zgoraj za samodejni izračun";
+                        }
+                    }
+                    if (document.getElementById('res-source-sheets-needed')) {
+                        document.getElementById('res-source-sheets-needed').innerText = '0';
                     }
                     if (document.getElementById('stats')) document.getElementById('stats').style.display = 'none';
                     if (document.getElementById('source-layout-container')) document.getElementById('source-layout-container').style.display = 'none';
@@ -2624,6 +2634,11 @@
             let sourceYield = getFloatValue('calc-source-yield', 1);
             let totalSheetsNeeded = sheetsNeeded + paperWasteSheets;
             let totalSourceSheetsNeeded = Math.ceil(totalSheetsNeeded / sourceYield);
+            
+            if (document.getElementById('res-source-sheets-needed')) {
+                document.getElementById('res-source-sheets-needed').innerText = totalSourceSheetsNeeded;
+            }
+
             if (orderedSheetsVal > 0) {
                 totalSourceSheetsNeeded = orderedSheetsVal;
                 totalSheetsNeeded = orderedSheetsVal * sourceYield;
