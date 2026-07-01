@@ -3075,7 +3075,7 @@
                 <table style="margin-top: 10px; width: 100%;">
                     <tr>
                         <td class="bold" style="font-size: 20px; width: 50%;">${product}</td>
-                        <td style="width: 50%; text-align: right; font-size: 18px;">Ponudba: ${quoteNum}</td>
+                        <td style="width: 50%; text-align: right; font-size: 18px;"></td>
                     </tr>
                 </table>
                 <table style="margin-top: 5px; width: 100%;">
