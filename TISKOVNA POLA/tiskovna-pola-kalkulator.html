@@ -1688,12 +1688,16 @@
         function removeFromBasket(id) {
             quoteBasket = quoteBasket.filter(item => item.id !== id);
             localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+            g_editedQuoteHTML = '';
+            g_editedQuoteATHTML = '';
             renderBasket();
         }
         function clearBasket() {
             if (confirm("Izbrišem vse elemente iz košarice?")) {
                 quoteBasket = [];
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+                g_editedQuoteHTML = '';
+                g_editedQuoteATHTML = '';
                 renderBasket();
             }
         }
@@ -2090,6 +2094,11 @@
         let g_lastW_calc = 0, g_lastH_calc = 0;
         function calculate(isManual = false) {
             updateWarnings();
+            if (!window.g_loadingProject) {
+                g_editedQuoteHTML = '';
+                g_editedQuoteATHTML = '';
+                g_editedWorkOrderHTML = '';
+            }
             try {
                 const w = parseFloat(document.getElementById('width').value) || 0;
                 const h = parseFloat(document.getElementById('height').value) || 0;
@@ -4507,6 +4516,7 @@
         }
         // Pomožna funkcija za nalaganje podatkov v polja (skupna za Arhiv in File Import)
         function loadProjectData(proj) {
+            window.g_loadingProject = true;
             function setV(id, val, isChk = false) {
                 var el = document.getElementById(id);
                 if (!el) return;
@@ -4656,6 +4666,7 @@
             if (proj.name) document.getElementById('calc-project-name').value = proj.name;
             // Recalculate everything
             calculate();
+            window.g_loadingProject = false;
         }
         function loadProject(id) {
             let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
