@@ -312,8 +312,9 @@
                 border-color: #ef4444;
             }
         }
-    </style>
-</head>
+        .editable-area.waiting-for-paste { cursor: cell !important; outline: 3px dashed #eab308 !important; background-color: #fffbeb !important; }
+                </style>
+            </head>
 
 <body>
     <div class="container">
@@ -1125,14 +1126,16 @@
                         .editable-area:focus { outline: 2px dashed #f99c26; background-color: #fffbeb; }
                         .editable-area p, .editable-area div:not(.header-top) { margin: 0; padding: 0; }
                         .editable-area { word-wrap: break-word; overflow-wrap: break-word; }
-                    </style>
-                </head>
+                        .editable-area.waiting-for-paste { cursor: cell !important; outline: 3px dashed #eab308 !important; background-color: #fffbeb !important; }
+                </style>
+            </head>
                 <body>
                     <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 15px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%; flex-wrap: wrap;">
                         <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI PONUDBO</button>
                         <button onclick="exportQuoteWord(${isAT})" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">SHRANI V WORD</button>
                         <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
                         <button onclick="if(confirm('Ali želite ponastaviti ponudbo na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){ if(${isAT}) { window.opener.g_editedQuoteATHTML=''; } else { window.opener.g_editedQuoteHTML=''; } } window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
+                    <button id="btn-move-text" onclick="toggleMoveMode(this)" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;" title="Premakni označeno besedilo na drugo mesto. Označite besedilo, kliknite ta gumb in nato kliknite na novo mesto v besedilu.">PREMAKNI</button>
                         
                         <div style="display: flex; gap: 4px; align-items: center; background: #cbd5e1; padding: 3px; border-radius: 6px;">
                             <button onclick="document.execCommand('bold', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-weight: bold; cursor: pointer; color: #000; font-size: 14px;" title="Krepko (Bold)">B</button>
@@ -1161,6 +1164,34 @@
                     </div>
                     <script>
                         // Sync changes to parent window
+                        let moveData = null;
+                        let waitingForPaste = false;
+                        
+                        window.toggleMoveMode = function(btn) {
+                            const sel = window.getSelection();
+                            const area = document.querySelector('.editable-area');
+                            if (!waitingForPaste) {
+                                if (sel.rangeCount && sel.toString().trim().length > 0) {
+                                    const range = sel.getRangeAt(0);
+                                    moveData = range.cloneContents();
+                                    range.deleteContents();
+                                    waitingForPaste = true;
+                                    btn.innerText = "VSTAVI TU";
+                                    btn.style.background = "#eab308";
+                                    area.classList.add('waiting-for-paste');
+                                    if (typeof sync === 'function') sync();
+                                } else {
+                                    alert("Najprej z miško označite (pobarvajte) del besedila ali vrstico, ki jo želite premakniti.");
+                                }
+                            } else {
+                                waitingForPaste = false;
+                                moveData = null;
+                                btn.innerText = "PREMAKNI";
+                                btn.style.background = "#3b82f6";
+                                area.classList.remove('waiting-for-paste');
+                            }
+                        };
+                        
                         const area = document.querySelector('.editable-area');
                         if (area) {
                             const sync = () => {
@@ -1172,6 +1203,29 @@
                                     }
                                 }
                             };
+                            area.addEventListener('click', function(e) {
+                                if (waitingForPaste && moveData) {
+                                    e.preventDefault();
+                                    const sel = window.getSelection();
+                                    if (sel.rangeCount) {
+                                        const range = sel.getRangeAt(0);
+                                        range.deleteContents();
+                                        range.insertNode(moveData);
+                                        
+                                        waitingForPaste = false;
+                                        moveData = null;
+                                        area.classList.remove('waiting-for-paste');
+                                        
+                                        const btn = document.getElementById('btn-move-text');
+                                        if (btn) {
+                                            btn.innerText = "PREMAKNI";
+                                            btn.style.background = "#3b82f6";
+                                        }
+                                        if (typeof sync === 'function') sync();
+                                    }
+                                }
+                            });
+                            
                             area.addEventListener('input', sync);
                             area.addEventListener('blur', sync);
                             window.addEventListener('beforeunload', sync);
@@ -1446,6 +1500,7 @@
                     .urgent { color: red; font-size: 18px; font-weight: bold; text-transform: uppercase; }
                     @media print { .no-print { display: none !important; } }
                     .editable-area:focus { outline: 2px dashed #3b82f6; background-color: #eff6ff; }
+                    .editable-area.waiting-for-paste { cursor: cell !important; outline: 3px dashed #eab308 !important; background-color: #fffbeb !important; }
                 </style>
             </head>
             <body>
@@ -1453,6 +1508,7 @@
                     <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI DN</button>
                     <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
                     <button onclick="if(confirm('Ali želite ponastaviti delovni nalog na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.g_editedWorkOrderHTML='';} window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
+                    <button id="btn-move-text" onclick="toggleMoveMode(this)" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;" title="Premakni označeno besedilo na drugo mesto. Označite besedilo, kliknite ta gumb in nato kliknite na novo mesto v besedilu.">PREMAKNI</button>
                     
                     <div style="display: flex; gap: 4px; align-items: center; background: #cbd5e1; padding: 3px; border-radius: 6px;">
                         <button onclick="document.execCommand('bold', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-weight: bold; cursor: pointer; color: #000; font-size: 14px;" title="Krepko (Bold)">B</button>
@@ -1481,14 +1537,65 @@
                 </div>
                 <script>
                     // Sync changes to parent window
-                    const area = document.querySelector('.editable-area');
+                    let moveData = null;
+                        let waitingForPaste = false;
+                        
+                        window.toggleMoveMode = function(btn) {
+                            const sel = window.getSelection();
+                            const area = document.querySelector('.editable-area');
+                            if (!waitingForPaste) {
+                                if (sel.rangeCount && sel.toString().trim().length > 0) {
+                                    const range = sel.getRangeAt(0);
+                                    moveData = range.cloneContents();
+                                    range.deleteContents();
+                                    waitingForPaste = true;
+                                    btn.innerText = "VSTAVI TU";
+                                    btn.style.background = "#eab308";
+                                    area.classList.add('waiting-for-paste');
+                                    if (typeof sync === 'function') sync();
+                                } else {
+                                    alert("Najprej z miško označite (pobarvajte) del besedila ali vrstico, ki jo želite premakniti.");
+                                }
+                            } else {
+                                waitingForPaste = false;
+                                moveData = null;
+                                btn.innerText = "PREMAKNI";
+                                btn.style.background = "#3b82f6";
+                                area.classList.remove('waiting-for-paste');
+                            }
+                        };
+                        
+                        const area = document.querySelector('.editable-area');
                     if (area) {
                         const sync = () => {
                             if (window.opener && !window.opener.closed) {
                                 window.opener.g_editedWorkOrderHTML = area.innerHTML;
                             }
                         };
-                        area.addEventListener('input', sync);
+                        area.addEventListener('click', function(e) {
+                                if (waitingForPaste && moveData) {
+                                    e.preventDefault();
+                                    const sel = window.getSelection();
+                                    if (sel.rangeCount) {
+                                        const range = sel.getRangeAt(0);
+                                        range.deleteContents();
+                                        range.insertNode(moveData);
+                                        
+                                        waitingForPaste = false;
+                                        moveData = null;
+                                        area.classList.remove('waiting-for-paste');
+                                        
+                                        const btn = document.getElementById('btn-move-text');
+                                        if (btn) {
+                                            btn.innerText = "PREMAKNI";
+                                            btn.style.background = "#3b82f6";
+                                        }
+                                        if (typeof sync === 'function') sync();
+                                    }
+                                }
+                            });
+                            
+                            area.addEventListener('input', sync);
                         area.addEventListener('blur', sync);
                         window.addEventListener('beforeunload', sync);
                     }
