@@ -785,6 +785,14 @@
                         <div class="label">Potrebno število pol za tisk</div>
                     </div>
                     <div class="stat-card full-width"
+                        style="margin-top: 5px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
+                        <input type="number" id="calc-ordered-sheets" placeholder="Naročene osnovne pole..."
+                            oninput="g_editedWorkOrderHTML = ''; calculatePrice()"
+                            onchange="g_editedWorkOrderHTML = ''; calculatePrice()"
+                            style="width: 100%; text-align: center; font-size: 1.25rem; font-weight: bold; border: none; background: transparent; padding: 5px; color: #ffffff;">
+                        <div class="label" style="text-align: center;">Naročeno število osnovnih pol (za razrez)</div>
+                    </div>
+                    <div class="stat-card full-width"
                         style="margin-top: 5px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3);">
                         <input type="number" id="calc-given-sheets" placeholder="Vpiši dodatek..."
                             oninput="g_editedWorkOrderHTML = ''; calculatePrice()"
@@ -2715,13 +2723,20 @@
             let _isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
             let _isDoubleSidedForMat = (_calcColorBack > 0 || _calcIsObrat) && !_isSV;
             let physicalWasteSheets = _isDoubleSidedForMat ? Math.ceil(paperWasteSheets / 2) : paperWasteSheets;
+            
+            const orderedSheetsInput = document.getElementById('calc-ordered-sheets');
+            const orderedSheetsVal = orderedSheetsInput ? (parseInt(orderedSheetsInput.value) || 0) : 0;
+            let sourceYield = parseFloat(document.getElementById('calc-source-yield').value) || 1;
             let totalSheetsNeeded = sheetsNeeded + physicalWasteSheets;
+            let totalSourceSheetsNeeded = Math.ceil(totalSheetsNeeded / sourceYield);
+            if (orderedSheetsVal > 0) {
+                totalSourceSheetsNeeded = orderedSheetsVal;
+                totalSheetsNeeded = orderedSheetsVal * sourceYield;
+            }
+            
             let paperCost = 0;
             let sourceW = parseFloat(document.getElementById('calc-source-w').value) || 1000;
             let sourceH = parseFloat(document.getElementById('calc-source-h').value) || 700;
-            let sourceYield = parseFloat(document.getElementById('calc-source-yield').value) || 1;
-            // Izračunamo koliko OSNOVNIH pol potrebujemo
-            let totalSourceSheetsNeeded = Math.ceil(totalSheetsNeeded / sourceYield);
             if (paperUnit === 'ton') {
                 let areaM2 = (sourceW / 1000) * (sourceH / 1000);
                 let weightKg = areaM2 * (paperWeight / 1000) * totalSourceSheetsNeeded;
@@ -4014,6 +4029,7 @@
                     editedQuoteATHTML: g_editedQuoteATHTML,
                     editedWorkOrderHTML: g_editedWorkOrderHTML,
                     inputs: {
+                        orderedSheets: gv('calc-ordered-sheets'),
                         machine_format: gv('machine-format'),
                         sourcePreset: gv('calc-source-presets'),
                         sourceW: gv('calc-source-w'),
@@ -4117,6 +4133,7 @@
                     editedQuoteATHTML: g_editedQuoteATHTML,
                     editedWorkOrderHTML: g_editedWorkOrderHTML,
                     inputs: {
+                        orderedSheets: gv('calc-ordered-sheets'),
                         machine_format: gv('machine-format'),
                         sourcePreset: gv('calc-source-presets'),
                         sourceW: gv('calc-source-w'),
@@ -4482,6 +4499,9 @@
             if (inp.sourceW !== undefined) document.getElementById('calc-source-w').value = inp.sourceW;
             if (inp.sourceH !== undefined) document.getElementById('calc-source-h').value = inp.sourceH;
             if (inp.sourceYield !== undefined) document.getElementById('calc-source-yield').value = inp.sourceYield;
+            if (document.getElementById('calc-ordered-sheets')) {
+                document.getElementById('calc-ordered-sheets').value = inp.orderedSheets || "";
+            }
             document.getElementById('width').value = inp.item_w;
             document.getElementById('height').value = inp.item_h;
             document.getElementById('quantity').value = inp.quantity;
@@ -4635,6 +4655,7 @@
                     editedQuoteATHTML: g_editedQuoteATHTML,
                     editedWorkOrderHTML: g_editedWorkOrderHTML,
                     inputs: {
+                        orderedSheets: document.getElementById('calc-ordered-sheets') ? document.getElementById('calc-ordered-sheets').value : '',
                         machine_format: document.getElementById('machine-format').value,
                         sourcePreset: document.getElementById('calc-source-presets').value,
                         sourceW: document.getElementById('calc-source-w').value,
@@ -5021,7 +5042,16 @@
             let finalTotalSheets = totalSheets;
             let finalSourceSheets = sourceSheets;
             let printMathString = `${calcRes.sheetsNeeded.toLocaleString('de-DE')} + ${finalDodatek.toLocaleString('de-DE')} = ${finalTotalSheets.toLocaleString('de-DE')} tisk. pol`;
-            if (!isNaN(givenDodatekInput) && givenDodatekInput >= 0) {
+            
+            const orderedSheetsInput = document.getElementById('calc-ordered-sheets');
+            const orderedSheetsVal = orderedSheetsInput ? (parseInt(orderedSheetsInput.value) || 0) : 0;
+            
+            if (orderedSheetsVal > 0) {
+                finalSourceSheets = orderedSheetsVal;
+                finalTotalSheets = orderedSheetsVal * sourceYield;
+                finalDodatek = Math.max(0, finalTotalSheets - calcRes.sheetsNeeded);
+                printMathString = `${calcRes.sheetsNeeded.toLocaleString('de-DE')} pol + ${finalDodatek.toLocaleString('de-DE')} pol (makulatura) = ${finalTotalSheets.toLocaleString('de-DE')} pol tiska (iz ${orderedSheetsVal} pol razreza)`;
+            } else if (!isNaN(givenDodatekInput) && givenDodatekInput >= 0) {
                 finalDodatek = givenDodatekInput;
                 finalTotalSheets = calcRes.sheetsNeeded + givenDodatekInput;
                 finalSourceSheets = Math.ceil(finalTotalSheets / sourceYield);

@@ -784,6 +784,14 @@
                         <div class="value" id="res-sheets-needed">0</div>
                         <div class="label">Potrebno število pol za tisk</div>
                     </div>
+                    <div class="stat-card full-width"
+                        style="margin-top: 5px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
+                        <input type="number" id="calc-ordered-sheets" placeholder="Naročene osnovne pole..."
+                            oninput="g_editedWorkOrderHTML = ''; calculatePrice()"
+                            onchange="g_editedWorkOrderHTML = ''; calculatePrice()"
+                            style="width: 100%; text-align: center; font-size: 1.25rem; font-weight: bold; border: none; background: transparent; padding: 5px; color: #ffffff;">
+                        <div class="label" style="text-align: center;">Naročeno število osnovnih pol (za razrez)</div>
+                    </div>
                     <div class="stat-card full-width" id="stat-dodatek"
                         style="margin-top: 5px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3);">
                         <input type="number" id="f-dodatek-sheets" placeholder="Vpiši dodatek..." value="0" min="0"
@@ -2584,16 +2592,20 @@
             let paperWeight = getFloatValue('calc-paper-weight');
             let paperWasteSheets = getIntValue('calc-paper-waste');
             let dodatekSheets = getIntValue('f-dodatek-sheets');
+            
+            const orderedSheetsInput = document.getElementById('calc-ordered-sheets');
+            const orderedSheetsVal = orderedSheetsInput ? (parseInt(orderedSheetsInput.value) || 0) : 0;
+            let sourceYield = getFloatValue('calc-source-yield', 1);
             let totalSheetsNeeded = sheetsNeeded + paperWasteSheets;
+            let totalSourceSheetsNeeded = Math.ceil(totalSheetsNeeded / sourceYield);
+            if (orderedSheetsVal > 0) {
+                totalSourceSheetsNeeded = orderedSheetsVal;
+                totalSheetsNeeded = orderedSheetsVal * sourceYield;
+            }
 
             let paperCost = 0;
             let sourceW = getFloatValue('calc-source-w', 1000);
             let sourceH = getFloatValue('calc-source-h', 700);
-            let sourceYield = getFloatValue('calc-source-yield', 1);
-
-            // Izračunamo koliko OSNOVNIH pol potrebujemo (bruto, z dodatkom/makulativo)
-            let netSourceSheetsNeeded = Math.ceil(sheetsNeeded / sourceYield);
-            let totalSourceSheetsNeeded = Math.ceil(totalSheetsNeeded / sourceYield);
 
             if (paperUnit === 'ton') {
                 let areaM2 = (sourceW / 1000) * (sourceH / 1000);
@@ -3638,6 +3650,7 @@
                     editedQuoteHTML: g_editedQuoteHTML,
                     editedWorkOrderHTML: g_editedWorkOrderHTML,
                     inputs: {
+                        orderedSheets: gv('calc-ordered-sheets'),
                         machine_format: gv('machine-format'),
                         item_w: gv('width'),
                         item_h: gv('height'),
@@ -3740,6 +3753,7 @@
                     editedQuoteHTML: g_editedQuoteHTML,
                     editedWorkOrderHTML: g_editedWorkOrderHTML,
                     inputs: {
+                        orderedSheets: gv('calc-ordered-sheets'),
                         machine_format: gv('machine-format'),
                         item_w: gv('width'),
                         item_h: gv('height'),
@@ -4018,6 +4032,9 @@
             }
 
             document.getElementById('machine-format').value = inp.machine_format;
+            if (document.getElementById('calc-ordered-sheets')) {
+                document.getElementById('calc-ordered-sheets').value = inp.orderedSheets || "";
+            }
             document.getElementById('width').value = inp.item_w;
             document.getElementById('height').value = inp.item_h;
             if (document.getElementById('closed-width')) document.getElementById('closed-width').value = inp.closed_w || '';
@@ -4147,6 +4164,7 @@
                     materialCode: document.getElementById('calc-material-code').value,
                     timestamp: Date.now(),
                     inputs: {
+                        orderedSheets: document.getElementById('calc-ordered-sheets') ? document.getElementById('calc-ordered-sheets').value : '',
                         machine_format: document.getElementById('machine-format').value,
                         item_w: document.getElementById('width').value,
                         item_h: document.getElementById('height').value,
@@ -4555,7 +4573,15 @@
             let finalDodatek = physicalWasteSheets;
             let finalTotalSheets = totalSheets;
             let finalSourceSheets = sourceSheets;
-            if (!isNaN(givenDodatekInput) && givenDodatekInput >= 0) {
+            
+            const orderedSheetsInput = document.getElementById('calc-ordered-sheets');
+            const orderedSheetsVal = orderedSheetsInput ? (parseInt(orderedSheetsInput.value) || 0) : 0;
+            
+            if (orderedSheetsVal > 0) {
+                finalSourceSheets = orderedSheetsVal;
+                finalTotalSheets = orderedSheetsVal * sourceYield;
+                finalDodatek = Math.max(0, finalTotalSheets - calcRes.sheetsNeeded);
+            } else if (!isNaN(givenDodatekInput) && givenDodatekInput >= 0) {
                 finalDodatek = givenDodatekInput;
                 finalTotalSheets = calcRes.sheetsNeeded + givenDodatekInput;
                 finalSourceSheets = Math.ceil(finalTotalSheets / sourceYield);
