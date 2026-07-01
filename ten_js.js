@@ -789,7 +789,8 @@
                         }
                     } else {
                         // Standardna optimizacija: čimveč kosov iz osnovne pole (sYield * count)
-                        score = sYield * currLayout.count;
+                        const sheetArea = s.w * s.h;
+                        score = (currLayout.count * 1000000) + (sYield * 1000) - (sheetArea / 1000.0);
                     }
 
                     if (score > bestScore) {
