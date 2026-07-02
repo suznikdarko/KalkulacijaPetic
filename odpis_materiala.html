@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Odpis Materiala iz Zaloge</title>
+    <!-- Vključitev SheetJS knjižnice za delo z Excel datotekami -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-color: #f8fafc;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger: #ef4444;
+            --success: #10b981;
+            --input-bg: #1e293b;
+            --border-color: #334155;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: var(--text-color);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 1.8rem;
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #cbd5e1;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .btn-file {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: var(--input-bg);
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            text-align: center;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        .file-input-wrapper:hover .btn-file {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 10px;
+        }
+
+        .btn-submit:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .file-name-display {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: var(--success);
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Odpis Materiala (Excel)</h1>
+
+        <div class="form-group">
+            <label>Izberite datoteko zalogaSimon.xls</label>
+            <button id="btnPickFile" class="btn-file" style="width: 100%; text-align: center; background: var(--input-bg); border: 2px dashed var(--border-color); border-radius: 8px; color: #94a3b8; padding: 12px; font-size: 1rem; cursor: pointer; transition: all 0.2s ease; outline: none;">📁 Kliknite za izbiro datoteke</button>
+            <div id="selectedFileName" class="file-name-display"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="materialCode">Šifra materiala (npr. PAP-135-MAT)</label>
+            <input type="text" id="materialCode" placeholder="Vnesite šifro...">
+        </div>
+
+        <div class="form-group">
+            <label for="quantity">Količina za odpis (koliko pol se odšteje)</label>
+            <input type="number" id="quantity" placeholder="npr. 500" min="0" step="any">
+        </div>
+
+        <button class="btn-submit" id="processBtn">Odpiši in prenesi datoteko</button>
+
+        <div id="status"></div>
+    </div>
+
+    <script>
+        let selectedFileHandle = null;
+        let selectedFile = null;
+
+        // Prikaži dialog za izbiro datoteke in shrani handle
+        document.getElementById('btnPickFile').addEventListener('click', async function() {
+            try {
+                if (typeof window.showOpenFilePicker !== 'function') {
+                    showStatus('Vaš brskalnik ne podpira avtomatskega shranjevanja datotek (priporočamo Chrome ali Edge).', 'error');
+                    return;
+                }
+                const [handle] = await window.showOpenFilePicker({
+                    types: [{
+                        description: 'Excel Files',
+                        accept: {
+                            'application/vnd.ms-excel': ['.xls'],
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+                        }
+                    }],
+                    multiple: false
+                });
+                selectedFileHandle = handle;
+                selectedFile = await handle.getFile();
+                
+                const btn = document.getElementById('btnPickFile');
+                btn.style.borderColor = '#10b981';
+                btn.style.color = '#10b981';
+                document.getElementById('selectedFileName').innerText = "Izbrana datoteka: " + selectedFile.name;
+                document.getElementById('status').style.display = 'none';
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    showStatus('Napaka pri izbiri datoteke: ' + err.message, 'error');
+                }
+            }
+        });
+
+        document.getElementById('processBtn').addEventListener('click', function() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.style.display = 'none';
+            statusDiv.className = '';
+
+            const materialCode = document.getElementById('materialCode').value.trim();
+            const quantityVal = parseFloat(document.getElementById('quantity').value);
+
+            // Validacija vnosa
+            if (!selectedFile) {
+                showStatus('Prosim, izberite Excel datoteko.', 'error');
+                return;
+            }
+            if (!materialCode) {
+                showStatus('Prosim, vnesite šifro materiala.', 'error');
+                return;
+            }
+            if (isNaN(quantityVal) || quantityVal <= 0) {
+                showStatus('Količina mora biti veljavno pozitivno število veče od 0.', 'error');
+                return;
+            }
+
+            // Branje datoteke z FileReader in SheetJS
+            const reader = new FileReader();
+            
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    // Obdelamo prvi sheet
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+
+                    // Da bi ohranili originalno formatiranje (širino stolpcev, strukturo vrstic),
+                    // bomo direktno spreminjali obstoječe celice v worksheetu, namesto pretvorbe v JSON.
+
+                    const range = XLSX.utils.decode_range(worksheet['!ref']);
+                    
+                    // Najdi kateri stolpec je "šifra" in kateri "zaloga" (preiščemo prvo vrstico - indeks 0)
+                    let sifraCol = -1;
+                    let zalogaCol = -1;
+
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                        const cellAddress = {c: C, r: 0};
+                        const cellRef = XLSX.utils.encode_cell(cellAddress);
+                        const cell = worksheet[cellRef];
+                        if (!cell || !cell.v) continue;
+                        
+                        const val = String(cell.v).toLowerCase();
+                        if (val.includes('šifra') || val.includes('sifra')) sifraCol = C;
+                        if (val.includes('zaloga') || val.includes('količina') || val.includes('kolicina')) zalogaCol = C;
+                    }
+
+                    if (sifraCol === -1) {
+                        showStatus('V prvi vrstici tabele ne najdem stolpca, ki bi vseboval besedo "šifra".', 'error');
+                        return;
+                    }
+
+                    // Če stolpca zaloga ni, ga dodamo na konec
+                    if (zalogaCol === -1) {
+                        zalogaCol = range.e.c + 1;
+                        range.e.c = zalogaCol; // Povečamo obseg tabele
+                        worksheet['!ref'] = XLSX.utils.encode_range(range);
+                        worksheet[XLSX.utils.encode_cell({c: zalogaCol, r: 0})] = { t: 's', v: 'Zaloga' };
+                    }
+
+                    let found = false;
+                    let initialZaloga = 0;
+                    let newZaloga = 0;
+
+                    // Iščemo material (od druge vrstice dalje)
+                    for (let R = 1; R <= range.e.r; ++R) {
+                        const sifraRef = XLSX.utils.encode_cell({c: sifraCol, r: R});
+                        const sifraCell = worksheet[sifraRef];
+                        
+                        if (!sifraCell || !sifraCell.v) continue;
+
+                        let currentCode = String(sifraCell.v).trim();
+                        if (currentCode.toLowerCase() === materialCode.toLowerCase()) {
+                            found = true;
+                            
+                            const zalogaRef = XLSX.utils.encode_cell({c: zalogaCol, r: R});
+                            let zalogaCell = worksheet[zalogaRef];
+                            
+                            // Če celica še ne obstaja, jo ustvarimo
+                            if (!zalogaCell) {
+                                zalogaCell = { t: 'n', v: 0 };
+                                worksheet[zalogaRef] = zalogaCell;
+                            }
+                            
+                            initialZaloga = parseFloat(zalogaCell.v);
+                            if (isNaN(initialZaloga)) initialZaloga = 0;
+
+                            // Odštejemo
+                            newZaloga = initialZaloga - quantityVal;
+                            
+                            // Zapišemo novo vrednost
+                            zalogaCell.v = newZaloga;
+                            zalogaCell.t = 'n'; // type: number
+                            break;
+                        }
+                    }
+
+                    if (!found) {
+                        showStatus(`Materiala s šifro "${materialCode}" nisem našel v datoteki.`, 'error');
+                        return;
+                    }
+
+                    // Pripravimo ArrayBuffer za zapisovanje
+                    const ext = selectedFile.name.split('.').pop().toLowerCase();
+                    const bType = ext === 'xlsx' ? 'xlsx' : 'xls';
+                    let outBuffer;
+                    try {
+                        outBuffer = XLSX.write(workbook, { bookType: bType, type: 'array' });
+                    } catch (wbErr) {
+                        // Če xls v brezplačni verziji SheetJS ni podprt za pisanje, uporabi xlsx
+                        outBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+                    }
+
+                    // Neposredno prepišemo originalno datoteko na disku
+                    if (selectedFileHandle) {
+                        const writable = await selectedFileHandle.createWritable();
+                        await writable.write(outBuffer);
+                        await writable.close();
+
+                        showStatus(`Zaloga uspešno spremenjena!<br>Prejšnja zaloga: ${initialZaloga}<br>Nova zaloga: ${newZaloga}<br><br><b>Datoteka ${selectedFile.name} je bila uspešno posodobljena.</b>`, 'success');
+                    } else {
+                        // Varovalka (v primeru starega brskalnika se ne bi smelo zgoditi, saj smo ustavili izbiro)
+                        XLSX.writeFile(workbook, selectedFile.name);
+                        showStatus(`Zaloga uspešno spremenjena!<br>Prejšnja zaloga: ${initialZaloga}<br>Nova zaloga: ${newZaloga}<br><br><b>Prenos posodobljene datoteke se je začel (fallback).</b>`, 'success');
+                    }
+                    
+                    // Reset quantity
+                    document.getElementById('quantity').value = '';
+
+                } catch (err) {
+                    showStatus('Napaka pri obdelavi datoteke: ' + err.message, 'error');
+                    console.error(err);
+                }
+            };
+
+            reader.onerror = function() {
+                showStatus('Napaka pri branju datoteke.', 'error');
+            };
+
+            reader.readAsArrayBuffer(selectedFile);
+        });
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = message;
+            statusDiv.className = type === 'success' ? 'status-success' : 'status-error';
+            statusDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
