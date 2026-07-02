@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Odpis Materiala iz Zaloge</title>
-    <!-- Vključitev SheetJS knjižnice za delo z Excel datotekami -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- JSZip za neposredno urejanje XML znotraj .xlsx (ohrani vso formatiranje/tabele) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -54,9 +54,7 @@
             -webkit-text-fill-color: transparent;
         }
 
-        .form-group {
-            margin-bottom: 20px;
-        }
+        .form-group { margin-bottom: 20px; }
 
         label {
             display: block;
@@ -84,37 +82,22 @@
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
         }
 
-        .file-input-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            width: 100%;
-        }
-
-        .file-input-wrapper input[type=file] {
-            font-size: 100px;
-            position: absolute;
-            left: 0;
-            top: 0;
-            opacity: 0;
-            cursor: pointer;
-        }
-
         .btn-file {
-            display: block;
             width: 100%;
-            padding: 12px;
+            text-align: center;
             background: var(--input-bg);
             border: 2px dashed var(--border-color);
             border-radius: 8px;
-            text-align: center;
             color: #94a3b8;
+            padding: 12px;
+            font-size: 1rem;
             cursor: pointer;
             transition: all 0.2s ease;
+            outline: none;
             box-sizing: border-box;
         }
 
-        .file-input-wrapper:hover .btn-file {
+        .btn-file:hover {
             border-color: var(--primary);
             color: var(--primary);
             background: rgba(59, 130, 246, 0.05);
@@ -140,9 +123,7 @@
             box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
         }
 
-        .btn-submit:active {
-            transform: translateY(0);
-        }
+        .btn-submit:active { transform: translateY(0); }
 
         #status {
             margin-top: 20px;
@@ -180,8 +161,8 @@
         <h1>Odpis Materiala (Excel)</h1>
 
         <div class="form-group">
-            <label>Izberite datoteko zalogaSimon.xls</label>
-            <button id="btnPickFile" class="btn-file" style="width: 100%; text-align: center; background: var(--input-bg); border: 2px dashed var(--border-color); border-radius: 8px; color: #94a3b8; padding: 12px; font-size: 1rem; cursor: pointer; transition: all 0.2s ease; outline: none;">📁 Kliknite za izbiro datoteke</button>
+            <label>Izberite datoteko (.xlsx)</label>
+            <button id="btnPickFile" class="btn-file">📁 Kliknite za izbiro datoteke</button>
             <div id="selectedFileName" class="file-name-display"></div>
         </div>
 
@@ -204,8 +185,10 @@
         let selectedFileHandle = null;
         let selectedFile = null;
 
-        // Prikaži dialog za izbiro datoteke in shrani handle
-        document.getElementById('btnPickFile').addEventListener('click', async function() {
+        const XML_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+        const REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+        document.getElementById('btnPickFile').addEventListener('click', async function () {
             try {
                 if (typeof window.showOpenFilePicker !== 'function') {
                     showStatus('Vaš brskalnik ne podpira avtomatskega shranjevanja datotek (priporočamo Chrome ali Edge).', 'error');
@@ -215,15 +198,15 @@
                     types: [{
                         description: 'Excel Files',
                         accept: {
-                            'application/vnd.ms-excel': ['.xls'],
-                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                            'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm']
                         }
                     }],
                     multiple: false
                 });
                 selectedFileHandle = handle;
                 selectedFile = await handle.getFile();
-                
+
                 const btn = document.getElementById('btnPickFile');
                 btn.style.borderColor = '#10b981';
                 btn.style.color = '#10b981';
@@ -236,154 +219,275 @@
             }
         });
 
-        document.getElementById('processBtn').addEventListener('click', function() {
+        // ---- Pomožne funkcije za delo s celicami (npr. "C5" -> {col: 3, row: 5}) ----
+
+        function splitCellRef(ref) {
+            const m = ref.match(/^([A-Z]+)(\d+)$/);
+            return { colLetters: m[1], row: parseInt(m[2], 10) };
+        }
+
+        function colLettersToIndex(letters) {
+            let idx = 0;
+            for (let i = 0; i < letters.length; i++) {
+                idx = idx * 26 + (letters.charCodeAt(i) - 64);
+            }
+            return idx; // 1-based
+        }
+
+        function colIndexToLetters(idx) {
+            let letters = '';
+            while (idx > 0) {
+                const rem = (idx - 1) % 26;
+                letters = String.fromCharCode(65 + rem) + letters;
+                idx = Math.floor((idx - 1) / 26);
+            }
+            return letters;
+        }
+
+        async function getSharedStrings(zip) {
+            const f = zip.file('xl/sharedStrings.xml');
+            if (!f) return [];
+            const xmlText = await f.async('text');
+            const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+            const siList = doc.getElementsByTagNameNS(XML_NS, 'si');
+            const strings = [];
+            for (let i = 0; i < siList.length; i++) {
+                const tNodes = siList[i].getElementsByTagNameNS(XML_NS, 't');
+                let text = '';
+                for (let j = 0; j < tNodes.length; j++) text += tNodes[j].textContent;
+                strings.push(text);
+            }
+            return strings;
+        }
+
+        function getCellText(cellEl, sharedStrings) {
+            if (!cellEl) return null;
+            const type = cellEl.getAttribute('t');
+            if (type === 'inlineStr') {
+                const isEl = cellEl.getElementsByTagNameNS(XML_NS, 'is')[0];
+                if (!isEl) return null;
+                const tEl = isEl.getElementsByTagNameNS(XML_NS, 't')[0];
+                return tEl ? tEl.textContent : null;
+            }
+            const vEl = cellEl.getElementsByTagNameNS(XML_NS, 'v')[0];
+            if (!vEl) return null;
+            if (type === 's') {
+                const idx = parseInt(vEl.textContent, 10);
+                return sharedStrings[idx] !== undefined ? sharedStrings[idx] : null;
+            }
+            return vEl.textContent;
+        }
+
+        async function getFirstSheetPath(zip) {
+            const workbookXml = await zip.file('xl/workbook.xml').async('text');
+            const relsXml = await zip.file('xl/_rels/workbook.xml.rels').async('text');
+            const wbDoc = new DOMParser().parseFromString(workbookXml, 'application/xml');
+            const relsDoc = new DOMParser().parseFromString(relsXml, 'application/xml');
+
+            const sheetEl = wbDoc.getElementsByTagNameNS(XML_NS, 'sheet')[0];
+            let rId = sheetEl.getAttributeNS(REL_NS, 'id');
+            if (!rId) rId = sheetEl.getAttribute('r:id');
+
+            const rels = relsDoc.getElementsByTagName('Relationship');
+            let target = null;
+            for (let i = 0; i < rels.length; i++) {
+                if (rels[i].getAttribute('Id') === rId) {
+                    target = rels[i].getAttribute('Target');
+                    break;
+                }
+            }
+            if (!target) throw new Error('Ne najdem poti do delovnega lista v workbook.xml.rels');
+            target = target.replace(/^\//, '');
+            if (!target.startsWith('xl/')) target = 'xl/' + target;
+            return target;
+        }
+
+        document.getElementById('processBtn').addEventListener('click', async function () {
             const statusDiv = document.getElementById('status');
             statusDiv.style.display = 'none';
-            statusDiv.className = '';
 
             const materialCode = document.getElementById('materialCode').value.trim();
             const quantityVal = parseFloat(document.getElementById('quantity').value);
 
-            // Validacija vnosa
-            if (!selectedFile) {
-                showStatus('Prosim, izberite Excel datoteko.', 'error');
-                return;
-            }
-            if (!materialCode) {
-                showStatus('Prosim, vnesite šifro materiala.', 'error');
-                return;
-            }
+            if (!selectedFile) { showStatus('Prosim, izberite Excel (.xlsx) datoteko.', 'error'); return; }
+            if (!materialCode) { showStatus('Prosim, vnesite šifro materiala.', 'error'); return; }
             if (isNaN(quantityVal) || quantityVal <= 0) {
-                showStatus('Količina mora biti veljavno pozitivno število veče od 0.', 'error');
+                showStatus('Količina mora biti veljavno pozitivno število večje od 0.', 'error');
                 return;
             }
 
-            // Branje datoteke z FileReader in SheetJS
-            const reader = new FileReader();
-            
-            reader.onload = async function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
+            try {
+                const arrayBuffer = await selectedFile.arrayBuffer();
+                const zip = await JSZip.loadAsync(arrayBuffer);
 
-                    // Obdelamo prvi sheet
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
+                const sheetPath = await getFirstSheetPath(zip);
+                const sheetXmlText = await zip.file(sheetPath).async('text');
+                const sharedStrings = await getSharedStrings(zip);
 
-                    // Da bi ohranili originalno formatiranje (širino stolpcev, strukturo vrstic),
-                    // bomo direktno spreminjali obstoječe celice v worksheetu, namesto pretvorbe v JSON.
+                const doc = new DOMParser().parseFromString(sheetXmlText, 'application/xml');
+                const rows = doc.getElementsByTagNameNS(XML_NS, 'row');
 
-                    const range = XLSX.utils.decode_range(worksheet['!ref']);
-                    
-                    // Najdi kateri stolpec je "šifra" in kateri "zaloga" (preiščemo prvo vrstico - indeks 0)
-                    let sifraCol = -1;
-                    let zalogaCol = -1;
+                if (rows.length === 0) throw new Error('List je videti prazen.');
 
-                    for (let C = range.s.c; C <= range.e.c; ++C) {
-                        const cellAddress = {c: C, r: 0};
-                        const cellRef = XLSX.utils.encode_cell(cellAddress);
-                        const cell = worksheet[cellRef];
-                        if (!cell || !cell.v) continue;
-                        
-                        const val = String(cell.v).toLowerCase();
-                        if (val.includes('šifra') || val.includes('sifra')) sifraCol = C;
-                        if (val.includes('zaloga') || val.includes('količina') || val.includes('kolicina')) zalogaCol = C;
+                // --- Najdi stolpca "šifra" in "zaloga" v prvi vrstici ---
+                const headerRow = rows[0];
+                const headerCells = headerRow.getElementsByTagNameNS(XML_NS, 'c');
+
+                let sifraColIdx = -1;
+                let zalogaColIdx = -1;
+                let maxColIdx = 0;
+
+                for (let i = 0; i < headerCells.length; i++) {
+                    const ref = headerCells[i].getAttribute('r');
+                    const { colLetters } = splitCellRef(ref);
+                    const colIdx = colLettersToIndex(colLetters);
+                    maxColIdx = Math.max(maxColIdx, colIdx);
+
+                    const text = getCellText(headerCells[i], sharedStrings);
+                    if (!text) continue;
+                    const val = text.toLowerCase();
+                    if (val.includes('šifra') || val.includes('sifra')) sifraColIdx = colIdx;
+                    if (val.includes('zaloga') || val.includes('količina') || val.includes('kolicina')) zalogaColIdx = colIdx;
+                }
+
+                if (sifraColIdx === -1) {
+                    throw new Error('V prvi vrstici tabele ne najdem stolpca, ki bi vseboval besedo "šifra".');
+                }
+
+                // Če stolpca "zaloga" ni, ga dodamo na konec (opozorilo: nov stolpec ne bo imel obstoječega stila)
+                let addedNewColumn = false;
+                if (zalogaColIdx === -1) {
+                    zalogaColIdx = maxColIdx + 1;
+                    addedNewColumn = true;
+                    const headerRef = colIndexToLetters(zalogaColIdx) + '1';
+                    const newHeaderCell = doc.createElementNS(XML_NS, 'c');
+                    newHeaderCell.setAttribute('r', headerRef);
+                    newHeaderCell.setAttribute('t', 'inlineStr');
+                    const isEl = doc.createElementNS(XML_NS, 'is');
+                    const tEl = doc.createElementNS(XML_NS, 't');
+                    tEl.textContent = 'Zaloga';
+                    isEl.appendChild(tEl);
+                    newHeaderCell.appendChild(isEl);
+                    insertCellInOrder(headerRow, newHeaderCell, zalogaColIdx);
+                }
+
+                // --- Poišči vrstico z ujemajočo šifro ---
+                let found = false;
+                let initialZaloga = 0;
+                let newZaloga = 0;
+
+                for (let r = 1; r < rows.length; r++) {
+                    const row = rows[r];
+                    const cells = row.getElementsByTagNameNS(XML_NS, 'c');
+                    let sifraCell = null;
+                    for (let i = 0; i < cells.length; i++) {
+                        const { colLetters } = splitCellRef(cells[i].getAttribute('r'));
+                        if (colLettersToIndex(colLetters) === sifraColIdx) { sifraCell = cells[i]; break; }
+                    }
+                    if (!sifraCell) continue;
+
+                    const currentCode = (getCellText(sifraCell, sharedStrings) || '').trim();
+                    if (currentCode.toLowerCase() !== materialCode.toLowerCase()) continue;
+
+                    found = true;
+                    const rowNum = parseInt(row.getAttribute('r'), 10);
+                    const zalogaRef = colIndexToLetters(zalogaColIdx) + rowNum;
+
+                    let zalogaCell = null;
+                    for (let i = 0; i < cells.length; i++) {
+                        const { colLetters } = splitCellRef(cells[i].getAttribute('r'));
+                        if (colLettersToIndex(colLetters) === zalogaColIdx) { zalogaCell = cells[i]; break; }
                     }
 
-                    if (sifraCol === -1) {
-                        showStatus('V prvi vrstici tabele ne najdem stolpca, ki bi vseboval besedo "šifra".', 'error');
-                        return;
+                    if (!zalogaCell) {
+                        zalogaCell = doc.createElementNS(XML_NS, 'c');
+                        zalogaCell.setAttribute('r', zalogaRef);
+                        insertCellInOrder(row, zalogaCell, zalogaColIdx);
+                        initialZaloga = 0;
+                    } else {
+                        const text = getCellText(zalogaCell, sharedStrings);
+                        initialZaloga = parseFloat(text);
+                        if (isNaN(initialZaloga)) initialZaloga = 0;
                     }
 
-                    // Če stolpca zaloga ni, ga dodamo na konec
-                    if (zalogaCol === -1) {
-                        zalogaCol = range.e.c + 1;
-                        range.e.c = zalogaCol; // Povečamo obseg tabele
-                        worksheet['!ref'] = XLSX.utils.encode_range(range);
-                        worksheet[XLSX.utils.encode_cell({c: zalogaCol, r: 0})] = { t: 's', v: 'Zaloga' };
+                    newZaloga = initialZaloga - quantityVal;
+
+                    // Odstranimo morebiten string-tip / inline vsebino, zapišemo številko
+                    zalogaCell.removeAttribute('t');
+                    const existingIs = zalogaCell.getElementsByTagNameNS(XML_NS, 'is')[0];
+                    if (existingIs) zalogaCell.removeChild(existingIs);
+                    let vEl = zalogaCell.getElementsByTagNameNS(XML_NS, 'v')[0];
+                    if (!vEl) {
+                        vEl = doc.createElementNS(XML_NS, 'v');
+                        zalogaCell.appendChild(vEl);
                     }
+                    vEl.textContent = String(newZaloga);
+                    break;
+                }
 
-                    let found = false;
-                    let initialZaloga = 0;
-                    let newZaloga = 0;
+                if (!found) {
+                    showStatus(`Materiala s šifro "${materialCode}" nisem našel v datoteki.`, 'error');
+                    return;
+                }
 
-                    // Iščemo material (od druge vrstice dalje)
-                    for (let R = 1; R <= range.e.r; ++R) {
-                        const sifraRef = XLSX.utils.encode_cell({c: sifraCol, r: R});
-                        const sifraCell = worksheet[sifraRef];
-                        
-                        if (!sifraCell || !sifraCell.v) continue;
-
-                        let currentCode = String(sifraCell.v).trim();
-                        if (currentCode.toLowerCase() === materialCode.toLowerCase()) {
-                            found = true;
-                            
-                            const zalogaRef = XLSX.utils.encode_cell({c: zalogaCol, r: R});
-                            let zalogaCell = worksheet[zalogaRef];
-                            
-                            // Če celica še ne obstaja, jo ustvarimo
-                            if (!zalogaCell) {
-                                zalogaCell = { t: 'n', v: 0 };
-                                worksheet[zalogaRef] = zalogaCell;
-                            }
-                            
-                            initialZaloga = parseFloat(zalogaCell.v);
-                            if (isNaN(initialZaloga)) initialZaloga = 0;
-
-                            // Odštejemo
-                            newZaloga = initialZaloga - quantityVal;
-                            
-                            // Zapišemo novo vrednost
-                            zalogaCell.v = newZaloga;
-                            zalogaCell.t = 'n'; // type: number
-                            break;
+                // --- Če smo dodali nov stolpec, razširimo "dimension" referenco ---
+                if (addedNewColumn) {
+                    const dimEl = doc.getElementsByTagNameNS(XML_NS, 'dimension')[0];
+                    if (dimEl) {
+                        const ref = dimEl.getAttribute('ref');
+                        const parts = ref.split(':');
+                        if (parts.length === 2) {
+                            const endRef = splitCellRef(parts[1].match(/^([A-Z]+\d+)$/) ? parts[1] : parts[1]);
+                            const newEndCol = Math.max(colLettersToIndex(endRef.colLetters), zalogaColIdx);
+                            const newEnd = colIndexToLetters(newEndCol) + endRef.row;
+                            dimEl.setAttribute('ref', parts[0] + ':' + newEnd);
                         }
                     }
-
-                    if (!found) {
-                        showStatus(`Materiala s šifro "${materialCode}" nisem našel v datoteki.`, 'error');
-                        return;
-                    }
-
-                    // Pripravimo ArrayBuffer za zapisovanje
-                    const ext = selectedFile.name.split('.').pop().toLowerCase();
-                    const bType = ext === 'xlsx' ? 'xlsx' : 'xls';
-                    let outBuffer;
-                    try {
-                        outBuffer = XLSX.write(workbook, { bookType: bType, type: 'array' });
-                    } catch (wbErr) {
-                        // Če xls v brezplačni verziji SheetJS ni podprt za pisanje, uporabi xlsx
-                        outBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-                    }
-
-                    // Neposredno prepišemo originalno datoteko na disku
-                    if (selectedFileHandle) {
-                        const writable = await selectedFileHandle.createWritable();
-                        await writable.write(outBuffer);
-                        await writable.close();
-
-                        showStatus(`Zaloga uspešno spremenjena!<br>Prejšnja zaloga: ${initialZaloga}<br>Nova zaloga: ${newZaloga}<br><br><b>Datoteka ${selectedFile.name} je bila uspešno posodobljena.</b>`, 'success');
-                    } else {
-                        // Varovalka (v primeru starega brskalnika se ne bi smelo zgoditi, saj smo ustavili izbiro)
-                        XLSX.writeFile(workbook, selectedFile.name);
-                        showStatus(`Zaloga uspešno spremenjena!<br>Prejšnja zaloga: ${initialZaloga}<br>Nova zaloga: ${newZaloga}<br><br><b>Prenos posodobljene datoteke se je začel (fallback).</b>`, 'success');
-                    }
-                    
-                    // Reset quantity
-                    document.getElementById('quantity').value = '';
-
-                } catch (err) {
-                    showStatus('Napaka pri obdelavi datoteke: ' + err.message, 'error');
-                    console.error(err);
                 }
-            };
 
-            reader.onerror = function() {
-                showStatus('Napaka pri branju datoteke.', 'error');
-            };
+                // --- Serializiraj in zapiši nazaj v zip (dotaknemo se SAMO tega XML-a) ---
+                const serializer = new XMLSerializer();
+                const newSheetXml = serializer.serializeToString(doc);
+                zip.file(sheetPath, newSheetXml);
 
-            reader.readAsArrayBuffer(selectedFile);
+                const outBuffer = await zip.generateAsync({ type: 'uint8array' });
+
+                if (selectedFileHandle) {
+                    const writable = await selectedFileHandle.createWritable();
+                    await writable.write(outBuffer);
+                    await writable.close();
+                    showStatus(`Zaloga uspešno spremenjena!<br>Prejšnja zaloga: ${initialZaloga}<br>Nova zaloga: ${newZaloga}<br><br><b>Datoteka ${selectedFile.name} je bila uspešno posodobljena (formatiranje ohranjeno).</b>`, 'success');
+                } else {
+                    const blob = new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = selectedFile.name;
+                    a.click();
+                    showStatus(`Zaloga uspešno spremenjena!<br>Prejšnja zaloga: ${initialZaloga}<br>Nova zaloga: ${newZaloga}<br><br><b>Prenos posodobljene datoteke se je začel.</b>`, 'success');
+                }
+
+                document.getElementById('quantity').value = '';
+
+            } catch (err) {
+                console.error(err);
+                showStatus('Napaka pri obdelavi datoteke: ' + err.message, 'error');
+            }
         });
+
+        // Vstavi celico v vrstico na pravilno mesto glede na naraščajoč vrstni red stolpcev
+        function insertCellInOrder(rowEl, newCell, colIdx) {
+            const cells = rowEl.getElementsByTagNameNS(XML_NS, 'c');
+            let inserted = false;
+            for (let i = 0; i < cells.length; i++) {
+                const { colLetters } = splitCellRef(cells[i].getAttribute('r'));
+                if (colLettersToIndex(colLetters) > colIdx) {
+                    rowEl.insertBefore(newCell, cells[i]);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) rowEl.appendChild(newCell);
+        }
 
         function showStatus(message, type) {
             const statusDiv = document.getElementById('status');
