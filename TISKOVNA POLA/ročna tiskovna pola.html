@@ -641,11 +641,46 @@
                     <input type="text" id="ordered-quantity" value="" placeholder="npr. 750"
                         oninput="if(typeof formatInputQty === 'function') formatInputQty(this); calculate()">
                 </div>
-                <div style="flex: 0.6; min-width: 120px;">
-                    <label style="color: #60a5fa; font-weight: bold;">Ĺ tevilo etiket na poli</label>
-                    <input type="number" id="items-per-sheet" value="1" min="1"
-                        style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1);"
-                        oninput="calculate()">
+                <div style="flex: 1.2; min-width: 220px; display: flex; gap: 0.5rem; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label style="color: #60a5fa; font-weight: bold;">Število etiket na poli</label>
+                        <input type="number" id="items-per-sheet" value="1" min="1"
+                            style="font-size: 1.2rem; font-weight: 800; border-color: #3b82f6; background: rgba(59, 130, 246, 0.1);"
+                            oninput="updateMultiLabelTarget(); calculate()">
+                    </div>
+                    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 0.4rem;">
+                        <input type="checkbox" id="use-multi-labels" onchange="toggleMultiLabels(); calculate()" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="use-multi-labels" style="color: #10b981; font-weight: bold; margin: 0; cursor: pointer; white-space: nowrap; font-size: 0.8rem;">VEČ VERZIJ</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RAZDELILNIK ETIKET (VEČ VERZIJ) -->
+            <div class="header-group" id="multi-labels-section" style="grid-column: span 6; display: none; background: rgba(16, 185, 129, 0.05); padding: 15px; border-radius: 12px; border: 1px dashed rgba(16, 185, 129, 0.3); margin-top: 5px;">
+                <h3 style="color: #10b981; font-size: 1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>📋</span> Razdelilnik etiket na poli (Več verzij/imen)
+                </h3>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); color: #94a3b8; font-size: 0.85rem;">
+                            <th style="text-align: left; padding: 6px; font-weight: 600;">Ime/Verzija etikete</th>
+                            <th style="text-align: right; padding: 6px; width: 160px; font-weight: 600;">Naročena kol. (kos)</th>
+                            <th style="text-align: right; padding: 6px; width: 130px; font-weight: 600;">Št. na poli (kom)</th>
+                            <th style="text-align: right; padding: 6px; width: 130px; font-weight: 600;">Potrebne pole</th>
+                            <th style="text-align: right; padding: 6px; width: 130px; font-weight: 600;">Natisnjena kol.</th>
+                            <th style="text-align: center; padding: 6px; width: 60px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="multi-labels-body">
+                        <!-- Rows added dynamically by JS -->
+                    </tbody>
+                </table>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <button type="button" onclick="addMultiLabelRow()" style="background: #10b981; border: none; padding: 8px 16px; border-radius: 8px; color: white; cursor: pointer; font-size: 0.85rem; font-weight: bold; transition: 0.2s;">+ Dodaj etiketo</button>
+                    <div style="display: flex; gap: 1.5rem; font-size: 0.9rem; color: #f8fafc; font-weight: bold;">
+                        <div>Skupaj na poli: <span id="multi-labels-total-spots" style="color: #10b981;">0</span> / <span id="multi-labels-target-spots" style="color: #60a5fa;">1</span> kom</div>
+                        <div>Skupaj naročeno: <span id="multi-labels-total-ordered" style="color: #fbbf24;">0</span> kos</div>
+                    </div>
                 </div>
             </div>
             <div class="header-group" style="grid-column: span 3; display: flex; gap: 1.25rem;">
@@ -1817,7 +1852,33 @@
                 const h = parseFloat(document.getElementById('height').value) || 0;
                 const b = parseFloat(document.getElementById('bleed').value) || 0;
                 const g = parseFloat(document.getElementById('gripper').value) || 0;
-                const qStr = document.getElementById('quantity').value || "0";
+                
+                let qStr = document.getElementById('quantity').value || "0";
+                const useMulti = document.getElementById('use-multi-labels') && document.getElementById('use-multi-labels').checked;
+                let targetCount = parseInt(document.getElementById('items-per-sheet').value) || 1;
+                
+                if (useMulti) {
+                    let totalSpots = g_multiLabels.reduce((sum, row) => sum + (parseInt(row.spots) || 0), 0);
+                    let maxNeededSheets = 0;
+                    g_multiLabels.forEach(row => {
+                        let rq = parseFloat(row.qty) || 0;
+                        let rs = parseInt(row.spots) || 0;
+                        if (rq > 0 && rs > 0) {
+                            let s = Math.ceil(rq / rs);
+                            if (s > maxNeededSheets) maxNeededSheets = s;
+                        }
+                    });
+                    if (maxNeededSheets === 0) maxNeededSheets = 1;
+                    
+                    // Skupna količina = potrebno število pol * število etiket na poli
+                    let calculatedQty = maxNeededSheets * targetCount;
+                    qStr = calculatedQty.toString();
+                    
+                    if (typeof renderMultiLabelRows === 'function') {
+                        renderMultiLabelRows(maxNeededSheets, totalSpots);
+                    }
+                }
+                
                 const qArr = qStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
                 const q = qArr[0] || 0;
                 const fMode = document.getElementById('item-orientation').value;
@@ -3456,6 +3517,8 @@ function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH, orderedQty) {
                     preparedBy: gv('calc-prepared-by'),
                     materialCode: gv('calc-material-code'),
                     notes: gv('calc-notes'),
+                    multiLabels: g_multiLabels,
+                    useMultiLabels: gc('use-multi-labels'),
                     inputs: {
                         machine_format: gv('machine-format'),
                         item_w: gv('width'),
@@ -3548,6 +3611,8 @@ function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH, orderedQty) {
                     preparedBy: gv('calc-prepared-by'),
                     materialCode: gv('calc-material-code'),
                     notes: gv('calc-notes'),
+                    multiLabels: g_multiLabels,
+                    useMultiLabels: gc('use-multi-labels'),
                     inputs: {
                         machine_format: gv('machine-format'),
                         item_w: gv('width'),
@@ -3841,6 +3906,11 @@ function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH, orderedQty) {
             document.getElementById('calc-material-code').value = proj.materialCode || "";
             if (document.getElementById('calc-notes')) {
                 document.getElementById('calc-notes').value = proj.notes || "";
+            }
+            g_multiLabels = proj.multiLabels || [];
+            if (document.getElementById('use-multi-labels')) {
+                document.getElementById('use-multi-labels').checked = proj.useMultiLabels || false;
+                toggleMultiLabels();
             }
             document.getElementById('machine-format').value = inp.machine_format;
             document.getElementById('width').value = inp.item_w;
@@ -4336,6 +4406,7 @@ function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH, orderedQty) {
             let packaging = document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : "";
             let quoteNum = document.getElementById('calc-quote-number').value || "";
             let product = document.getElementById('calc-project-name').value || "Ni vpisano";
+            let notes = document.getElementById('calc-notes') ? document.getElementById('calc-notes').value.replace(/\n/g, '<br>') : "";
             let qty = calcRes.qty || q || 0;
             let materialDesc = document.getElementById('calc-material-desc').value || "";
             let paperType = document.getElementById('calc-paper-type').value || "";
@@ -4392,6 +4463,60 @@ function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH, orderedQty) {
             let sheetWCm = (sheetW / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
             let sheetHCm = (sheetH / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
 
+            let multiLabelsHtml = "";
+            const useMulti = document.getElementById('use-multi-labels') && document.getElementById('use-multi-labels').checked;
+            if (useMulti) {
+                let totalSpots = g_multiLabels.reduce((sum, row) => sum + (parseInt(row.spots) || 0), 0);
+                let maxNeededSheets = 0;
+                g_multiLabels.forEach(row => {
+                    let rq = parseFloat(row.qty) || 0;
+                    let rs = parseInt(row.spots) || 0;
+                    if (rq > 0 && rs > 0) {
+                        let s = Math.ceil(rq / rs);
+                        if (s > maxNeededSheets) maxNeededSheets = s;
+                    }
+                });
+                if (maxNeededSheets === 0) maxNeededSheets = 1;
+
+                multiLabelsHtml = `
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; border: 1px solid #000;">
+                    <thead>
+                        <tr style="background: #e2e8f0; border-bottom: 2px solid #000;">
+                            <th style="text-align: left; padding: 5px; border-right: 1px solid #000; font-weight: bold;">Ime/Verzija etikete</th>
+                            <th style="text-align: right; padding: 5px; border-right: 1px solid #000; font-weight: bold; width: 140px;">Naročena kol.</th>
+                            <th style="text-align: right; padding: 5px; border-right: 1px solid #000; font-weight: bold; width: 100px;">Mest na poli</th>
+                            <th style="text-align: right; padding: 5px; border-right: 1px solid #000; font-weight: bold; width: 110px;">Potrebne pole</th>
+                            <th style="text-align: right; padding: 5px; font-weight: bold; width: 120px;">Natisnjena kol.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${g_multiLabels.map(row => {
+                            let rq = parseFloat(row.qty) || 0;
+                            let rs = parseInt(row.spots) || 0;
+                            let sNeeded = rs > 0 ? Math.ceil(rq / rs) : 0;
+                            let printQty = maxNeededSheets * rs;
+                            return `
+                            <tr style="border-bottom: 1px solid #cbd5e1;">
+                                <td style="padding: 5px; border-right: 1px solid #cbd5e1; font-weight: bold;">${row.name || '/'}</td>
+                                <td style="text-align: right; padding: 5px; border-right: 1px solid #cbd5e1;">${rq.toLocaleString('de-DE')} kos</td>
+                                <td style="text-align: right; padding: 5px; border-right: 1px solid #cbd5e1; font-weight: bold;">${rs}x</td>
+                                <td style="text-align: right; padding: 5px; border-right: 1px solid #cbd5e1;">${sNeeded.toLocaleString('de-DE')} pol</td>
+                                <td style="text-align: right; padding: 5px; font-weight: bold; color: green;">${printQty.toLocaleString('de-DE')} kos</td>
+                            </tr>
+                            `;
+                        }).join('')}
+                        <tr style="background: #f1f5f9; font-weight: bold; border-top: 2px solid #000;">
+                            <td style="padding: 5px; border-right: 1px solid #cbd5e1;">SKUPAJ</td>
+                            <td style="text-align: right; padding: 5px; border-right: 1px solid #cbd5e1;">${g_multiLabels.reduce((sum, r) => sum + (parseFloat(r.qty) || 0), 0).toLocaleString('de-DE')} kos</td>
+                            <td style="text-align: right; padding: 5px; border-right: 1px solid #cbd5e1; color: blue;">${totalSpots} na poli</td>
+                            <td style="text-align: right; padding: 5px; border-right: 1px solid #cbd5e1;">${maxNeededSheets.toLocaleString('de-DE')} pol (max)</td>
+                            <td style="text-align: right; padding: 5px; color: green;">${(maxNeededSheets * totalSpots).toLocaleString('de-DE')} kos</td>
+                        </tr>
+                    </tbody>
+                </table>
+                `;
+            }
+
             const defaultContent = `
         <div class="header-top">
             <div style="width: 50%;">
@@ -4422,7 +4547,10 @@ function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH, orderedQty) {
                 <td style="width: 50%; text-align: right; font-size: 18px;"></td>
             </tr>
             <tr>
-                <td colspan="2"><span class="bold">Opis dela:</span> ${notes}</td>
+                <td colspan="2">
+                    <span class="bold">Opis dela:</span> ${notes}
+                    ${multiLabelsHtml}
+                </td>
             </tr>
         </table>
         <div class="row-divider"></div>
@@ -5192,6 +5320,123 @@ function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH, orderedQty) {
             if (e.key === 'Enter') applyManualLayout();
             if (e.key === 'Escape') closeManualEditor();
         });
+        // MULTI-LABEL IMPOSITION TABLE FUNCTIONS
+        let g_multiLabels = [];
+
+        window.toggleMultiLabels = function() {
+            const chk = document.getElementById('use-multi-labels');
+            const sec = document.getElementById('multi-labels-section');
+            if (chk && sec) {
+                if (chk.checked) {
+                    sec.style.display = 'block';
+                    if (g_multiLabels.length === 0) {
+                        // Dodamo nekaj privzetih vrstic za lažji začetek
+                        g_multiLabels.push({ name: 'Etiketa 1', qty: '1000', spots: '1' });
+                        g_multiLabels.push({ name: 'Etiketa 2', qty: '1000', spots: '1' });
+                    }
+                    renderMultiLabelRows();
+                } else {
+                    sec.style.display = 'none';
+                }
+            }
+        };
+
+        window.addMultiLabelRow = function(name = "", qty = "", spots = "") {
+            g_multiLabels.push({ name, qty, spots });
+            renderMultiLabelRows();
+            calculate();
+        };
+
+        window.removeMultiLabelRow = function(idx) {
+            g_multiLabels.splice(idx, 1);
+            renderMultiLabelRows();
+            calculate();
+        };
+
+        window.updateMultiLabelRow = function(idx, field, val) {
+            if (g_multiLabels[idx]) {
+                g_multiLabels[idx][field] = val;
+                if (field === 'qty' || field === 'spots') {
+                    calculate();
+                }
+            }
+        };
+
+        window.updateMultiLabelTarget = function() {
+            const targetEl = document.getElementById('multi-labels-target-spots');
+            const itemsInp = document.getElementById('items-per-sheet');
+            if (targetEl && itemsInp) {
+                targetEl.innerText = itemsInp.value || '1';
+            }
+        };
+
+        window.renderMultiLabelRows = function(maxNeededSheets = 0, totalSpots = 0) {
+            const body = document.getElementById('multi-labels-body');
+            if (!body) return;
+            
+            if (totalSpots === 0) {
+                totalSpots = g_multiLabels.reduce((sum, row) => sum + (parseInt(row.spots) || 0), 0);
+            }
+            let totalOrdered = g_multiLabels.reduce((sum, row) => sum + (parseFloat(row.qty) || 0), 0);
+            
+            if (maxNeededSheets === 0) {
+                g_multiLabels.forEach(row => {
+                    let rq = parseFloat(row.qty) || 0;
+                    let rs = parseInt(row.spots) || 0;
+                    if (rq > 0 && rs > 0) {
+                        let s = Math.ceil(rq / rs);
+                        if (s > maxNeededSheets) maxNeededSheets = s;
+                    }
+                });
+            }
+            if (maxNeededSheets === 0) maxNeededSheets = 1;
+
+            body.innerHTML = g_multiLabels.map((row, idx) => {
+                let rq = parseFloat(row.qty) || 0;
+                let rs = parseInt(row.spots) || 0;
+                let sNeeded = rs > 0 ? Math.ceil(rq / rs) : 0;
+                let printQty = maxNeededSheets * rs;
+
+                return `
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <td style="padding: 6px;">
+                        <input type="text" value="${row.name}" oninput="updateMultiLabelRow(${idx}, 'name', this.value)" style="padding: 4px 8px; font-size: 0.85rem; height: 30px; background: rgba(15,23,42,0.4); border: 1px solid rgba(255,255,255,0.05); color: white; width: 100%;">
+                    </td>
+                    <td style="padding: 6px; text-align: right;">
+                        <input type="number" value="${row.qty}" oninput="updateMultiLabelRow(${idx}, 'qty', this.value)" style="padding: 4px 8px; font-size: 0.85rem; height: 30px; text-align: right; background: rgba(15,23,42,0.4); border: 1px solid rgba(255,255,255,0.05); color: white; width: 100%;">
+                    </td>
+                    <td style="padding: 6px; text-align: right;">
+                        <input type="number" value="${row.spots}" oninput="updateMultiLabelRow(${idx}, 'spots', this.value)" style="padding: 4px 8px; font-size: 0.85rem; height: 30px; text-align: right; background: rgba(15,23,42,0.4); border: 1px solid rgba(255,255,255,0.05); color: white; width: 100%;">
+                    </td>
+                    <td style="padding: 6px; text-align: right; color: #94a3b8; font-size: 0.85rem; font-weight: bold; line-height: 30px; white-space: nowrap;">
+                        ${sNeeded.toLocaleString('de-DE')} pol
+                    </td>
+                    <td style="padding: 6px; text-align: right; color: #10b981; font-size: 0.85rem; font-weight: bold; line-height: 30px; white-space: nowrap;">
+                        ${printQty.toLocaleString('de-DE')} kos
+                    </td>
+                    <td style="padding: 6px; text-align: center;">
+                        <button type="button" onclick="removeMultiLabelRow(${idx})" style="background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; line-height: 30px;">×</button>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+
+            document.getElementById('multi-labels-total-ordered').innerText = totalOrdered.toLocaleString('de-DE');
+            
+            const totalSpotsEl = document.getElementById('multi-labels-total-spots');
+            if (totalSpotsEl) {
+                totalSpotsEl.innerText = totalSpots;
+                const targetSpots = parseInt(document.getElementById('items-per-sheet').value) || 1;
+                if (totalSpots > targetSpots) {
+                    totalSpotsEl.style.color = '#ef4444';
+                } else if (totalSpots === targetSpots) {
+                    totalSpotsEl.style.color = '#10b981';
+                } else {
+                    totalSpotsEl.style.color = '#fbbf24';
+                }
+            }
+        };
+
         // FINAL AUTO-RUN
         try {
             applyMachineDefaults();
