@@ -538,7 +538,7 @@
                 </div>
                 <div>
                     <label>Šifra izdelka</label>
-                    <input type="text" id="calc-material-code" placeholder="npr. PAP-135-MAT">
+                    <input type="text" id="calc-product-code" placeholder="npr. IZD-123">
                 </div>
                 <div>
                     <label for="calc-dn-number">Številka D.N.</label>
@@ -917,6 +917,10 @@
                     <div class="form-group">
                         <label>Vrsta materiala (mat, glos...)</label>
                         <input type="text" id="calc-paper-type" value="" placeholder="npr. mat" onchange="calculate()">
+                    </div>
+                    <div class="form-group">
+                        <label>Šifra materiala</label>
+                        <input type="text" id="calc-material-code" value="" placeholder="npr. PAP-135-MAT" onchange="calculate()">
                     </div>
                     <div class="form-group">
                         <label>Število barv (Lice / Hrbet)</label>
@@ -1684,6 +1688,7 @@
                     type: 'Tiskovna pola',
                     name: projectName,
                     customer: (document.getElementById('calc-customer') ? document.getElementById('calc-customer').value : '') || '',
+                    productCode: (document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : '') || '/',
                     materialCode: (document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '') || '/',
                     spec: {
                         usePersonalization: document.getElementById('calc-use-personalization') ? document.getElementById('calc-use-personalization').checked : false,
@@ -4107,6 +4112,7 @@
                     custId: gv('calc-cust-id'),
                     quoteNum: gv('calc-quote-number'),
                     customerCode: gv('calc-customer-code'),
+                    productCode: gv('calc-product-code'),
                     preparedBy: gv('calc-prepared-by'),
                     materialCode: gv('calc-material-code'),
                     notes: gv('calc-notes'),
@@ -4214,6 +4220,7 @@
                     custId: gv('calc-cust-id'),
                     quoteNum: gv('calc-quote-number'),
                     customerCode: gv('calc-customer-code'),
+                    productCode: gv('calc-product-code'),
                     preparedBy: gv('calc-prepared-by'),
                     materialCode: gv('calc-material-code'),
                     notes: gv('calc-notes'),
@@ -4584,6 +4591,7 @@
             document.getElementById('calc-cust-id').value = proj.custId || "";
             document.getElementById('calc-quote-number').value = proj.quoteNum || "";
             document.getElementById('calc-customer-code').value = proj.customerCode || "";
+            if (document.getElementById('calc-product-code')) document.getElementById('calc-product-code').value = proj.productCode || "";
             if (proj.preparedBy) document.getElementById('calc-prepared-by').value = proj.preparedBy;
             document.getElementById('calc-material-code').value = proj.materialCode || "";
             if (document.getElementById('calc-notes')) {
@@ -5144,6 +5152,87 @@
                     <\/script>
                 </body></html>`;
         }
+
+        async function odpisiMaterial() {
+            try {
+                const sifrMat = document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '';
+                if (!sifrMat || sifrMat.trim() === '/' || sifrMat.trim() === '') {
+                    alert("Šifra materiala ni vpisana v kalkulaciji!");
+                    return;
+                }
+
+                const qtyStr = document.getElementById('quantity') ? document.getElementById('quantity').value : '0';
+                const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+                const q = qtyArr[0] || 0;
+                let calcRes = typeof calculateForSingleQty === 'function' ? calculateForSingleQty(q) : null;
+                if (!calcRes || !calcRes.details || !calcRes.details.paper) {
+                    alert("Najprej izračunajte kalkulacijo!");
+                    return;
+                }
+                const unitsToSubtract = calcRes.details.paper.sourceSheets || 0;
+                if (unitsToSubtract <= 0) {
+                    alert("Število pol za odpis je 0.");
+                    return;
+                }
+
+                if (!confirm(`Ali želite odpisati ${unitsToSubtract} pol materiala ${sifrMat} iz zaloge?\n\nV naslednjem koraku boste morali izbrati datoteko zalogaSimon.json.`)) {
+                    return;
+                }
+
+                let fileHandle;
+                if (typeof window.showOpenFilePicker !== 'function') {
+                    alert("Vaš brskalnik ne podpira avtomatskega shranjevanja datotek (priporočamo Chrome ali Edge).");
+                    return;
+                }
+
+                try {
+                    [fileHandle] = await window.showOpenFilePicker({
+                        types: [{
+                            description: 'Zaloga JSON (zalogaSimon.json)',
+                            accept: { 'application/json': ['.json'] }
+                        }],
+                        multiple: false
+                    });
+                } catch (pickerErr) {
+                    // This happens if the user cancels the picker or if it's blocked by security
+                    if (pickerErr.name === 'AbortError') return;
+                    alert("Napaka pri odpiranju datoteke (morda nimate ustreznih pravic): " + pickerErr.message);
+                    return;
+                }
+
+                const file = await fileHandle.getFile();
+                const contents = await file.text();
+                let zaloga;
+                try {
+                    zaloga = JSON.parse(contents);
+                } catch (e) {
+                    alert("Datoteka ni veljaven JSON.");
+                    return;
+                }
+
+                let foundItem = zaloga.find(item => String(item['šifra materiala']) === String(sifrMat.trim()));
+                if (!foundItem) {
+                    alert("Material s šifro '" + sifrMat + "' ni bil najden v zalogi.");
+                    return;
+                }
+
+                if (typeof foundItem.zaloga === 'undefined') {
+                    foundItem.zaloga = 0; 
+                }
+                foundItem.zaloga -= unitsToSubtract;
+
+                const writable = await fileHandle.createWritable();
+                await writable.write(JSON.stringify(zaloga, null, 4));
+                await writable.close();
+
+                alert(`Uspešno odpisano ${unitsToSubtract} pol materiala s šifro ${sifrMat}.\nNova zaloga: ${foundItem.zaloga}`);
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    alert("Napaka pri odpisu: " + err.message);
+                }
+            }
+        }
+
         function getWorkOrderHTML() {
             const qtyStr = document.getElementById('quantity').value || '0';
             const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
@@ -5398,6 +5487,7 @@
                     <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI DN</button>
                     <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
                     <button onclick="if(confirm('Ali želite ponastaviti delovni nalog na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){ window.opener.g_editedWorkOrderHTML=''; const newHtml = window.opener.getWorkOrderHTML(); document.open(); document.write(newHtml); document.close(); } else { g_editedWorkOrderHTML=''; const modal = document.getElementById('modal-work-order'); if(modal) { modal.querySelector('.editable-area').innerHTML = getWorkOrderHTML(); } } }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
+                    <button onclick="try { if (typeof odpisiMaterial === 'function') odpisiMaterial(); else if (window.opener && typeof window.opener.odpisiMaterial === 'function') window.opener.odpisiMaterial(); else alert('Funkcija za odpis ni na voljo.'); } catch(e) { alert('Napaka pri gumbu: ' + e); }" style="background: #eab308; color: black; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;" title="Odpiši material iz zalogaSimon.json">ODPIŠI MATERIAL</button>
                     <button id="btn-move-text" onclick="toggleMoveMode(this)" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;" title="Premakni označeno besedilo na drugo mesto. Označite besedilo, kliknite ta gumb in nato kliknite na novo mesto v besedilu.">PREMAKNI</button>
                     <div style="display: flex; gap: 4px; align-items: center; background: #cbd5e1; padding: 3px; border-radius: 6px;">
                         <button onclick="document.execCommand('bold', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-weight: bold; cursor: pointer; color: #000; font-size: 14px;" title="Krepko (Bold)">B</button>
