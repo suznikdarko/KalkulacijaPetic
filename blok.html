@@ -756,7 +756,7 @@
                     </select>
                     <label style="margin-top: 0.8rem; display: block;">Format tiskarske pole ovitek</label>
                     <select id="machine-format-cover"
-                        onchange="document.getElementById('items-per-sheet-cover').value=''; calculate()">
+                        onchange="const el = document.getElementById('items-per-sheet-cover'); if(el) el.value=''; calculate()">
                         <option value="auto">Samodejno (B2 max)</option>
                         <option value="B2">B2 (698 x 498 mm)</option>
                         <option value="638x448">Izrez (638 x 448 mm)</option>
@@ -933,6 +933,11 @@
                             📕 Postavitev Ovitka</h3>
                         <div
                             style="display: flex; gap: 0.8rem; font-size: 1.1rem; align-items: center; flex-wrap: wrap;">
+                            <div
+                                style="font-size: 0.9rem; color: #94a3b8; display: flex; align-items: center; gap: 0.3rem;">
+                                Format: <strong id="res-sheet-cover-mini"
+                                    style="color: #f43f5e; font-size: 1rem;">-</strong></div>
+                            <span style="color: #475569;">|</span>
                             <span id="res-count-cover" style="color: #f43f5e; font-weight: 800;"
                                 title="Kosov na polo">-</span>
                             <span style="color: #475569;">|</span>
@@ -2024,7 +2029,10 @@
                 const q = qList.length > 0 ? qList[0] : 0;
 
                 const mFormat = gV('machine-format');
+                const mfcEl = document.getElementById('machine-format-cover');
+                const mFormatCover = (mfcEl && mfcEl.value) ? mfcEl.value : mFormat;
                 const fMode = gV('item-orientation');
+                const fModeCover = gV('item-orientation-cover') || fMode;
 
                 const sw = parseFloat(gV('calc-source-w')) || 1000;
                 const sh = parseFloat(gV('calc-source-h')) || 700;
@@ -2200,8 +2208,8 @@
                         let fitsSource = (swc >= sheet.w && shc >= sheet.h) || (swc >= sheet.h && shc >= sheet.w);
                         if (!fitsSource) return;
 
-                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fMode);
-                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fMode);
+                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeCover);
+                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeCover);
 
                         let bL = null, bM = 'L';
                         if (l1 && l2) {
@@ -2236,9 +2244,9 @@
                         }
                     };
 
-                    if (mFormat === 'auto') sheets.forEach(checkCoverSheet);
+                    if (mFormatCover === 'auto') sheets.forEach(checkCoverSheet);
                     else {
-                        let s = sheets.find(s => s.name === mFormat);
+                        let s = sheets.find(s => s.name === mFormatCover);
                         if (s) checkCoverSheet(s);
                     }
 
@@ -2248,6 +2256,7 @@
                         let cTotalArea = cBestSheet.w * cBestSheet.h;
                         let cUsage = (cActualArea / cTotalArea * 100).toFixed(1) + '%';
 
+                        setT('res-sheet-cover-mini', cBestSheet.name);
                         setT('res-count-cover', cBestLayout.count);
                         setT('res-usage-cover', cUsage);
 
@@ -2276,7 +2285,16 @@
                         calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH, cDrawW, cDrawH);
                     }
                 } else {
-                    if (document.getElementById('empty-state-cover')) document.getElementById('empty-state-cover').style.display = 'flex';
+                    const esC = document.getElementById('empty-state-cover');
+                    if (esC) {
+                        if (cw > 0 && ch > 0) {
+                            esC.innerText = "⚠️ Tiskovina ali izbran format je prevelik za izbran stroj ovitka!";
+                            esC.style.display = 'flex';
+                        } else {
+                            esC.innerText = "Vnesite dimenzije ovitka";
+                            esC.style.display = 'flex';
+                        }
+                    }
                     if (document.getElementById('canvas-cover')) document.getElementById('canvas-cover').style.display = 'none';
                     setT('res-count-cover', '-');
                     setT('res-usage-cover', '-%');
