@@ -91,7 +91,8 @@
             .header-panel {
                 grid-template-columns: 1fr;
             }
-            .header-panel > .header-group {
+
+            .header-panel>.header-group {
                 grid-column: 1 / -1 !important;
             }
         }
@@ -473,9 +474,14 @@
                 font-weight: bold;
                 box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
             }
-        .editable-area.waiting-for-paste { cursor: cell !important; outline: 3px dashed #eab308 !important; background-color: #fffbeb !important; }
-                </style>
-            </head>
+
+            .editable-area.waiting-for-paste {
+                cursor: cell !important;
+                outline: 3px dashed #eab308 !important;
+                background-color: #fffbeb !important;
+            }
+    </style>
+</head>
 
 <body>
     <div class="container">
@@ -550,6 +556,31 @@
                 <div>
                     <label>Šifra izdelka</label>
                     <input id="calc-material-code" placeholder="npr. PAP-135-MAT" type="text" />
+                </div>
+                <div>
+                    <label for="calc-dn-number">Številka D.N.</label>
+                    <input id="calc-dn-number" placeholder="npr. 0830/26" type="text"
+                        oninput="g_editedWorkOrderHTML='';" />
+                </div>
+                <div>
+                    <label for="calc-dn-old">Stari D.N. (za montažo)</label>
+                    <input id="calc-dn-old" placeholder="npr. SDN 0682/26" type="text"
+                        oninput="g_editedWorkOrderHTML='';" />
+                </div>
+                <div>
+                    <label for="calc-dn-deadline">Rok izdelave</label>
+                    <input id="calc-dn-deadline" placeholder="npr. četrtek 4.6.2026" type="text"
+                        oninput="g_editedWorkOrderHTML='';" />
+                </div>
+                <div style="display:flex; align-items:center; gap: 0.5rem; margin-top: 5px;">
+                    <input id="calc-dn-urgent" style="width:auto; height:auto;" type="checkbox"
+                        onchange="g_editedWorkOrderHTML='';" />
+                    <label for="calc-dn-urgent" style="color: #ef4444; font-weight: bold; margin:0;">NUJNO!</label>
+                </div>
+                <div>
+                    <label for="calc-dn-packaging">Pakiranje (D.N.)</label>
+                    <input id="calc-dn-packaging" placeholder="npr. Ovoj po 500 kom" type="text"
+                        oninput="g_editedWorkOrderHTML='';" />
                 </div>
             </div>
             <div class="header-group" style="grid-column: span 1;">
@@ -3873,6 +3904,11 @@
                         preparedBy: gv('calc-prepared-by'),
                         materialCode: gv('calc-material-code'),
                         orderType: gv('calc-order-type'),
+                        dnNumber: gv('calc-dn-number'),
+                        dnOld: gv('calc-dn-old'),
+                        dnDeadline: gv('calc-dn-deadline'),
+                        dnUrgent: gc('calc-dn-urgent'),
+                        dnPackaging: gv('calc-dn-packaging'),
                         leavesMaterial: gv('calc-leaves-material'),
                         notes: gv('calc-notes'),
                         inputs: {
@@ -4148,6 +4184,11 @@
                 setV('calc-delivery-address', proj.deliveryAddress);
                 setV('calc-prepared-by', proj.preparedBy);
                 setV('calc-order-type', proj.orderType || '');
+                setV('calc-dn-number', proj.dnNumber || '');
+                setV('calc-dn-old', proj.dnOld || '');
+                setV('calc-dn-deadline', proj.dnDeadline || '');
+                setV('calc-dn-urgent', proj.dnUrgent || false, true);
+                setV('calc-dn-packaging', proj.dnPackaging || '');
                 setV('calc-leaves-material', proj.leavesMaterial);
                 setV('calc-material-code', proj.materialCode);
                 setV('calc-notes', proj.notes);
@@ -4353,6 +4394,12 @@
                         customerCode: gv('calc-customer-code'),
                         preparedBy: gv('calc-prepared-by'),
                         materialCode: gv('calc-material-code'),
+                        orderType: gv('calc-order-type'),
+                        dnNumber: gv('calc-dn-number'),
+                        dnOld: gv('calc-dn-old'),
+                        dnDeadline: gv('calc-dn-deadline'),
+                        dnUrgent: gc('calc-dn-urgent'),
+                        dnPackaging: gv('calc-dn-packaging'),
                         leavesMaterial: gv('calc-leaves-material'),
                         notes: gv('calc-notes'),
                         inputs: {
@@ -4938,6 +4985,12 @@
                 let orderType = document.getElementById('calc-order-type') ? document.getElementById('calc-order-type').value : '';
                 let date = new Date().toLocaleDateString('sl-SI');
 
+                let dnNum = document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value : "";
+                let dnOld = document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : "";
+                let deadline = document.getElementById('calc-dn-deadline') ? document.getElementById('calc-dn-deadline').value : "";
+                let packaging = document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : "";
+                let isUrgent = document.getElementById('calc-dn-urgent') ? document.getElementById('calc-dn-urgent').checked : false;
+
                 // Format order type and old DN lines according to requirements (Line 1: Status!, Line 2: Print za tiskarja! SDN StariDN)
                 let orderTypeLine1 = "";
                 let orderTypeLine2 = "";
@@ -4959,6 +5012,14 @@
                     let line2Parts = [];
                     if (hasPrint) line2Parts.push('Print za tiskarja!');
                     orderTypeLine2 = line2Parts.join(' ');
+                }
+
+                if (isUrgent) {
+                    orderTypeLine1 = orderTypeLine1 ? `NUJNO! ${orderTypeLine1}` : `NUJNO!`;
+                }
+
+                if (dnOld) {
+                    orderTypeLine2 = orderTypeLine2 ? `${orderTypeLine2} SDN ${dnOld}` : `SDN ${dnOld}`;
                 }
 
                 // Leaves
@@ -5002,13 +5063,13 @@
                     <table style="margin-top: 10px;">
                         <tr>
                             <td style="width: 50%;">
-                                <div style="font-size: 18px;"><span class="bold">Rok izdelave:</span> __________________</div>
+                                <div style="font-size: 18px;"><span class="bold">Rok izdelave:</span> ${deadline || '__________________'}</div>
                             </td>
                             <td style="width: 50%; text-align: right; vertical-align: top;">
-                                <div class="bold" style="font-size: 20px; text-decoration: underline; margin-bottom: 2px;">D.N.: __________________</div>
+                                <div class="bold" style="font-size: 20px; text-decoration: underline; margin-bottom: 2px;">D.N.: ${dnNum || '__________________'}</div>
                                 <div class="bold" style="font-size: 16px; font-style: italic; margin-bottom: 8px;">${date}</div>
                                 <div style="line-height: 1.3;">
-                                    ${orderTypeLine1 ? `<div class="bold" style="font-size: 16px; font-style: italic; text-decoration: underline;">${orderTypeLine1}</div>` : ''}
+                                    ${orderTypeLine1 ? `<div class="bold" style="font-size: 16px; font-style: italic; text-decoration: underline;${isUrgent ? ' color: red;' : ''}">${orderTypeLine1}</div>` : ''}
                                     ${orderTypeLine2 ? `<div class="bold" style="font-size: 16px; font-style: italic;">${orderTypeLine2}</div>` : ''}
                                 </div>
                             </td>
@@ -5057,7 +5118,7 @@
                         </tr>
                         <tr>
                             <td style="width: 15%; padding-top: 10px;">Pakiranje:</td>
-                            <td class="bold" style="padding-top: 10px;">__________________</td>
+                            <td class="bold" style="padding-top: 10px;">${packaging || '__________________'}</td>
                         </tr>
                     </table>
                     <div class="row-divider"></div>
