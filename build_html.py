@@ -1,4 +1,6 @@
-<!DOCTYPE html>
+import sys
+
+html_content = """<!DOCTYPE html>
 <html lang="sl">
 <head>
     <meta charset="UTF-8">
@@ -248,11 +250,7 @@
             const btn = document.getElementById('processBtn');
             statusDiv.style.display = 'none';
 
-            let materialCode = document.getElementById('materialCode').value.trim();
-            // EXCEL MATCHING FIX: Convert to number if it's a pure number so VLOOKUP and SUMIF work
-            if (!isNaN(materialCode) && materialCode !== '') {
-                materialCode = Number(materialCode);
-            }
+            const materialCode = document.getElementById('materialCode').value.trim();
             const quantityVal = parseFloat(document.getElementById('quantity').value);
             const orderNumber = document.getElementById('orderNumber').value.trim();
             const personName = document.getElementById('personName').value.trim();
@@ -338,3 +336,8 @@
     </script>
 </body>
 </html>
+"""
+
+with open("d:\\Git\\KalkulacijaPetric\\odpis_materiala.html", "w", encoding="utf-8") as f:
+    f.write(html_content)
+print("Done writing HTML!")
