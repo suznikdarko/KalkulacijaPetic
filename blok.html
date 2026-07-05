@@ -2834,7 +2834,9 @@
                     let pWeight = parseFloat(document.getElementById('calc-paper-weight')?.value || 135) || 135;
 
                     let paperCost = 0;
-                    let pSupplyW = 700, pSupplyH = 1000, pYield = 1, pParentSheetsNeeded = 0;
+                    let pSupplyW = parseFloat(document.getElementById('calc-source-w').value) || 700;
+                    let pSupplyH = parseFloat(document.getElementById('calc-source-h').value) || 1000;
+                    let pYield = 1, pParentSheetsNeeded = 0;
 
                     // Pridobi dimenzije za liste
                     let drawWL = 0, drawHL = 0;
@@ -2845,17 +2847,15 @@
                         drawHL = parseFloat(sizeStrL[1]);
                     }
 
+                    if (drawWL > 0 && drawHL > 0) {
+                        let pYield1 = Math.floor(pSupplyW / drawWL) * Math.floor(pSupplyH / drawHL);
+                        let pYield2 = Math.floor(pSupplyW / drawHL) * Math.floor(pSupplyH / drawWL);
+                        pYield = Math.max(pYield1, pYield2) || 1;
+                        pParentSheetsNeeded = Math.ceil(totalSheetsNeededLeaves / pYield);
+                    }
+
                     if (!document.getElementById('calc-paper-active') || document.getElementById('calc-paper-active').checked) {
                         if (drawWL > 0 && drawHL > 0) {
-                            pSupplyW = parseFloat(document.getElementById('calc-source-w').value) || 700;
-                            pSupplyH = parseFloat(document.getElementById('calc-source-h').value) || 1000;
-
-                            let pYield1 = Math.floor(pSupplyW / drawWL) * Math.floor(pSupplyH / drawHL);
-                            let pYield2 = Math.floor(pSupplyW / drawHL) * Math.floor(pSupplyH / drawWL);
-                            pYield = Math.max(pYield1, pYield2) || 1;
-
-                            pParentSheetsNeeded = Math.ceil(totalSheetsNeededLeaves / pYield);
-
                             if (pUnit === "1") {
                                 paperCost = pParentSheetsNeeded * pPrice;
                             } else if (pUnit === "1000") {
@@ -2875,7 +2875,9 @@
 
                     // Podkarton (obračunamo, če je vnesena cena)
                     let cbPrice = parseFloat(document.getElementById('calc-cardboard-price').value) || 0;
-                    let cbSupplyW = 700, cbSupplyH = 1000, cbYield = 1, cbParentSheetsNeeded = 0;
+                    let cbSupplyW = parseFloat(document.getElementById('calc-source-cover-w').value) || 700;
+                    let cbSupplyH = parseFloat(document.getElementById('calc-source-cover-h').value) || 1000;
+                    let cbYield = 1, cbParentSheetsNeeded = 0;
 
                     // Pridobi dimenzije za ovitek (že pridobljeno na začetku funkcije)
                     if (drawWC === 0 || drawHC === 0) {
@@ -2886,40 +2888,36 @@
                             drawHC = parseFloat(sizeStrC[1]);
                         }
                     }
+                    
+                    if (drawWC > 0 && drawHC > 0) {
+                        let cbYield1 = Math.floor(cbSupplyW / drawWC) * Math.floor(cbSupplyH / drawHC);
+                        let cbYield2 = Math.floor(cbSupplyW / drawHC) * Math.floor(cbSupplyH / drawWC);
+                        cbYield = Math.max(cbYield1, cbYield2) || 1;
+                        cbParentSheetsNeeded = Math.ceil(totalSheetsNeededCover / cbYield);
+                    }
 
                     let cbUnit = document.getElementById('calc-cardboard-unit') ? document.getElementById('calc-cardboard-unit').value : "item";
                     let cbWeight = parseFloat(document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : 300) || 300;
 
-                    if (cbPrice > 0) {
-                        if (drawWC > 0 && drawHC > 0) {
-                            cbSupplyW = parseFloat(document.getElementById('calc-source-cover-w').value) || 700;
-                            cbSupplyH = parseFloat(document.getElementById('calc-source-cover-h').value) || 1000;
-
-                            let cbYield1 = Math.floor(cbSupplyW / drawWC) * Math.floor(cbSupplyH / drawHC);
-                            let cbYield2 = Math.floor(cbSupplyW / drawHC) * Math.floor(cbSupplyH / drawWC);
-                            cbYield = Math.max(cbYield1, cbYield2) || 1;
-
-                            cbParentSheetsNeeded = Math.ceil(totalSheetsNeededCover / cbYield);
-
-                            let cbCost = 0;
-                            if (cbUnit === 'item') {
-                                cbCost = totalItemsForm * cbPrice;
-                            } else if (cbUnit === 'sheet') {
-                                cbCost = cbParentSheetsNeeded * cbPrice;
-                            } else if (cbUnit === '1000') {
-                                cbCost = (cbParentSheetsNeeded / 1000) * cbPrice;
-                            } else if (cbUnit === 'kg') {
-                                let areaM2 = (cbSupplyW / 1000) * (cbSupplyH / 1000);
-                                let sheetKg = areaM2 * (cbWeight / 1000);
-                                cbCost = cbParentSheetsNeeded * sheetKg * cbPrice;
-                            } else if (cbUnit === 'ton') {
-                                let areaM2 = (cbSupplyW / 1000) * (cbSupplyH / 1000);
-                                let sheetKg = areaM2 * (cbWeight / 1000);
-                                let totalKg = cbParentSheetsNeeded * sheetKg;
-                                cbCost = (totalKg / 1000) * cbPrice;
-                            }
-                            paperCost += cbCost;
+                    let cbCost = 0;
+                    if (cbPrice > 0 && drawWC > 0 && drawHC > 0) {
+                        if (cbUnit === 'item') {
+                            cbCost = totalItemsForm * cbPrice;
+                        } else if (cbUnit === 'sheet') {
+                            cbCost = cbParentSheetsNeeded * cbPrice;
+                        } else if (cbUnit === '1000') {
+                            cbCost = (cbParentSheetsNeeded / 1000) * cbPrice;
+                        } else if (cbUnit === 'kg') {
+                            let areaM2 = (cbSupplyW / 1000) * (cbSupplyH / 1000);
+                            let sheetKg = areaM2 * (cbWeight / 1000);
+                            cbCost = cbParentSheetsNeeded * sheetKg * cbPrice;
+                        } else if (cbUnit === 'ton') {
+                            let areaM2 = (cbSupplyW / 1000) * (cbSupplyH / 1000);
+                            let sheetKg = areaM2 * (cbWeight / 1000);
+                            let totalKg = cbParentSheetsNeeded * sheetKg;
+                            cbCost = (totalKg / 1000) * cbPrice;
                         }
+                        paperCost += cbCost;
                     }
 
                     // Toggle visibility of standard vs cooperation inputs dynamically
@@ -3239,6 +3237,8 @@
                                 parentSheets: pParentSheetsNeeded,
                                 sourceW: pSupplyW,
                                 sourceH: pSupplyH,
+                                sheetW: drawWL,
+                                sheetH: drawHL,
                                 yield: pYield,
                                 kg: (pUnit === "ton" || pUnit === "kg") ? (pParentSheetsNeeded * ((pSupplyW / 1000) * (pSupplyH / 1000)) * (pWeight / 1000)) : 0
                             },
@@ -3248,6 +3248,8 @@
                                 parentSheets: cbParentSheetsNeeded,
                                 sourceW: cbSupplyW,
                                 sourceH: cbSupplyH,
+                                sheetW: drawWC,
+                                sheetH: drawHC,
                                 yield: cbYield,
                                 kg: (cbUnit === "ton" || cbUnit === "kg") ? (cbParentSheetsNeeded * ((cbSupplyW / 1000) * (cbSupplyH / 1000)) * ((parseFloat(document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : 300) || 300) / 1000)) : 0
                             }
@@ -5316,17 +5318,21 @@
                 let backC = parseInt(document.getElementById('calc-color-back-cover')?.value || 0) || 0;
                 let isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
                 let colorsC = (isObratC) ? (frontC + '/' + frontC) : (frontC + '/' + backC);
-
-                let sheetsNeededL = parseInt(document.getElementById('res-sheets-needed')?.innerText) || 0;
-                let sheetsNeededC = parseInt(document.getElementById('header-cover-sheets-val')?.innerText) || 0;
-                let printAllowanceL = parseInt(document.getElementById('calc-print-allowance-leaves')?.value) || 0;
-                let printAllowanceC = parseInt(document.getElementById('calc-print-allowance-cover')?.value) || 0;
-
-                let totalSheetsL = sheetsNeededL + printAllowanceL;
-                let totalSheetsC = sheetsNeededC + printAllowanceC;
+                let coverQty = parseFloat(document.getElementById('calc-cover-qty')?.value);
+                let coverQtyLine = (!isNaN(coverQty) && coverQty > 0) ? `<tr><td style="width: 15%;">Količina ovitkov:</td><td class="bold" style="font-size: 14px; color: #f43f5e;">${coverQty.toLocaleString('de-DE')} kos</td></tr>` : '';
 
                 let calcRes = calculateForSingleQty(q);
                 let d = calcRes ? calcRes.details : null;
+
+                let sheetsNeededL = parseInt(document.getElementById('res-sheets-needed')?.innerText) || 0;
+                let sourceYieldL = d && d.paper && d.paper.leaves ? d.paper.leaves.yield : 1;
+                
+                let printAllowanceL = parseInt(document.getElementById('calc-print-allowance-leaves')?.value) || 0;
+                let finalTotalSheetsL = sheetsNeededL + printAllowanceL;
+                let finalSourceSheetsL = Math.ceil(finalTotalSheetsL / sourceYieldL);
+                let defaultDodatekL = printAllowanceL;
+                
+                let totalSheetsL = finalTotalSheetsL; // For compatibility with print time logic
 
                 // Leaves print times
                 let mTypeL = document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : 'S4';
@@ -5350,18 +5356,27 @@
                 let roundedPrepTimeL = Math.round(prepTimeL * 4) / 4;
                 let roundedPrintTimeL = Math.round(dnPrintHoursL * 4) / 4;
                 
-                let printMathStringL = `${sheetsNeededL.toLocaleString('de-DE')} + ${printAllowanceL.toLocaleString('de-DE')} = ${totalSheetsL.toLocaleString('de-DE')} tisk. pol`;
+                let printMathStringL = `${sheetsNeededL.toLocaleString('de-DE')} + ${defaultDodatekL.toLocaleString('de-DE')} = ${totalSheetsL.toLocaleString('de-DE')} tisk. pol`;
                 
-                let finalSourceSheetsL = d && d.paper && d.paper.leaves ? d.paper.leaves.parentSheets : 0;
-                let sourceYieldL = parseFloat(document.getElementById('calc-source-yield')?.value || 1);
                 let sourceWCmL = d && d.paper && d.paper.leaves ? ((d.paper.leaves.sourceW || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
                 let sourceHCmL = d && d.paper && d.paper.leaves ? ((d.paper.leaves.sourceH || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
-                let sheetWCmL = 0; let sheetHCmL = 0;
+                let sheetWCmL = d && d.paper && d.paper.leaves ? ((d.paper.leaves.sheetW || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
+                let sheetHCmL = d && d.paper && d.paper.leaves ? ((d.paper.leaves.sheetH || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
                 let sTextL = document.getElementById('res-size-leaves-val')?.innerText || "";
                 if (sTextL.includes('x')) {
                     sheetWCmL = (parseFloat(sTextL.split('x')[0]) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
                     sheetHCmL = (parseFloat(sTextL.split('x')[1]) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
                 }
+
+                let sheetsNeededC = parseInt(document.getElementById('header-cover-sheets-val')?.innerText) || 0;
+                let sourceYieldC = d && d.paper && d.paper.cover ? d.paper.cover.yield : 1;
+                
+                let printAllowanceC = parseInt(document.getElementById('calc-print-allowance-cover')?.value) || 0;
+                let finalTotalSheetsC = sheetsNeededC + printAllowanceC;
+                let finalSourceSheetsC = Math.ceil(finalTotalSheetsC / sourceYieldC);
+                let defaultDodatekC = printAllowanceC;
+                
+                let totalSheetsC = finalTotalSheetsC; // For compatibility
 
                 // Cover print times
                 let mTypeC = document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : 'S4';
@@ -5385,13 +5400,12 @@
                 let roundedPrepTimeC = Math.round(prepTimeC * 4) / 4;
                 let roundedPrintTimeC = Math.round(dnPrintHoursC * 4) / 4;
                 
-                let printMathStringC = `${sheetsNeededC.toLocaleString('de-DE')} + ${printAllowanceC.toLocaleString('de-DE')} = ${totalSheetsC.toLocaleString('de-DE')} tisk. pol`;
+                let printMathStringC = `${sheetsNeededC.toLocaleString('de-DE')} + ${defaultDodatekC.toLocaleString('de-DE')} = ${totalSheetsC.toLocaleString('de-DE')} tisk. pol`;
 
-                let finalSourceSheetsC = d && d.paper && d.paper.cover ? d.paper.cover.parentSheets : 0;
-                let sourceYieldC = parseFloat(document.getElementById('calc-source-cover-yield')?.value || 1);
                 let sourceWCmC = d && d.paper && d.paper.cover ? ((d.paper.cover.sourceW || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
                 let sourceHCmC = d && d.paper && d.paper.cover ? ((d.paper.cover.sourceH || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
-                let sheetWCmC = 0; let sheetHCmC = 0;
+                let sheetWCmC = d && d.paper && d.paper.cover ? ((d.paper.cover.sheetW || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
+                let sheetHCmC = d && d.paper && d.paper.cover ? ((d.paper.cover.sheetH || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
                 let cTextC = document.getElementById('res-size-cover-val')?.innerText || "";
                 if (cTextC.includes('x')) {
                     sheetWCmC = (parseFloat(cTextC.split('x')[0]) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
@@ -5449,7 +5463,7 @@
                         <tr><td style="width: 15%;">Format listov:</td><td class="bold">${formatLeaves}</td></tr>
                         <tr><td>Material listi:</td><td class="bold">${leavesMaterial}</td></tr>
                         <tr><td>Tisk listi:</td><td class="bold">${colorsL}</td></tr>
-                        <tr><td>Količina pol (notranjost):</td><td class="bold">${sheetsNeededL.toLocaleString('de-DE')} neto ${printAllowanceL > 0 ? '+ ' + printAllowanceL.toLocaleString('de-DE') + ' dodatek ' : ''}= ${totalSheetsL.toLocaleString('de-DE')} tiskarskih pol</td></tr>
+                        <tr><td>Količina pol (notranjost):</td><td class="bold">${sheetsNeededL.toLocaleString('de-DE')} neto ${defaultDodatekL > 0 ? '+ ' + defaultDodatekL.toLocaleString('de-DE') + ' dodatek ' : ''}= ${totalSheetsL.toLocaleString('de-DE')} tiskarskih pol</td></tr>
                     </table>
                     <table style="width: 100%;">
                         <tr>
@@ -5473,10 +5487,11 @@
                     <div class="row-divider"></div>
                     <div class="bold" style="font-size: 14px; margin-bottom: 5px; color: #f43f5e;">📕 OVITEK / PODKARTON</div>
                     <table style="width: 100%;">
+                        ${coverQtyLine}
                         <tr><td style="width: 15%;">Format ovitka:</td><td class="bold">${formatCover}</td></tr>
                         <tr><td>Material ovitek:</td><td class="bold">${coverMaterial}</td></tr>
                         <tr><td>Tisk ovitek:</td><td class="bold">${colorsC}</td></tr>
-                        <tr><td>Količina pol (ovitek):</td><td class="bold">${sheetsNeededC.toLocaleString('de-DE')} neto ${printAllowanceC > 0 ? '+ ' + printAllowanceC.toLocaleString('de-DE') + ' dodatek ' : ''}= ${totalSheetsC.toLocaleString('de-DE')} tiskarskih pol</td></tr>
+                        <tr><td>Količina pol (ovitek):</td><td class="bold">${sheetsNeededC.toLocaleString('de-DE')} neto ${defaultDodatekC > 0 ? '+ ' + defaultDodatekC.toLocaleString('de-DE') + ' dodatek ' : ''}= ${totalSheetsC.toLocaleString('de-DE')} tiskarskih pol</td></tr>
                     </table>
                     <table style="width: 100%;">
                         <tr>
@@ -5519,7 +5534,7 @@
                             <td>Papir listi (${sourceWCmL} x ${sourceHCmL} cm) - ${leavesMaterial}:</td>
                             <td style="text-align: right;" class="bold">${finalSourceSheetsL.toLocaleString('de-DE')} pol</td>
                         </tr>
-                        ${platesC > 0 || finalSourceSheetsC > 0 ? `
+                        ${sheetsNeededC > 0 ? `
                         <tr>
                             <td style="padding-top: 5px;">of. plošče (<strong>${mTypeC}</strong>) - ovitek:</td>
                             <td style="text-align: right; padding-top: 5px;" class="bold">${platesC} kos</td>
