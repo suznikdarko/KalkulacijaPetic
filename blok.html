@@ -2146,6 +2146,11 @@
 
                     drawCanvas('canvas-leaves', drawW, drawH, bestLayout, g, w, h, b, (targetCount > 0 && targetCount !== bestLayout.count), targetCount);
 
+                    let itemsInpL = document.getElementById('items-per-sheet');
+                    if (itemsInpL) {
+                        itemsInpL.placeholder = targetCount === 0 ? "Avto (" + bestLayout.count + ")" : "Avto";
+                    }
+
                     // --- VIZUALIZACIJA RAZREZA PAPIRJA ---
                     let sourceYieldL = drawSourceLayoutCanvas('canvas-source-leaves', sw, sh, bestSheet.w, bestSheet.h, '#3b82f6');
                     setV('calc-source-yield', sourceYieldL);
@@ -2275,6 +2280,11 @@
                             setT('res-size', `${cDrawW} x ${cDrawH}`);
                         }
                         drawCanvas('canvas-cover', cDrawW, cDrawH, cBestLayout, cg, cw, ch, cb, (targetCountCover > 0 && targetCountCover !== cBestLayout.count), targetCountCover);
+
+                        let itemsInpC = document.getElementById('items-per-sheet-cover');
+                        if (itemsInpC) {
+                            itemsInpC.placeholder = targetCountCover === 0 ? "Avto (" + cBestLayout.count + ")" : "Avto";
+                        }
 
                         // --- VIZUALIZACIJA RAZREZA OVITKA ---
                         let sourceYieldC = drawSourceLayoutCanvas('canvas-source-cover', swc, shc, cBestSheet.w, cBestSheet.h, '#f43f5e');
@@ -3283,7 +3293,8 @@
                         printCost: totalPrintCost,
                         finishCost: totalFinishCost,
                         margin: totalMargin,
-                        quantity: totalItemsForm
+                        quantity: totalItemsForm,
+                        details: details
                     };
                 } catch (e) {
                     console.error("Napaka v calculatePrice:", e);
@@ -5314,6 +5325,55 @@
                 let totalSheetsL = sheetsNeededL + printAllowanceL;
                 let totalSheetsC = sheetsNeededC + printAllowanceC;
 
+                let calcRes = calculateForSingleQty(q);
+                let d = calcRes ? calcRes.details : null;
+
+                // Leaves print times
+                let mTypeL = document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : 'S4';
+                let prepTimeL = (parseFloat(document.getElementById('calc-machine-prep-time-leaves')?.value || 10) / 60);
+                let platesL = parseInt(document.getElementById('calc-plates-num-leaves')?.value || 0) || 0;
+                let mPassesL = frontL > 0 ? (Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0)) : 1;
+                if (isObratL) mPassesL = Math.ceil(frontL / 4);
+                let dnPrintHoursL = (totalSheetsL * mPassesL) / 6000;
+                let tiskModeL = "1 prehod";
+                if (isObratL) { tiskModeL = "obračanje"; } else if (backL > 0) { tiskModeL = "prvi/drugi (2 prehoda)"; }
+                let roundedPrepTimeL = Math.round(prepTimeL * 4) / 4;
+                let roundedPrintTimeL = Math.round(dnPrintHoursL * 4) / 4;
+                
+                let finalSourceSheetsL = d && d.paper && d.paper.leaves ? d.paper.leaves.parentSheets : 0;
+                let sourceYieldL = parseFloat(document.getElementById('calc-source-yield')?.value || 1);
+                let sourceWCmL = d && d.paper && d.paper.leaves ? ((d.paper.leaves.sourceW || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
+                let sourceHCmL = d && d.paper && d.paper.leaves ? ((d.paper.leaves.sourceH || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
+                let sheetWCmL = 0; let sheetHCmL = 0;
+                let sTextL = document.getElementById('res-size-leaves-val')?.innerText || "";
+                if (sTextL.includes('x')) {
+                    sheetWCmL = (parseFloat(sTextL.split('x')[0]) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+                    sheetHCmL = (parseFloat(sTextL.split('x')[1]) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+                }
+
+                // Cover print times
+                let mTypeC = document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : 'S4';
+                let prepTimeC = (parseFloat(document.getElementById('calc-machine-prep-time-cover')?.value || 10) / 60);
+                let platesC = parseInt(document.getElementById('calc-plates-num-cover')?.value || 0) || 0;
+                let mPassesC = frontC > 0 ? (Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0)) : 1;
+                if (isObratC) mPassesC = Math.ceil(frontC / 4);
+                let dnPrintHoursC = (totalSheetsC * mPassesC) / 6000;
+                let tiskModeC = "1 prehod";
+                if (isObratC) { tiskModeC = "obračanje"; } else if (backC > 0) { tiskModeC = "prvi/drugi (2 prehoda)"; }
+                let roundedPrepTimeC = Math.round(prepTimeC * 4) / 4;
+                let roundedPrintTimeC = Math.round(dnPrintHoursC * 4) / 4;
+
+                let finalSourceSheetsC = d && d.paper && d.paper.cover ? d.paper.cover.parentSheets : 0;
+                let sourceYieldC = parseFloat(document.getElementById('calc-source-cover-yield')?.value || 1);
+                let sourceWCmC = d && d.paper && d.paper.cover ? ((d.paper.cover.sourceW || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
+                let sourceHCmC = d && d.paper && d.paper.cover ? ((d.paper.cover.sourceH || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
+                let sheetWCmC = 0; let sheetHCmC = 0;
+                let cTextC = document.getElementById('res-size-cover-val')?.innerText || "";
+                if (cTextC.includes('x')) {
+                    sheetWCmC = (parseFloat(cTextC.split('x')[0]) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+                    sheetHCmC = (parseFloat(cTextC.split('x')[1]) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+                }
+
                 let finishing = getFinishingDesc();
 
                 const defaultContent = `
@@ -5367,6 +5427,24 @@
                         <tr><td>Tisk listi:</td><td class="bold">${colorsL}</td></tr>
                         <tr><td>Količina pol (notranjost):</td><td class="bold">${sheetsNeededL.toLocaleString('de-DE')} neto ${printAllowanceL > 0 ? '+ ' + printAllowanceL.toLocaleString('de-DE') + ' dodatek ' : ''}= ${totalSheetsL.toLocaleString('de-DE')} tiskarskih pol</td></tr>
                     </table>
+                    <table style="width: 100%;">
+                        <tr>
+                            <td style="width: 15%;">06 razrez:</td>
+                            <td class="bold">${finalSourceSheetsL.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCmL} x ${sourceHCmL} cm &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${totalSheetsL.toLocaleString('de-DE')} pol ${sheetWCmL} x ${sheetHCmL} cm &nbsp;&nbsp; (${sourceYieldL} iz pole)</td>
+                        </tr>
+                    </table>
+                    <table style="margin-top: 5px; width: 100%;">
+                        <tr>
+                            <td style="width: 15%; font-weight: bold;"><strong>${mTypeL}</strong> priprava:</td>
+                            <td class="bold" style="width: 55%;">${tiskModeL}</td>
+                            <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">priprava:</span> ${roundedPrepTimeL.toFixed(2)} h</td>
+                        </tr>
+                        <tr>
+                            <td>Tisk:</td>
+                            <td class="bold" style="width: 55%; white-space: nowrap;">${sheetsNeededL.toLocaleString('de-DE')} + ${printAllowanceL.toLocaleString('de-DE')} = ${totalSheetsL.toLocaleString('de-DE')} tisk. pol &nbsp;&nbsp; (${mPassesL}x skozi stroj)</td>
+                            <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">tisk:</span> ${roundedPrintTimeL.toFixed(2)} h</td>
+                        </tr>
+                    </table>
 
                     <div class="row-divider"></div>
                     <div class="bold" style="font-size: 14px; margin-bottom: 5px; color: #f43f5e;">📕 OVITEK / PODKARTON</div>
@@ -5375,6 +5453,24 @@
                         <tr><td>Material ovitek:</td><td class="bold">${coverMaterial}</td></tr>
                         <tr><td>Tisk ovitek:</td><td class="bold">${colorsC}</td></tr>
                         <tr><td>Količina pol (ovitek):</td><td class="bold">${sheetsNeededC.toLocaleString('de-DE')} neto ${printAllowanceC > 0 ? '+ ' + printAllowanceC.toLocaleString('de-DE') + ' dodatek ' : ''}= ${totalSheetsC.toLocaleString('de-DE')} tiskarskih pol</td></tr>
+                    </table>
+                    <table style="width: 100%;">
+                        <tr>
+                            <td style="width: 15%;">06 razrez:</td>
+                            <td class="bold">${finalSourceSheetsC.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCmC} x ${sourceHCmC} cm &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${totalSheetsC.toLocaleString('de-DE')} pol ${sheetWCmC} x ${sheetHCmC} cm &nbsp;&nbsp; (${sourceYieldC} iz pole)</td>
+                        </tr>
+                    </table>
+                    <table style="margin-top: 5px; width: 100%;">
+                        <tr>
+                            <td style="width: 15%; font-weight: bold;"><strong>${mTypeC}</strong> priprava:</td>
+                            <td class="bold" style="width: 55%;">${tiskModeC}</td>
+                            <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">priprava:</span> ${roundedPrepTimeC.toFixed(2)} h</td>
+                        </tr>
+                        <tr>
+                            <td>Tisk:</td>
+                            <td class="bold" style="width: 55%; white-space: nowrap;">${sheetsNeededC.toLocaleString('de-DE')} + ${printAllowanceC.toLocaleString('de-DE')} = ${totalSheetsC.toLocaleString('de-DE')} tisk. pol &nbsp;&nbsp; (${mPassesC}x skozi stroj)</td>
+                            <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">tisk:</span> ${roundedPrintTimeC.toFixed(2)} h</td>
+                        </tr>
                     </table>
 
                     <div class="row-divider"></div>
@@ -5387,6 +5483,28 @@
                             <td style="width: 15%; padding-top: 10px;">Pakiranje:</td>
                             <td class="bold" style="padding-top: 10px;">${packaging || '__________________'}</td>
                         </tr>
+                    </table>
+                    <div class="row-divider"></div>
+                    <div class="bold" style="margin-bottom: 5px;">Poraba materiala:</div>
+                    <table>
+                        <tr>
+                            <td style="width: 40%;">of. plošče (<strong>${mTypeL}</strong>) - listi:</td>
+                            <td style="text-align: right;" class="bold">${platesL} kos</td>
+                        </tr>
+                        <tr>
+                            <td>Papir listi (${sourceWCmL} x ${sourceHCmL} cm) - ${leavesMaterial}:</td>
+                            <td style="text-align: right;" class="bold">${finalSourceSheetsL.toLocaleString('de-DE')} pol</td>
+                        </tr>
+                        ${platesC > 0 || finalSourceSheetsC > 0 ? `
+                        <tr>
+                            <td style="padding-top: 5px;">of. plošče (<strong>${mTypeC}</strong>) - ovitek:</td>
+                            <td style="text-align: right; padding-top: 5px;" class="bold">${platesC} kos</td>
+                        </tr>
+                        <tr>
+                            <td>Papir ovitek (${sourceWCmC} x ${sourceHCmC} cm) - ${coverMaterial}:</td>
+                            <td style="text-align: right;" class="bold">${finalSourceSheetsC.toLocaleString('de-DE')} pol</td>
+                        </tr>
+                        ` : ''}
                     </table>
                     <div class="row-divider"></div>
                     <table>
