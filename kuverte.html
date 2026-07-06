@@ -534,8 +534,13 @@
                 style="margin-top: 15px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 10px;">
                 <input type="number" id="calc-given-sheets" placeholder="Vpiši dodatek..."
                     style="width: 100%; text-align: center; font-size: 1.25rem; font-weight: bold; border: none; background: transparent; padding: 5px; color: #ffffff; outline: none;">
-                <div class="label" style="text-align: center; color: var(--text-muted); font-size: 0.8rem;">Dodatne
-                    kuverte tiskarju (samo za nalog)</div>
+                <div class="label" style="text-align: center; color: var(--text-muted); font-size: 0.8rem;">Dodatne kuverte tiskarju (samo za nalog)</div>
+            </div>
+            <div class="stat-card full-width"
+                style="margin-top: 10px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 10px;">
+                <input type="number" id="calc-override-total" placeholder="Vpiši skupno število..." onchange="calculate()"
+                    style="width: 100%; text-align: center; font-size: 1.25rem; font-weight: bold; border: none; background: transparent; padding: 5px; color: #ffffff; outline: none;">
+                <div class="label" style="text-align: center; color: var(--text-muted); font-size: 0.8rem;">Naročene kuverte (se upoštevajo za kalkulacijo)</div>
             </div>
         </div>
 
@@ -1359,8 +1364,9 @@
 
             let waste = d.material.waste || 0;
             let givenDodatekInput = document.getElementById('calc-given-sheets') ? parseInt(document.getElementById('calc-given-sheets').value) : NaN;
-            let finalDodatek = waste;
-
+            
+            // Če ni vpisanega dodatka za nalog, ne uporabimo avtomatskega iz kalkulacije, temveč 0
+            let finalDodatek = 0;
             if (!isNaN(givenDodatekInput) && givenDodatekInput >= 0) {
                 finalDodatek = givenDodatekInput;
             }
@@ -1820,7 +1826,11 @@
                 deliveryCost += parseFloat(document.getElementById('f-del-fixed-price').value) || 0;
             }
 
-            const totalQ = q + qo + waste;
+            const overrideTotal = document.getElementById('calc-override-total') ? parseFloat(document.getElementById('calc-override-total').value) : NaN;
+            let totalQ = q + qo + waste;
+            if (!isNaN(overrideTotal) && overrideTotal > 0) {
+                totalQ = overrideTotal;
+            }
             const materialCost = (totalQ / 1000) * mPrice;
             const totalColors = cFront + cBack;
 
