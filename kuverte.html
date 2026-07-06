@@ -2513,12 +2513,25 @@
                     }
                 };
 
-                const jsonStr = JSON.stringify(data, null, 2);
+                let _gv = id => { let el = document.getElementById(id); return el ? el.value : ''; };
+                let s_ponudba = (_gv('calc-quote-number') || '').replace(/[\/\\]/g, '-').trim();
+                if (s_ponudba) s_ponudba = 'pon.' + s_ponudba;
+                let s_stranka = (_gv('calc-customer') || '').trim();
+                let s_izdelek = (name || '').trim();
+                let s_naklada = (_gv('calc-quantities') || '').replace(/\s+/g, '').replace(/,/g, '-');
+                
+                let s_front = _gv('calc-colors-front') || '0';
+                let s_back = _gv('calc-colors-back') || '0';
+                let s_barve = (s_front === '0' && s_back === '0') ? '' : ('b' + s_front + s_back);
+
+                let parts = [s_ponudba, s_stranka, s_izdelek, s_naklada, s_barve].filter(Boolean);
+                let baseName = parts.length > 0 ? parts.join('_').replace(/\s+/g, '_') : name.replace(/\s+/g, '_');
+                const suggestedFileName = baseName + '.kuverta.json';
 
                 if (window.showSaveFilePicker) {
                     try {
                         const handle = await window.showSaveFilePicker({
-                            suggestedName: 'KUVERTA_' + name.replace(/\s+/g, '_') + '.json',
+                            suggestedName: suggestedFileName,
                             types: [{ description: 'JSON Ponudba (Shranite v C:\\DARKO-KUVERTE)', accept: { 'application/json': ['.json'] } }],
                         });
                         const writable = await handle.createWritable();
@@ -2536,7 +2549,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = name.replace(/\s+/g, '_') + '.json';
+                a.download = suggestedFileName;
                 document.body.appendChild(a);
                 a.click();
                 setTimeout(() => {
