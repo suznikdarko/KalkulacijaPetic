@@ -451,6 +451,11 @@
                                     title="Prikaži datoteke iz mape na disku (C:\TISKOVNE_POLE)">
                                     📂 POVEŽI Z MAPO
                                 </button>
+                                <button onclick="syncWithFolder(true)"
+                                    style="background: #059669; border: 1px solid #047857; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;"
+                                    title="Izberi drugo mapo">
+                                    🔄
+                                </button>
                                 <button onclick="document.getElementById('import-file-input').click()"
                                     style="flex: 1; background: #334155; border: 1px solid #475569; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;">
                                     📤 UVOZI JSON
@@ -3752,6 +3757,8 @@
                         machine_format: gv('machine-format'),
                         item_w: gv('width'),
                         item_h: gv('height'),
+                        closed_w: gv('closed-width'),
+                        closed_h: gv('closed-height'),
                         quantity: gv('quantity'),
                         bleed: gv('bleed'),
                         pPrice: gv('calc-paper-price'),
@@ -3920,6 +3927,7 @@
                 let s_back = gv('calc-color-back') || '0';
                 let s_barve = (s_front==='0' && s_back==='0') ? '' : ('b' + s_front + s_back);
                 let s_naklada = (gv('quantity') || '').replace(/\s+/g, '').replace(/,/g, '-');
+                if (s_naklada) s_naklada = 'nakl.' + s_naklada;
                 let s_tenovis = (gv('calc-tenovis-order') || '').trim();
                 if (s_tenovis) s_tenovis = 'N' + s_tenovis;
                 
@@ -3950,15 +3958,83 @@
             } catch (err) { alert("Napaka pri shranjevanju: " + err.message); }
         }
 
+        // INDEXED DB HELPER FOR DIR HANDLE
+        const DB_NAME = 'TenovisDirDB';
+        const STORE_NAME = 'handles';
+        const DIR_KEY = 'projectsDir';
+
+        function getDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = (e) => { e.target.result.createObjectStore(STORE_NAME); };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveDirHandle(handle) {
+            try {
+                const db = await getDB();
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(handle, DIR_KEY);
+                return new Promise(r => { tx.oncomplete = r; });
+            } catch(e) {}
+        }
+
+        async function loadDirHandle() {
+            try {
+                const db = await getDB();
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const req = tx.objectStore(STORE_NAME).get(DIR_KEY);
+                return new Promise(r => {
+                    req.onsuccess = () => r(req.result);
+                    req.onerror = () => r(null);
+                });
+            } catch(e) { return null; }
+        }
+
+        async function verifyPermission(fileHandle) {
+            const options = { mode: 'readwrite' };
+            if ((await fileHandle.queryPermission(options)) === 'granted') return true;
+            if ((await fileHandle.requestPermission(options)) === 'granted') return true;
+            return false;
+        }
+
         var g_projectsDirHandle = null;
         var g_diskProjects = [];
 
-        async function syncWithFolder() {
+        async function autoConnectFolder() {
+            const handle = await loadDirHandle();
+            if (handle) {
+                try {
+                    const status = await handle.queryPermission({mode: 'readwrite'});
+                    if (status === 'granted') {
+                        g_projectsDirHandle = handle;
+                        await refreshDiskProjects();
+                        renderSavedProjects();
+                    }
+                } catch(e) {}
+            }
+        }
+
+        async function syncWithFolder(forceNew = false) {
             try {
-                g_projectsDirHandle = await window.showDirectoryPicker();
+                if (!forceNew) {
+                    const storedHandle = await loadDirHandle();
+                    if (storedHandle) {
+                        if (await verifyPermission(storedHandle)) {
+                            g_projectsDirHandle = storedHandle;
+                            await refreshDiskProjects();
+                            renderSavedProjects();
+                            return;
+                        }
+                    }
+                }
+                g_projectsDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                await saveDirHandle(g_projectsDirHandle);
                 await refreshDiskProjects();
                 renderSavedProjects();
-                alert("Mapa uspešno povezana!");
+                alert("Mapa uspešno povezana in shranjena!");
             } catch (err) {
                 if (err.name !== 'AbortError') alert("Napaka: " + err.message);
             }
@@ -4286,7 +4362,7 @@
                 let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
                 const data = {
                     name: name,
-                    _source: 'tiskovna-pola-kalkulator',
+                    _source: 'pola',
                     customer: document.getElementById('calc-customer').value,
                     materialCode: document.getElementById('calc-material-code').value,
                     tenovisOrder: document.getElementById('calc-tenovis-order') ? document.getElementById('calc-tenovis-order').value : '',
@@ -4344,12 +4420,13 @@
                 let s_back = _gv('calc-color-back') || '0';
                 let s_barve = (s_front==='0' && s_back==='0') ? '' : ('b' + s_front + s_back);
                 let s_naklada = (_gv('quantity') || '').replace(/\s+/g, '').replace(/,/g, '-');
+                if (s_naklada) s_naklada = 'nakl.' + s_naklada;
                 let s_tenovis = (_gv('calc-tenovis-order') || '').trim();
                 if (s_tenovis) s_tenovis = 'N' + s_tenovis;
                 
                 let parts = [s_ponudba, s_stranka, s_izdelek, s_verzija, s_strani, s_barve, s_naklada, s_tenovis].filter(Boolean);
                 let baseName = parts.length > 0 ? parts.join('_').replace(/\s+/g, '_') : name.replace(/\s+/g, '_');
-                const suggestedName = baseName + '.tiskovna-pola-kalkulator.json';
+                const suggestedName = baseName + '.pola.json';
 
                 if (window.showSaveFilePicker) {
                     try {
@@ -5090,8 +5167,8 @@
             const file = event.target.files[0];
             if (!file) return;
             // Preveri, da je to datoteka tega kalkulatorja
-            if (!file.name.includes('.pola.')) {
-                alert("Napaka: Ta datoteka ne pripada Tiskovna Pola kalkulatorju!\nPričakovana datoteka: *.pola.json");
+            if (!file.name.includes('.pola.') && !file.name.includes('tiskovna-pola')) {
+                alert("Napaka: Ta datoteka ne pripada Tiskovna Pola kalkulatorju!\nPričakovana datoteka: *.pola.json ali *tiskovna-pola-kalkulator.json");
                 event.target.value = "";
                 return;
             }
@@ -5120,6 +5197,7 @@
             updateCustomerDatalist();
             renderBasket();
             setTimeout(calculate, 200); // Give it a moment to stabilize
+            autoConnectFolder(); // Try to auto connect to folder if permission is already granted
         } catch (e) {
             console.error("Startup failed:", e);
         }
