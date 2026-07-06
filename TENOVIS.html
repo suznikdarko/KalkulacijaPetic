@@ -541,6 +541,10 @@
                         <input type="text" id="calc-dn-packaging" placeholder="npr. Ovoj 500 kom">
                     </div>
                 </div>
+                <div style="margin-top: 1rem;">
+                    <label for="calc-tenovis-order">Naročilo Tenovis</label>
+                    <input type="text" id="calc-tenovis-order" placeholder="npr. 12345">
+                </div>
             </div>
 
             <div class="header-group" style="grid-column: span 1;">
@@ -1164,7 +1168,7 @@
                                     <select id="f-zgibanje-folds" onchange="calculatePrice()">
                                         <option value="1" selected="">1 zgib</option>
                                         <option value="2">2 zgiba</option>
-                                        <option value="3">3 zgiba</option>
+                                        <option value="3">3 zgibi</option>
                                         <option value="4">4 zgibi</option>
                                         <option value="5">5 zgibov</option>
                                     </select>
@@ -3840,6 +3844,7 @@
                     dnOld: gv('calc-dn-old'),
                     dnDeadline: gv('calc-dn-deadline'),
                     dnPackaging: gv('calc-dn-packaging'),
+                    tenovisOrder: gv('calc-tenovis-order'),
                     customerCode: gv('calc-customer-code'),
                     preparedBy: gv('calc-prepared-by'),
                     materialCode: gv('calc-material-code'),
@@ -3853,6 +3858,8 @@
                         machine_format: gv('machine-format'),
                         item_w: gv('width'),
                         item_h: gv('height'),
+                        closed_w: gv('closed-width'),
+                        closed_h: gv('closed-height'),
                         quantity: gv('quantity'),
                         bleed: gv('bleed'),
                         pPrice: gv('calc-paper-price'),
@@ -3901,7 +3908,24 @@
                 };
 
                 const jsonStr = JSON.stringify(data, null, 2);
-                const suggestedName = name.replace(/\s+/g, '_') + '.pola.json';
+                
+                let s_ponudba = (gv('calc-quote-number') || '').replace(/[\/\\]/g, '-').trim();
+                let s_stranka = (gv('calc-customer') || '').trim();
+                let s_izdelek = (name || '').trim();
+                let s_verzija = (gv('calc-project-version') || '').trim();
+                if (s_verzija) s_verzija = 'ver.' + s_verzija;
+                let s_strani = (gv('f-pages-per-item') || '').trim();
+                if (s_strani) s_strani = s_strani + 'str';
+                let s_front = gv('calc-color-front') || '0';
+                let s_back = gv('calc-color-back') || '0';
+                let s_barve = (s_front==='0' && s_back==='0') ? '' : ('b' + s_front + s_back);
+                let s_naklada = (gv('quantity') || '').replace(/\s+/g, '').replace(/,/g, '-');
+                let s_tenovis = (gv('calc-tenovis-order') || '').trim();
+                if (s_tenovis) s_tenovis = 'N' + s_tenovis;
+                
+                let parts = [s_ponudba, s_stranka, s_izdelek, s_verzija, s_strani, s_barve, s_naklada, s_tenovis].filter(Boolean);
+                let baseName = parts.length > 0 ? parts.join('_').replace(/\s+/g, '_') : name.replace(/\s+/g, '_');
+                const suggestedName = baseName + '.pola.json';
 
                 if (window.showSaveFilePicker) {
                     try {
@@ -4125,6 +4149,7 @@
             if (document.getElementById('calc-dn-old')) document.getElementById('calc-dn-old').value = proj.dnOld || "";
             if (document.getElementById('calc-dn-deadline')) document.getElementById('calc-dn-deadline').value = proj.dnDeadline || "";
             if (document.getElementById('calc-dn-packaging')) document.getElementById('calc-dn-packaging').value = proj.dnPackaging || "";
+            if (document.getElementById('calc-tenovis-order')) document.getElementById('calc-tenovis-order').value = proj.tenovisOrder || "";
             document.getElementById('calc-customer-code').value = proj.customerCode || "";
             if (proj.preparedBy) document.getElementById('calc-prepared-by').value = proj.preparedBy;
             document.getElementById('calc-material-code').value = proj.materialCode || "";
@@ -4264,6 +4289,7 @@
                     _source: 'tiskovna-pola-kalkulator',
                     customer: document.getElementById('calc-customer').value,
                     materialCode: document.getElementById('calc-material-code').value,
+                    tenovisOrder: document.getElementById('calc-tenovis-order') ? document.getElementById('calc-tenovis-order').value : '',
                     timestamp: Date.now(),
                     inputs: {
                         orderedSheets: document.getElementById('calc-ordered-sheets') ? document.getElementById('calc-ordered-sheets').value : '',
@@ -4305,7 +4331,26 @@
                 };
 
                 const jsonStr = JSON.stringify(data, null, 2);
-                const suggestedName = name.replace(/\s+/g, '_') + '.tiskovna-pola-kalkulator.json';
+                
+                let _gv = id => { let el = document.getElementById(id); return el ? el.value : ''; };
+                let s_ponudba = (_gv('calc-quote-number') || '').replace(/[\/\\]/g, '-').trim();
+                let s_stranka = (_gv('calc-customer') || '').trim();
+                let s_izdelek = (name || '').trim();
+                let s_verzija = (_gv('calc-project-version') || '').trim();
+                if (s_verzija) s_verzija = 'ver.' + s_verzija;
+                let s_strani = (_gv('f-pages-per-item') || '').trim();
+                if (s_strani) s_strani = s_strani + 'str';
+                let s_front = _gv('calc-color-front') || '0';
+                let s_back = _gv('calc-color-back') || '0';
+                let s_barve = (s_front==='0' && s_back==='0') ? '' : ('b' + s_front + s_back);
+                let s_naklada = (_gv('quantity') || '').replace(/\s+/g, '').replace(/,/g, '-');
+                let s_tenovis = (_gv('calc-tenovis-order') || '').trim();
+                if (s_tenovis) s_tenovis = 'N' + s_tenovis;
+                
+                let parts = [s_ponudba, s_stranka, s_izdelek, s_verzija, s_strani, s_barve, s_naklada, s_tenovis].filter(Boolean);
+                let baseName = parts.length > 0 ? parts.join('_').replace(/\s+/g, '_') : name.replace(/\s+/g, '_');
+                const suggestedName = baseName + '.tiskovna-pola-kalkulator.json';
+
                 if (window.showSaveFilePicker) {
                     try {
                         const handle = await window.showSaveFilePicker({
