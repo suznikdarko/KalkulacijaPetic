@@ -1035,7 +1035,7 @@
                     </div>
                     <div class="form-group">
                         <label>Število mutacij</label>
-                        <input type="number" id="calc-mut-qty" value="1" min="1" step="1"
+                        <input type="number" id="calc-mut-qty" value="0" min="0" step="1"
                             oninput="updateMutationPlates(); calculatePrice()"
                             onchange="updateMutationPlates(); calculatePrice()">
                     </div>
@@ -2876,8 +2876,14 @@
                         return obj.s350;
                     };
                     let s = getS(bossTable[0]);
-                    if (qty <= bossTable[0].q) {
-                        s = getS(bossTable[0]);
+                    if (qty <= bossTable[0].q && bossTable.length > 1) {
+                        let rangeQ = bossTable[1].q - bossTable[0].q;
+                        let speed1 = getS(bossTable[0]);
+                        let speed2 = getS(bossTable[1]);
+                        let rangeS = speed2 - speed1;
+                        let fraction = (qty - bossTable[0].q) / rangeQ;
+                        s = speed1 + fraction * rangeS;
+                        s = Math.max(s, speed1 * 0.5); // Prevent extremely low or negative speeds
                     } else if (qty >= bossTable[bossTable.length - 1].q) {
                         s = getS(bossTable[bossTable.length - 1]);
                     } else {
@@ -2927,11 +2933,11 @@
             let speedMaxInpVal = document.getElementById('calc-machine-speed-max') ? document.getElementById('calc-machine-speed-max').value : "";
             if (speedMaxInpVal !== "") {
                 let rawMachineSpeed = parseFloat(speedMaxInpVal) || mProfile.speed;
-                mSpeed = getDynamicSpeed(rawMachineSpeed, paperWeight, qty);
+                mSpeed = getDynamicSpeed(rawMachineSpeed, paperWeight, totalSheetsNeeded);
                 printHours = (printSheets * mPasses) / mSpeed;
             } else {
                 // Sedaj za VSE barvne načine in naklade hitrost izračuna iz tabele!
-                mSpeed = getDynamicSpeed(mProfile.speed, paperWeight, qty);
+                mSpeed = getDynamicSpeed(mProfile.speed, paperWeight, totalSheetsNeeded);
                 printHours = (printSheets * mPasses) / mSpeed;
             }
             // Posodabljamo prikazovalno polje z dejansko izračunano hitrostjo
