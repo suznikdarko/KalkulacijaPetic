@@ -3629,6 +3629,17 @@
                         }
                     }
                 }
+
+                try {
+                    var cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                    for (var j = 0; j < cache.length; j++) {
+                        var c2 = cache[j].trim();
+                        if (c2 && customers.indexOf(c2) === -1) {
+                            customers.push(c2);
+                        }
+                    }
+                } catch (e) { }
+
                 customers.sort();
 
                 // 1. Posodobi standardni datalist
@@ -3837,6 +3848,18 @@
                 function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
                 function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
 
+                let customerName = gv('calc-customer').trim();
+                if (customerName) {
+                    try {
+                        let cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                        if (cache.indexOf(customerName) === -1) {
+                            cache.push(customerName);
+                            localStorage.setItem('petric_customers_cache', JSON.stringify(cache));
+                            updateCustomerDatalist();
+                        }
+                    } catch (e) { }
+                }
+
                 const data = {
                     name: name,
                     _source: 'pola',
@@ -3942,10 +3965,21 @@
                             types: [{ description: 'Pola JSON', accept: { 'application/json': ['.json'] } }],
                         });
                         const writable = await handle.createWritable();
-                        await writable.write(jsonStr);
+                        await writable.write(new Blob([jsonStr], { type: 'application/json' }));
                         await writable.close();
+                        
+                        if (g_projectsDirHandle) {
+                            await refreshDiskProjects();
+                            renderSavedProjects();
+                        }
+                        
+                        alert("Datoteka '" + handle.name + "' uspešno shranjena!");
                         return;
-                    } catch (e) { if (e.name === 'AbortError') return; }
+                    } catch (e) {
+                        if (e.name === 'AbortError') return;
+                        alert("Napaka pri pisanju v datoteko: " + e.message);
+                        return;
+                    }
                 }
 
                 const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -4058,6 +4092,9 @@
             try {
                 const file = await entry.getFile();
                 const content = await file.text();
+                if (!content || content.trim() === "") {
+                    throw new Error("Datoteka je prazna (0 KB)!");
+                }
                 const data = JSON.parse(content);
                 loadProjectData(data);
                 alert("Datoteka '" + fileName + "' naložena!");
@@ -4085,7 +4122,13 @@
             const searchInput = document.getElementById('project-search-input');
             const filter = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
-            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            let arhiv = [];
+            try {
+                arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            } catch(e) {
+                console.error("Napaka pri branju arhiva iz localStorage:", e);
+                arhiv = [];
+            }
             let html = "";
 
             // 1. DODAJ DATOTEKE Z DISKA
@@ -4360,6 +4403,18 @@
         async function exportToFile() {
             try {
                 let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
+                let customerName = document.getElementById('calc-customer').value.trim();
+                if (customerName) {
+                    try {
+                        let cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                        if (cache.indexOf(customerName) === -1) {
+                            cache.push(customerName);
+                            localStorage.setItem('petric_customers_cache', JSON.stringify(cache));
+                            updateCustomerDatalist();
+                        }
+                    } catch (e) { }
+                }
+
                 const data = {
                     name: name,
                     _source: 'pola',
@@ -4435,11 +4490,21 @@
                             types: [{ description: 'Tiskovna Pola JSON', accept: { 'application/json': ['.json'] } }],
                         });
                         const writable = await handle.createWritable();
-                        await writable.write(jsonStr);
+                        await writable.write(new Blob([jsonStr], { type: 'application/json' }));
                         await writable.close();
-                        alert("Datoteka uspešno shranjena!");
+                        
+                        if (g_projectsDirHandle) {
+                            await refreshDiskProjects();
+                            renderSavedProjects();
+                        }
+
+                        alert("Datoteka '" + handle.name + "' uspešno izvožena!");
                         return;
-                    } catch (e) { if (e.name === 'AbortError') return; }
+                    } catch (e) {
+                        if (e.name === 'AbortError') return;
+                        alert("Napaka pri pisanju v datoteko: " + e.message);
+                        return;
+                    }
                 }
                 const blob = new Blob([jsonStr], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
