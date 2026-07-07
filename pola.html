@@ -2644,11 +2644,11 @@
                         { q: 500000, waste: 1500, s150: 7100, s250: 6600, s350: 6000 }
                     ],
                     "4/0": [
-                        { q: 1000, waste: 320, s150: 3100, s250: 3000, s350: 2900 },
-                        { q: 5000, waste: 320, s150: 5070, s250: 4750, s350: 4250 },
-                        { q: 10000, waste: 320, s150: 6400, s250: 6000, s350: 5400 },
+                        { q: 1000, waste: 320, s150: 3600, s250: 3200, s350: 3000 },
+                        { q: 5000, waste: 320, s150: 5070, s250: 5600, s350: 5150 },
+                        { q: 10000, waste: 320, s150: 6400, s250: 6000, s350: 5450 },
                         { q: 50000, waste: 320, s150: 6800, s250: 6300, s350: 5700 },
-                        { q: 100000, waste: 320, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 320, s150: 6800, s250: 6600, s350: 6060 },
                         { q: 300000, waste: 320, s150: 7140, s250: 6600, s350: 6060 },
                         { q: 500000, waste: 625, s150: 7140, s250: 6600, s350: 6060 }
                     ],
@@ -2728,6 +2728,9 @@
             }
         }
         function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH, orderedQty) {
+            const qStr_local = document.getElementById('quantity').value || "0";
+            const qArr_local = qStr_local.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+            const q = qArr_local[0] || 0;
             let itemsPerSheet = parseInt(document.getElementById('items-per-sheet').value) || 0;
             let sheetsNeeded = sheetsNeededIn;
             if (itemsPerSheet > 0) {
@@ -2813,8 +2816,10 @@
                     paperWasteSheets = baseWaste + (mutMultiplier * baseWaste);
                 }
             }
-            const wasteEl = document.getElementById('calc-paper-waste');
-            if (wasteEl) wasteEl.value = paperWasteSheets;
+            if (qty === q) {
+                const wasteEl = document.getElementById('calc-paper-waste');
+                if (wasteEl) wasteEl.value = paperWasteSheets;
+            }
             let _calcColorBack = parseInt(document.getElementById('calc-color-back').value) || 0;
             let _calcIsObrat = document.getElementById('calc-is-obrat').checked;
             let _isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
@@ -2827,8 +2832,10 @@
             let totalSheetsNeeded = sheetsNeeded + physicalWasteSheets;
             let totalSourceSheetsNeeded = Math.ceil(totalSheetsNeeded / sourceYield);
 
-            if (document.getElementById('res-source-sheets-needed')) {
-                document.getElementById('res-source-sheets-needed').innerText = totalSourceSheetsNeeded;
+            if (qty === q) {
+                if (document.getElementById('res-source-sheets-needed')) {
+                    document.getElementById('res-source-sheets-needed').innerText = totalSourceSheetsNeeded;
+                }
             }
 
             if (orderedSheetsVal > 0) {
@@ -2940,9 +2947,10 @@
                 mSpeed = getDynamicSpeed(mProfile.speed, paperWeight, totalSheetsNeeded);
                 printHours = (printSheets * mPasses) / mSpeed;
             }
-            // Posodabljamo prikazovalno polje z dejansko izračunano hitrostjo
-            const mSpeedEl = document.getElementById('calc-machine-speed');
-            if (mSpeedEl) mSpeedEl.value = Math.round(mSpeed);
+            if (qty === q) {
+                const mSpeedEl = document.getElementById('calc-machine-speed');
+                if (mSpeedEl) mSpeedEl.value = Math.round(mSpeed);
+            }
             // Strojni čas priprave (priprava tiska v minutah)
             let mPrepInp = document.getElementById('calc-machine-prep-time').value;
             let mPrepMinutes = 10; // Privzeto osnovno
@@ -2952,9 +2960,11 @@
                 // Boss formula za pripravo:
                 // Osnovna priprava (10 min) + Menjava plošč (6 min na agregat/ploščo) + Obračalnik (15 min)
                 mPrepMinutes = 10 + (6 * platesNum) + (isObrat ? 15 : 0);
-                const prepTimeInp = document.getElementById('calc-machine-prep-time');
-                if (prepTimeInp) {
-                    prepTimeInp.placeholder = "Avto (" + mPrepMinutes + " min)";
+                if (qty === q) {
+                    const prepTimeInp = document.getElementById('calc-machine-prep-time');
+                    if (prepTimeInp) {
+                        prepTimeInp.placeholder = "Avto (" + mPrepMinutes + " min)";
+                    }
                 }
             }
             let mPrepTime = mPrepMinutes / 60;
@@ -3021,8 +3031,10 @@
                 else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
                 autoCutSpeed = Math.round(autoCutSpeed);
                 let autoCutRate = 30.00;
-                document.getElementById('f-razrez-format-speed').placeholder = "Avto (" + autoCutSpeed + ")";
-                document.getElementById('f-razrez-format-rate').placeholder = "Avto (" + autoCutRate + " )";
+                if (qty === q) {
+                    document.getElementById('f-razrez-format-speed').placeholder = "Avto (" + autoCutSpeed + ")";
+                    document.getElementById('f-razrez-format-rate').placeholder = "Avto (" + autoCutRate + " )";
+                }
                 const spdInput = document.getElementById('f-razrez-format-speed').value;
                 const spd = spdInput !== "" ? parseFloat(spdInput) : autoCutSpeed;
                 const rteInput = document.getElementById('f-razrez-format-rate').value;
