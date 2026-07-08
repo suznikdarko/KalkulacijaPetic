@@ -3609,7 +3609,41 @@
                     item.style.cursor = "pointer";
                     item.style.borderBottom = "1px solid #334155";
                     item.style.fontSize = "0.9rem";
-                    item.innerText = customers[j];
+                    item.style.display = "flex";
+                    item.style.justifyContent = "space-between";
+                    item.style.alignItems = "center";
+
+                    var nameSpan = document.createElement('span');
+                    nameSpan.innerText = customers[j];
+                    item.appendChild(nameSpan);
+
+                    var delBtn = document.createElement('span');
+                    delBtn.innerHTML = '&#10006;'; // X icon
+                    delBtn.style.color = '#ef4444';
+                    delBtn.style.fontSize = '0.8rem';
+                    delBtn.style.padding = '2px 8px';
+                    delBtn.style.borderRadius = '4px';
+                    delBtn.title = 'Odstrani stranko iz predpomnilnika';
+                    delBtn.onclick = (function (name) {
+                        return function (e) {
+                            e.stopPropagation();
+                            if (confirm('Ali res želite odstraniti stranko "' + name + '" iz arhiva? (Če je stranka shranjena v katerem od vaših projektov, se bo morda znova pojavila)')) {
+                                var cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                                var idx = cache.indexOf(name);
+                                if (idx > -1) {
+                                    cache.splice(idx, 1);
+                                    localStorage.setItem('petric_customers_cache', JSON.stringify(cache));
+                                }
+                                updateCustomerDatalist();
+                                // Also re-render the dropdown list itself
+                                renderCustomerList();
+                            }
+                        };
+                    })(customers[j]);
+                    delBtn.onmouseover = function () { this.style.background = '#fecaca'; };
+                    delBtn.onmouseout = function () { this.style.background = 'transparent'; };
+                    item.appendChild(delBtn);
+
                     item.onclick = (function (name) {
                         return function () {
                             document.getElementById('calc-customer').value = name;
