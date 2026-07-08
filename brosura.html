@@ -1848,7 +1848,65 @@
                 return bestLayout;
             }
 
+            function filterAvailableFormats() {
+                // Za listi
+                const sw = parseFloat(document.getElementById('calc-source-w').value) || 1000;
+                const sh = parseFloat(document.getElementById('calc-source-h').value) || 700;
+                const select = document.getElementById('machine-format');
+                if (select) {
+                    const options = select.options;
+                    const mType = document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : "S4";
+                    const profile = machineProfiles[mType];
+
+                    for (let i = 0; i < options.length; i++) {
+                        const val = options[i].value;
+                        if (val === 'auto') continue;
+                        const sheet = sheets.find(s => s.name === val);
+                        if (sheet) {
+                            let fitsSource = (sw >= sheet.w && sh >= sheet.h) || (sw >= sheet.h && sh >= sheet.w);
+                            let fitsMachine = true;
+                            if (profile && profile.limitW) {
+                                fitsMachine = (sheet.w <= profile.limitW && sheet.h <= profile.limitH) || (sheet.h <= profile.limitW && sheet.w <= profile.limitH);
+                            }
+                            const fits = fitsSource && fitsMachine;
+                            options[i].disabled = !fits;
+                            if (!fits && select.value === val) select.value = 'auto';
+                        }
+                    }
+                }
+
+                // Za ovitek
+                let cvrW = document.getElementById('calc-source-cover-w');
+                let cvrH = document.getElementById('calc-source-cover-h');
+                const swc = cvrW ? parseFloat(cvrW.value) || 1000 : 1000;
+                const shc = cvrH ? parseFloat(cvrH.value) || 700 : 700;
+                const selectCover = document.getElementById('machine-format-cover');
+                if (selectCover) {
+                    const optionsCover = selectCover.options;
+                    const mTypeCoverEl = document.getElementById('calc-machine-type-cover');
+                    const mTypeCover = mTypeCoverEl ? mTypeCoverEl.value : "S4";
+                    const profileCover = machineProfiles[mTypeCover];
+
+                    for (let i = 0; i < optionsCover.length; i++) {
+                        const val = optionsCover[i].value;
+                        if (val === 'auto') continue;
+                        const sheet = sheets.find(s => s.name === val);
+                        if (sheet) {
+                            let fitsSource = (swc >= sheet.w && shc >= sheet.h) || (swc >= sheet.h && shc >= sheet.w);
+                            let fitsMachine = true;
+                            if (profileCover && profileCover.limitW) {
+                                fitsMachine = (sheet.w <= profileCover.limitW && sheet.h <= profileCover.limitH) || (sheet.h <= profileCover.limitW && sheet.w <= profileCover.limitH);
+                            }
+                            const fits = fitsSource && fitsMachine;
+                            optionsCover[i].disabled = !fits;
+                            if (!fits && selectCover.value === val) selectCover.value = 'auto';
+                        }
+                    }
+                }
+            }
+
             function calculate(isManual = false) {
+                if(typeof filterAvailableFormats === 'function') filterAvailableFormats();
                 const w = parseFloat(gV('width').replace(',', '.')) || 0;
                 const h = parseFloat(gV('height').replace(',', '.')) || 0;
                 const b = parseFloat(gV('bleed').replace(',', '.')) || 0;
@@ -1925,7 +1983,7 @@
                                     score = bestForThisSheet.count;
                                 }
                             } else {
-                                score = (bestForThisSheet.count * 1000000) + (sYield * 1000) - ((sheet.w * sheet.h) / 1000.0);
+                                score = (bestForThisSheet.count * sYield * 1000000) + (bestForThisSheet.count * 1000) - ((sheet.w * sheet.h) / 1000.0);
                             }
 
                             if (score > bestScore) {
