@@ -4847,16 +4847,28 @@
                     ${htmlHeader}
                     <head><meta charset="utf-8"><title>Ponudba</title>
                     <style>
-                        body { font-family: 'Arial', sans-serif; padding: ${isWord ? '10px' : '30px'}; color: #000; line-height: 1.1; font-size: 11px; }
+                        body { font-family: 'Arial', sans-serif; padding: 0; margin: 0; color: #000; line-height: 1.1; font-size: 11px; }
                         .info-table { border-collapse: collapse; margin-left: auto; margin-right: 0; }
                         .info-table td { padding: 1px 0 1px 15px; text-align: right; }
                         .info-table td:first-child { font-weight: normal; color: #555; }
                         .info-table td:last-child { font-weight: bold; }
                         h1 { font-size: 14px; font-weight: bold; margin-top: 10px; margin-bottom: 5px; letter-spacing: 1px; border-bottom: 1px solid #000; padding-bottom: 3px; }
                         .notes { margin-top: 10px; text-align: justify; font-size: 9px; line-height: 1.1; color: #444; }
+                        @media print { .no-print { display: none !important; } }
+                        .editable-area:focus { outline: 2px dashed #f99c26; background-color: #fffbeb; }
+                        .editable-area p, .editable-area div:not(.header-top) { margin: 0; padding: 0; }
+                        .editable-area.waiting-for-paste { cursor: cell !important; outline: 3px dashed #eab308 !important; background-color: #fffbeb !important; }
                     </style>
                     </head>
                     <body>
+                        ${!isWord ? `
+                        <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 10px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
+                            <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI</button>
+                            <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
+                            <button id="btn-move-text" onclick="if(typeof toggleMoveMode === 'function') toggleMoveMode(this)" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PREMAKNI</button>
+                        </div>
+                        ` : ''}
+                        <div class="editable-area" ${!isWord ? 'contenteditable="true"' : ''} style="padding: ${isWord ? '10px' : '30px'};">
                         <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #f99c26; padding-bottom: 5px;" cellpadding="0" cellspacing="0">
                             <tr>
                                 <td style="width: 32%; vertical-align: top;">
@@ -4898,6 +4910,55 @@
                         ${isDN ? '' : (isAT ? '<p style="margin: 5px 0; font-weight: bold; text-decoration: underline; text-align: center;">Voraussetzung: Kunde liefert druckfertige Daten</p>' : '<p style="margin: 5px 0;"><strong>Predloga:</strong> Naročnik dostavi visokoresolucijski PDF z dodatkom za obrez!</p>')}
                         ${isDN ? '' : `<p class="notes">${isAT ? 'Dieses Angebot ist gültig für 30 Tage. Zahlung erfolgt nach 30 Tagen ab Lieferung der Ware. Wir danken Ihnen für Ihre mögliche Bestellung, und wünschen Ihnen einen angenehmen Tag.' : 'Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.'}</p>`}
                         <div style="margin-top: 10px; font-size: 10px; font-style: italic;">${isAT ? 'Dieses Angebot hat für Sie erstellt:' : 'Ponudbo pripravil:'} ${preparedBy}</div>
+                        </div>
+                        ${!isWord ? `
+                        <script>
+                            let moveData = null;
+                            let waitingForPaste = false;
+                            window.toggleMoveMode = function(btn) {
+                                const sel = window.getSelection();
+                                const area = document.querySelector('.editable-area');
+                                if (!waitingForPaste) {
+                                    if (sel.rangeCount && sel.toString().trim().length > 0) {
+                                        const range = sel.getRangeAt(0);
+                                        moveData = range.cloneContents();
+                                        range.deleteContents();
+                                        waitingForPaste = true;
+                                        btn.innerText = "VSTAVI TU";
+                                        btn.style.background = "#eab308";
+                                        area.classList.add('waiting-for-paste');
+                                    } else {
+                                        alert("Najprej z miško označite (pobarvajte) del besedila, ki ga želite premakniti.");
+                                    }
+                                } else {
+                                    waitingForPaste = false;
+                                    moveData = null;
+                                    btn.innerText = "PREMAKNI";
+                                    btn.style.background = "#3b82f6";
+                                    area.classList.remove('waiting-for-paste');
+                                }
+                            };
+                            const area = document.querySelector('.editable-area');
+                            if (area) {
+                                area.addEventListener('click', function(e) {
+                                    if (waitingForPaste && moveData) {
+                                        e.preventDefault();
+                                        const sel = window.getSelection();
+                                        if (sel.rangeCount) {
+                                            const range = sel.getRangeAt(0);
+                                            range.deleteContents();
+                                            range.insertNode(moveData);
+                                            waitingForPaste = false;
+                                            moveData = null;
+                                            const btn = document.getElementById('btn-move-text');
+                                            if(btn) { btn.innerText = "PREMAKNI"; btn.style.background = "#3b82f6"; }
+                                            area.classList.remove('waiting-for-paste');
+                                        }
+                                    }
+                                });
+                            }
+                        <\/script>
+                        ` : ''}
                     </body></html>`;
             }
 
@@ -4911,7 +4972,6 @@
                     }
                     printWin.document.write(html);
                     printWin.document.close();
-                    setTimeout(() => { printWin.print(); }, 500);
                 } catch (e) { alert("Napaka pri pripravi ponudbe: " + e.message); }
             }
 
@@ -4925,7 +4985,6 @@
                     }
                     printWin.document.write(html);
                     printWin.document.close();
-                    setTimeout(() => { printWin.print(); }, 500);
                 } catch (e) { alert("Napaka pri pripravi ponudbe AT: " + e.message); }
             }
 
@@ -4939,7 +4998,6 @@
                     }
                     printWin.document.write(html);
                     printWin.document.close();
-                    setTimeout(() => { printWin.print(); }, 500);
                 } catch (e) { alert("Napaka pri pripravi delovnega naloga: " + e.message); }
             }
 
