@@ -580,6 +580,28 @@
                     <option value="Sašo Slemenšek">Sašo Slemenšek</option>
                     <option value="Tilen Petrič">Tilen Petrič</option>
                 </select>
+                <!-- Predogled dokumentov -->
+                <div id="custom-docs-preview"
+                    style="display: flex; gap: 10px; margin-top: 10px; justify-content: center;"></div>
+                <!-- Tip naročila / status -->
+                <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <label for="calc-order-type"
+                            style="font-size: 11px; color: #94a3b8; font-weight: bold; text-align: center;">Tip
+                            naročila</label>
+                        <select id="calc-order-type"
+                            onchange="g_editedQuoteHTML=''; g_editedQuoteATHTML=''; g_editedWorkOrderHTML=''; calculate();"
+                            style="width: 100%; border-radius: 6px; padding: 6px; font-size: 13px; background: #475569; color: white; border: 1px solid var(--glass-border);">
+                            <option value=""></option>
+                            <option value="NOVO">NOVO</option>
+                            <option value="NOVO AK-JPG Montaže">NOVO AK-JPG Montaže</option>
+                            <option value="Sprememba">Sprememba</option>
+                            <option value="Sprememba AK-JPG Montaže">Sprememba AK-JPG Montaže</option>
+                            <option value="Ponatis">Ponatis</option>
+                            <option value="Ponatis AK-JPG Montaže">Ponatis AK-JPG Montaže</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <div class="header-group"
@@ -608,7 +630,7 @@
 
 
             <div class="header-group"
-                style="grid-column: span 6; display: flex; gap: 1rem; flex-wrap: wrap; background: rgba(59, 130, 246, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.2);">
+                style="grid-column: span 6; display: grid; grid-template-columns: 2.5fr 2fr 0.8fr 1fr 1fr 1.2fr 1fr; gap: 1rem; background: rgba(59, 130, 246, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.2);">
                 <div style="flex: 2.5; min-width: 250px;">
                     <label for="calc-leaves-material">Format listov</label>
                     <input type="text" id="calc-leaves-material" list="product-formats" placeholder="A4, A5, Vizitka..."
@@ -670,7 +692,7 @@
             </div>
 
             <div class="header-group"
-                style="grid-column: span 6; display: flex; gap: 1rem; flex-wrap: wrap; background: rgba(244, 63, 94, 0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(244, 63, 94, 0.2);">
+                style="grid-column: span 6; display: grid; grid-template-columns: 2.5fr 2fr 0.8fr 1fr 1fr 1.2fr 1fr; gap: 1rem; background: rgba(244, 63, 94, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(244, 63, 94, 0.2);">
                 <div style="flex: 2.5; min-width: 250px;">
                     <label>Material ovitek/podkarton</label>
                     <input type="text" id="calc-cover-desc" placeholder="300g GD2"
@@ -695,11 +717,11 @@
                     <label>Prijemalec ov. (mm)</label>
                     <input type="number" id="calc-cover-gripper" value="10" onchange="calculate()">
                 </div>
-                <div style="flex: 1; min-width: 100px;">
+                <div style="flex: 1; min-width: 120px;">
                     <label>št. strani ovitka</label>
                     <input type="number" id="calc-cover-pages" value="" placeholder="4" onchange="calculate()">
                 </div>
-                <div style="flex: 1; min-width: 100px;">
+                <div style="flex: 1.2; min-width: 140px;">
                     <label>št. ovitkov</label>
                     <input type="number" id="calc-cover-qty" value="" onchange="calculate()">
                     <div style="font-size: 0.8rem; color: #f43f5e; margin-top: 0.32rem; font-weight: 600;">
@@ -5052,6 +5074,166 @@
                     calculatePrice();
                 }, 500);
             });
+            var g_editedWorkOrderHTML = '';
+            var currentLoadedProjectId = null;
+            var prevQuoteHTML = null;
+            var prevQuoteATHTML = null;
+            var prevDNHTML = null;
+
+            function updateCustomDocsPreview() {
+                var container = document.getElementById('custom-docs-preview');
+                if (!container) return;
+                container.innerHTML = "";
+
+                // Ponudba
+                var hasQuote = (typeof g_editedQuoteHTML !== 'undefined' && g_editedQuoteHTML.trim() !== "");
+                var qCard = document.createElement('div');
+                qCard.style.width = "70px";
+                qCard.style.height = "99px"; // A4 aspect ratio
+                qCard.style.border = hasQuote ? "2px solid #10b981" : "1px dashed #64748b";
+                qCard.style.background = hasQuote ? "#ecfdf5" : "transparent";
+                qCard.style.borderRadius = "4px";
+                qCard.style.cursor = "pointer";
+                qCard.style.display = "flex";
+                qCard.style.flexDirection = "column";
+                qCard.style.alignItems = "center";
+                qCard.style.justifyContent = "center";
+                qCard.style.boxShadow = hasQuote ? "0 4px 6px rgba(0,0,0,0.1)" : "none";
+                qCard.style.position = "relative";
+                qCard.style.transition = "all 0.2s";
+                qCard.title = hasQuote ? "Ponudba (prilagojena) - Klikni za odpiranje" : "Ponudba (avtomatska) - Klikni za odpiranje";
+                qCard.onclick = function () { printQuote(); };
+                qCard.onmouseover = function () { this.style.transform = "scale(1.05)"; };
+                qCard.onmouseout = function () { this.style.transform = "scale(1)"; };
+
+                var qLabel = document.createElement('div');
+                qLabel.style.fontSize = "10px";
+                qLabel.style.fontWeight = "bold";
+                qLabel.style.color = hasQuote ? "#047857" : "#94a3b8";
+                qLabel.innerText = "PONUDBA";
+
+                if (hasQuote) {
+                    var check = document.createElement('div');
+                    check.innerHTML = "✏️";
+                    check.style.fontSize = "20px";
+                    check.style.color = "#10b981";
+                    qCard.appendChild(check);
+                } else {
+                    var fileIcon = document.createElement('div');
+                    fileIcon.innerHTML = "📄";
+                    fileIcon.style.fontSize = "20px";
+                    fileIcon.style.color = "#94a3b8";
+                    fileIcon.style.opacity = "0.5";
+                    qCard.appendChild(fileIcon);
+                }
+                qCard.appendChild(qLabel);
+                container.appendChild(qCard);
+
+                // Ponudba AT
+                var hasQuoteAT = (typeof g_editedQuoteATHTML !== 'undefined' && g_editedQuoteATHTML.trim() !== "");
+                var qaCard = document.createElement('div');
+                qaCard.style.width = "70px";
+                qaCard.style.height = "99px";
+                qaCard.style.border = hasQuoteAT ? "2px solid #ef4444" : "1px dashed #64748b";
+                qaCard.style.background = hasQuoteAT ? "#fef2f2" : "transparent";
+                qaCard.style.borderRadius = "4px";
+                qaCard.style.cursor = "pointer";
+                qaCard.style.display = "flex";
+                qaCard.style.flexDirection = "column";
+                qaCard.style.alignItems = "center";
+                qaCard.style.justifyContent = "center";
+                qaCard.style.boxShadow = hasQuoteAT ? "0 4px 6px rgba(0,0,0,0.1)" : "none";
+                qaCard.style.position = "relative";
+                qaCard.style.transition = "all 0.2s";
+                qaCard.title = hasQuoteAT ? "Ponudba AT (prilagojena) - Klikni za odpiranje" : "Ponudba AT (avtomatska) - Klikni za odpiranje";
+                qaCard.onclick = function () { printQuoteAT(); };
+                qaCard.onmouseover = function () { this.style.transform = "scale(1.05)"; };
+                qaCard.onmouseout = function () { this.style.transform = "scale(1)"; };
+
+                var qaLabel = document.createElement('div');
+                qaLabel.style.fontSize = "10px";
+                qaLabel.style.fontWeight = "bold";
+                qaLabel.style.color = hasQuoteAT ? "#b91c1c" : "#94a3b8";
+                qaLabel.innerText = "PON. AT";
+
+                if (hasQuoteAT) {
+                    var checkAT = document.createElement('div');
+                    checkAT.innerHTML = "✏️";
+                    checkAT.style.fontSize = "20px";
+                    checkAT.style.color = "#ef4444";
+                    qaCard.appendChild(checkAT);
+                } else {
+                    var fileIconAT = document.createElement('div');
+                    fileIconAT.innerHTML = "📄";
+                    fileIconAT.style.fontSize = "20px";
+                    fileIconAT.style.color = "#94a3b8";
+                    fileIconAT.style.opacity = "0.5";
+                    qaCard.appendChild(fileIconAT);
+                }
+                qaCard.appendChild(qaLabel);
+                container.appendChild(qaCard);
+
+                // Delovni nalog
+                var hasDN = (typeof g_editedWorkOrderHTML !== 'undefined' && g_editedWorkOrderHTML.trim() !== "");
+                var dCard = document.createElement('div');
+                dCard.style.width = "70px";
+                dCard.style.height = "99px";
+                dCard.style.border = hasDN ? "2px solid #8b5cf6" : "1px dashed #64748b";
+                dCard.style.background = hasDN ? "#f5f3ff" : "transparent";
+                dCard.style.borderRadius = "4px";
+                dCard.style.cursor = "pointer";
+                dCard.style.display = "flex";
+                dCard.style.flexDirection = "column";
+                dCard.style.alignItems = "center";
+                dCard.style.justifyContent = "center";
+                dCard.style.boxShadow = hasDN ? "0 4px 6px rgba(0,0,0,0.1)" : "none";
+                dCard.style.position = "relative";
+                dCard.style.transition = "all 0.2s";
+                dCard.title = hasDN ? "Delovni Nalog (prilagojen) - Klikni za odpiranje" : "Delovni Nalog (avtomatski) - Klikni za odpiranje";
+                dCard.onclick = function () { printDN(); };
+                dCard.onmouseover = function () { this.style.transform = "scale(1.05)"; };
+                dCard.onmouseout = function () { this.style.transform = "scale(1)"; };
+
+                var dLabel = document.createElement('div');
+                dLabel.style.fontSize = "10px";
+                dLabel.style.fontWeight = "bold";
+                dLabel.style.color = hasDN ? "#6d28d9" : "#94a3b8";
+                dLabel.innerText = "D. NALOG";
+
+                if (hasDN) {
+                    var dcheck = document.createElement('div');
+                    dcheck.innerHTML = "✏️";
+                    dcheck.style.fontSize = "20px";
+                    dcheck.style.color = "#8b5cf6";
+                    dCard.appendChild(dcheck);
+                } else {
+                    var dIcon = document.createElement('div');
+                    dIcon.innerHTML = "📄";
+                    dIcon.style.fontSize = "20px";
+                    dIcon.style.color = "#94a3b8";
+                    dIcon.style.opacity = "0.5";
+                    dCard.appendChild(dIcon);
+                }
+                dCard.appendChild(dLabel);
+                container.appendChild(dCard);
+
+                var changed = false;
+                if (prevQuoteHTML !== null && g_editedQuoteHTML !== prevQuoteHTML) changed = true;
+                if (prevQuoteATHTML !== null && g_editedQuoteATHTML !== prevQuoteATHTML) changed = true;
+                if (prevDNHTML !== null && g_editedWorkOrderHTML !== prevDNHTML) changed = true;
+
+                prevQuoteHTML = g_editedQuoteHTML;
+                prevQuoteATHTML = g_editedQuoteATHTML;
+                prevDNHTML = g_editedWorkOrderHTML;
+
+                if (changed && currentLoadedProjectId) {
+                    saveCurrentProject(null, true);
+                }
+            }
+
+            setInterval(updateCustomDocsPreview, 1000);
+            updateCustomDocsPreview();
+
         </script>
     </div>
 
@@ -5125,9 +5307,7 @@
                 style="margin: 0; width: auto; background: #f59e0b; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);">
                 🛒 DODAJ</button>
 
-            <button class="calculate-btn" onclick="calculate(true)"
-                style="margin: 0; width: auto; background: #10b981; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold;">
-                ✨ IZRAČUNAJ</button>
+
 
             <button class="calculate-btn" onclick="exportToFile()"
                 style="margin: 0; width: auto; background: #6366f1; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
@@ -5138,11 +5318,7 @@
                 title="Internal Montaža">🛠️
                 Montažni list</button>
 
-            <button class="calculate-btn" onclick="toggleBasketModal(true)"
-                style="margin: 0; width: auto; background: #475569; padding: 0.5rem 1.2rem; font-size:0.85rem; position:relative;">
-                🛒 KOŠARICA
-                <div class="basket-badge basket-count-badge" style="display:none;">0</div>
-            </button>
+
         </div>
     </div>
 
