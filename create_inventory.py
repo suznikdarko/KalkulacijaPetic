@@ -66,10 +66,7 @@ for col in ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I']:
     ws_zaloga.column_dimensions[col].width = 15
 ws_zaloga.column_dimensions['B'].width = 35
 
-# Zaščita lista in omogočanje filtrov
-ws_zaloga.protection.sheet = True
-ws_zaloga.protection.autoFilter = False
-ws_zaloga.protection.sort = False
+
 
 # --- SHEET 2: PRISPELO ---
 headers_prispelo = ["Datum", "Šifra materiala", "Naziv (Avtomatsko)", "Količina (Prejem)", "Št. Dobavnice", "Dobavitelj", "Opomba"]

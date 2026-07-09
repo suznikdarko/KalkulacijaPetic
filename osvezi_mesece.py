@@ -23,8 +23,8 @@ def parse_date(datum_val):
     return None
 
 def main():
-    file_path = r"C:\Users\Prodaja\Desktop\Zaloga_Avtomatizirana.xlsx"
-    print("Berem datoteko z namizja...")
+    file_path = r"S:\SIMON\Zaloga_Avtomatizirana.xlsx"
+    print("Berem datoteko s serverja S (S:\SIMON)...")
     
     try:
         wb = openpyxl.load_workbook(file_path)

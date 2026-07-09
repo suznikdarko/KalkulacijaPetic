@@ -145,10 +145,10 @@
         }
 
         input,
-        select {
+        select, textarea {
             width: 100%;
             padding: 0.75rem 1rem;
-            background: rgba(15, 23, 42, 0.6);
+            background: #475569;
             border: 1px solid var(--glass-border);
             border-radius: 10px;
             color: #ffffff;
@@ -536,10 +536,15 @@
                     style="resize: vertical;"></textarea>
             </div>
 
-            <div class="header-group" style="grid-column: span 2; display: flex; flex-direction: column; gap: 0.75rem;">
+            <div class="header-group"
+                style="grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                 <div>
                     <label for="calc-quote-number">Številka ponudbe</label>
                     <input type="text" id="calc-quote-number" placeholder="">
+                </div>
+                <div>
+                    <label for="calc-dn-number">Številka D.N.</label>
+                    <input type="text" id="calc-dn-number" placeholder="">
                 </div>
                 <div>
                     <label for="calc-customer-code">Šifra stranke</label>
@@ -547,8 +552,24 @@
                     <input type="hidden" id="calc-cust-id" value="">
                 </div>
                 <div>
+                    <label for="calc-dn-old">Stari D.N.</label>
+                    <input type="text" id="calc-dn-old" placeholder="">
+                </div>
+                <div>
                     <label>Šifra izdelka</label>
                     <input type="text" id="calc-material-code" placeholder="">
+                </div>
+                <div>
+                    <label for="calc-dn-deadline">Rok dobave</label>
+                    <input type="text" id="calc-dn-deadline" placeholder="">
+                </div>
+                <div style="display:flex; align-items:center; gap: 0.5rem; margin-top: 10px;">
+                    <input type="checkbox" id="calc-dn-urgent" style="width:auto; height:auto;">
+                    <label for="calc-dn-urgent" style="color: #ef4444; font-weight: bold; margin:0;">NUJNO!</label>
+                </div>
+                <div>
+                    <label for="calc-dn-packaging">Pakiranje</label>
+                    <input type="text" id="calc-dn-packaging" placeholder="">
                 </div>
             </div>
 
@@ -4609,8 +4630,13 @@
             }
 
 
-            function getQuoteHTML(isWord = false, canvasImages = null, isInternal = false) {
+            function getQuoteHTML(isWord = false, canvasImages = null, isInternal = false, isAT = false, isDN = false) {
                 const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
+                const dnNumber = document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value : '';
+                const dnOld = document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : '';
+                const dnDeadline = document.getElementById('calc-dn-deadline') ? document.getElementById('calc-dn-deadline').value : '';
+                const dnPackaging = document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : '';
+                const dnUrgent = document.getElementById('calc-dn-urgent') ? document.getElementById('calc-dn-urgent').checked : false;
                 const date = new Date().toLocaleDateString('sl-SI');
                 const quoteNum = document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '/';
                 const customer = document.getElementById('calc-customer').value || '';
@@ -4733,13 +4759,23 @@
                 itemsToRender.forEach((item, idx) => {
                     let priceRowsHTML = '';
                     item.quantities.forEach(q => {
-                        priceRowsHTML += `
-                            <tr>
-                                <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} kos</td>
-                                <td style="padding: 4px;">${formatPrice((q.perItem !== undefined ? q.perItem : (q.pricePerUnit || 0)), 4)}</td>
-                                <td style="font-weight: bold; text-align: right; padding: 4px;">${formatPrice((q.total !== undefined ? q.total : (q.priceTotal || 0)), 2)}</td>
-                            </tr>
-                        `;
+                        if (isDN) {
+                            priceRowsHTML += `
+                                <tr>
+                                    <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} kos</td>
+                                    <td style="padding: 4px;">/</td>
+                                    <td style="font-weight: bold; text-align: right; padding: 4px;">/</td>
+                                </tr>
+                            `;
+                        } else {
+                            priceRowsHTML += `
+                                <tr>
+                                    <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} kos</td>
+                                    <td style="padding: 4px;">${formatPrice((q.perItem !== undefined ? q.perItem : (q.pricePerUnit || 0)), 4)}</td>
+                                    <td style="font-weight: bold; text-align: right; padding: 4px;">${formatPrice((q.total !== undefined ? q.total : (q.priceTotal || 0)), 2)}</td>
+                                </tr>
+                            `;
+                        }
                     });
 
                     // Prilagoditev za elemente iz košarice, ki imajo malo drugačno strukturo kot tisti ustvarjeni ad-hoc zgoraj
@@ -4762,22 +4798,22 @@
                                     </td>
                                     <td style="width: 85%; vertical-align: top; padding-left: 10px;">
                                         <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                                            <tr><td style="width: 110px; font-weight: bold;">Izdelek:</td><td>${projName}</td></tr>
-                                            <tr><td style="font-weight: bold;">Format listov:</td><td>${item.formatLeaves || fText}</td></tr>
-                                            <tr><td style="font-weight: bold;">Format ovitka:</td><td>${item.formatCover || '/'}</td></tr>
-                                            <tr><td style="font-weight: bold;">Obseg:</td><td>${eText}</td></tr>
-                                            <tr><td style="font-weight: bold;">Papir listov:</td><td>${item.paperLeaves || pText}</td></tr>
-                                            <tr><td style="font-weight: bold;">Papir ovitka:</td><td>${item.paperCover || cText}</td></tr>
-                                            <tr><td style="font-weight: bold;">Tisk listov:</td><td>${item.tiskLeaves || printText}</td></tr>
-                                            <tr><td style="font-weight: bold;">Obseg ovitka:</td><td>${item.coverPages || '4'} strani</td></tr>
-                                            <tr><td style="font-weight: bold;">Tisk ovitka:</td><td>${item.tiskCover || '/'}</td></tr>
-                                            <tr><td style="font-weight: bold;">Dodelava:</td><td>${finText}</td></tr>
+                                            <tr><td style="width: 110px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td>${projName}</td></tr>
+                                            <tr><td style="font-weight: bold;">${isAT ? 'Format Blätter:' : 'Format listov:'}</td><td>${item.formatLeaves || fText}</td></tr>
+                                            <tr><td style="font-weight: bold;">${isAT ? 'Format Umschlag:' : 'Format ovitka:'}</td><td>${item.formatCover || '/'}</td></tr>
+                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${eText}</td></tr>
+                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier Blätter:' : 'Papir listov:'}</td><td>${item.paperLeaves || pText}</td></tr>
+                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier Umschlag:' : 'Papir ovitka:'}</td><td>${item.paperCover || cText}</td></tr>
+                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck Blätter:' : 'Tisk listov:'}</td><td>${item.tiskLeaves || printText}</td></tr>
+                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang Umschlag:' : 'Obseg ovitka:'}</td><td>${item.coverPages || '4'} ${isAT ? 'Seiten' : 'strani'}</td></tr>
+                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck Umschlag:' : 'Tisk ovitka:'}</td><td>${item.tiskCover || '/'}</td></tr>
+                                            <tr><td style="font-weight: bold;">${isAT ? 'Verarbeitung:' : 'Dodelava:'}</td><td>${finText}</td></tr>
                                         </table>
                                     </td>
                                 </tr>
                             </table>
                             <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000;">
-                                <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">Naklada</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">Cena/Kom.</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">Cena skupno:</th></tr>
+                                <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">${isAT ? 'Auflage' : 'Naklada'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">${isAT ? 'Preis/ Stk.' : 'Cena/Kom.'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">${isAT ? 'Gesamt Preis:' : 'Cena skupno:'}</th></tr>
                                 ${priceRowsHTML}
                             </table>
                         </div>
@@ -4823,18 +4859,23 @@
                                 <td style="width: 50%; vertical-align: top;" align="right">
                                     <table class="info-table" cellpadding="0" cellspacing="0">
                                         <tr><td>Datum</td><td>${date}</td></tr>
-                                        <tr><td>Šifra stranke</td><td>${customerCode}</td></tr>
-                                        <tr><td>Ponudba</td><td>${quoteNum}</td></tr>
+                                        <tr><td>${isAT ? 'Kunde' : 'Šifra stranke'}</td><td>${customerCode}</td></tr>
+                                        <tr><td>${isAT ? 'Angebot' : 'Ponudba'}</td><td>${quoteNum}</td></tr>
+                                        ${isDN && dnNumber ? `<tr><td>Št. DN</td><td>${dnNumber}</td></tr>` : ''}
+                                        ${isDN && dnOld ? `<tr><td>Stari D.N.</td><td>${dnOld}</td></tr>` : ''}
+                                        ${isDN && dnDeadline ? `<tr><td style="color:#ef4444;font-weight:bold;">Rok dobave</td><td style="color:#ef4444;font-weight:bold;">${dnDeadline}${dnUrgent ? ' - NUJNO!' : ''}</td></tr>` : ''}
+                                        ${isDN && !dnDeadline && dnUrgent ? `<tr><td style="color:#ef4444;font-weight:bold;">Rok dobave</td><td style="color:#ef4444;font-weight:bold;">NUJNO!</td></tr>` : ''}
+                                        ${isDN && dnPackaging ? `<tr><td>Pakiranje</td><td>${dnPackaging}</td></tr>` : ''}
                                     </table>
                                 </td>
                             </tr>
                         </table>
-                        <h1>PONUDBA</h1>
-                        <p style="margin: 5px 0;">Zahvaljujemo se Vam za Vaše povpraševanje in Vam ponujamo naslednje:</p>
+                        <h1>${isDN ? 'DELOVNI NALOG' : (isAT ? 'ANGEBOT' : 'PONUDBA')}</h1>
+                        ${isDN ? '' : `<p style="margin: 5px 0;">${isAT ? 'Herzlichen Dank für Ihr Interesse. Wir können Ihnen folgendes anbieten:' : 'Zahvaljujemo se Vam za Vaše povpraševanje in Vam ponujamo naslednje:'}</p>`}
                         ${itemsHtml}
-                        <p style="margin: 5px 0;"><strong>Predloga:</strong> Naročnik dostavi visokoresolucijski PDF z dodatkom za obrez!</p>
-                        <p class="notes">Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.</p>
-                        <div style="margin-top: 10px; font-size: 10px; font-style: italic;">Kalkulacijo pripravil: ${preparedBy}</div>
+                        ${isDN ? '' : (isAT ? '<p style="margin: 5px 0; font-weight: bold; text-decoration: underline; text-align: center;">Voraussetzung: Kunde liefert druckfertige Daten</p>' : '<p style="margin: 5px 0;"><strong>Predloga:</strong> Naročnik dostavi visokoresolucijski PDF z dodatkom za obrez!</p>')}
+                        ${isDN ? '' : `<p class="notes">${isAT ? 'Dieses Angebot ist gültig für 30 Tage. Zahlung erfolgt nach 30 Tagen ab Lieferung der Ware. Wir danken Ihnen für Ihre mögliche Bestellung, und wünschen Ihnen einen angenehmen Tag.' : 'Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.'}</p>`}
+                        <div style="margin-top: 10px; font-size: 10px; font-style: italic;">${isAT ? 'Dieses Angebot hat für Sie erstellt:' : 'Ponudbo pripravil:'} ${preparedBy}</div>
                     </body></html>`;
             }
 
@@ -4850,6 +4891,34 @@
                     printWin.document.close();
                     setTimeout(() => { printWin.print(); }, 500);
                 } catch (e) { alert("Napaka pri pripravi ponudbe: " + e.message); }
+            }
+
+            function printQuoteAT() {
+                try {
+                    const html = getQuoteHTML(false, null, false, true, false);
+                    const printWin = window.open('', '', 'width=900,height=900');
+                    if (!printWin) {
+                        alert("Pojavno okno je bilo blokirano.");
+                        return;
+                    }
+                    printWin.document.write(html);
+                    printWin.document.close();
+                    setTimeout(() => { printWin.print(); }, 500);
+                } catch (e) { alert("Napaka pri pripravi ponudbe AT: " + e.message); }
+            }
+
+            function printDN() {
+                try {
+                    const html = getQuoteHTML(false, null, false, false, true);
+                    const printWin = window.open('', '', 'width=900,height=900');
+                    if (!printWin) {
+                        alert("Pojavno okno je bilo blokirano.");
+                        return;
+                    }
+                    printWin.document.write(html);
+                    printWin.document.close();
+                    setTimeout(() => { printWin.print(); }, 500);
+                } catch (e) { alert("Napaka pri pripravi delovnega naloga: " + e.message); }
             }
 
             function printProductionOrder() {
@@ -5040,6 +5109,14 @@
                 style="margin: 0; width: auto; background: #3b82f6; padding: 0.6rem 2rem; font-size:1.1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);">🖨️
                 PONUDBA</button>
 
+            <button class="calculate-btn" onclick="printQuoteAT()"
+                style="margin: 0; width: auto; background: #0ea5e9; padding: 0.6rem 2rem; font-size:1.1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);">🖨️
+                PONUDBA AT</button>
+
+            <button class="calculate-btn" onclick="printDN()"
+                style="margin: 0; width: auto; background: #8b5cf6; padding: 0.6rem 2rem; font-size:1.1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);">📄
+                DN</button>
+
             <button class="calculate-btn" onclick="exportQuoteWord()"
                 style="margin: 0; width: auto; background: #2b5797; padding: 0.6rem 2rem; font-size:1.1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(43, 87, 151, 0.4);">📄
                 WORD</button>
@@ -5091,6 +5168,12 @@
                 <button onclick="printQuote(); toggleBasketModal(false);"
                     style="background:#3b82f6; border:none; color:white; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">🖨️
                     Natisni ponudbo</button>
+                <button onclick="printQuoteAT(); toggleBasketModal(false);"
+                    style="background:#0ea5e9; border:none; color:white; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">🖨️
+                    Ponudba AT</button>
+                <button onclick="printDN(); toggleBasketModal(false);"
+                    style="background:#8b5cf6; border:none; color:white; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">📄
+                    Natisni DN</button>
                 <button onclick="exportQuoteWord(); toggleBasketModal(false);"
                     style="background:#2b5797; border:none; color:white; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">📄
                     Izvozi v Word</button>
