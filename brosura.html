@@ -385,11 +385,12 @@
             font-size: 1.6rem;
             font-weight: 800;
             color: #10b981;
+        }
 
-            .modal-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
                 width: 100%;
                 height: 100%;
                 background: rgba(0, 0, 0, 0.7);
@@ -4661,7 +4662,7 @@
             }
 
 
-            function getQuoteHTML(isWord = false, canvasImages = null, isInternal = false, isAT = false, isDN = false) {
+            function getQuoteHTML(isWord = false, canvasImages = null, isInternal = false, isAT = false, isDN = false, printBasket = false) {
                 const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
                 const dnNumber = document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value : '';
                 const dnOld = document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : '';
@@ -4677,7 +4678,7 @@
 
                 let itemsToRender = [];
 
-                if (quoteBasket.length > 0) {
+                if (printBasket && quoteBasket.length > 0) {
                     itemsToRender = quoteBasket;
                 } else {
                     const projectName = document.getElementById('calc-project-name').value || 'Brošure';
@@ -4971,9 +4972,9 @@
                     </body></html>`;
             }
 
-            function printQuote() {
+            function printQuote(printBasket = false) {
                 try {
-                    const html = getQuoteHTML(false, null, false);
+                    const html = getQuoteHTML(false, null, false, false, false, printBasket);
                     const printWin = window.open('', '', 'width=900,height=900');
                     if (!printWin) {
                         alert("Pojavno okno je bilo blokirano.");
@@ -4984,9 +4985,9 @@
                 } catch (e) { alert("Napaka pri pripravi ponudbe: " + e.message); }
             }
 
-            function printQuoteAT() {
+            function printQuoteAT(printBasket = false) {
                 try {
-                    const html = getQuoteHTML(false, null, false, true, false);
+                    const html = getQuoteHTML(false, null, false, true, false, printBasket);
                     const printWin = window.open('', '', 'width=900,height=900');
                     if (!printWin) {
                         alert("Pojavno okno je bilo blokirano.");
@@ -4997,9 +4998,9 @@
                 } catch (e) { alert("Napaka pri pripravi ponudbe AT: " + e.message); }
             }
 
-            function printDN() {
+            function printDN(printBasket = false) {
                 try {
-                    const html = getQuoteHTML(false, null, false, false, true);
+                    const html = getQuoteHTML(false, null, false, false, true, printBasket);
                     const printWin = window.open('', '', 'width=900,height=900');
                     if (!printWin) {
                         alert("Pojavno okno je bilo blokirano.");
@@ -5020,7 +5021,7 @@
                         cover: (canvasCover && canvasCover.style.display !== 'none') ? canvasCover.toDataURL() : null
                     };
 
-                    const html = getQuoteHTML(false, images, true);
+                    const html = getQuoteHTML(false, images, true, false, false, false);
                     const printWin = window.open('', '', 'width=900,height=900');
                     if (!printWin) {
                         alert("Pojavno okno je bilo blokirano.");
@@ -5032,9 +5033,9 @@
                 } catch (e) { alert("Napaka pri pripravi montažnega lista: " + e.message); }
             }
 
-            function exportQuoteWord() {
+            function exportQuoteWord(printBasket = false) {
                 try {
-                    const htmlContent = getQuoteHTML(true, null, false);
+                    const htmlContent = getQuoteHTML(true, null, false, false, false, printBasket);
                     const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
@@ -5374,6 +5375,12 @@
                 style="margin: 0; width: auto; background: #f59e0b; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);">
                 🛒 DODAJ</button>
 
+            <button class="calculate-btn" onclick="toggleBasketModal(true)"
+                style="margin: 0; width: auto; background: #1e293b; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; border: 1px solid #475569; color: white;">
+                🛒 Košarica
+                <span class="basket-count-badge" style="background: #ef4444; color: white; border-radius: 50%; padding: 0 6px; margin-left: 5px; font-size: 0.8rem; display: none;">0</span>
+            </button>
+
 
 
             <button class="calculate-btn" onclick="exportToFile()"
@@ -5408,16 +5415,16 @@
                 <button onclick="clearBasket()"
                     style="background:#64748b; border:none; color:white; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">Počisti
                     vse</button>
-                <button onclick="printQuote(); toggleBasketModal(false);"
+                <button onclick="printQuote(true); toggleBasketModal(false);"
                     style="background:#3b82f6; border:none; color:white; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">🖨️
                     Natisni ponudbo</button>
-                <button onclick="printQuoteAT(); toggleBasketModal(false);"
+                <button onclick="printQuoteAT(true); toggleBasketModal(false);"
                     style="background:#0ea5e9; border:none; color:white; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">🖨️
                     Ponudba AT</button>
-                <button onclick="printDN(); toggleBasketModal(false);"
+                <button onclick="printDN(true); toggleBasketModal(false);"
                     style="background:#8b5cf6; border:none; color:white; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">📄
                     Natisni DN</button>
-                <button onclick="exportQuoteWord(); toggleBasketModal(false);"
+                <button onclick="exportQuoteWord(true); toggleBasketModal(false);"
                     style="background:#2b5797; border:none; color:white; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">📄
                     Izvozi v Word</button>
             </div>
