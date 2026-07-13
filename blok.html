@@ -1399,15 +1399,23 @@
                                         type="checkbox" />
                                     Cilinder
                                 </label>
-                                <div class="form-group" style="margin:0;">
+                                <div class="form-group" style="margin:0; align-self: center;">
                                     <label><small>Priprava (€)</small></label>
                                     <input id="f-cilinder-prep" onchange="calculatePrice()" type="number"
                                         value="20.00" />
                                 </div>
-                                <div class="form-group" style="margin:0;">
+                                <div class="form-group" style="margin:0; align-self: center;">
                                     <label><small>Urna post. (€/h)</small></label>
                                     <input id="f-cilinder-rate" onchange="calculatePrice()" type="number"
                                         value="40.00" />
+                                </div>
+                                <div style="grid-column: 1 / -1; display:flex; gap:2rem; margin-left: 2rem; margin-top: 0.2rem; padding-bottom: 0.5rem;">
+                                    <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.9rem; font-weight:bold;">
+                                        <input id="f-cilinder-leaves" onchange="calculatePrice()" type="checkbox" checked /> LISTI
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.9rem; font-weight:bold;">
+                                        <input id="f-cilinder-cover" onchange="calculatePrice()" type="checkbox" /> OVITEK
+                                    </label>
                                 </div>
                             </div>
                             <!-- Zgibanje -->
@@ -3063,11 +3071,32 @@
                     if (document.getElementById('f-cilinder-active').checked) {
                         let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 20;
                         let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 40;
-                        let cSpeed = pWeight > 300 ? 1400 : 2000;
-                        let cWork = (totalSheetsNeeded / cSpeed) * cRate;
+                        let cilLeaves = document.getElementById('f-cilinder-leaves').checked;
+                        let cilCover = document.getElementById('f-cilinder-cover').checked;
+                        
+                        let cilinderSheets = 0;
+                        let maxWeight = 0;
+
+                        if (cilLeaves) {
+                            cilinderSheets += totalSheetsNeededLeaves;
+                            if (pWeight > maxWeight) maxWeight = pWeight;
+                        }
+                        if (cilCover) {
+                            cilinderSheets += totalSheetsNeededCover;
+                            if (cbWeight > maxWeight) maxWeight = cbWeight;
+                        }
+
+                        let cSpeed = maxWeight > 300 ? 1400 : 2000;
+                        let cWork = cilinderSheets > 0 ? (cilinderSheets / cSpeed) * cRate : 0;
                         let cCost = cPrep + cWork;
                         totalFinishCost += cCost;
-                        finishItems.push({ name: 'Cilinder (izsek)', cost: cCost, breakdown: `Priprava: ${formatPrice(cPrep)} | Delo: ${formatPrice(cWork)}` });
+                        
+                        let specArr = [];
+                        if (cilLeaves) specArr.push('listi');
+                        if (cilCover) specArr.push('ovitek');
+                        let specStr = specArr.length > 0 ? ` (${specArr.join(' in ')})` : '';
+
+                        finishItems.push({ name: `Cilinder (izsek)${specStr}`, cost: cCost, breakdown: `Priprava: ${formatPrice(cPrep)} | Delo: ${formatPrice(cWork)}` });
                     }
 
                     // Zgibanje
@@ -4350,7 +4379,7 @@
                             margin: gv('calc-margin'),
                             minusPrice: gc('calc-minus-price'),
                             finish: {
-                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
+                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover') },
                                 zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
 
                                 razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
@@ -4651,6 +4680,8 @@
                         setV('f-cilinder-active', f.cilinder.active, true);
                         setV('f-cilinder-prep', f.cilinder.prep);
                         setV('f-cilinder-rate', f.cilinder.rate);
+                        if (f.cilinder.leaves !== undefined) setV('f-cilinder-leaves', f.cilinder.leaves, true);
+                        if (f.cilinder.cover !== undefined) setV('f-cilinder-cover', f.cilinder.cover, true);
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('cilinder');
                     }
                     if (f.zgibanje) {
@@ -4839,7 +4870,7 @@
                             margin: gv('calc-margin'),
                             minusPrice: gc('calc-minus-price'),
                             finish: {
-                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
+                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover') },
                                 zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
 
                                 razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
@@ -4911,7 +4942,12 @@
 
             function getFinishingDesc() {
                 let desc = [];
-                if (gC('f-cilinder-active')) desc.push("izsek z orodjem");
+                if (gC('f-cilinder-active')) {
+                    let specArr = [];
+                    if (gC('f-cilinder-leaves')) specArr.push('listi');
+                    if (gC('f-cilinder-cover')) specArr.push('ovitek');
+                    desc.push("izsek z orodjem" + (specArr.length > 0 ? ` (${specArr.join(' in ')})` : ''));
+                }
                 if (gC('f-zgibanje-active')) {
                     let folds = gV('f-zgibanje-folds');
                     desc.push(folds + "x zgibano");
