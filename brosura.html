@@ -1287,13 +1287,18 @@
                                 <input type="number" id="calc-machine-speed-leaves" value="">
                             </div>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                            <div class="form-group">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; align-items: end;">
+                            <div class="form-group" style="margin-bottom: 0;">
                                 <label>Cena plošče (€)</label>
                                 <input type="number" id="calc-plates-price-leaves" value="10.00" step="0.5"
                                     onchange="calculatePrice()">
                             </div>
-                            <div class="form-group">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Menjava plošč (€/kos)</label>
+                                <input type="number" id="calc-change-price-leaves" value="10.00" step="1"
+                                    onchange="calculatePrice()">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
                                 <label>Pavšal priprave (€)</label>
                                 <input type="number" id="calc-prep-price-leaves" value="25.00" step="1"
                                     onchange="calculatePrice()">
@@ -1385,13 +1390,18 @@
                                 <input type="number" id="calc-machine-speed-cover" value="">
                             </div>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                            <div class="form-group">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; align-items: end;">
+                            <div class="form-group" style="margin-bottom: 0;">
                                 <label>Cena plošče (€)</label>
                                 <input type="number" id="calc-plates-price-cover" value="10.00" step="0.5"
                                     onchange="calculatePrice()">
                             </div>
-                            <div class="form-group">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Menjava plošč (€/kos)</label>
+                                <input type="number" id="calc-change-price-cover" value="10.00" step="1"
+                                    onchange="calculatePrice()">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
                                 <label>Pavšal priprave (€)</label>
                                 <input type="number" id="calc-prep-price-cover" value="25.00" step="1"
                                     onchange="calculatePrice()">
@@ -2430,32 +2440,134 @@
                 'digital': { rate: 40, speed: 1800, prep: 10, useDynamic: false, platePrice: 0.00, prepPrice: 5.00, changePrice: 0.00, defaultFormat: 'Digital (480x320)', limitW: 480, limitH: 320 }
             };
 
-            function getDynamicSpeed(weight, impressions, mType) {
-                // Osnovna matrika za S4 s priložene slike
-                let speed = 7000; // default za papir 90-160g
-
-                if (weight > 300) {      // 350g
-                    if (impressions < 100) speed = 1600;
-                    else if (impressions < 1000) speed = 2500;
-                    else if (impressions < 3000) speed = 4600;
-                    else speed = 4800;
-                } else if (weight > 200) { // 260g
-                    if (impressions < 100) speed = 1880;
-                    else if (impressions < 1000) speed = 2920;
-                    else if (impressions < 3000) speed = 5400;
-                    else speed = 5700;
-                } else {                  // 90g - 160g
-                    if (impressions < 100) speed = 2190;
-                    else if (impressions < 1000) speed = 3150;
-                    else if (impressions < 3000) speed = 6700;
-                    else speed = 7000;
+            function getBossTables(mType) {
+                if (mType === 'S4') {
+                    return {
+                        "8/0": [
+                            { q: 1000, waste: 720, s150: 3460, s250: 3200, s350: 3100 },
+                            { q: 5000, waste: 720, s150: 6350, s250: 5960, s350: 5300 },
+                            { q: 10000, waste: 720, s150: 6400, s250: 5960, s350: 5450 },
+                            { q: 5000, waste: 1250, s150: 6800, s250: 6300, s350: 5700 },
+                            { q: 100000, waste: 1250, s150: 6800, s250: 6300, s350: 5700 },
+                            { q: 300000, waste: 1500, s150: 7100, s250: 6600, s350: 6000 },
+                            { q: 500000, waste: 1500, s150: 7100, s250: 6600, s350: 6000 }
+                        ],
+                        "4/0": [
+                            { q: 1000, waste: 320, s150: 3100, s250: 3100, s350: 2900 },
+                            { q: 5000, waste: 320, s150: 6600, s250: 6600, s350: 5480 },
+                            { q: 10000, waste: 320, s150: 6600, s250: 6000, s350: 5480 },
+                            { q: 50000, waste: 320, s150: 6800, s250: 6800, s350: 5700 },
+                            { q: 100000, waste: 500, s150: 6800, s250: 6300, s350: 5700 },
+                            { q: 300000, waste: 320, s150: 7140, s250: 6600, s350: 6060 },
+                            { q: 500000, waste: 625, s150: 7140, s250: 6600, s350: 6060 }
+                        ],
+                        "4/4": [
+                            { q: 1000, waste: 1280, s150: 3800, s250: 3800, s350: 3300 },
+                            { q: 5000, waste: 1280, s150: 6600, s250: 6600, s350: 5400 },
+                            { q: 10000, waste: 1280, s150: 6900, s250: 6900, s350: 5700 },
+                            { q: 50000, waste: 1280, s150: 7140, s250: 7140, s350: 6050 },
+                            { q: 100000, waste: 1280, s150: 7140, s250: 7140, s350: 6050 },
+                            { q: 300000, waste: 1500, s150: 7140, s250: 7140, s350: 6050 },
+                            { q: 500000, waste: 2500, s150: 7140, s250: 7140, s350: 6050 }
+                        ],
+                        "4/OB": [
+                            { q: 1000, waste: 540, s150: 4200, s250: 4200, s350: 3600 },
+                            { q: 5000, waste: 540, s150: 6600, s250: 6600, s350: 5400 },
+                            { q: 10000, waste: 540, s150: 6900, s250: 6900, s350: 5700 },
+                            { q: 50000, waste: 540, s150: 7140, s250: 7140, s350: 6000 },
+                            { q: 100000, waste: 1000, s150: 7140, s250: 7140, s350: 6000 },
+                            { q: 300000, waste: 1000, s150: 7140, s250: 7140, s350: 6000 },
+                            { q: 500000, waste: 1250, s150: 7140, s250: 7140, s350: 6000 }
+                        ]
+                    };
+                } else {
+                    return {
+                        "8/0": [
+                            { q: 1000, waste: 720, s150: 3460, s250: 3200, s350: 3100 },
+                            { q: 5000, waste: 720, s150: 6350, s250: 5960, s350: 5300 },
+                            { q: 10000, waste: 720, s150: 6400, s250: 5960, s350: 5450 },
+                            { q: 50000, waste: 1250, s150: 6800, s250: 6300, s350: 5700 },
+                            { q: 100000, waste: 1250, s150: 6800, s250: 6300, s350: 5700 },
+                            { q: 300000, waste: 1500, s150: 7100, s250: 6600, s350: 6000 },
+                            { q: 500000, waste: 1500, s150: 7100, s250: 6600, s350: 6000 }
+                        ],
+                        "4/0": [
+                        { q: 1000, waste: 320, s150: 3600, s250: 3200, s350: 3000 },
+                        { q: 5000, waste: 320, s150: 5070, s250: 5600, s350: 5150 },
+                        { q: 10000, waste: 320, s150: 6400, s250: 6000, s350: 5450 },
+                        { q: 50000, waste: 320, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 320, s150: 6800, s250: 6600, s350: 6060 },
+                        { q: 300000, waste: 320, s150: 7140, s250: 6600, s350: 6060 },
+                        { q: 500000, waste: 625, s150: 7140, s250: 6600, s350: 6060 }
+                    ],
+                        "4/4": [
+                            { q: 1000, waste: 1280, s150: 3600, s250: 3200, s350: 3000 },
+                            { q: 5000, waste: 1280, s150: 5070, s250: 5600, s350: 5150 },
+                            { q: 10000, waste: 1280, s150: 6400, s250: 6000, s350: 5450 },
+                            { q: 50000, waste: 1280, s150: 6800, s250: 6300, s350: 5700 },
+                            { q: 100000, waste: 1280, s150: 6800, s250: 6600, s350: 6050 },
+                            { q: 300000, waste: 1500, s150: 7140, s250: 6600, s350: 6050 },
+                            { q: 500000, waste: 2500, s150: 7140, s250: 6600, s350: 6050 }
+                        ],
+                        "4/OB": [
+                            { q: 1000, waste: 540, s150: 3580, s250: 3300, s350: 3250 },
+                            { q: 5000, waste: 540, s150: 4400, s250: 4400, s350: 4400 },
+                            { q: 10000, waste: 540, s150: 5050, s250: 6000, s350: 5450 },
+                            { q: 50000, waste: 540, s150: 6800, s250: 6300, s350: 5700 },
+                            { q: 100000, waste: 540, s150: 6800, s250: 6600, s350: 6060 },
+                            { q: 300000, waste: 750, s150: 7140, s250: 6600, s350: 6060 },
+                            { q: 500000, waste: 1250, s150: 7140, s250: 6600, s350: 6060 }
+                        ]
+                    };
                 }
+            }
 
-                // Če je močnejši stroj (npr S8), hitrost sorazmerno povečamo
-                if (mType === 'S8') speed *= 1.3;
-                else if (mType === 'CD') speed *= 1.4;
-
-                return Math.round(speed);
+            function getDynamicSpeed(baseSpeed, grammage, qty, comp) {
+                let _front = parseInt(document.getElementById('calc-color-front-' + comp)?.value || 0) || 0;
+                let _back = parseInt(document.getElementById('calc-color-back-' + comp)?.value || 0) || 0;
+                let _isObrat = document.getElementById('calc-is-obrat-' + comp)?.checked || false;
+                let _isSV = document.getElementById('calc-is-sv-' + comp)?.checked || false;
+                let passes = Math.ceil(_front / 4) + (_back > 0 ? Math.ceil(_back / 4) : 0);
+                if (_isObrat) passes = Math.ceil(_front / 4);
+                if (passes < 1) passes = 1;
+                let impressions = qty * passes;
+                let baseColorMode = _isSV ? '8/0' : (_isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0'));
+                let mType = document.getElementById('calc-machine-type-' + comp)?.value || 'S4';
+                let bossTable = getBossTables(mType)[baseColorMode];
+                if (bossTable) {
+                    let getS = (obj) => {
+                        if (grammage <= 150) return obj.s150;
+                        if (grammage <= 250) {
+                            let f = (grammage - 150) / 100;
+                            return obj.s150 + f * (obj.s250 - obj.s150);
+                        }
+                        if (grammage <= 350) {
+                            let f = (grammage - 250) / 100;
+                            return obj.s250 + f * (obj.s350 - obj.s250);
+                        }
+                        return obj.s350;
+                    };
+                    let s = getS(bossTable[0]);
+                    if (impressions <= bossTable[0].q) {
+                        s = getS(bossTable[0]);
+                    } else if (impressions >= bossTable[bossTable.length - 1].q) {
+                        s = getS(bossTable[bossTable.length - 1]);
+                    } else {
+                        for (let i = 0; i < bossTable.length - 1; i++) {
+                            if (impressions >= bossTable[i].q && impressions <= bossTable[i + 1].q) {
+                                let rangeQ = bossTable[i + 1].q - bossTable[i].q;
+                                let speed1 = getS(bossTable[i]);
+                                let speed2 = getS(bossTable[i + 1]);
+                                let rangeS = speed2 - speed1;
+                                let fraction = (impressions - bossTable[i].q) / rangeQ;
+                                s = speed1 + fraction * rangeS;
+                                break;
+                            }
+                        }
+                    }
+                    return Math.round(s);
+                }
+                return Math.min(baseSpeed, 6100);
             }
 
             function drawSourceLayoutCanvas(canvasId, sw, sh, pw, ph, color) {
@@ -2595,6 +2707,7 @@
                     setV('calc-machine-speed-' + comp, profile.speed);
                     setV('calc-machine-prep-time-' + comp, profile.prep);
                     setV('calc-plates-price-' + comp, profile.platePrice);
+                    setV('calc-change-price-' + comp, profile.changePrice !== undefined ? profile.changePrice : 10.00);
                     if (comp === 'leaves') {
                         setV('calc-prep-price-' + comp, 25.00);
                     } else {
@@ -2925,11 +3038,15 @@
                     // 2. TISK - LISTI
                     let totalPrepCostL = 0;
                     let totalPrintCostL = 0;
+                    let plateChangeCostL = 0;
 
                     if (frontL + backL > 0) {
                         let platesNumL = parseInt(document.getElementById('calc-plates-num-leaves').value) || 0;
                         let platesPriceL = parseFloat(document.getElementById('calc-plates-price-leaves').value) || 0;
+                        let changePriceL = parseFloat(document.getElementById('calc-change-price-leaves').value) || 0;
                         let prepPriceL = parseFloat(document.getElementById('calc-prep-price-leaves').value) || 0;
+                        let numberOfChangesL = Math.max(0, platesNumL - 1);
+                        plateChangeCostL = numberOfChangesL * changePriceL;
 
                         let isPlatesActiveL = gC('calc-plates-active-leaves');
 
@@ -2942,14 +3059,20 @@
                         let washPriceL = parseFloat(gV('calc-wash-price-leaves')) || 25;
                         let washCostL = washesNumL * washPriceL;
 
-                        totalPrepCostL = (isPlatesActiveL ? (platesNumL * platesPriceL) : 0) + prepPriceL + mutationCostL + washCostL;
+                        totalPrepCostL = (isPlatesActiveL ? (platesNumL * platesPriceL + plateChangeCostL) : 0) + prepPriceL + mutationCostL + washCostL;
 
                         let mRateL = parseFloat(document.getElementById('calc-machine-rate-leaves').value) || 0;
-                        let mSpeedL = parseFloat(document.getElementById('calc-machine-speed-leaves').value) || 10000;
-                        if (bossL) {
+                        let maxSpeedL = bossL ? bossL.speed : 10000;
+                        let mTypeL = document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : 'S4';
+                        let profileL = machineProfiles[mTypeL];
+                        let mSpeedL = parseFloat(document.getElementById('calc-machine-speed-leaves').value) || maxSpeedL;
+                        if (bossL && profileL && profileL.useDynamic) {
+                            let totalSheetsNeededLeaves = sheetsNeededLeaves + wasteL;
+                            mSpeedL = getDynamicSpeed(maxSpeedL, pWeight, totalSheetsNeededLeaves, 'leaves');
+                        } else if (bossL) {
                             mSpeedL = bossL.speed;
-                            document.getElementById('calc-machine-speed-leaves').value = mSpeedL;
                         }
+                        document.getElementById('calc-machine-speed-leaves').value = mSpeedL;
                         let mPrepValL = document.getElementById('calc-machine-prep-time-leaves').value;
                         let mPrepTimeL = (mPrepValL === "" ? 10 : parseFloat(mPrepValL)) / 60;
 
@@ -2963,11 +3086,15 @@
                     // 3. TISK - OVITEK
                     let totalPrepCostC = 0;
                     let totalPrintCostC = 0;
+                    let plateChangeCostC = 0;
 
                     if (frontC + backC > 0) {
                         let platesNumC = parseInt(document.getElementById('calc-plates-num-cover').value) || 0;
                         let platesPriceC = parseFloat(document.getElementById('calc-plates-price-cover').value) || 0;
+                        let changePriceC = parseFloat(document.getElementById('calc-change-price-cover').value) || 0;
                         let prepPriceC = parseFloat(document.getElementById('calc-prep-price-cover').value) || 0;
+                        let numberOfChangesC = Math.max(0, platesNumC - 1);
+                        plateChangeCostC = numberOfChangesC * changePriceC;
 
                         let isPlatesActiveC = gC('calc-plates-active-cover');
 
@@ -2980,14 +3107,20 @@
                         let washPriceC = parseFloat(gV('calc-wash-price-cover')) || 25;
                         let washCostC = washesNumC * washPriceC;
 
-                        totalPrepCostC = (isPlatesActiveC ? (platesNumC * platesPriceC) : 0) + prepPriceC + mutationCostC + washCostC;
+                        totalPrepCostC = (isPlatesActiveC ? (platesNumC * platesPriceC + plateChangeCostC) : 0) + prepPriceC + mutationCostC + washCostC;
 
                         let mRateC = parseFloat(document.getElementById('calc-machine-rate-cover').value) || 0;
-                        let mSpeedC = parseFloat(document.getElementById('calc-machine-speed-cover').value) || 10000;
-                        if (bossC) {
+                        let maxSpeedC = bossC ? bossC.speed : 10000;
+                        let mTypeC = document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : 'S4';
+                        let profileC = machineProfiles[mTypeC];
+                        let mSpeedC = parseFloat(document.getElementById('calc-machine-speed-cover').value) || maxSpeedC;
+                        if (bossC && profileC && profileC.useDynamic) {
+                            let totalSheetsNeededCover = sheetsNeededCover + wasteC;
+                            mSpeedC = getDynamicSpeed(maxSpeedC, cbWeight, totalSheetsNeededCover, 'cover');
+                        } else if (bossC) {
                             mSpeedC = bossC.speed;
-                            document.getElementById('calc-machine-speed-cover').value = mSpeedC;
                         }
+                        document.getElementById('calc-machine-speed-cover').value = mSpeedC;
                         let mPrepValC = document.getElementById('calc-machine-prep-time-cover').value;
                         let mPrepTimeC = (mPrepValC === "" ? 10 : parseFloat(mPrepValC)) / 60;
 
@@ -3230,6 +3363,8 @@
                             active: (frontL + backL > 0),
                             platesNum: (parseInt(gV('calc-plates-num-leaves')) || 0),
                             platesPrice: parseFloat(gV('calc-plates-price-leaves')) || 10,
+                            changePrice: parseFloat(gV('calc-change-price-leaves')) || 10,
+                            plateChangeCost: plateChangeCostL,
                             isPlatesActive: gC('calc-plates-active-leaves'),
                             prepPrice: (parseFloat(gV('calc-prep-price-leaves')) || 0),
                             washCost: (parseInt(gV('calc-color-washes-leaves')) || 0) * (parseFloat(gV('calc-wash-price-leaves')) || 25),
@@ -3243,6 +3378,8 @@
                             active: (frontC + backC > 0),
                             platesNum: (parseInt(gV('calc-plates-num-cover')) || 0),
                             platesPrice: parseFloat(gV('calc-plates-price-cover')) || 10,
+                            changePrice: parseFloat(gV('calc-change-price-cover')) || 10,
+                            plateChangeCost: plateChangeCostC,
                             isPlatesActive: gC('calc-plates-active-cover'),
                             prepPrice: (parseFloat(gV('calc-prep-price-cover')) || 0),
                             washCost: (parseInt(gV('calc-color-washes-cover')) || 0) * (parseFloat(gV('calc-wash-price-cover')) || 25),
@@ -3331,6 +3468,7 @@
                                 `<span style="padding-left:10px;">- Plošče (${d.leavesPrint.platesNum} kos):</span> <span>${formatPrice(d.leavesPrint.platesNum * d.leavesPrint.platesPrice)}</span>` :
                                 `<span style="padding-left:10px; color: #94a3b8; font-style: italic;">- Plošče (brezplačno):</span> <span style="color: #94a3b8;">0,00 €</span>`
                             }
+                            ${(d.leavesPrint.isPlatesActive && d.leavesPrint.plateChangeCost > 0) ? `<span style="padding-left:10px; color: #818cf8;">- Menjava plošč (${Math.max(0, d.leavesPrint.platesNum - 1)} kos):</span> <span style="color: #818cf8;">${formatPrice(d.leavesPrint.plateChangeCost)}</span>` : ''}
                             <span style="padding-left:10px;">- Priprava stroja (pavšal in pranje):</span> <span>${formatPrice(d.leavesPrint.prepPrice + d.leavesPrint.washCost)}</span>
                             ${d.leavesPrint.mutNum > 0 ? `<span style="padding-left:10px; color: #60a5fa;">- Mutacije (${d.leavesPrint.mutNum}x):</span> <span style="color: #60a5fa;">${formatPrice(d.leavesPrint.mutCost)}</span>` : ''}
                             <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.05); margin: 3px 0;"></div>
@@ -3352,6 +3490,7 @@
                                 `<span style="padding-left:10px;">- Plošče (${d.coverPrint.platesNum} kos):</span> <span>${formatPrice(d.coverPrint.platesNum * d.coverPrint.platesPrice)}</span>` :
                                 `<span style="padding-left:10px; color: #94a3b8; font-style: italic;">- Plošče (brezplačno):</span> <span style="color: #94a3b8;">0,00 €</span>`
                             }
+                            ${(d.coverPrint.isPlatesActive && d.coverPrint.plateChangeCost > 0) ? `<span style="padding-left:10px; color: #f472b6;">- Menjava plošč (${Math.max(0, d.coverPrint.platesNum - 1)} kos):</span> <span style="color: #f472b6;">${formatPrice(d.coverPrint.plateChangeCost)}</span>` : ''}
                             <span style="padding-left:10px;">- Priprava stroja (pavšal in pranje):</span> <span>${formatPrice(d.coverPrint.prepPrice + d.coverPrint.washCost)}</span>
                             ${d.coverPrint.mutNum > 0 ? `<span style="padding-left:10px; color: #f43f5e;">- Mutacije (${d.coverPrint.mutNum}x):</span> <span style="color: #f43f5e;">${formatPrice(d.coverPrint.mutCost)}</span>` : ''}
                             <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.05); margin: 3px 0;"></div>
@@ -4268,6 +4407,7 @@
                             obratL: gc('calc-is-obrat-leaves'),
                             platesNumL: gv('calc-plates-num-leaves'),
                             platesPriceL: gv('calc-plates-price-leaves'),
+                            changePriceL: gv('calc-change-price-leaves'),
                             platesActiveL: gc('calc-plates-active-leaves'),
                             mutNumL: gv('calc-mut-num-leaves'),
                             mutPlatesL: gv('calc-mut-plates-leaves'),
@@ -4283,6 +4423,7 @@
                             obratC: gc('calc-is-obrat-cover'),
                             platesNumC: gv('calc-plates-num-cover'),
                             platesPriceC: gv('calc-plates-price-cover'),
+                            changePriceC: gv('calc-change-price-cover'),
                             platesActiveC: gc('calc-plates-active-cover'),
                             mutNumC: gv('calc-mut-num-cover'),
                             mutPlatesC: gv('calc-mut-plates-cover'),
@@ -4506,9 +4647,14 @@
                 setV('calc-paper-waste-cover', inp.wasteC);
                 if (typeof togglePaperRow === 'function') togglePaperRow();
 
-                setV('calc-plates-price-cover', inp.platesPriceC);
+                setV('calc-plates-price-cover', inp.platesPriceC !== undefined ? inp.platesPriceC : 10.00);
+                setV('calc-prep-price-cover', inp.prepPriceC !== undefined ? inp.prepPriceC : 25.00);
+                setV('calc-change-price-cover', inp.changePriceC !== undefined ? inp.changePriceC : 10.00);
                 setV('calc-plates-num-cover', inp.platesNumC);
                 setV('calc-plates-active-leaves', inp.platesActiveL !== undefined ? inp.platesActiveL : true, true);
+                setV('calc-plates-price-leaves', inp.platesPriceL !== undefined ? inp.platesPriceL : 10.00);
+                setV('calc-prep-price-leaves', inp.prepPriceL !== undefined ? inp.prepPriceL : 25.00);
+                setV('calc-change-price-leaves', inp.changePriceL !== undefined ? inp.changePriceL : 10.00);
                 setV('calc-mut-num-leaves', inp.mutNumL);
                 setV('calc-mut-plates-leaves', inp.mutPlatesL);
                 setV('calc-mut-change-price-leaves', inp.mutChangeL);
@@ -4737,6 +4883,7 @@
                             obratL: gc('calc-is-obrat-leaves'),
                             platesNumL: gv('calc-plates-num-leaves'),
                             platesPriceL: gv('calc-plates-price-leaves'),
+                            changePriceL: gv('calc-change-price-leaves'),
                             prepPriceL: gv('calc-prep-price-leaves'),
                             wasteL: gv('calc-paper-waste-leaves'),
                             mTypeC: gv('calc-machine-type-cover'),

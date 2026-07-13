@@ -2480,6 +2480,10 @@
                 let _back = parseInt(document.getElementById('calc-color-back-' + comp)?.value || 0) || 0;
                 let _isObrat = document.getElementById('calc-is-obrat-' + comp)?.checked || false;
                 let _isSV = document.getElementById('calc-is-sv-' + comp)?.checked || false;
+                let passes = Math.ceil(_front / 4) + (_back > 0 ? Math.ceil(_back / 4) : 0);
+                if (_isObrat) passes = Math.ceil(_front / 4);
+                if (passes < 1) passes = 1;
+                let impressions = qty * passes;
                 let baseColorMode = _isSV ? '8/0' : (_isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0'));
                 let mType = document.getElementById('calc-machine-type-' + comp)?.value || 'S4';
                 let bossTable = getBossTables(mType)[baseColorMode];
@@ -2497,18 +2501,18 @@
                         return obj.s350;
                     };
                     let s = getS(bossTable[0]);
-                    if (qty <= bossTable[0].q) {
+                    if (impressions <= bossTable[0].q) {
                         s = getS(bossTable[0]);
-                    } else if (qty >= bossTable[bossTable.length - 1].q) {
+                    } else if (impressions >= bossTable[bossTable.length - 1].q) {
                         s = getS(bossTable[bossTable.length - 1]);
                     } else {
                         for (let i = 0; i < bossTable.length - 1; i++) {
-                            if (qty >= bossTable[i].q && qty <= bossTable[i + 1].q) {
+                            if (impressions >= bossTable[i].q && impressions <= bossTable[i + 1].q) {
                                 let rangeQ = bossTable[i + 1].q - bossTable[i].q;
                                 let speed1 = getS(bossTable[i]);
                                 let speed2 = getS(bossTable[i + 1]);
                                 let rangeS = speed2 - speed1;
-                                let fraction = (qty - bossTable[i].q) / rangeQ;
+                                let fraction = (impressions - bossTable[i].q) / rangeQ;
                                 s = speed1 + fraction * rangeS;
                                 break;
                             }
