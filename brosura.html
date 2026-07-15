@@ -4312,7 +4312,7 @@
 
 
 
-                    drawCanvas('canvas-leaves', drawW, drawH, bestLayout, g, w, h, b, (targetCount > 0 && targetCount !== bestLayout.count), targetCount);
+                    drawCanvas('canvas-leaves', drawW, drawH, bestLayout, g, w, h, b, (targetCount > 0 && targetCount !== bestLayout.count), targetCount, '#3b82f6', false);
 
 
 
@@ -4552,7 +4552,7 @@
 
 
 
-                        drawCanvas('canvas-cover', cDrawW, cDrawH, cBestLayout, cg, cw, ch, cb, (targetCountCover > 0 && targetCountCover !== cBestLayout.count), targetCountCover);
+                        drawCanvas('canvas-cover', cDrawW, cDrawH, cBestLayout, cg, cw, ch, cb, (targetCountCover > 0 && targetCountCover !== cBestLayout.count), targetCountCover, '#f43f5e', true);
 
 
 
@@ -7725,10 +7725,6 @@
 
                         let rectFill = isCover ? 'rgba(244, 63, 94, 0.15)' : (isManualMatch ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)');
 
-                        let rectStroke = isCover ? '#f43f5e' : (isManualMatch ? '#d97706' : '#2563eb');
-
-
-
                         ctx.fillStyle = rectFill;
 
                         ctx.globalAlpha = 0.8;
@@ -7737,17 +7733,11 @@
 
                         ctx.globalAlpha = 1.0;
 
-                        ctx.strokeStyle = rectStroke;
-
-                        ctx.lineWidth = 1;
-
-                        ctx.strokeRect(x, y, w, h);
 
 
+                        // Bleed rob (rdeča barva za porez)
 
-                        // Bleed rob
-
-                        ctx.strokeStyle = isCover ? 'rgba(244, 63, 94, 0.5)' : (isManualMatch ? 'rgba(245, 158, 11, 0.5)' : 'rgba(59, 130, 246, 0.5)');
+                        ctx.strokeStyle = '#ef4444';
 
                         ctx.lineWidth = 1;
 
@@ -7767,13 +7757,44 @@
 
 
 
-                        ctx.strokeStyle = isCover ? '#f43f5e' : (isManualMatch ? '#d97706' : '#2563eb');
+                        ctx.strokeStyle = '#10b981'; // Zelena črtkana črta za neto format strani (rez)
 
-                        ctx.setLineDash([2, 2]);
+                        ctx.lineWidth = 1.5;
+
+                        ctx.setLineDash([4, 4]);
 
                         ctx.strokeRect(x + bX, y + bY, innerW, innerH);
 
+                        // Izris posameznih zaprtih strani znotraj odprtega formata
+                        const brochureClosedW = parseFloat(gV('closed-width').replace(',', '.')) || 0;
+                        const coverClosedW = parseFloat(gV('closed-calc-cover-w').replace(',', '.')) || 0;
+                        const itemClosedW = isCover ? (coverClosedW || brochureClosedW) : brochureClosedW;
+                        const itemOpenW = isCover ? parseFloat(gV('calc-cover-w').replace(',', '.')) : parseFloat(gV('width').replace(',', '.'));
+
+                        if (itemClosedW > 0 && itemOpenW > itemClosedW) {
+                            const panels = Math.round(itemOpenW / itemClosedW);
+                            if (panels > 1) {
+                                for (let i = 1; i < panels; i++) {
+                                    ctx.beginPath();
+                                    if (!layout.rot) {
+                                        // Vertikalne črte za nerotiran element
+                                        const divX = x + bX + i * (innerW / panels);
+                                        ctx.moveTo(divX, y + bY);
+                                        ctx.lineTo(divX, y + bY + innerH);
+                                    } else {
+                                        // Horizontalne črte za rotiran element
+                                        const divY = y + bY + i * (innerH / panels);
+                                        ctx.moveTo(x + bX, divY);
+                                        ctx.lineTo(x + bX + innerW, divY);
+                                    }
+                                    ctx.stroke();
+                                }
+                            }
+                        }
+
                         ctx.setLineDash([]);
+
+                        ctx.lineWidth = 1; // Ponastavimo debelino linije
 
 
 
