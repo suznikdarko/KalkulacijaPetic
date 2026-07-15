@@ -981,18 +981,18 @@
                     <div class="form-group">
                         <label>Cena papirja</label>
                         <div class="input-group">
-                            <input type="number" id="calc-paper-price" value="" step="0.01" placeholder="Vnesite ceno"
+                            <input type="text" id="calc-paper-price" value="" placeholder="Vnesite ceno"
                                 onchange="calculatePrice()">
-                            <select id="calc-paper-unit">
+                            <select id="calc-paper-unit" onchange="calculatePrice()">
                                 <option value="ton">na tono</option>
                                 <option value="1000">na 1000 pol</option>
                                 <option value="1">na 1 polo</option>
                             </select>
                         </div>
                     </div>
-                    <div class="form-group" style="display: none;">
-                        <label>Gramatura (g/m)</label>
-                        <input type="number" id="calc-paper-weight" value="" placeholder="g/m" onchange="calculate()">
+                    <div class="form-group">
+                        <label>Gramatura (g/m²)</label>
+                        <input type="text" id="calc-paper-weight" value="" placeholder="g/m²" onchange="calculate()">
                     </div>
                     <div class="form-group">
                         <label>Vrsta materiala (mat, glos...)</label>
@@ -1221,6 +1221,18 @@
                             <div class="form-group" style="margin:0;">
                                 <label><small>Cena orodja ( )</small></label>
                                 <input type="number" id="f-tool-cost" value="0.00" onchange="calculatePrice()">
+                            </div>
+                        </div>
+
+                        <!-- Zasek Grafotehna -->
+                        <div class="finish-item" id="row-finish-zasek-grafotehna">
+                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                <input type="checkbox" id="f-zasek-grafotehna-active" onchange="toggleFinishRow('zasek-grafotehna')">
+                                Zasek-Grafotehna
+                            </label>
+                            <div class="form-group" style="margin:0;">
+                                <label><small>Cena na komad (€)</small></label>
+                                <input type="number" id="f-zasek-grafotehna-price" value="0.00" onchange="calculatePrice()">
                             </div>
                         </div>
                     </div>
@@ -2769,9 +2781,9 @@
                     drawH = parseFloat(document.getElementById('height').value) || 0;
                 }
             }
-            let paperPrice = parseFloat(document.getElementById('calc-paper-price').value) || 0;
+            let paperPrice = parseFloat(document.getElementById('calc-paper-price').value.replace(',', '.')) || 0;
             let paperUnit = document.getElementById('calc-paper-unit').value;
-            let paperWeight = parseFloat(document.getElementById('calc-paper-weight').value) || 0;
+            let paperWeight = parseFloat(document.getElementById('calc-paper-weight').value.replace(',', '.')) || 0;
             // Logika za makulaturo po Boss sistemu (preko tabele prepRules)
             const manualWaste = parseFloat(document.getElementById('calc-paper-waste-manual').value);
             let mTypeForWaste = document.getElementById('calc-machine-type').value;
@@ -3072,6 +3084,9 @@
             if (document.getElementById('f-tool-active').checked) {
                 totalFinishCost += (parseFloat(document.getElementById('f-tool-cost').value) || 0);
             }
+            if (document.getElementById('f-zasek-grafotehna-active') && document.getElementById('f-zasek-grafotehna-active').checked) {
+                totalFinishCost += (parseFloat(document.getElementById('f-zasek-grafotehna-price').value.replace(',', '.')) || 0) * qty;
+            }
             if (document.getElementById('f-uv-active').checked) {
                 let uPrep = parseFloat(document.getElementById('f-uv-prep').value) || 0;
                 let uP1000 = parseFloat(document.getElementById('f-uv-per1000').value) || 0;
@@ -3262,6 +3277,15 @@
                     name: 'Orodje (izsek)',
                     cost: tCost,
                     breakdown: `Strošek izdelave orodja`
+                });
+            }
+            if (document.getElementById('f-zasek-grafotehna-active') && document.getElementById('f-zasek-grafotehna-active').checked) {
+                let zPrice = parseFloat(document.getElementById('f-zasek-grafotehna-price').value.replace(',', '.')) || 0;
+                let zCost = zPrice * qty;
+                details.finish.items.push({
+                    name: 'Zasek-Grafotehna',
+                    cost: zCost,
+                    breakdown: `Cena na komad: ${formatPrice(zPrice)} x ${qty} kom`
                 });
             }
             if (document.getElementById('f-uv-active').checked) {

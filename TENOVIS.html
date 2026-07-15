@@ -934,7 +934,7 @@
                     <div class="form-group">
                         <label>Cena papirja</label>
                         <div class="input-group">
-                            <input type="number" id="calc-paper-price" value="" step="1" placeholder="Vnesite ceno"
+                            <input type="number" id="calc-paper-price" value="" step="0.01" placeholder="Vnesite ceno"
                                 onchange="calculatePrice()">
                             <select id="calc-paper-unit" onchange="calculatePrice()">
                                 <option value="ton" selected="">na tono</option>
@@ -1013,11 +1013,12 @@
                     </div>
                     <div class="form-group">
                         <label>Priprava tiska (pavšal €)</label>
-                        <input type="number" id="calc-prep-price" value="20.00" step="1" onchange="calculatePrice()">
+                        <input type="number" id="calc-prep-price" value="20.00" step="0.01" onchange="calculatePrice()">
                     </div>
                     <div class="form-group">
                         <label>Menjava plošč (€ / kos - brez prve)</label>
-                        <input type="number" id="calc-change-price" value="10.00" step="1" onchange="calculatePrice()">
+                        <input type="number" id="calc-change-price" value="10.00" step="0.01"
+                            onchange="calculatePrice()">
                     </div>
                     <div class="form-group"
                         style="padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 5px;">
@@ -1046,8 +1047,8 @@
                         <div style="display: flex; gap: 0.2rem;">
                             <input type="number" id="calc-color-washes" value="0" min="0" step="1"
                                 onchange="calculatePrice()" style="flex: 1;" placeholder="Št.">
-                            <input type="number" id="calc-wash-price" value="25.00" step="1" onchange="calculatePrice()"
-                                style="flex: 1;" placeholder="€/pranje">
+                            <input type="number" id="calc-wash-price" value="25.00" step="0.01"
+                                onchange="calculatePrice()" style="flex: 1;" placeholder="€/pranje">
                         </div>
                     </div>
                 </div>
@@ -1073,7 +1074,7 @@
                         style="display: none; background: rgba(245, 158, 11, 0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.2); margin-top: 10px; flex-direction: column; gap: 0.75rem;">
                         <div class="form-group" style="margin: 0;">
                             <label style="color: #fbbf24; font-weight: bold;">Cena tiska kooperanta (EUR)</label>
-                            <input type="number" id="calc-cooperation-price" value="150.00" step="1"
+                            <input type="number" id="calc-cooperation-price" value="150.00" step="0.01"
                                 onchange="calculatePrice()">
                         </div>
                         <div class="form-group" style="margin: 0;">
@@ -1198,13 +1199,26 @@
                             <!-- Orodje -->
                             <div class="finish-item" id="row-finish-tool">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                    <input type="checkbox" id="f-tool-active"
-                                        onchange="toggleFinishRow(&#39;tool&#39;)">
+                                    <input type="checkbox" id="f-tool-active" onchange="toggleFinishRow('tool')">
                                     Orodje (izsek)
                                 </label>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Cena orodja (€)</small></label>
                                     <input type="number" id="f-tool-cost" value="0.00" onchange="calculatePrice()">
+                                </div>
+                            </div>
+
+                            <!-- Zasek Grafotehna -->
+                            <div class="finish-item" id="row-finish-zasek-grafotehna">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-zasek-grafotehna-active"
+                                        onchange="toggleFinishRow('zasek-grafotehna')">
+                                    Zasek-Grafotehna
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena na komad (€)</small></label>
+                                    <input type="number" id="f-zasek-grafotehna-price" value="0.00"
+                                        onchange="calculatePrice()">
                                 </div>
                             </div>
 
@@ -2825,6 +2839,9 @@
             if (document.getElementById('f-tool-active').checked) {
                 totalFinishCost += getFloatValue('f-tool-cost');
             }
+            if (document.getElementById('f-zasek-grafotehna-active') && document.getElementById('f-zasek-grafotehna-active').checked) {
+                totalFinishCost += effectiveQty * getFloatValue('f-zasek-grafotehna-price');
+            }
 
             if (document.getElementById('f-precut-active') && document.getElementById('f-precut-active').checked) {
                 let prePrep = getFloatValue('f-precut-prep', 2.50);
@@ -2837,6 +2854,8 @@
             if (document.getElementById('f-del-fixed-active').checked) {
                 deliveryCost += getFloatValue('f-del-fixed-price');
             }
+
+            totalFinishCost += deliveryCost; // Sedaj prištejemo k dodelavi!
 
             let commercialCost = getFloatValue('calc-commercial');
             let subtotalWithoutDelivery = paperCost + totalPrepCost + totalPrintCost + (totalFinishCost - deliveryCost) + commercialCost;
@@ -2958,6 +2977,15 @@
                     name: 'Orodje (izsek)',
                     cost: tCost,
                     breakdown: `Strošek izdelave orodja`
+                });
+            }
+            if (document.getElementById('f-zasek-grafotehna-active') && document.getElementById('f-zasek-grafotehna-active').checked) {
+                let zPrice = getFloatValue('f-zasek-grafotehna-price');
+                let zCost = zPrice * effectiveQty;
+                details.finish.items.push({
+                    name: 'Zasek-Grafotehna',
+                    cost: zCost,
+                    breakdown: `Cena na komad: ${formatPrice(zPrice)} x ${effectiveQty} kom`
                 });
             }
 
