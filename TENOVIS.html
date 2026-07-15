@@ -2267,19 +2267,23 @@
                     let score;
                     let isSatisfied = (targetBlockCount > 0 && currLayout.count >= targetBlockCount);
 
+                    const isStandard = s.name.startsWith('B') || s.name.startsWith('A') || s.name.startsWith('SRA') || s.name.startsWith('Digital');
+                    const standardBonus = isStandard ? 10000000 : 0;
+                    const standardBonusNormal = isStandard ? 500 : 0;
+
                     if (targetBlockCount > 0) {
                         if (isSatisfied) {
                             // Če dosegamo želeno število, optimiziramo sYield in porabo papirja
                             const sheetArea = s.w * s.h;
-                            score = (sYield * 1000000000) + (1000000000000 / sheetArea) + currLayout.count;
+                            score = (sYield * 1000000000) + (1000000000000 / sheetArea) + currLayout.count + standardBonus;
                         } else {
                             // Če ne dosegamo, gremo na max stavke
-                            score = currLayout.count;
+                            score = currLayout.count + (isStandard ? 0.1 : 0);
                         }
                     } else {
                         // Standardna optimizacija: čimveč kosov iz osnovne pole (sYield * count)
                         const sheetArea = s.w * s.h;
-                        score = (currLayout.count * 1000000) + (sYield * 1000) - (sheetArea / 1000.0);
+                        score = (currLayout.count * 1000000) + (sYield * 1000) - (sheetArea / 1000.0) + standardBonusNormal;
                     }
 
                     if (score > bestScore) {
