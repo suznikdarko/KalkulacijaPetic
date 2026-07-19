@@ -5596,6 +5596,12 @@
 
                     let wasteL = parseInt(document.getElementById('calc-paper-waste-leaves').value) || 0;
 
+                    let mTypeL = 'S4';
+                    let mPrepTimeL = 0;
+                    let mSpeedL = 10000;
+                    let mPassesL = 1;
+                    let printHoursL = 0;
+
                     let mutPlatesL = parseInt(document.getElementById('calc-mut-plates-leaves').value) || 0;
 
 
@@ -5609,6 +5615,12 @@
                     let isObratC = document.getElementById('calc-is-obrat-cover').checked;
 
                     let wasteC = parseInt(document.getElementById('calc-paper-waste-cover').value) || 0;
+
+                    let mTypeC = 'S4';
+                    let mPrepTimeC = 0;
+                    let mSpeedC = 10000;
+                    let mPassesC = 1;
+                    let printHoursC = 0;
 
                     let mutPlatesC = parseInt(document.getElementById('calc-mut-plates-cover').value) || 0;
 
@@ -5952,11 +5964,11 @@
 
                         let maxSpeedL = bossL ? bossL.speed : 10000;
 
-                        let mTypeL = document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : 'S4';
+                        mTypeL = document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : 'S4';
 
                         let profileL = machineProfiles[mTypeL];
 
-                        let mSpeedL = parseFloat(document.getElementById('calc-machine-speed-leaves').value) || maxSpeedL;
+                        mSpeedL = parseFloat(document.getElementById('calc-machine-speed-leaves').value) || maxSpeedL;
 
                         if (bossL && profileL && profileL.useDynamic) {
 
@@ -5974,17 +5986,17 @@
 
                         let mPrepValL = document.getElementById('calc-machine-prep-time-leaves').value;
 
-                        let mPrepTimeL = (mPrepValL === "" ? 10 : parseFloat(mPrepValL)) / 60;
+                        mPrepTimeL = (mPrepValL === "" ? 10 : parseFloat(mPrepValL)) / 60;
 
 
 
-                        let mPassesL = Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0);
+                        mPassesL = Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0);
 
                         if (isObratL) mPassesL = Math.ceil(frontL / 4);
 
 
 
-                        let printHoursL = (sheetsNeededLeaves + wasteL) * mPassesL / mSpeedL;
+                        printHoursL = (sheetsNeededLeaves + wasteL) * mPassesL / mSpeedL;
 
                         totalPrintCostL = printHoursL * mRateL;
 
@@ -6048,11 +6060,11 @@
 
                         let maxSpeedC = bossC ? bossC.speed : 10000;
 
-                        let mTypeC = document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : 'S4';
+                        mTypeC = document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : 'S4';
 
                         let profileC = machineProfiles[mTypeC];
 
-                        let mSpeedC = parseFloat(document.getElementById('calc-machine-speed-cover').value) || maxSpeedC;
+                        mSpeedC = parseFloat(document.getElementById('calc-machine-speed-cover').value) || maxSpeedC;
 
                         if (bossC && profileC && profileC.useDynamic) {
 
@@ -6070,17 +6082,17 @@
 
                         let mPrepValC = document.getElementById('calc-machine-prep-time-cover').value;
 
-                        let mPrepTimeC = (mPrepValC === "" ? 10 : parseFloat(mPrepValC)) / 60;
+                        mPrepTimeC = (mPrepValC === "" ? 10 : parseFloat(mPrepValC)) / 60;
 
 
 
-                        let mPassesC = Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0);
+                        mPassesC = Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0);
 
                         if (isObratC) mPassesC = Math.ceil(frontC / 4);
 
 
 
-                        let printHoursC = (sheetsNeededCover + wasteC) * mPassesC / mSpeedC;
+                        printHoursC = (sheetsNeededCover + wasteC) * mPassesC / mSpeedC;
 
                         totalPrintCostC = printHoursC * mRateC;
 
@@ -6566,6 +6578,22 @@
 
                             active: (frontL + backL > 0),
 
+                            mType: mTypeL,
+
+                            prepHours: mPrepTimeL,
+
+                            printHours: printHoursL,
+
+                            mSpeed: mSpeedL,
+
+                            mPasses: mPassesL,
+
+                            waste: wasteL,
+
+                            sheetsNeeded: sheetsNeededLeaves,
+
+                            totalSheets: sheetsNeededLeaves + wasteL,
+
                             platesNum: (parseInt(gV('calc-plates-num-leaves')) || 0),
 
                             platesPrice: parseFloat(gV('calc-plates-price-leaves')) || 10,
@@ -6595,6 +6623,22 @@
                         coverPrint: {
 
                             active: (frontC + backC > 0),
+
+                            mType: mTypeC,
+
+                            prepHours: mPrepTimeC,
+
+                            printHours: printHoursC,
+
+                            mSpeed: mSpeedC,
+
+                            mPasses: mPassesC,
+
+                            waste: wasteC,
+
+                            sheetsNeeded: sheetsNeededCover,
+
+                            totalSheets: sheetsNeededCover + wasteC,
 
                             platesNum: (parseInt(gV('calc-plates-num-cover')) || 0),
 
@@ -6660,7 +6704,9 @@
 
                         margin: totalMargin,
 
-                        quantity: totalItemsForm
+                        quantity: totalItemsForm,
+
+                        details: details
 
                     };
 
@@ -7034,7 +7080,8 @@
                 const sheetsNeededL = Math.ceil((q * leavesPerBlock) / pagesPerSheetL);
 
                 let sheetsNeededC = 0;
-                if (document.getElementById('calc-cover-cb') && document.getElementById('calc-cover-cb').checked) {
+                let coverWVal = parseFloat(document.getElementById('calc-cover-w').value) || 0;
+                if (coverWVal > 0) {
                     let finalCountCover = parseInt(document.getElementById('res-count-cover').innerText) || 1;
                     sheetsNeededC = Math.ceil(q / finalCountCover);
                 }
@@ -7149,7 +7196,9 @@
 
                         total: res.totalPrice,
 
-                        perItem: res.perItem
+                        perItem: res.perItem,
+
+                        details: res.details
 
                     });
 
@@ -9965,7 +10014,9 @@
 
                                 total: res.totalPrice,
 
-                                perItem: res.perItem
+                                perItem: res.perItem,
+
+                                details: res.details
 
                             });
 
@@ -10237,6 +10288,186 @@
 
                     }
 
+                    let dnSpecsHTML = '';
+                    if (isDN) {
+                        dnSpecsHTML += `
+                            <div class="row-divider" style="border-top: 1px dashed #000; margin: 10px 0;"></div>
+                            <div class="bold" style="font-size: 12px; margin-bottom: 5px; text-decoration: underline;">PODATKI O TISKU IN STROJU:</div>
+                        `;
+                        item.quantities.forEach(q => {
+                            const d = q.details;
+                            if (!d) return;
+
+                            // Izračunaj število unikatnih pol za vložek
+                            let leavesVal = parseFloat(document.getElementById('calc-leaves').value) || 0;
+                            let currentCountL = parseInt(document.getElementById('res-count-leaves').innerText) || 1;
+                            let pagesPerSheet = currentCountL * 4;
+                            let numSheetsL = pagesPerSheet > 0 ? Math.ceil(leavesVal / pagesPerSheet) : 1;
+                            if (numSheetsL < 1) numSheetsL = 1;
+
+                            // Neto pole za vložek (zaščita pred starejšimi shranjenimi ponudbami)
+                            let netSheetsL = d.leavesPrint.sheetsNeeded !== undefined ? d.leavesPrint.sheetsNeeded : (d.paper.leaves.sheets - (d.leavesPrint.waste || 0));
+                            let netSheetsPerRunL = Math.ceil(netSheetsL / numSheetsL);
+
+                            // Skupni dodatek in dodatek na polo za vložek (ročni vnos velja ZA VSAKO POLO posebej)
+                            let givenElL = document.getElementById('calc-given-sheets-leaves');
+                            let givenDodatekL = givenElL ? parseInt(givenElL.value) : NaN;
+
+                            let wastePerSheetL = 0;
+
+                            if (!isNaN(givenDodatekL) && givenDodatekL >= 0) {
+                                // Ročni vnos pomeni dodatek za vsako polo posebej
+                                wastePerSheetL = givenDodatekL;
+                            } else {
+                                // Če ni ročnega vnosa, vzamemo preračunan dodatek iz kalkulacije in ga delimo s številom pol
+                                let totalCalcWasteL = d.leavesPrint.waste || 0;
+                                wastePerSheetL = Math.ceil(totalCalcWasteL / numSheetsL);
+                            }
+
+                            let totalWasteL = wastePerSheetL * numSheetsL;
+                            let totalSheetsL = netSheetsL + totalWasteL;
+
+                            // Preračunaj čas tiska na podlagi dodatka in hitrosti 6000 pol/h (samo za DN) - zaokroženo na 0.25h
+                            let mPassesL = d.leavesPrint.mPasses || 1;
+                            let printHoursL = (totalSheetsL * mPassesL) / 6000;
+                            let roundedPrintTimeL = Math.round(printHoursL * 4) / 4;
+
+                            // Izračunaj čas priprave za vložek: za 4 barve 0.5h, za 4/4 0.75h, vsaka naslednja polo +0.5h, zaokroženo na 0.25h
+                            let frontL = parseInt(document.getElementById('calc-color-front-leaves').value) || 0;
+                            let backL = parseInt(document.getElementById('calc-color-back-leaves').value) || 0;
+                            let firstSheetPrepL = 0;
+                            if (frontL + backL > 0) {
+                                if (frontL > 0 && backL > 0) {
+                                    firstSheetPrepL = 0.75;
+                                } else {
+                                    firstSheetPrepL = 0.5;
+                                }
+                            }
+                            let prepHoursL = firstSheetPrepL;
+                            if (firstSheetPrepL > 0) {
+                                prepHoursL = firstSheetPrepL + (numSheetsL - 1) * 0.5;
+                            }
+                            let roundedPrepHoursL = Math.round(prepHoursL * 4) / 4;
+
+                            // Formatiranje izpisa matematičnega dela
+                            let printMathL = '';
+                            if (numSheetsL > 1) {
+                                let brutoPerSheetL = netSheetsPerRunL + wastePerSheetL;
+                                printMathL = `${numSheetsL}x(${netSheetsPerRunL.toLocaleString('sl-SI')} pol + ${wastePerSheetL.toLocaleString('sl-SI')} pol = ${brutoPerSheetL.toLocaleString('sl-SI')} tiskovnih pol)`;
+                            } else {
+                                printMathL = `${netSheetsL.toLocaleString('sl-SI')} pol + ${totalWasteL.toLocaleString('sl-SI')} pol = ${totalSheetsL.toLocaleString('sl-SI')} tiskovnih pol`;
+                            }
+
+                            // Podrobnosti za ovitek
+                            let coverHTML = '';
+                            let totalParentSheetsC = 0;
+                            if (d.coverPrint && d.coverPrint.active) {
+                                // Neto pole za ovitek
+                                let netSheetsC = d.coverPrint.sheetsNeeded !== undefined ? d.coverPrint.sheetsNeeded : (d.paper.cover.sheets - (d.coverPrint.waste || 0));
+
+                                // Skupni dodatek za ovitek (ročni vnos preglasuje izračunanega)
+                                let givenElC = document.getElementById('calc-given-sheets-cover');
+                                let givenDodatekC = givenElC ? parseInt(givenElC.value) : NaN;
+                                let totalWasteC = !isNaN(givenDodatekC) && givenDodatekC >= 0 ? givenDodatekC : (d.coverPrint.waste || 0);
+                                let totalSheetsC = netSheetsC + totalWasteC;
+
+                                // Preračunaj čas tiska za ovitek na podlagi hitrosti 6000 pol/h - zaokroženo na 0.25h
+                                let mPassesC = d.coverPrint.mPasses || 1;
+                                let printHoursC = (totalSheetsC * mPassesC) / 6000;
+                                let roundedPrintTimeC = Math.round(printHoursC * 4) / 4;
+
+                                totalParentSheetsC = Math.ceil(totalSheetsC / (d.paper.cover.yield || 1));
+
+                                // Izračunaj čas priprave za ovitek
+                                let frontC = parseInt(document.getElementById('calc-color-front-cover').value) || 0;
+                                let backC = parseInt(document.getElementById('calc-color-back-cover').value) || 0;
+                                let prepHoursC = 0;
+                                if (frontC + backC > 0) {
+                                    if (frontC > 0 && backC > 0) {
+                                        prepHoursC = 0.75;
+                                    } else {
+                                        prepHoursC = 0.5;
+                                    }
+                                }
+                                let roundedPrepHoursC = Math.round(prepHoursC * 4) / 4;
+
+                                let printMathC = `${netSheetsC.toLocaleString('sl-SI')} pol + ${totalWasteC.toLocaleString('sl-SI')} pol = ${totalSheetsC.toLocaleString('sl-SI')} tiskovnih pol`;
+                                coverHTML = `
+                                    <div style="margin-top: 8px; border-top: 1px dashed #ccc; padding-top: 8px;">
+                                        <div class="bold" style="font-size: 11px; color: #f43f5e; margin-bottom: 4px;">OVITEK:</div>
+                                        <table style="width: 100%; font-size: 11px;">
+                                            <tr>
+                                                <td style="width: 20%; font-weight: bold;"><strong>${d.coverPrint.mType || 'S4'}</strong> priprava:</td>
+                                                <td style="width: 50%; font-weight: bold;">priprava ovitka</td>
+                                                <td style="width: 30%; text-align: right; font-weight: bold;">${(roundedPrepHoursC * 60).toFixed(0)} min / ${roundedPrepHoursC.toFixed(2)} h</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Tisk:</td>
+                                                <td style="width: 50%; font-weight: bold;">${printMathC} &nbsp;&nbsp; (${d.coverPrint.mPasses || 1}x skozi stroj)</td>
+                                                <td style="width: 30%; text-align: right; font-weight: bold;">tisk: ${roundedPrintTimeC.toFixed(2)} h</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                `;
+                            }
+
+                            let totalParentSheetsL = Math.ceil(totalSheetsL / (d.paper.leaves.yield || 1));
+
+                            dnSpecsHTML += `
+                                <div style="margin-bottom: 12px; border: 1px solid #ccc; padding: 10px; border-radius: 8px; background: #fafafa; page-break-inside: avoid;">
+                                    <div class="bold" style="font-size: 12px; margin-bottom: 6px; border-bottom: 1px solid #eee; padding-bottom: 4px;">
+                                        Naklada: ${q.qty.toLocaleString('sl-SI')} kos
+                                    </div>
+                                    
+                                    <div>
+                                        <div class="bold" style="font-size: 11px; color: #3b82f6; margin-bottom: 4px;">VLOŽEK:</div>
+                                        <table style="width: 100%; font-size: 11px;">
+                                            <tr>
+                                                <td style="width: 20%; font-weight: bold;"><strong>${d.leavesPrint.mType || 'S4'}</strong> priprava:</td>
+                                                <td style="width: 50%; font-weight: bold;">priprava vložka</td>
+                                                <td style="width: 30%; text-align: right; font-weight: bold;">${(roundedPrepHoursL * 60).toFixed(0)} min / ${roundedPrepHoursL.toFixed(2)} h</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Tisk:</td>
+                                                <td style="width: 50%; font-weight: bold;">
+                                                    ${printMathL} &nbsp;&nbsp; (${d.leavesPrint.mPasses || 1}x skozi stroj)
+                                                </td>
+                                                <td style="width: 30%; text-align: right; font-weight: bold;">tisk: ${roundedPrintTimeL.toFixed(2)} h</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    
+                                    ${coverHTML}
+
+                                    <div class="row-divider" style="border-top: 1px dashed #000; margin: 10px 0;"></div>
+                                    <div class="bold" style="font-size: 11px; margin-bottom: 5px;">Poraba materiala:</div>
+                                    <table style="width: 100%; font-size: 11px;">
+                                        <tr>
+                                            <td style="width: 50%;">of. plošče (vložek):</td>
+                                            <td style="text-align: right;" class="bold">${d.leavesPrint.platesNum || 0} kos</td>
+                                        </tr>
+                                        ${d.coverPrint && d.coverPrint.active ? `
+                                        <tr>
+                                            <td style="width: 50%;">of. plošče (ovitek):</td>
+                                            <td style="text-align: right;" class="bold">${d.coverPrint.platesNum || 0} kos</td>
+                                        </tr>
+                                        ` : ''}
+                                        <tr>
+                                            <td style="width: 50%;">Papir vložek (${d.paper.leaves.sourceW}x${d.paper.leaves.sourceH} mm) - ${item.paperLeaves || '/'}:</td>
+                                            <td style="text-align: right;" class="bold">${totalParentSheetsL.toLocaleString('sl-SI')} pol</td>
+                                        </tr>
+                                        ${d.coverPrint && d.coverPrint.active ? `
+                                        <tr>
+                                            <td style="width: 50%;">Papir ovitek (${d.paper.cover.sourceW}x${d.paper.cover.sourceH} mm) - ${item.paperCover || '/'}:</td>
+                                            <td style="text-align: right;" class="bold">${totalParentSheetsC.toLocaleString('sl-SI')} pol</td>
+                                        </tr>
+                                        ` : ''}
+                                    </table>
+                                </div>
+                            `;
+                        });
+                    }
+
 
 
                     itemsHtml += `
@@ -10300,6 +10531,8 @@
                                 </tr>
 
                             </table>
+
+                            ${dnSpecsHTML}
 
                             <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000;">
 
