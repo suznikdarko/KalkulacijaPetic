@@ -3528,6 +3528,19 @@
 
             }
 
+            function getTiskDescription(comp = 'leaves') {
+                let frontVal = parseInt(document.getElementById('calc-color-front-' + comp)?.value) || 0;
+                let backVal = parseInt(document.getElementById('calc-color-back-' + comp)?.value) || 0;
+                let isObrat = document.getElementById('calc-is-obrat-' + comp)?.checked || false;
+
+                if (frontVal === 0 && backVal === 0) return '/';
+                if (frontVal > 0 && backVal > 0) {
+                    return isObrat ? `${frontVal}/${backVal} na obračanje` : `${frontVal}/${backVal} prvi - drugi`;
+                } else {
+                    return `${frontVal}/${backVal} enostranski tisk`;
+                }
+            }
+
             function setT(id, text) {
 
                 const el = document.getElementById(id);
@@ -3930,7 +3943,7 @@
                     const cg = parseFloat(document.getElementById('calc-cover-gripper')?.value.replace(',', '.')) || 0;
                     const cItemW = cw + (2 * cb);
                     const cItemH = ch + (2 * cb);
-                    const fMode = document.getElementById('item-orientation')?.value || 'auto';
+                    const fModeC = document.getElementById('item-orientation-cover')?.value || 'auto';
                     const isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
 
 
@@ -3957,8 +3970,8 @@
 
                             let fitsObrat = true;
                             if (isObratC && cItemW > 0 && cItemH > 0) {
-                                let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fMode);
-                                let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fMode);
+                                let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeC);
+                                let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeC);
                                 let count1 = l1 ? l1.count : 0;
                                 let count2 = l2 ? l2.count : 0;
                                 let maxCount = Math.max(count1, count2);
@@ -4021,6 +4034,7 @@
                 const mFormatC = gV('machine-format-cover') || 'auto';
 
                 const fMode = gV('item-orientation');
+                const fModeC = gV('item-orientation-cover') || 'auto';
 
 
 
@@ -4332,7 +4346,7 @@
 
                     const autoOptLeaves = document.getElementById('machine-format') ? document.getElementById('machine-format').options[0] : null;
                     if (autoOptLeaves) {
-                        autoOptLeaves.text = bestSheet ? `Samodejno (Izbrano: ${bestSheet.name})` : "Samodejno (B2 max)";
+                        autoOptLeaves.text = (mFormat === 'auto' && bestSheet) ? `Samodejno (Izbrano: ${bestSheet.name})` : "Samodejno (B2 max)";
                     }
 
                     drawCanvas('canvas-leaves', drawW, drawH, bestLayout, g, w, h, b, (targetCount > 0 && targetCount !== bestLayout.count), targetCount, '#3b82f6', false);
@@ -4463,9 +4477,9 @@
 
 
 
-                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fMode);
+                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeC);
 
-                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fMode);
+                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeC);
 
                         let bL = null, bM = 'L';
 
@@ -4524,9 +4538,33 @@
 
 
 
-                    if (mFormatC === 'auto') sheets.forEach(checkCoverSheet);
+                    if (mFormatC === 'auto') {
+                        let matched = false;
+                        let mTypeL = gV('calc-machine-type-leaves') || "S4";
+                        let mTypeC = gV('calc-machine-type-cover') || "S4";
 
-                    else { let s = sheets.find(s => s.name === mFormatC); if (s) checkCoverSheet(s); }
+                        let sw = parseFloat(gV('calc-source-w').replace(',', '.')) || 1000;
+                        let sh = parseFloat(gV('calc-source-h').replace(',', '.')) || 700;
+                        let swc = parseFloat(gV('calc-source-cover-w').replace(',', '.')) || 1000;
+                        let shc = parseFloat(gV('calc-source-cover-h').replace(',', '.')) || 700;
+                        let sameSource = (sw === swc && sh === shc) || (sw === shc && sh === swc);
+
+                        if (mTypeL === mTypeC && sameSource && bestSheet) {
+                            checkCoverSheet(bestSheet);
+                            if (cBestSheet && cBestSheet.name === bestSheet.name) {
+                                matched = true;
+                            }
+                        }
+                        if (!matched) {
+                            cBestSheet = null;
+                            cBestLayout = null;
+                            cBestScore = -1;
+                            sheets.forEach(checkCoverSheet);
+                        }
+                    } else {
+                        let s = sheets.find(s => s.name === mFormatC);
+                        if (s) checkCoverSheet(s);
+                    }
 
 
 
@@ -4582,7 +4620,7 @@
 
                         const autoOptCover = document.getElementById('machine-format-cover') ? document.getElementById('machine-format-cover').options[0] : null;
                         if (autoOptCover) {
-                            autoOptCover.text = cBestSheet ? `Samodejno (Izbrano: ${cBestSheet.name})` : "Samodejno (B2 max)";
+                            autoOptCover.text = (mFormatC === 'auto' && cBestSheet) ? `Samodejno (Izbrano: ${cBestSheet.name})` : "Samodejno (B2 max)";
                         }
 
                         if (!bestSheet) setT('res-size', `${cDrawW} x ${cDrawH}`);
@@ -7217,9 +7255,9 @@
 
                     paperCover: document.getElementById('calc-cover-desc').value || '/',
 
-                    tiskLeaves: (document.getElementById('calc-color-front-leaves').value || '0') + "/" + (document.getElementById('calc-color-back-leaves').value || '0'),
+                    tiskLeaves: getTiskDescription('leaves'),
 
-                    tiskCover: (document.getElementById('calc-color-front-cover').value || '0') + "/" + (document.getElementById('calc-color-back-cover').value || '0'),
+                    tiskCover: getTiskDescription('cover'),
 
                     coverPages: document.getElementById('calc-cover-pages').value || '4',
 
@@ -10040,9 +10078,9 @@
 
 
 
-                    let tiskLeaves = (document.getElementById('calc-color-front-leaves').value || '0') + "/" + (document.getElementById('calc-color-back-leaves').value || '0');
+                    let tiskLeaves = getTiskDescription('leaves');
 
-                    let tiskCover = (document.getElementById('calc-color-front-cover').value || '0') + "/" + (document.getElementById('calc-color-back-cover').value || '0');
+                    let tiskCover = getTiskDescription('cover');
 
 
 
@@ -11177,9 +11215,16 @@
 
 
 
-                let sheetW = document.getElementById('res-size').innerText.split(' x ')[0] || '-';
-
-                let sheetH = document.getElementById('res-size').innerText.split(' x ')[1] || '-';
+                let resSizeText = document.getElementById('res-size')?.innerText || '';
+                let formatText = '';
+                if (resSizeText.includes('/')) {
+                    let parts = resSizeText.split('/');
+                    let pLeaves = parts[0].trim();
+                    let pCover = parts[1].trim();
+                    formatText = `Vložek: ${pLeaves} mm / Ovitek: ${pCover} mm`;
+                } else {
+                    formatText = resSizeText + ' mm';
+                }
 
 
 
@@ -11235,7 +11280,7 @@
 
                             <h2>Izpis postavitve tiskovnih pol</h2>
 
-                            <p><strong>Format tiskarske pole:</strong> ${sheetW} x ${sheetH} mm</p>
+                            <p><strong>Format tiskarske pole:</strong> ${formatText}</p>
 
                 `;
 
