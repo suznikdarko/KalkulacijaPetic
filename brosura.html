@@ -8538,7 +8538,7 @@
 
 
 
-            function saveCurrentProject(btn = null) {
+            function saveCurrentProject(btn = null, silent = false) {
 
                 try {
 
@@ -8550,11 +8550,11 @@
 
                     let name = gv('calc-project-name').trim() || "Brez imena";
 
-
+                    const projectId = currentLoadedProjectId ? currentLoadedProjectId : Date.now();
 
                     const data = {
 
-                        id: Date.now(),
+                        id: projectId,
 
                         name: name,
 
@@ -8790,13 +8790,21 @@
 
                     let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
 
+                    if (currentLoadedProjectId) {
+                        arhiv = arhiv.filter(p => p.id !== currentLoadedProjectId);
+                    }
+
                     arhiv.push(data);
 
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
 
+                    currentLoadedProjectId = projectId;
 
 
-                    document.getElementById('calc-project-name').value = "";
+
+                    if (!silent) {
+                        document.getElementById('calc-project-name').value = "";
+                    }
 
                     renderSavedProjects();
 
@@ -9111,6 +9119,11 @@
                 if (!proj || !proj.inputs) return;
 
                 const inp = proj.inputs;
+
+                g_editedQuoteHTML = proj.editedQuoteHTML || '';
+                g_editedQuoteATHTML = proj.editedQuoteATHTML || '';
+                g_editedWorkOrderHTML = proj.editedWorkOrderHTML || '';
+                currentLoadedProjectId = proj.id || null;
 
 
 
@@ -10472,6 +10485,12 @@
 
                         <button id="btn-move-text" onclick="if(typeof toggleMoveMode === 'function') toggleMoveMode(this)" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PREMAKNI</button>
 
+                        ${isDN ? `
+                        <button onclick="saveDNToDisk()" style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;" title="Shrani ta delovni nalog kot datoteko na računalnik">SHRANI DN NA DISK</button>
+                        ` : `
+                        <button onclick="saveQuoteToDisk()" style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;" title="Shrani to ponudbo kot datoteko na računalnik">SHRANI PONUDBO NA DISK</button>
+                        `}
+
                         <div style="display: flex; gap: 4px; align-items: center; background: #cbd5e1; padding: 3px; border-radius: 6px;">
 
                             <button onclick="document.execCommand('bold', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-weight: bold; cursor: pointer; color: #000; font-size: 14px;" title="Krepko (Bold)">B</button>
@@ -10661,6 +10680,36 @@
                                 });
 
                             }
+
+                            window.saveQuoteToDisk = function() {
+                                const htmlContent = "<!DOCTYPE html>\\n" + document.documentElement.outerHTML;
+                                const blob = new Blob([htmlContent], {type: "text/html;charset=utf-8"});
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                let fileName = document.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                                if (!fileName) fileName = "ponudba";
+                                a.download = fileName + ".html";
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                            };
+
+                            window.saveDNToDisk = function() {
+                                const htmlContent = "<!DOCTYPE html>\\n" + document.documentElement.outerHTML;
+                                const blob = new Blob([htmlContent], {type: "text/html;charset=utf-8"});
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                let fileName = document.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                                if (!fileName) fileName = "delovni_nalog";
+                                a.download = fileName + ".html";
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                            };
 
                         <\/script>
 
