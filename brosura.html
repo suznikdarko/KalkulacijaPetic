@@ -2382,8 +2382,8 @@
                         <label
                             style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0;">
 
-                            <input type="checkbox" id="calc-is-obrat-leaves" onchange="updateWasteAndPrice('leaves')"
-                                style="width: auto; margin: 0;">
+                            <input type="checkbox" id="calc-is-obrat-leaves"
+                                onchange="updateWasteAndPrice('leaves'); calculate()" style="width: auto; margin: 0;">
 
                             Tisk "na obrat" (OB)
 
@@ -2570,8 +2570,8 @@
                         <label
                             style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0;">
 
-                            <input type="checkbox" id="calc-is-obrat-cover" onchange="updateWasteAndPrice('cover')"
-                                style="width: auto; margin: 0;">
+                            <input type="checkbox" id="calc-is-obrat-cover"
+                                onchange="updateWasteAndPrice('cover'); calculate()" style="width: auto; margin: 0;">
 
                             Tisk "na obrat"
 
@@ -3924,6 +3924,15 @@
 
                     const profileCover = machineProfiles[mTypeCover];
 
+                    const cw = parseFloat(document.getElementById('calc-cover-w')?.value.replace(',', '.')) || 0;
+                    const ch = parseFloat(document.getElementById('calc-cover-h')?.value.replace(',', '.')) || 0;
+                    const cb = parseFloat(document.getElementById('calc-cover-bleed')?.value.replace(',', '.')) || 0;
+                    const cg = parseFloat(document.getElementById('calc-cover-gripper')?.value.replace(',', '.')) || 0;
+                    const cItemW = cw + (2 * cb);
+                    const cItemH = ch + (2 * cb);
+                    const fMode = document.getElementById('item-orientation')?.value || 'auto';
+                    const isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
+
 
 
                     for (let i = 0; i < optionsCover.length; i++) {
@@ -3946,7 +3955,17 @@
 
                             }
 
-                            const fits = fitsSource && fitsMachine;
+                            let fitsObrat = true;
+                            if (isObratC && cItemW > 0 && cItemH > 0) {
+                                let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fMode);
+                                let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fMode);
+                                let count1 = l1 ? l1.count : 0;
+                                let count2 = l2 ? l2.count : 0;
+                                let maxCount = Math.max(count1, count2);
+                                if (maxCount < 2) fitsObrat = false;
+                            }
+
+                            const fits = fitsSource && fitsMachine && fitsObrat;
 
                             optionsCover[i].disabled = !fits;
 
@@ -3999,6 +4018,7 @@
 
 
                 const mFormat = gV('machine-format');
+                const mFormatC = gV('machine-format-cover') || 'auto';
 
                 const fMode = gV('item-orientation');
 
@@ -4310,11 +4330,12 @@
 
                     setT('res-size-leaves-val', `${drawW}x${drawH}`);
 
-
+                    const autoOptLeaves = document.getElementById('machine-format') ? document.getElementById('machine-format').options[0] : null;
+                    if (autoOptLeaves) {
+                        autoOptLeaves.text = bestSheet ? `Samodejno (Izbrano: ${bestSheet.name})` : "Samodejno (B2 max)";
+                    }
 
                     drawCanvas('canvas-leaves', drawW, drawH, bestLayout, g, w, h, b, (targetCount > 0 && targetCount !== bestLayout.count), targetCount, '#3b82f6', false);
-
-
 
                     // --- VIZUALIZACIJA RAZREZA PAPIRJA ---
 
@@ -4325,6 +4346,11 @@
                     setT('res-source-yield-info', `Izkoristek: ${sourceYieldL} x`);
 
                 } else {
+
+                    const autoOptLeaves = document.getElementById('machine-format') ? document.getElementById('machine-format').options[0] : null;
+                    if (autoOptLeaves) {
+                        autoOptLeaves.text = "Samodejno (B2 max)";
+                    }
 
                     if (document.getElementById('stats')) document.getElementById('stats').style.display = 'none';
 
@@ -4380,23 +4406,26 @@
 
                 // --- OPTIMIZATION FOR COVER ---
 
-                const cw = parseFloat(gV('calc-cover-w'));
+                const cw = parseFloat(gV('calc-cover-w').replace(',', '.')) || 0;
 
-                const ch = parseFloat(gV('calc-cover-h'));
+                const ch = parseFloat(gV('calc-cover-h').replace(',', '.')) || 0;
 
-                const cb = parseFloat(gV('calc-cover-bleed')) || 0;
+                const cb = parseFloat(gV('calc-cover-bleed').replace(',', '.')) || 0;
 
-                const cg = parseFloat(gV('calc-cover-gripper')) || 0;
+                const cg = parseFloat(gV('calc-cover-gripper').replace(',', '.')) || 0;
 
                 const targetCountCover = Math.floor((parseInt(gV('items-per-sheet-cover')) || 0) / 4);
 
 
 
-                const swc = parseFloat(gV('calc-source-cover-w')) || 1000;
+                const swc = parseFloat(gV('calc-source-cover-w').replace(',', '.')) || 1000;
 
-                const shc = parseFloat(gV('calc-source-cover-h')) || 700;
+                const shc = parseFloat(gV('calc-source-cover-h').replace(',', '.')) || 700;
 
 
+
+                let cBestSheet = null;
+                let cBestLayout = null;
 
                 if (cw && ch && cw > 0 && ch > 0) {
 
@@ -4404,9 +4433,9 @@
 
                     const cItemH = ch + (2 * cb);
 
-                    let cBestSheet = null;
+                    cBestSheet = null;
 
-                    let cBestLayout = null;
+                    cBestLayout = null;
 
                     let cBestScore = -1;
 
@@ -4447,6 +4476,9 @@
 
 
                         if (bL) {
+
+                            const isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
+                            if (isObratC && bL.count < 2) return;
 
                             const y1 = Math.floor(swc / sheet.w) * Math.floor(shc / sheet.h);
 
@@ -4492,9 +4524,9 @@
 
 
 
-                    if (mFormat === 'auto') sheets.forEach(checkCoverSheet);
+                    if (mFormatC === 'auto') sheets.forEach(checkCoverSheet);
 
-                    else { let s = sheets.find(s => s.name === mFormat); if (s) checkCoverSheet(s); }
+                    else { let s = sheets.find(s => s.name === mFormatC); if (s) checkCoverSheet(s); }
 
 
 
@@ -4548,6 +4580,11 @@
 
                         setT('res-size-cover-val', `${cDrawW}x${cDrawH}`);
 
+                        const autoOptCover = document.getElementById('machine-format-cover') ? document.getElementById('machine-format-cover').options[0] : null;
+                        if (autoOptCover) {
+                            autoOptCover.text = cBestSheet ? `Samodejno (Izbrano: ${cBestSheet.name})` : "Samodejno (B2 max)";
+                        }
+
                         if (!bestSheet) setT('res-size', `${cDrawW} x ${cDrawH}`);
 
 
@@ -4566,6 +4603,11 @@
 
                 } else {
 
+                    const autoOptCover = document.getElementById('machine-format-cover') ? document.getElementById('machine-format-cover').options[0] : null;
+                    if (autoOptCover) {
+                        autoOptCover.text = "Samodejno (B2 max)";
+                    }
+
                     document.getElementById('empty-state-cover').style.display = 'flex';
 
                     document.getElementById('canvas-cover').style.display = 'none';
@@ -4576,7 +4618,21 @@
 
                 }
 
-
+                // Posodobi skupni format pole in dimenzijo v spodnjih rezultatih (stats)
+                if (bestSheet && cBestSheet) {
+                    setT('res-sheet', `${bestSheet.name} (V) / ${cBestSheet.name} (O)`);
+                    let cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
+                    let cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
+                    setT('res-size', `${drawW}x${drawH} / ${cDrawW}x${cDrawH}`);
+                } else if (bestSheet) {
+                    setT('res-sheet', bestSheet.name);
+                    setT('res-size', `${drawW} x ${drawH}`);
+                } else if (cBestSheet) {
+                    setT('res-sheet', cBestSheet.name);
+                    let cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
+                    let cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
+                    setT('res-size', `${cDrawW} x ${cDrawH}`);
+                }
 
                 setTimeout(() => {
 
@@ -5202,12 +5258,10 @@
 
                 // Samodejno nastavi format na 'auto', da sistem sam poišče najboljšo polo ob menjavi stroja
 
-                const mFormatSelect = document.getElementById('machine-format');
-
+                const formatId = comp === 'leaves' ? 'machine-format' : 'machine-format-cover';
+                const mFormatSelect = document.getElementById(formatId);
                 if (mFormatSelect) {
-
                     mFormatSelect.value = 'auto';
-
                 }
 
 
@@ -7089,26 +7143,23 @@
 
 
                 let sizeText = document.getElementById('res-size').innerText;
-
                 let sizeStr = sizeText.split('x');
-
                 let drawW = 0, drawH = 0;
-
                 if (sizeStr.length === 2) {
-
                     drawW = parseFloat(sizeStr[0]);
-
                     drawH = parseFloat(sizeStr[1]);
-
                 }
 
+                let cDrawW = 0, cDrawH = 0;
+                let cSizeEl = document.getElementById('res-size-cover-val');
+                let cSizeText = cSizeEl ? cSizeEl.innerText : '';
+                let cSizeStr = cSizeText.split('x');
+                if (cSizeStr.length === 2) {
+                    cDrawW = parseFloat(cSizeStr[0]);
+                    cDrawH = parseFloat(cSizeStr[1]);
+                }
 
-
-                // calculatePrice v blok.html trenutno še vedno piše v DOM, 
-
-                // vendar smo ga popravili, da vrne objekt.
-
-                return calculatePrice(sheetsNeededL, sheetsNeededC, q, drawW, drawH);
+                return calculatePrice(sheetsNeededL, sheetsNeededC, q, drawW, drawH, cDrawW, cDrawH);
 
             }
 
@@ -8704,6 +8755,8 @@
                             pSupplyH: gv('calc-paper-supply-h'),
 
                             pWaste: gv('calc-paper-waste-leaves'),
+                            givenSheetsL: gv('calc-given-sheets-leaves'),
+                            givenSheetsC: gv('calc-given-sheets-cover'),
 
                             cbActive: gc('calc-cardboard-active'),
 
@@ -9223,8 +9276,9 @@
                 setV('calc-paper-weight', inp.pWeight);
 
                 setV('calc-paper-waste-leaves', inp.pWaste || inp.wasteL);
-
                 setV('calc-paper-waste-cover', inp.wasteC);
+                setV('calc-given-sheets-leaves', inp.givenSheetsL || '');
+                setV('calc-given-sheets-cover', inp.givenSheetsC || '');
 
                 if (typeof togglePaperRow === 'function') togglePaperRow();
 
@@ -9669,6 +9723,8 @@
                             pSupplyH: gv('calc-paper-supply-h'),
 
                             pWaste: gv('calc-paper-waste-leaves'),
+                            givenSheetsL: gv('calc-given-sheets-leaves'),
+                            givenSheetsC: gv('calc-given-sheets-cover'),
 
                             cbActive: gc('calc-cardboard-active'),
 
@@ -10265,34 +10321,13 @@
 
 
                     let dodatekLeavesHTML = '';
-
                     let dodatekCoverHTML = '';
-
-                    if (isDN) {
-
-                        let dodLeaves = document.getElementById('calc-given-sheets-leaves') ? document.getElementById('calc-given-sheets-leaves').value : '';
-
-                        let dodCover = document.getElementById('calc-given-sheets-cover') ? document.getElementById('calc-given-sheets-cover').value : '';
-
-                        if (dodLeaves) {
-
-                            dodatekLeavesHTML = `<tr><td style="font-weight: bold; color: #ef4444;">Dodatek tisk vložek:</td><td style="color: #ef4444; font-weight: bold;">${dodLeaves} pol</td></tr>`;
-
-                        }
-
-                        if (dodCover) {
-
-                            dodatekCoverHTML = `<tr><td style="font-weight: bold; color: #ef4444;">Dodatek tisk ovitek:</td><td style="color: #ef4444; font-weight: bold;">${dodCover} pol</td></tr>`;
-
-                        }
-
-                    }
 
                     let dnSpecsHTML = '';
                     if (isDN) {
                         dnSpecsHTML += `
                             <div class="row-divider" style="border-top: 1px dashed #000; margin: 10px 0;"></div>
-                            <div class="bold" style="font-size: 12px; margin-bottom: 5px; text-decoration: underline;">PODATKI O TISKU IN STROJU:</div>
+                            <div class="bold" style="font-size: 14px; margin-bottom: 5px; text-decoration: underline;">PODATKI O TISKU IN STROJU:</div>
                         `;
                         item.quantities.forEach(q => {
                             const d = q.details;
@@ -10394,8 +10429,8 @@
                                 let printMathC = `${netSheetsC.toLocaleString('sl-SI')} pol + ${totalWasteC.toLocaleString('sl-SI')} pol = ${totalSheetsC.toLocaleString('sl-SI')} tiskovnih pol`;
                                 coverHTML = `
                                     <div style="margin-top: 8px; border-top: 1px dashed #ccc; padding-top: 8px;">
-                                        <div class="bold" style="font-size: 11px; color: #f43f5e; margin-bottom: 4px;">OVITEK:</div>
-                                        <table style="width: 100%; font-size: 11px;">
+                                        <div class="bold" style="font-size: 13px; color: #f43f5e; margin-bottom: 4px;">OVITEK:</div>
+                                        <table style="width: 100%; font-size: 12px;">
                                             <tr>
                                                 <td style="width: 20%; font-weight: bold;"><strong>${d.coverPrint.mType || 'S4'}</strong> priprava:</td>
                                                 <td style="width: 50%; font-weight: bold;">priprava ovitka</td>
@@ -10415,13 +10450,13 @@
 
                             dnSpecsHTML += `
                                 <div style="margin-bottom: 12px; border: 1px solid #ccc; padding: 10px; border-radius: 8px; background: #fafafa; page-break-inside: avoid;">
-                                    <div class="bold" style="font-size: 12px; margin-bottom: 6px; border-bottom: 1px solid #eee; padding-bottom: 4px;">
+                                    <div class="bold" style="font-size: 13px; margin-bottom: 6px; border-bottom: 1px solid #eee; padding-bottom: 4px;">
                                         Naklada: ${q.qty.toLocaleString('sl-SI')} kos
                                     </div>
                                     
                                     <div>
-                                        <div class="bold" style="font-size: 11px; color: #3b82f6; margin-bottom: 4px;">VLOŽEK:</div>
-                                        <table style="width: 100%; font-size: 11px;">
+                                        <div class="bold" style="font-size: 13px; color: #3b82f6; margin-bottom: 4px;">VLOŽEK:</div>
+                                        <table style="width: 100%; font-size: 12px;">
                                             <tr>
                                                 <td style="width: 20%; font-weight: bold;"><strong>${d.leavesPrint.mType || 'S4'}</strong> priprava:</td>
                                                 <td style="width: 50%; font-weight: bold;">priprava vložka</td>
@@ -10440,8 +10475,12 @@
                                     ${coverHTML}
 
                                     <div class="row-divider" style="border-top: 1px dashed #000; margin: 10px 0;"></div>
-                                    <div class="bold" style="font-size: 11px; margin-bottom: 5px;">Poraba materiala:</div>
-                                    <table style="width: 100%; font-size: 11px;">
+                                    <div class="bold" style="font-size: 13px; color: #10b981; margin-bottom: 4px;">DODELAVA:</div>
+                                    <div style="font-size: 12px; margin-bottom: 10px;">${finText}</div>
+
+                                    <div class="row-divider" style="border-top: 1px dashed #000; margin: 10px 0;"></div>
+                                    <div class="bold" style="font-size: 13px; margin-bottom: 5px;">Poraba materiala:</div>
+                                    <table style="width: 100%; font-size: 12px;">
                                         <tr>
                                             <td style="width: 50%;">of. plošče (vložek):</td>
                                             <td style="text-align: right;" class="bold">${d.leavesPrint.platesNum || 0} kos</td>
@@ -10487,45 +10526,57 @@
                                     </td>
 
                                     <td style="width: 85%; vertical-align: top; padding-left: 10px;">
-
-                                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-
-                                            <tr><td style="width: 110px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td>${projName}</td></tr>
-
-                                            <tr><td colspan="2" style="font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; padding-top: 5px; color: #3b82f6;">${isAT ? 'BLÄTTER' : 'VLOŽEK'}</td></tr>
-
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatLeaves && item.formatLeaves !== 'x' ? item.formatLeaves + ' mm' : fText}</td></tr>
-
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatLeaves && item.closedFormatLeaves !== 'x' ? item.closedFormatLeaves + ' mm' : '/'}</td></tr>
-
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${eText}</td></tr>
-
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperLeaves || pText}</td></tr>
-
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskLeaves || printText}</td></tr>
-
-                                            ${dodatekLeavesHTML}
-
-                                            <tr><td colspan="2" style="font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; padding-top: 10px; color: #f43f5e;">${isAT ? 'UMSCHLAG' : 'OVITEK'}</td></tr>
-
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatCover && item.formatCover !== 'x' ? item.formatCover + ' mm' : '/'}</td></tr>
-
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatCover && item.closedFormatCover !== 'x' ? item.closedFormatCover + ' mm' : '/'}</td></tr>
-
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${item.coverPages || '4'} ${isAT ? 'Seiten' : 'strani'}</td></tr>
-
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperCover || cText}</td></tr>
-
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskCover || '/'}</td></tr>
-
-                                            ${dodatekCoverHTML}
-
-                                            <tr><td colspan="2" style="font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; padding-top: 10px; color: #10b981;">${isAT ? 'VERARBEITUNG' : 'DODELAVA'}</td></tr>
-
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Verarbeitung:' : 'Dodelava:'}</td><td>${finText}</td></tr>
-
-                                        </table>
-
+                                        ${isDN ? `
+                                            <div style="font-size: 12px; margin-bottom: 6px;">
+                                                <span style="font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</span> ${projName}
+                                            </div>
+                                            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                                                <tr>
+                                                    <td style="width: 48%; vertical-align: top; border-right: 1px dashed #ccc; padding-right: 15px;">
+                                                        <div style="font-weight: bold; font-size: 13px; border-bottom: 1px solid #ddd; padding-bottom: 3px; color: #3b82f6; margin-bottom: 5px;">${isAT ? 'BLÄTTER' : 'VLOŽEK'}</div>
+                                                        <table style="width: 100%; font-size: 12px;" cellpadding="0" cellspacing="2">
+                                                            <tr><td style="font-weight: bold; width: 100px;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatLeaves && item.formatLeaves !== 'x' ? item.formatLeaves + ' mm' : fText}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatLeaves && item.closedFormatLeaves !== 'x' ? item.closedFormatLeaves + ' mm' : '/'}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${eText}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperLeaves || pText}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskLeaves || printText}</td></tr>
+                                                            ${dodatekLeavesHTML}
+                                                        </table>
+                                                    </td>
+                                                    <td style="width: 48%; vertical-align: top; padding-left: 15px;">
+                                                        <div style="font-weight: bold; font-size: 13px; border-bottom: 1px solid #ddd; padding-bottom: 3px; color: #f43f5e; margin-bottom: 5px;">${isAT ? 'UMSCHLAG' : 'OVITEK'}</div>
+                                                        <table style="width: 100%; font-size: 12px;" cellpadding="0" cellspacing="2">
+                                                            <tr><td style="font-weight: bold; width: 100px;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatCover && item.formatCover !== 'x' ? item.formatCover + ' mm' : '/'}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatCover && item.closedFormatCover !== 'x' ? item.closedFormatCover + ' mm' : '/'}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${item.coverPages || '4'} ${isAT ? 'Seiten' : 'strani'}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperCover || cText}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskCover || '/'}</td></tr>
+                                                            ${dodatekCoverHTML}
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        ` : `
+                                            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                                                <tr><td style="width: 110px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td>${projName}</td></tr>
+                                                <tr><td colspan="2" style="font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; padding-top: 5px; color: #3b82f6;">${isAT ? 'BLÄTTER' : 'VLOŽEK'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatLeaves && item.formatLeaves !== 'x' ? item.formatLeaves + ' mm' : fText}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatLeaves && item.closedFormatLeaves !== 'x' ? item.closedFormatLeaves + ' mm' : '/'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${eText}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperLeaves || pText}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskLeaves || printText}</td></tr>
+                                                ${dodatekLeavesHTML}
+                                                <tr><td colspan="2" style="font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; padding-top: 10px; color: #f43f5e;">${isAT ? 'UMSCHLAG' : 'OVITEK'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatCover && item.formatCover !== 'x' ? item.formatCover + ' mm' : '/'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatCover && item.closedFormatCover !== 'x' ? item.closedFormatCover + ' mm' : '/'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${item.coverPages || '4'} ${isAT ? 'Seiten' : 'strani'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperCover || cText}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskCover || '/'}</td></tr>
+                                                ${dodatekCoverHTML}
+                                                <tr><td colspan="2" style="font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; padding-top: 10px; color: #10b981;">${isAT ? 'VERARBEITUNG' : 'DODELAVA'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Verarbeitung:' : 'Dodelava:'}</td><td>${finText}</td></tr>
+                                            </table>
+                                        `}
                                     </td>
 
                                 </tr>
