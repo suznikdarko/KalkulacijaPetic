@@ -4516,7 +4516,7 @@
 
                             } else {
 
-                                score = (sY * bL.count * 1000) + standardBonusNormal;
+                                score = (sY * bL.count * 100000) + (bL.count * 1000) + standardBonusNormal;
 
                             }
 
@@ -4538,30 +4538,8 @@
 
 
 
-                    if (mFormatC === 'auto') {
-                        let matched = false;
-                        let mTypeL = gV('calc-machine-type-leaves') || "S4";
-                        let mTypeC = gV('calc-machine-type-cover') || "S4";
-
-                        let sw = parseFloat(gV('calc-source-w').replace(',', '.')) || 1000;
-                        let sh = parseFloat(gV('calc-source-h').replace(',', '.')) || 700;
-                        let swc = parseFloat(gV('calc-source-cover-w').replace(',', '.')) || 1000;
-                        let shc = parseFloat(gV('calc-source-cover-h').replace(',', '.')) || 700;
-                        let sameSource = (sw === swc && sh === shc) || (sw === shc && sh === swc);
-
-                        if (mTypeL === mTypeC && sameSource && bestSheet) {
-                            checkCoverSheet(bestSheet);
-                            if (cBestSheet && cBestSheet.name === bestSheet.name) {
-                                matched = true;
-                            }
-                        }
-                        if (!matched) {
-                            cBestSheet = null;
-                            cBestLayout = null;
-                            cBestScore = -1;
-                            sheets.forEach(checkCoverSheet);
-                        }
-                    } else {
+                    if (mFormatC === 'auto') sheets.forEach(checkCoverSheet);
+                    else {
                         let s = sheets.find(s => s.name === mFormatC);
                         if (s) checkCoverSheet(s);
                     }
@@ -6084,7 +6062,7 @@
 
                         mPassesL = Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0);
 
-                        if (isObratL) mPassesL = Math.ceil(frontL / 4);
+                        if (isObratL) mPassesL = 2 * Math.ceil(frontL / 4);
 
 
 
@@ -6180,7 +6158,7 @@
 
                         mPassesC = Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0);
 
-                        if (isObratC) mPassesC = Math.ceil(frontC / 4);
+                        if (isObratC) mPassesC = 2 * Math.ceil(frontC / 4);
 
 
 
@@ -10404,6 +10382,7 @@
                             let mPassesL = d.leavesPrint.mPasses || 1;
                             let printHoursL = (totalSheetsL * mPassesL) / 6000;
                             let roundedPrintTimeL = Math.round(printHoursL * 4) / 4;
+                            if (roundedPrintTimeL < 0.25) roundedPrintTimeL = 0.25;
 
                             // Izračunaj čas priprave za vložek: za 4 barve 0.5h, za 4/4 0.75h, vsaka naslednja polo +0.5h, zaokroženo na 0.25h
                             let frontL = parseInt(document.getElementById('calc-color-front-leaves').value) || 0;
@@ -10424,11 +10403,19 @@
 
                             // Formatiranje izpisa matematičnega dela
                             let printMathL = '';
-                            if (numSheetsL > 1) {
-                                let brutoPerSheetL = netSheetsPerRunL + wastePerSheetL;
-                                printMathL = `${numSheetsL}x(${netSheetsPerRunL.toLocaleString('sl-SI')} pol + ${wastePerSheetL.toLocaleString('sl-SI')} pol = ${brutoPerSheetL.toLocaleString('sl-SI')} tiskovnih pol)`;
+                            if (isNaN(givenDodatekL)) {
+                                if (numSheetsL > 1) {
+                                    printMathL = `${numSheetsL}x(${netSheetsPerRunL.toLocaleString('sl-SI')} pol + &nbsp;______&nbsp; pol = &nbsp;______&nbsp; tiskovnih pol)`;
+                                } else {
+                                    printMathL = `${netSheetsL.toLocaleString('sl-SI')} pol + &nbsp;______&nbsp; pol = &nbsp;______&nbsp; tiskovnih pol`;
+                                }
                             } else {
-                                printMathL = `${netSheetsL.toLocaleString('sl-SI')} pol + ${totalWasteL.toLocaleString('sl-SI')} pol = ${totalSheetsL.toLocaleString('sl-SI')} tiskovnih pol`;
+                                if (numSheetsL > 1) {
+                                    let brutoPerSheetL = netSheetsPerRunL + wastePerSheetL;
+                                    printMathL = `${numSheetsL}x(${netSheetsPerRunL.toLocaleString('sl-SI')} pol + ${wastePerSheetL.toLocaleString('sl-SI')} pol = ${brutoPerSheetL.toLocaleString('sl-SI')} tiskovnih pol)`;
+                                } else {
+                                    printMathL = `${netSheetsL.toLocaleString('sl-SI')} pol + ${totalWasteL.toLocaleString('sl-SI')} pol = ${totalSheetsL.toLocaleString('sl-SI')} tiskovnih pol`;
+                                }
                             }
 
                             // Podrobnosti za ovitek
@@ -10448,12 +10435,19 @@
                                 let mPassesC = d.coverPrint.mPasses || 1;
                                 let printHoursC = (totalSheetsC * mPassesC) / 6000;
                                 let roundedPrintTimeC = Math.round(printHoursC * 4) / 4;
+                                if (roundedPrintTimeC < 0.25) roundedPrintTimeC = 0.25;
 
                                 totalParentSheetsC = Math.ceil(totalSheetsC / (d.paper.cover.yield || 1));
 
                                 // Izračunaj čas priprave za ovitek
                                 let frontC = parseInt(document.getElementById('calc-color-front-cover').value) || 0;
                                 let backC = parseInt(document.getElementById('calc-color-back-cover').value) || 0;
+                                let printMathC = '';
+                                if (isNaN(givenDodatekC)) {
+                                    printMathC = `${netSheetsC.toLocaleString('sl-SI')} pol + &nbsp;______&nbsp; pol = &nbsp;______&nbsp; tiskovnih pol`;
+                                } else {
+                                    printMathC = `${netSheetsC.toLocaleString('sl-SI')} pol + ${totalWasteC.toLocaleString('sl-SI')} pol = ${totalSheetsC.toLocaleString('sl-SI')} tiskovnih pol`;
+                                }
                                 let prepHoursC = 0;
                                 if (frontC + backC > 0) {
                                     if (frontC > 0 && backC > 0) {
@@ -10464,7 +10458,6 @@
                                 }
                                 let roundedPrepHoursC = Math.round(prepHoursC * 4) / 4;
 
-                                let printMathC = `${netSheetsC.toLocaleString('sl-SI')} pol + ${totalWasteC.toLocaleString('sl-SI')} pol = ${totalSheetsC.toLocaleString('sl-SI')} tiskovnih pol`;
                                 coverHTML = `
                                     <div style="margin-top: 8px; border-top: 1px dashed #ccc; padding-top: 8px;">
                                         <div class="bold" style="font-size: 13px; color: #f43f5e; margin-bottom: 4px;">OVITEK:</div>
