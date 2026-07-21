@@ -3549,6 +3549,118 @@
 
             }
 
+            function getFractionText(frac) {
+                if (frac <= 0) return "";
+                let rounded = Math.round(frac * 10000) / 10000;
+                const mapping = [
+                    { val: 0.5, txt: "1/2" },
+                    { val: 0.25, txt: "1/4" },
+                    { val: 0.75, txt: "3/4" },
+                    { val: 0.125, txt: "1/8" },
+                    { val: 0.375, txt: "3/8" },
+                    { val: 0.625, txt: "5/8" },
+                    { val: 0.875, txt: "7/8" },
+                    { val: 1/3, txt: "1/3" },
+                    { val: 2/3, txt: "2/3" },
+                    { val: 1/6, txt: "1/6" },
+                    { val: 5/6, txt: "5/6" },
+                    { val: 1/12, txt: "1/12" },
+                    { val: 1/16, txt: "1/16" }
+                ];
+                for (let item of mapping) {
+                    if (Math.abs(rounded - item.val) < 0.005) {
+                        return item.txt + " pole";
+                    }
+                }
+                for (let d = 2; d <= 32; d++) {
+                    let n = Math.round(rounded * d);
+                    if (Math.abs(rounded - (n / d)) < 0.005) {
+                        return n + "/" + d + " pole";
+                    }
+                }
+                return rounded.toFixed(2).replace('.', ',') + " pole";
+            }
+
+            function formatSheetsText(val) {
+                if (val === undefined || val === null || isNaN(val) || val <= 0) return "0 pol";
+                let wSheets = Math.floor(val);
+                let frac = val - wSheets;
+                frac = Math.round(frac * 10000) / 10000;
+                let wholeText = "";
+                if (wSheets > 0) {
+                    let wName = "celih pol";
+                    if (wSheets === 1) wName = "cela pola";
+                    else if (wSheets === 2) wName = "celi poli";
+                    else if (wSheets === 3 || wSheets === 4) wName = "cele pole";
+                    wholeText = wSheets + " " + wName;
+                }
+                let fracText = "";
+                if (frac > 0.001) {
+                    fracText = getFractionText(frac);
+                }
+                if (wholeText && fracText) {
+                    return wholeText + " + " + fracText;
+                } else if (wholeText) {
+                    return wholeText;
+                } else if (fracText) {
+                    return fracText;
+                }
+                return "0 pol";
+            }
+
+            function getSheetsBreakdownDN(leaves, pagesPerSheet) {
+                leaves = parseFloat(leaves) || 0;
+                pagesPerSheet = parseFloat(pagesPerSheet) || 0;
+                if (leaves <= 0 || pagesPerSheet <= 0) return "";
+                
+                let fullSheets = Math.floor(leaves / pagesPerSheet);
+                let remPages = leaves % pagesPerSheet;
+                
+                let parts = [];
+                if (fullSheets > 0) {
+                    let wText = "celih pol";
+                    if (fullSheets === 1) wText = "cela pola";
+                    else if (fullSheets === 2) wText = "celi poli";
+                    else if (fullSheets === 3 || fullSheets === 4) wText = "cele pole";
+                    parts.push(fullSheets + " " + wText);
+                }
+                
+                if (remPages > 0) {
+                    let halfCap = pagesPerSheet / 2;
+                    let quarterCap = pagesPerSheet / 4;
+                    
+                    let halfSheets = Math.floor(remPages / halfCap);
+                    let remAfterHalf = remPages % halfCap;
+                    
+                    if (halfSheets > 0) {
+                        let hText = "polovičnih pol";
+                        if (halfSheets === 1) hText = "polovična pola";
+                        else if (halfSheets === 2) hText = "polovični poli";
+                        else if (halfSheets === 3 || halfSheets === 4) hText = "polovične pole";
+                        parts.push(halfSheets + " " + hText);
+                    }
+                    
+                    if (remAfterHalf > 0 && quarterCap >= 1) {
+                        let qSheets = Math.floor(remAfterHalf / quarterCap);
+                        let remAfterQ = remAfterHalf % quarterCap;
+                        if (qSheets > 0) {
+                            let qText = "četrtinke";
+                            if (qSheets === 1) qText = "četrtinka";
+                            else if (qSheets === 2) qText = "četrtinki";
+                            parts.push(qSheets + " " + qText);
+                        }
+                        if (remAfterQ > 0) {
+                            parts.push(remAfterQ + " str");
+                        }
+                    } else if (remAfterHalf > 0) {
+                        parts.push(remAfterHalf + " str");
+                    }
+                }
+                
+                if (parts.length === 0) return "";
+                return "(" + parts.join(" in ") + ")";
+            }
+
             function extractGrammage(sourceEl, targetId) {
 
                 const val = sourceEl.value;
@@ -4280,7 +4392,9 @@
 
                         let sheetsPerB = leavesPerBlock / pagesPerSheet;
 
-                        document.getElementById('sheets-per-brochure').innerText = Number.isInteger(sheetsPerB) ? sheetsPerB : sheetsPerB.toFixed(2);
+                        let sEl = document.getElementById('sheets-per-brochure');
+                        sEl.dataset.val = sheetsPerB;
+                        sEl.innerText = formatSheetsText(sheetsPerB);
 
 
 
@@ -4584,7 +4698,9 @@
 
                             let sheetsPerC = 1 / finalCountCover;
 
-                            document.getElementById('sheets-per-cover').innerText = Number.isInteger(sheetsPerC) ? sheetsPerC : sheetsPerC.toFixed(2);
+                            let cEl = document.getElementById('sheets-per-cover');
+                            cEl.dataset.val = sheetsPerC;
+                            cEl.innerText = formatSheetsText(sheetsPerC);
 
                         }
 
@@ -5368,9 +5484,9 @@
 
                             let s = document.getElementById('sheets-per-brochure');
 
-                            if (s && s.innerText) {
+                            if (s && (s.dataset.val || s.innerText)) {
 
-                                let val = parseFloat(s.innerText.replace(',', '.'));
+                                let val = parseFloat(s.dataset.val || s.innerText.replace(',', '.'));
 
                                 if (!isNaN(val) && val > 0) {
 
@@ -5702,9 +5818,9 @@
 
                     let sEl = document.getElementById('sheets-per-brochure');
 
-                    if (sEl && sEl.innerText) {
+                    if (sEl && (sEl.dataset.val || sEl.innerText)) {
 
-                        let val = parseFloat(sEl.innerText.replace(',', '.'));
+                        let val = parseFloat(sEl.dataset.val || sEl.innerText.replace(',', '.'));
 
                         if (!isNaN(val) && val > 0) {
 
@@ -6570,7 +6686,7 @@
                                 let fq = q.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                                 htmlQty += `<div style="${fs}">${fq}</div>`;
                                 htmlTotal += `<div style="${fs}">${formatPrice(res.totalPrice)}</div>`;
-                                htmlPerItem += `<div style="${fs}">${formatPrice(res.perItem, 3)}</div>`;
+                                htmlPerItem += `<div style="${fs}">${formatPrice(res.perItem, 4)}</div>`;
                                 html1000 += `<div style="${fs}">${formatPrice(res.perItem * 1000)}</div>`;
                             }
                         });
@@ -6582,7 +6698,7 @@
                     } else if (!window.isCalculatingMultipleQuantities) {
                         if (sQty) sQty.innerText = totalItemsForm.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                         if (sTotal) sTotal.innerText = formatPrice(totalPrice);
-                        if (sPerItem) sPerItem.innerText = formatPrice(perItemFinal, 3);
+                        if (sPerItem) sPerItem.innerText = formatPrice(perItemFinal, 4);
                         if (s1000) s1000.innerText = formatPrice(price1000);
                     }
 
@@ -8692,31 +8808,19 @@
 
                         customerCode: gv('calc-customer-code'),
 
-
-
-                        preparedBy: gv('calc-prepared-by'),
-
-                        materialCode: gv('calc-material-code'),
-
-                        editedQuoteHTML: g_editedQuoteHTML,
-
-                        editedQuoteATHTML: g_editedQuoteATHTML,
-
-                        editedWorkOrderHTML: g_editedWorkOrderHTML,
-
-
-
-                        leavesMaterial: gv('calc-leaves-material'),
-
-                        notes: gv('calc-notes'),
-
                         inputs: {
 
                             machine_format: gv('machine-format'),
 
+                            machine_format_cover: gv('machine-format-cover'),
+
                             item_w: gv('width'),
 
                             item_h: gv('height'),
+
+                            closedW: gv('closed-width'),
+
+                            closedH: gv('closed-height'),
 
                             quantity: gv('quantity'),
 
@@ -8726,7 +8830,11 @@
 
                             orientation: gv('item-orientation'),
 
+                            orientationCover: gv('item-orientation-cover'),
+
                             itemsPerSheet: gv('items-per-sheet'),
+
+                            itemsPerSheetCover: gv('items-per-sheet-cover'),
 
                             sourceW: gv('calc-source-w'),
 
@@ -8739,6 +8847,10 @@
                             coverW: gv('calc-cover-w'),
 
                             coverH: gv('calc-cover-h'),
+
+                            closedCoverW: gv('closed-calc-cover-w'),
+
+                            closedCoverH: gv('closed-calc-cover-h'),
 
                             coverBleed: gv('calc-cover-bleed'),
 
@@ -8771,7 +8883,9 @@
                             pSupplyH: gv('calc-paper-supply-h'),
 
                             pWaste: gv('calc-paper-waste-leaves'),
+
                             givenSheetsL: gv('calc-given-sheets-leaves'),
+
                             givenSheetsC: gv('calc-given-sheets-cover'),
 
                             cbActive: gc('calc-cardboard-active'),
@@ -8801,6 +8915,10 @@
                             backL: gv('calc-color-back-leaves'),
 
                             obratL: gc('calc-is-obrat-leaves'),
+
+                            washesL: gv('calc-color-washes-leaves'),
+
+                            washPriceL: gv('calc-wash-price-leaves'),
 
                             platesNumL: gv('calc-plates-num-leaves'),
 
@@ -8834,6 +8952,10 @@
 
                             obratC: gc('calc-is-obrat-cover'),
 
+                            washesC: gv('calc-color-washes-cover'),
+
+                            washPriceC: gv('calc-wash-price-cover'),
+
                             platesNumC: gv('calc-plates-num-cover'),
 
                             platesPriceC: gv('calc-plates-price-cover'),
@@ -8858,7 +8980,18 @@
 
                             minusPrice: gc('calc-minus-price'),
 
-                            finish: {
+                            dnNumber: gv('calc-dn-number'),
+
+                            dnOld: gv('calc-dn-old'),
+
+                            dnDeadline: gv('calc-dn-deadline'),
+
+                            dnUrgent: gc('calc-dn-urgent'),
+
+                            dnPackaging: gv('calc-dn-packaging')
+                        },
+
+                        finish: {
 
                                 cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), coverOnly: gc('f-cilinder-cover-only') },
 
@@ -8888,21 +9021,19 @@
 
                                 delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
 
+                            },
+
+                            results: {
+
+                                total: (document.getElementById('res-price-total') || {}).innerText || '',
+
+                                perItem: (document.getElementById('res-price-per-item') || {}).innerText || '',
+
+                                sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
+
                             }
 
-                        },
-
-                        results: {
-
-                            total: (document.getElementById('res-price-total') || {}).innerText || '',
-
-                            perItem: (document.getElementById('res-price-per-item') || {}).innerText || '',
-
-                            sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
-
-                        }
-
-                    };
+                        };
 
 
 
@@ -9243,54 +9374,66 @@
                 g_editedWorkOrderHTML = proj.editedWorkOrderHTML || '';
                 currentLoadedProjectId = proj.id || null;
 
-
-
                 setV('calc-customer', proj.customer);
-
                 setV('calc-cust-id', proj.custId);
-
                 setV('calc-quote-number', proj.quoteNum || proj.offerNumber);
-
                 setV('calc-customer-code', proj.customerCode);
-
                 setV('calc-cust-email', proj.custEmail);
-
                 setV('calc-cust-address', proj.custAddress);
-
                 setV('calc-delivery-address', proj.deliveryAddress);
-
                 setV('calc-prepared-by', proj.preparedBy);
-
                 setV('calc-leaves-material', proj.leavesMaterial);
-
                 setV('calc-material-code', proj.materialCode);
-
                 setV('calc-notes', proj.notes);
 
+                // DN fields
+                setV('calc-dn-number', proj.dnNumber || inp.dnNumber || '');
+                setV('calc-dn-old', proj.dnOld || inp.dnOld || '');
+                setV('calc-dn-deadline', proj.dnDeadline || inp.dnDeadline || '');
+                if (document.getElementById('calc-dn-urgent')) document.getElementById('calc-dn-urgent').checked = !!(proj.dnUrgent !== undefined ? proj.dnUrgent : inp.dnUrgent);
+                setV('calc-dn-packaging', proj.dnPackaging || inp.dnPackaging || '');
 
-
+                // Machine Formats
                 setV('machine-format', inp.machine_format);
+                setV('machine-format-cover', inp.machine_format_cover || inp.machine_format_C || '');
 
+                // Formats (Open and Closed)
                 setV('width', inp.item_w);
-
                 setV('height', inp.item_h);
-
+                setV('closed-width', inp.closedW !== undefined ? inp.closedW : (inp.closed_w || ''));
+                setV('closed-height', inp.closedH !== undefined ? inp.closedH : (inp.closed_h || ''));
                 setV('quantity', inp.quantity);
-
                 setV('bleed', inp.bleed);
 
+                // Color choices & washes
+                setV('calc-color-front-leaves', inp.frontL !== undefined ? inp.frontL : '');
+                setV('calc-color-back-leaves', inp.backL !== undefined ? inp.backL : '');
+                if (document.getElementById('calc-is-obrat-leaves')) document.getElementById('calc-is-obrat-leaves').checked = !!inp.obratL;
+                setV('calc-color-washes-leaves', inp.washesL !== undefined ? inp.washesL : '0');
+                setV('calc-wash-price-leaves', inp.washPriceL !== undefined ? inp.washPriceL : '25');
 
+                setV('calc-color-front-cover', inp.frontC !== undefined ? inp.frontC : '');
+                setV('calc-color-back-cover', inp.backC !== undefined ? inp.backC : '');
+                if (document.getElementById('calc-is-obrat-cover')) document.getElementById('calc-is-obrat-cover').checked = !!inp.obratC;
+                setV('calc-color-washes-cover', inp.washesC !== undefined ? inp.washesC : '0');
+                setV('calc-wash-price-cover', inp.washPriceC !== undefined ? inp.washPriceC : '25');
+
+                // Machine tech settings for leaves & cover
+                setV('calc-machine-type-leaves', inp.mTypeL);
+                setV('calc-machine-rate-leaves', inp.mRateL);
+                setV('calc-machine-speed-leaves', inp.mSpeedL);
+                setV('calc-machine-prep-time-leaves', inp.mPrepL);
+
+                setV('calc-machine-type-cover', inp.mTypeC);
+                setV('calc-machine-rate-cover', inp.mRateC);
+                setV('calc-machine-speed-cover', inp.mSpeedC);
+                setV('calc-machine-prep-time-cover', inp.mPrepC);
 
                 // Paper
-
                 setV('calc-paper-active', inp.pActive, true);
-
                 setV('calc-paper-price', inp.pPrice);
-
                 setV('calc-paper-unit', inp.pUnit);
-
                 setV('calc-paper-weight', inp.pWeight);
-
                 setV('calc-paper-waste-leaves', inp.pWaste || inp.wasteL);
                 setV('calc-paper-waste-cover', inp.wasteC);
                 setV('calc-given-sheets-leaves', inp.givenSheetsL || '');
@@ -9298,110 +9441,61 @@
 
                 if (typeof togglePaperRow === 'function') togglePaperRow();
 
-
-
-                setV('calc-plates-price-cover', inp.platesPriceC !== undefined ? inp.platesPriceC : 10.00);
-
-                setV('calc-prep-price-cover', inp.prepPriceC !== undefined ? inp.prepPriceC : 25.00);
-
-                setV('calc-change-price-cover', inp.changePriceC !== undefined ? inp.changePriceC : 10.00);
-
-                setV('calc-plates-num-cover', inp.platesNumC);
-
+                // Plates & prep prices
                 setV('calc-plates-active-leaves', inp.platesActiveL !== undefined ? inp.platesActiveL : true, true);
-
+                setV('calc-plates-num-leaves', inp.platesNumL);
                 setV('calc-plates-price-leaves', inp.platesPriceL !== undefined ? inp.platesPriceL : 10.00);
-
                 setV('calc-prep-price-leaves', inp.prepPriceL !== undefined ? inp.prepPriceL : 25.00);
-
                 setV('calc-change-price-leaves', inp.changePriceL !== undefined ? inp.changePriceL : 10.00);
-
                 setV('calc-mut-num-leaves', inp.mutNumL);
-
                 setV('calc-mut-plates-leaves', inp.mutPlatesL);
-
                 setV('calc-mut-change-price-leaves', inp.mutChangeL);
 
                 setV('calc-plates-active-cover', inp.platesActiveC !== undefined ? inp.platesActiveC : true, true);
-
+                setV('calc-plates-num-cover', inp.platesNumC);
+                setV('calc-plates-price-cover', inp.platesPriceC !== undefined ? inp.platesPriceC : 10.00);
+                setV('calc-prep-price-cover', inp.prepPriceC !== undefined ? inp.prepPriceC : 25.00);
+                setV('calc-change-price-cover', inp.changePriceC !== undefined ? inp.changePriceC : 10.00);
                 setV('calc-mut-num-cover', inp.mutNumC);
-
                 setV('calc-mut-plates-cover', inp.mutPlatesC);
-
                 setV('calc-mut-change-price-cover', inp.mutChangeC);
 
-                setV('calc-paper-waste-cover', inp.wasteC);
-
-
-
-                // Podkarton active checkbox was removed, section is always visible.
-
-
-
+                // Cardboard
                 setV('calc-cardboard-price', inp.cbPrice);
-
                 setV('calc-cardboard-unit', inp.cbUnit);
-
                 setV('calc-cardboard-weight', inp.cbWeight);
-
-
-
                 setV('calc-cb-supply-type', inp.cbSupplyType);
-
                 setV('calc-cb-supply-w', inp.cbSupplyW);
-
                 setV('calc-cb-supply-h', inp.cbSupplyH);
 
                 if (typeof toggleCbSupplyCustom === 'function') toggleCbSupplyCustom();
 
-                // Removed toggleCardboardRow call as section is always open.
-
                 setV('calc-commercial', inp.commercial);
-
                 setV('calc-margin', inp.margin);
+                if (document.getElementById('calc-minus-price')) document.getElementById('calc-minus-price').checked = !!inp.minusPrice;
 
-                if (document.getElementById('calc-minus-price')) document.getElementById('calc-minus-price').checked = inp.minusPrice || false;
-
-
-
-                // Load Header Extras
-
-                setV('calc-prepared-by', proj.preparedBy);
-
+                // Load Header Extras & Cover tech fields
                 setV('gripper', inp.gripper);
-
                 setV('item-orientation', inp.orientation);
-
+                setV('item-orientation-cover', inp.orientationCover || '');
                 setV('items-per-sheet', inp.itemsPerSheet);
-
+                setV('items-per-sheet-cover', inp.itemsPerSheetCover || '');
                 setV('calc-source-w', inp.sourceW);
-
                 setV('calc-source-h', inp.sourceH);
-
                 setV('calc-source-yield', inp.sourceYield);
-
                 setV('calc-leaves', inp.leaves);
 
-                // Cover tech fields
-
                 setV('calc-cover-w', inp.coverW);
-
                 setV('calc-cover-h', inp.coverH);
-
+                setV('closed-calc-cover-w', inp.closedCoverW !== undefined ? inp.closedCoverW : (inp.closed_cover_w || ''));
+                setV('closed-calc-cover-h', inp.closedCoverH !== undefined ? inp.closedCoverH : (inp.closed_cover_h || ''));
                 setV('calc-cover-bleed', inp.coverBleed);
-
                 setV('calc-cover-gripper', inp.coverGripper);
-
                 setV('calc-cover-qty', inp.coverQty);
-
                 setV('calc-cover-pages', inp.coverPages);
-
                 setV('calc-cover-desc', inp.coverDesc);
-
                 setV('calc-source-cover-w', inp.sourceCoverW);
-
                 setV('calc-source-cover-h', inp.sourceCoverH);
-
                 setV('calc-source-cover-yield', inp.sourceCoverYield);
 
 
@@ -9682,9 +9776,15 @@
 
                             machine_format: gv('machine-format'),
 
+                            machine_format_cover: gv('machine-format-cover'),
+
                             item_w: gv('width'),
 
                             item_h: gv('height'),
+
+                            closedW: gv('closed-width'),
+
+                            closedH: gv('closed-height'),
 
                             quantity: gv('quantity'),
 
@@ -9694,7 +9794,11 @@
 
                             orientation: gv('item-orientation'),
 
+                            orientationCover: gv('item-orientation-cover'),
+
                             itemsPerSheet: gv('items-per-sheet'),
+
+                            itemsPerSheetCover: gv('items-per-sheet-cover'),
 
                             sourceW: gv('calc-source-w'),
 
@@ -9707,6 +9811,10 @@
                             coverW: gv('calc-cover-w'),
 
                             coverH: gv('calc-cover-h'),
+
+                            closedCoverW: gv('closed-calc-cover-w'),
+
+                            closedCoverH: gv('closed-calc-cover-h'),
 
                             coverBleed: gv('calc-cover-bleed'),
 
@@ -9739,7 +9847,9 @@
                             pSupplyH: gv('calc-paper-supply-h'),
 
                             pWaste: gv('calc-paper-waste-leaves'),
+
                             givenSheetsL: gv('calc-given-sheets-leaves'),
+
                             givenSheetsC: gv('calc-given-sheets-cover'),
 
                             cbActive: gc('calc-cardboard-active'),
@@ -9770,11 +9880,23 @@
 
                             obratL: gc('calc-is-obrat-leaves'),
 
+                            washesL: gv('calc-color-washes-leaves'),
+
+                            washPriceL: gv('calc-wash-price-leaves'),
+
                             platesNumL: gv('calc-plates-num-leaves'),
 
                             platesPriceL: gv('calc-plates-price-leaves'),
 
                             changePriceL: gv('calc-change-price-leaves'),
+
+                            platesActiveL: gc('calc-plates-active-leaves'),
+
+                            mutNumL: gv('calc-mut-num-leaves'),
+
+                            mutPlatesL: gv('calc-mut-plates-leaves'),
+
+                            mutChangeL: gv('calc-mut-change-price-leaves'),
 
                             prepPriceL: gv('calc-prep-price-leaves'),
 
@@ -9794,19 +9916,46 @@
 
                             obratC: gc('calc-is-obrat-cover'),
 
+                            washesC: gv('calc-color-washes-cover'),
+
+                            washPriceC: gv('calc-wash-price-cover'),
+
                             platesNumC: gv('calc-plates-num-cover'),
 
                             platesPriceC: gv('calc-plates-price-cover'),
+
+                            changePriceC: gv('calc-change-price-cover'),
+
+                            platesActiveC: gc('calc-plates-active-cover'),
+
+                            mutNumC: gv('calc-mut-num-cover'),
+
+                            mutPlatesC: gv('calc-mut-plates-cover'),
+
+                            mutChangeC: gv('calc-mut-change-price-cover'),
 
                             prepPriceC: gv('calc-prep-price-cover'),
 
                             wasteC: gv('calc-paper-waste-cover'),
 
+                            commercial: gv('calc-commercial'),
+
                             margin: gv('calc-margin'),
 
                             minusPrice: gc('calc-minus-price'),
 
-                            finish: {
+                            dnNumber: gv('calc-dn-number'),
+
+                            dnOld: gv('calc-dn-old'),
+
+                            dnDeadline: gv('calc-dn-deadline'),
+
+                            dnUrgent: gc('calc-dn-urgent'),
+
+                            dnPackaging: gv('calc-dn-packaging')
+                        },
+
+                        finish: {
 
                                 cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), coverOnly: gc('f-cilinder-cover-only') },
 
@@ -9837,8 +9986,6 @@
                                 delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
 
                             }
-
-                        }
 
                     };
 
@@ -10258,39 +10405,25 @@
 
                     item.quantities.forEach(q => {
 
-                        if (isDN) {
+                        let pItem = (q.perItem !== undefined ? q.perItem : (q.pricePerUnit || 0));
+                        let pTotal = (q.total !== undefined ? q.total : (q.priceTotal || 0));
+                        let p1000 = pItem * 1000;
 
-                            priceRowsHTML += `
+                        priceRowsHTML += `
 
-                                <tr>
+                            <tr>
 
-                                    <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} kos</td>
+                                <td style="font-weight: bold; padding: 4px; text-align: left;">${formatQty(q.qty)} kos</td>
 
-                                    <td style="padding: 4px;">/</td>
+                                <td style="padding: 4px; text-align: center;">${formatPrice(pItem, 4)}</td>
 
-                                    <td style="font-weight: bold; text-align: right; padding: 4px;">/</td>
+                                <td style="padding: 4px; text-align: center;">${formatPrice(p1000, 2)}</td>
 
-                                </tr>
+                                <td style="font-weight: bold; text-align: right; padding: 4px;">${formatPrice(pTotal, 2)}</td>
 
-                            `;
+                            </tr>
 
-                        } else {
-
-                            priceRowsHTML += `
-
-                                <tr>
-
-                                    <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} kos</td>
-
-                                    <td style="padding: 4px;">${formatPrice((q.perItem !== undefined ? q.perItem : (q.pricePerUnit || 0)), 4)}</td>
-
-                                    <td style="font-weight: bold; text-align: right; padding: 4px;">${formatPrice((q.total !== undefined ? q.total : (q.priceTotal || 0)), 2)}</td>
-
-                                </tr>
-
-                            `;
-
-                        }
+                        `;
 
                     });
 
@@ -10307,6 +10440,26 @@
                     let eText = item.extentText || '/';
                     if (eText !== '/') {
                         eText = eText.replace('listov', isAT ? 'Seiten' : 'strani').replace('strani', isAT ? 'Seiten' : 'strani');
+                    }
+
+                    let eTextDN = eText;
+                    let cTextDN = `${item.coverPages || '4'} ${isAT ? 'Seiten' : 'strani'}`;
+                    if (isDN) {
+                        let leavesVal = parseFloat(document.getElementById('calc-leaves')?.value) || parseFloat(eText) || 0;
+                        let currentCountL = parseInt(document.getElementById('res-count-leaves')?.innerText) || 1;
+                        let pagesPerSheet = currentCountL * 4;
+                        let breakdownStr = getSheetsBreakdownDN(leavesVal, pagesPerSheet);
+                        if (breakdownStr) {
+                            eTextDN = `${eText} ${breakdownStr}`;
+                        }
+                        let finalCountCover = parseInt(document.getElementById('res-count-cover')?.innerText) || 0;
+                        if (finalCountCover > 0) {
+                            let sheetsPerC = 1 / finalCountCover;
+                            let cSheetsStr = formatSheetsText(sheetsPerC);
+                            if (cSheetsStr && cSheetsStr !== "0 pol") {
+                                cTextDN = `${item.coverPages || '4'} ${isAT ? 'Seiten' : 'strani'} (${cSheetsStr})`;
+                            }
+                        }
                     }
 
                     let pText = item.paperText || item.material || '/';
@@ -10568,7 +10721,7 @@
                                                         <table style="width: 100%; font-size: 12px;" cellpadding="0" cellspacing="2">
                                                             <tr><td style="font-weight: bold; width: 100px;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatLeaves && item.formatLeaves !== 'x' ? item.formatLeaves + ' mm' : fText}</td></tr>
                                                             <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatLeaves && item.closedFormatLeaves !== 'x' ? item.closedFormatLeaves + ' mm' : '/'}</td></tr>
-                                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${eText}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${isDN ? eTextDN : eText}</td></tr>
                                                             <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperLeaves || pText}</td></tr>
                                                             <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskLeaves || printText}</td></tr>
                                                             ${dodatekLeavesHTML}
@@ -10579,7 +10732,7 @@
                                                         <table style="width: 100%; font-size: 12px;" cellpadding="0" cellspacing="2">
                                                             <tr><td style="font-weight: bold; width: 100px;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatCover && item.formatCover !== 'x' ? item.formatCover + ' mm' : '/'}</td></tr>
                                                             <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatCover && item.closedFormatCover !== 'x' ? item.closedFormatCover + ' mm' : '/'}</td></tr>
-                                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${item.coverPages || '4'} ${isAT ? 'Seiten' : 'strani'}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${isDN ? cTextDN : ((item.coverPages || '4') + ' ' + (isAT ? 'Seiten' : 'strani'))}</td></tr>
                                                             <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperCover || cText}</td></tr>
                                                             <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskCover || '/'}</td></tr>
                                                             ${dodatekCoverHTML}
@@ -10593,14 +10746,14 @@
                                                 <tr><td colspan="2" style="font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; padding-top: 5px; color: #3b82f6;">${isAT ? 'BLÄTTER' : 'VLOŽEK'}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatLeaves && item.formatLeaves !== 'x' ? item.formatLeaves + ' mm' : fText}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatLeaves && item.closedFormatLeaves !== 'x' ? item.closedFormatLeaves + ' mm' : '/'}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${eText}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${isDN ? eTextDN : eText}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperLeaves || pText}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskLeaves || printText}</td></tr>
                                                 ${dodatekLeavesHTML}
                                                 <tr><td colspan="2" style="font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; padding-top: 10px; color: #f43f5e;">${isAT ? 'UMSCHLAG' : 'OVITEK'}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatCover && item.formatCover !== 'x' ? item.formatCover + ' mm' : '/'}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatCover && item.closedFormatCover !== 'x' ? item.closedFormatCover + ' mm' : '/'}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${item.coverPages || '4'} ${isAT ? 'Seiten' : 'strani'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${isDN ? cTextDN : ((item.coverPages || '4') + ' ' + (isAT ? 'Seiten' : 'strani'))}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperCover || cText}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskCover || '/'}</td></tr>
                                                 ${dodatekCoverHTML}
@@ -10618,7 +10771,7 @@
 
                             <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000;">
 
-                                <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">${isAT ? 'Auflage' : 'Naklada'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">${isAT ? 'Preis/ Stk.' : 'Cena/Kom.'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">${isAT ? 'Gesamt Preis:' : 'Cena skupno:'}</th></tr>
+                                <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: left;">${isAT ? 'Auflage' : 'Naklada'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: center;">${isAT ? 'Preis/Stk.' : 'Cena/Kom.'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: center;">${isAT ? 'Preis/1.000 Stk.' : 'Cena za 1.000 kos'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">${isAT ? 'Gesamt Preis:' : 'Cena skupno:'}</th></tr>
 
                                 ${priceRowsHTML}
 
@@ -11327,9 +11480,21 @@
 
 
 
+                let qtyVal = document.getElementById('quantity')?.value || '0';
+                let perItemText = document.getElementById('sticky-price-per-item')?.innerText || '0,000 €';
+                let price1000Text = document.getElementById('sticky-price-1000')?.innerText || '0,00 €';
+                let priceTotalText = document.getElementById('sticky-price-total')?.innerText || '0,00 €';
+
                 html += `
 
-                            <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; background: #3b82f6; color: white; border: none; border-radius: 5px;">Natisni</button>
+                            <div style="margin-top: 30px; padding: 12px; border-top: 2px solid #3b82f6; font-size: 13px; text-align: center; background: #f8fafc; border-radius: 6px;">
+                                <strong>Naklada:</strong> ${qtyVal} kos &nbsp;|&nbsp;
+                                <strong>Cena/kom:</strong> ${perItemText} &nbsp;|&nbsp;
+                                <strong>Cena za 1000 kos:</strong> ${price1000Text} &nbsp;|&nbsp;
+                                <strong>Skupaj (brez DDV):</strong> ${priceTotalText}
+                            </div>
+
+                            <button onclick="window.print()" style="margin-top: 15px; padding: 10px 20px; font-size: 16px; cursor: pointer; background: #3b82f6; color: white; border: none; border-radius: 5px;">Natisni</button>
 
                             <script>
 
