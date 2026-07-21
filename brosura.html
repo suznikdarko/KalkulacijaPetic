@@ -2383,7 +2383,7 @@
                             style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0;">
 
                             <input type="checkbox" id="calc-is-obrat-leaves"
-                                onchange="updateWasteAndPrice('leaves'); calculate()" style="width: auto; margin: 0;">
+                                onchange="document.getElementById('items-per-sheet').value=''; document.getElementById('machine-format').value='auto'; updateWasteAndPrice('leaves'); calculate()" style="width: auto; margin: 0;">
 
                             Tisk "na obrat" (OB)
 
@@ -2571,7 +2571,7 @@
                             style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0;">
 
                             <input type="checkbox" id="calc-is-obrat-cover"
-                                onchange="updateWasteAndPrice('cover'); calculate()" style="width: auto; margin: 0;">
+                                onchange="document.getElementById('items-per-sheet-cover').value=''; document.getElementById('machine-format-cover').value='auto'; updateWasteAndPrice('cover'); calculate()" style="width: auto; margin: 0;">
 
                             Tisk "na obrat"
 
@@ -3991,7 +3991,14 @@
 
                     const profile = machineProfiles[mType];
 
-
+                    const w = parseFloat(document.getElementById('width')?.value.replace(',', '.')) || 0;
+                    const h = parseFloat(document.getElementById('height')?.value.replace(',', '.')) || 0;
+                    const b = parseFloat(document.getElementById('bleed')?.value.replace(',', '.')) || 0;
+                    const g = parseFloat(document.getElementById('gripper')?.value.replace(',', '.')) || 0;
+                    const itemW = w + (2 * b);
+                    const itemH = h + (2 * b);
+                    const fMode = document.getElementById('item-orientation')?.value || 'auto';
+                    const isObratL = document.getElementById('calc-is-obrat-leaves')?.checked || false;
 
                     for (let i = 0; i < options.length; i++) {
 
@@ -4013,7 +4020,16 @@
 
                             }
 
-                            const fits = fitsSource && fitsMachine;
+                            let fitsObratL = true;
+                            if (isObratL && itemW > 0 && itemH > 0) {
+                                let l1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode);
+                                let l2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode);
+                                let maxCount = Math.max(l1 ? l1.count : 0, l2 ? l2.count : 0);
+                                let evenCount = Math.floor(maxCount / 2) * 2;
+                                if (evenCount < 2) fitsObratL = false;
+                            }
+
+                            const fits = fitsSource && fitsMachine && fitsObratL;
 
                             options[i].disabled = !fits;
 
@@ -4087,7 +4103,8 @@
                                 let count1 = l1 ? l1.count : 0;
                                 let count2 = l2 ? l2.count : 0;
                                 let maxCount = Math.max(count1, count2);
-                                if (maxCount < 2) fitsObrat = false;
+                                let evenCount = Math.floor(maxCount / 2) * 2;
+                                if (evenCount < 2) fitsObrat = false;
                             }
 
                             const fits = fitsSource && fitsMachine && fitsObrat;
@@ -4251,6 +4268,13 @@
 
 
                         if (bestForThisSheet) {
+
+                            const isObratL = document.getElementById('calc-is-obrat-leaves')?.checked || false;
+                            if (isObratL) {
+                                let evenCount = Math.floor(bestForThisSheet.count / 2) * 2;
+                                if (evenCount < 2) return;
+                                bestForThisSheet = { ...bestForThisSheet, count: evenCount };
+                            }
 
                             const y1 = Math.floor(sw / sheet.w) * Math.floor(sh / sheet.h);
 
@@ -4606,7 +4630,11 @@
                         if (bL) {
 
                             const isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
-                            if (isObratC && bL.count < 2) return;
+                            if (isObratC) {
+                                let evenCount = Math.floor(bL.count / 2) * 2;
+                                if (evenCount < 2) return;
+                                bL = { ...bL, count: evenCount };
+                            }
 
                             const y1 = Math.floor(swc / sheet.w) * Math.floor(shc / sheet.h);
 
