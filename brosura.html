@@ -3384,6 +3384,12 @@
 
                                 </div>
 
+                                <div style="grid-column: span 3; font-size: 0.85rem; color: #34d399; font-weight: bold; margin-top: 4px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 4px;">
+
+                                    Cena za komad: <span id="comm-price-per-item">0,00 €</span>
+
+                                </div>
+
                             </div>
 
                         </div>
@@ -6676,6 +6682,10 @@
 
                     let perItemFinal = totalItemsForm > 0 ? (totalPrice / totalItemsForm) : 0;
 
+                    if (document.getElementById('comm-price-per-item')) {
+                        document.getElementById('comm-price-per-item').innerText = formatPrice(perItemFinal, 4);
+                    }
+
                     let price1000 = perItemFinal * 1000;
 
 
@@ -6762,6 +6772,10 @@
 
                                 sourceH: pSupplyH,
 
+                                sheetW: drawW || 0,
+
+                                sheetH: drawH || 0,
+
                                 yield: pYield,
 
                                 kg: (pUnit === "ton" || pUnit === "kg") ? (pParentSheetsNeeded * ((pSupplyW / 1000) * (pSupplyH / 1000)) * (pWeight / 1000)) : 0
@@ -6779,6 +6793,10 @@
                                 sourceW: cbSupplyW,
 
                                 sourceH: cbSupplyH,
+
+                                sheetW: drawWC || 0,
+
+                                sheetH: drawHC || 0,
 
                                 yield: cbYield,
 
@@ -9027,6 +9045,8 @@
 
                                 razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
 
+                                precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
+
                                 znasanje: { active: gc('f-znasanje-active'), prep: gv('f-znasanje-prep'), per1000: gv('f-znasanje-per1000') },
 
                                 brosiranje: { active: gc('f-brosiranje-active'), prep: gv('f-brosiranje-prep'), kos: gv('f-brosiranje-kos') },
@@ -9043,7 +9063,7 @@
 
                                 uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
 
-                                lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
+                                lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000') },
 
                                 delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
 
@@ -9534,6 +9554,12 @@
 
                     const f = inp.finish;
 
+                    // First reset all finishing checkboxes
+                    ['razrez-format', 'precut', 'cilinder', 'zgibanje', 'tool', 'znasanje', 'sivanje', 'lepljenje', 'spiraljenje', 'brosiranje', 'lam', 'uv', 'extra', 'delivery', 'del-fixed'].forEach(t => {
+                        setV('f-' + t + '-active', false, true);
+                        if (typeof toggleFinishRow === 'function') toggleFinishRow(t);
+                    });
+
                     if (f.cilinder) {
 
                         setV('f-cilinder-active', f.cilinder.active, true);
@@ -9560,8 +9586,6 @@
 
                     }
 
-
-
                     if (f.razrezFormat) {
 
                         setV('f-razrez-format-active', f.razrezFormat.active, true);
@@ -9571,6 +9595,30 @@
                         setV('f-razrez-format-rate', f.razrezFormat.rate);
 
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('razrez-format');
+
+                    }
+
+                    if (f.precut) {
+
+                        setV('f-precut-active', f.precut.active, true);
+
+                        setV('f-precut-prep', f.precut.prep);
+
+                        setV('f-precut-per1000', f.precut.per1000);
+
+                        if (typeof toggleFinishRow === 'function') toggleFinishRow('precut');
+
+                    }
+
+                    if (f.znasanje) {
+
+                        setV('f-znasanje-active', f.znasanje.active, true);
+
+                        setV('f-znasanje-prep', f.znasanje.prep);
+
+                        setV('f-znasanje-per1000', f.znasanje.per1000);
+
+                        if (typeof toggleFinishRow === 'function') toggleFinishRow('znasanje');
 
                     }
 
@@ -9595,6 +9643,18 @@
                         setV('f-lepljenje-per1000', f.lepljenje.per1000);
 
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('lepljenje');
+
+                    }
+
+                    if (f.spiraljenje) {
+
+                        setV('f-spiraljenje-active', f.spiraljenje.active, true);
+
+                        setV('f-spiraljenje-prep', f.spiraljenje.prep);
+
+                        setV('f-spiraljenje-kos', f.spiraljenje.kos);
+
+                        if (typeof toggleFinishRow === 'function') toggleFinishRow('spiraljenje');
 
                     }
 
@@ -9632,18 +9692,6 @@
 
                     }
 
-                    if (f.precut) {
-
-                        if (document.getElementById('f-precut-active')) document.getElementById('f-precut-active').checked = f.precut.active;
-
-                        if (document.getElementById('f-precut-prep')) document.getElementById('f-precut-prep').value = f.precut.prep || 5.00;
-
-                        if (document.getElementById('f-precut-per1000')) document.getElementById('f-precut-per1000').value = f.precut.per1000 || 3.60;
-
-                        toggleFinishRow('precut');
-
-                    }
-
                     if (f.uv) {
 
                         setV('f-uv-active', f.uv.active, true);
@@ -9665,8 +9713,6 @@
                         setV('f-lam-sides', f.lam.sides);
 
                         setV('f-lam-per1000', f.lam.per1000);
-
-                        setV('f-lam-prep', f.lam.prep);
 
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('lam');
 
@@ -9991,6 +10037,8 @@
 
                                 razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
 
+                                precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
+
                                 znasanje: { active: gc('f-znasanje-active'), prep: gv('f-znasanje-prep'), per1000: gv('f-znasanje-per1000') },
 
                                 brosiranje: { active: gc('f-brosiranje-active'), prep: gv('f-brosiranje-prep'), kos: gv('f-brosiranje-kos') },
@@ -10007,7 +10055,7 @@
 
                                 uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
 
-                                lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
+                                lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000') },
 
                                 delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
 
@@ -10602,6 +10650,7 @@
                             // Podrobnosti za ovitek
                             let coverHTML = '';
                             let totalParentSheetsC = 0;
+                            let totalSheetsC = 0;
                             if (d.coverPrint && d.coverPrint.active) {
                                 // Neto pole za ovitek
                                 let netSheetsC = d.coverPrint.sheetsNeeded !== undefined ? d.coverPrint.sheetsNeeded : (d.paper.cover.sheets - (d.coverPrint.waste || 0));
@@ -10610,7 +10659,7 @@
                                 let givenElC = document.getElementById('calc-given-sheets-cover');
                                 let givenDodatekC = givenElC ? parseInt(givenElC.value) : NaN;
                                 let totalWasteC = !isNaN(givenDodatekC) && givenDodatekC >= 0 ? givenDodatekC : (d.coverPrint.waste || 0);
-                                let totalSheetsC = netSheetsC + totalWasteC;
+                                totalSheetsC = netSheetsC + totalWasteC;
 
                                 // Preračunaj čas tiska za ovitek na podlagi hitrosti 6000 pol/h - zaokroženo na 0.25h
                                 let mPassesC = d.coverPrint.mPasses || 1;
@@ -10639,14 +10688,23 @@
                                 }
                                 let roundedPrepHoursC = Math.round(prepHoursC * 4) / 4;
 
+                                let srcW_C = parseFloat(d.paper.cover.sourceW) || 0;
+                                let srcH_C = parseFloat(d.paper.cover.sourceH) || 0;
+                                let grainCoverShort = (srcW_C > 0 && srcH_C > 0) ? (srcW_C < srcH_C ? 'SB' : 'BB') : 'SB';
+
+                                let sW_C = d.paper.cover.sheetW || (document.getElementById('res-size-cover-val') ? parseInt(document.getElementById('res-size-cover-val').innerText.split('x')[0]) : 0);
+                                let sH_C = d.paper.cover.sheetH || (document.getElementById('res-size-cover-val') ? parseInt(document.getElementById('res-size-cover-val').innerText.split('x')[1]) : 0);
+                                let sheetFormatStrC = (sW_C > 0 && sH_C > 0) ? `${sW_C} x ${sH_C}` : '';
+                                let cutInfoC = `<b>${totalParentSheetsC.toLocaleString('sl-SI')} pol</b> ${d.paper.cover.sourceW} x ${d.paper.cover.sourceH} ${grainCoverShort}${sheetFormatStrC ? ' &nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp; ' + sheetFormatStrC + ' mm' : ''} (${d.paper.cover.yield || 1} iz pole)`;
+
                                 coverHTML = `
                                     <div style="margin-top: 8px; border-top: 1px dashed #ccc; padding-top: 8px;">
-                                        <div class="bold" style="font-size: 13px; color: #f43f5e; margin-bottom: 4px;">OVITEK:</div>
+                                        <div class="bold" style="font-size: 13px; color: #f43f5e; margin-bottom: 4px; border-bottom: 1px solid #f43f5e; padding-bottom: 2px;">OVITEK (${d.coverPrint.mType || 'S4'}) &nbsp;—&nbsp; ${cutInfoC}:</div>
                                         <table style="width: 100%; font-size: 12px;">
                                             <tr>
                                                 <td style="width: 20%; font-weight: bold;"><strong>${d.coverPrint.mType || 'S4'}</strong> priprava:</td>
                                                 <td style="width: 50%; font-weight: bold;">priprava ovitka</td>
-                                                <td style="width: 30%; text-align: right; font-weight: bold;">${(roundedPrepHoursC * 60).toFixed(0)} min / ${roundedPrepHoursC.toFixed(2)} h</td>
+                                                <td style="width: 30%; text-align: right; font-weight: bold;">priprava: ${roundedPrepHoursC.toFixed(2)} h</td>
                                             </tr>
                                             <tr>
                                                 <td>Tisk:</td>
@@ -10659,20 +10717,28 @@
                             }
 
                             let totalParentSheetsL = Math.ceil(totalSheetsL / (d.paper.leaves.yield || 1));
+                            let srcW_L = parseFloat(d.paper.leaves.sourceW) || 0;
+                            let srcH_L = parseFloat(d.paper.leaves.sourceH) || 0;
+                            let grainLeavesShort = (srcW_L > 0 && srcH_L > 0) ? (srcW_L < srcH_L ? 'SB' : 'BB') : 'SB';
+
+                            let sW_L = d.paper.leaves.sheetW || (document.getElementById('res-size-leaves-val') ? parseInt(document.getElementById('res-size-leaves-val').innerText.split('x')[0]) : 0);
+                            let sH_L = d.paper.leaves.sheetH || (document.getElementById('res-size-leaves-val') ? parseInt(document.getElementById('res-size-leaves-val').innerText.split('x')[1]) : 0);
+                            let sheetFormatStrL = (sW_L > 0 && sH_L > 0) ? `${sW_L} x ${sH_L}` : '';
+                            let cutInfoL = `<b>${totalParentSheetsL.toLocaleString('sl-SI')} pol</b> ${d.paper.leaves.sourceW} x ${d.paper.leaves.sourceH} ${grainLeavesShort}${sheetFormatStrL ? ' &nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp; ' + sheetFormatStrL + ' mm' : ''} (${d.paper.leaves.yield || 1} iz pole)`;
 
                             dnSpecsHTML += `
-                                <div style="margin-bottom: 12px; border: 1px solid #ccc; padding: 10px; border-radius: 8px; background: #fafafa; page-break-inside: avoid;">
-                                    <div class="bold" style="font-size: 13px; margin-bottom: 6px; border-bottom: 1px solid #eee; padding-bottom: 4px;">
+                                <div style="margin-bottom: 14px; border: 1px solid #ccc; padding: 12px; border-radius: 8px; background: #fafafa; page-break-inside: avoid;">
+                                    <div class="bold" style="font-size: 20px; font-weight: bold; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 6px; color: #000;">
                                         Naklada: ${q.qty.toLocaleString('sl-SI')} kos
                                     </div>
                                     
                                     <div>
-                                        <div class="bold" style="font-size: 13px; color: #3b82f6; margin-bottom: 4px;">VLOŽEK:</div>
-                                        <table style="width: 100%; font-size: 12px;">
+                                        <div class="bold" style="font-size: 15px; color: #3b82f6; margin-bottom: 6px; border-bottom: 1px solid #3b82f6; padding-bottom: 3px;">VLOŽEK (${d.leavesPrint.mType || 'S4'}) &nbsp;—&nbsp; ${cutInfoL}:</div>
+                                        <table style="width: 100%; font-size: 13.5px;">
                                             <tr>
                                                 <td style="width: 20%; font-weight: bold;"><strong>${d.leavesPrint.mType || 'S4'}</strong> priprava:</td>
                                                 <td style="width: 50%; font-weight: bold;">priprava vložka</td>
-                                                <td style="width: 30%; text-align: right; font-weight: bold;">${(roundedPrepHoursL * 60).toFixed(0)} min / ${roundedPrepHoursL.toFixed(2)} h</td>
+                                                <td style="width: 30%; text-align: right; font-weight: bold;">priprava: ${roundedPrepHoursL.toFixed(2)} h</td>
                                             </tr>
                                             <tr>
                                                 <td>Tisk:</td>
@@ -10686,30 +10752,30 @@
                                     
                                     ${coverHTML}
 
-                                    <div class="row-divider" style="border-top: 1px dashed #000; margin: 10px 0;"></div>
-                                    <div class="bold" style="font-size: 13px; color: #10b981; margin-bottom: 4px;">DODELAVA:</div>
-                                    <div style="font-size: 12px; margin-bottom: 10px;">${finText}</div>
+                                    <div class="row-divider" style="border-top: 1px dashed #000; margin: 12px 0;"></div>
+                                    <div class="bold" style="font-size: 15px; color: #10b981; margin-bottom: 6px;">DODELAVA:</div>
+                                    <div style="font-size: 13.5px; margin-bottom: 12px;">${finText}</div>
 
-                                    <div class="row-divider" style="border-top: 1px dashed #000; margin: 10px 0;"></div>
-                                    <div class="bold" style="font-size: 13px; margin-bottom: 5px;">Poraba materiala:</div>
-                                    <table style="width: 100%; font-size: 12px;">
-                                        <tr>
-                                            <td style="width: 50%;">of. plošče (vložek):</td>
-                                            <td style="text-align: right;" class="bold">${d.leavesPrint.platesNum || 0} kos</td>
+                                    <div class="row-divider" style="border-top: 1px dashed #000; margin: 12px 0;"></div>
+                                    <div class="bold" style="font-size: 15px; margin-bottom: 6px;">Poraba materiala:</div>
+                                    <table style="width: 100%; font-size: 13.5px;">
+                                        <tr style="font-weight: bold;">
+                                            <td style="width: 55%; font-weight: bold;">of. plošče (vložek - ${d.leavesPrint.mType || 'S4'}):</td>
+                                            <td style="text-align: right; font-weight: bold;">${d.leavesPrint.platesNum || 0} kos</td>
                                         </tr>
                                         ${d.coverPrint && d.coverPrint.active ? `
-                                        <tr>
-                                            <td style="width: 50%;">of. plošče (ovitek):</td>
-                                            <td style="text-align: right;" class="bold">${d.coverPrint.platesNum || 0} kos</td>
+                                        <tr style="font-weight: bold;">
+                                            <td style="width: 55%; font-weight: bold;">of. plošče (ovitek - ${d.coverPrint.mType || 'S4'}):</td>
+                                            <td style="text-align: right; font-weight: bold;">${d.coverPrint.platesNum || 0} kos</td>
                                         </tr>
                                         ` : ''}
                                         <tr>
-                                            <td style="width: 50%;">Papir vložek (${d.paper.leaves.sourceW}x${d.paper.leaves.sourceH} mm) - ${item.paperLeaves || '/'}:</td>
+                                            <td style="width: 55%;">Papir vložek (${d.paper.leaves.sourceW}x${d.paper.leaves.sourceH} mm) - ${item.paperLeaves || '/'}:</td>
                                             <td style="text-align: right;" class="bold">${totalParentSheetsL.toLocaleString('sl-SI')} pol</td>
                                         </tr>
                                         ${d.coverPrint && d.coverPrint.active ? `
                                         <tr>
-                                            <td style="width: 50%;">Papir ovitek (${d.paper.cover.sourceW}x${d.paper.cover.sourceH} mm) - ${item.paperCover || '/'}:</td>
+                                            <td style="width: 55%;">Papir ovitek (${d.paper.cover.sourceW}x${d.paper.cover.sourceH} mm) - ${item.paperCover || '/'}:</td>
                                             <td style="text-align: right;" class="bold">${totalParentSheetsC.toLocaleString('sl-SI')} pol</td>
                                         </tr>
                                         ` : ''}
@@ -10719,8 +10785,6 @@
                         });
                     }
 
-
-
                     itemsHtml += `
 
                         <div style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
@@ -10729,64 +10793,64 @@
 
                                 <tr>
 
-                                    <td style="width: 15%; vertical-align: top; border-right: 1px solid #ddd; padding-right: 5px;">
+                                    <td style="width: 8%; vertical-align: top; border-right: 1px solid #ddd; padding-right: 5px;">
 
-                                        <span style="font-size: 8px; color: #555; text-transform: uppercase;">Šifra izdelka:</span><br>
+                                        <span style="font-size: 10px; color: #555; text-transform: uppercase;">Šifra izdelka:</span><br>
 
-                                        <span style="font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; margin-top: 5px; display: block;">${matCode}</span>
+                                        <span style="font-family: Arial, sans-serif; font-size: 15px; font-weight: bold; margin-top: 5px; display: block;">${matCode}</span>
 
                                     </td>
 
-                                    <td style="width: 85%; vertical-align: top; padding-left: 10px;">
+                                    <td style="width: 92%; vertical-align: top; padding-left: 10px;">
                                         ${isDN ? `
-                                            <div style="font-size: 12px; margin-bottom: 6px;">
+                                            <div style="font-size: 14px; margin-bottom: 8px;">
                                                 <span style="font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</span> ${projName}
                                             </div>
-                                            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                                            <table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">
                                                 <tr>
-                                                    <td style="width: 48%; vertical-align: top; border-right: 1px dashed #ccc; padding-right: 15px;">
-                                                        <div style="font-weight: bold; font-size: 13px; border-bottom: 1px solid #ddd; padding-bottom: 3px; color: #3b82f6; margin-bottom: 5px;">${isAT ? 'BLÄTTER' : 'VLOŽEK'}</div>
-                                                        <table style="width: 100%; font-size: 12px;" cellpadding="0" cellspacing="2">
-                                                            <tr><td style="font-weight: bold; width: 100px;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatLeaves && item.formatLeaves !== 'x' ? item.formatLeaves + ' mm' : fText}</td></tr>
-                                                            <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatLeaves && item.closedFormatLeaves !== 'x' ? item.closedFormatLeaves + ' mm' : '/'}</td></tr>
-                                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${isDN ? eTextDN : eText}</td></tr>
-                                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperLeaves || pText}</td></tr>
-                                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskLeaves || printText}</td></tr>
+                                                    <td style="width: 50%; vertical-align: top; border-right: 1px dashed #ccc; padding-right: 10px;">
+                                                        <div style="font-weight: bold; font-size: 15px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #3b82f6; margin-bottom: 6px;">${isAT ? 'BLÄTTER' : 'VLOŽEK'}</div>
+                                                        <table style="width: 100%; font-size: 13.5px;" cellpadding="0" cellspacing="2">
+                                                            <tr><td style="font-weight: bold; width: 110px;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td contenteditable="true">${item.formatLeaves && item.formatLeaves !== 'x' ? item.formatLeaves + ' mm' : fText}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td contenteditable="true">${item.closedFormatLeaves && item.closedFormatLeaves !== 'x' ? item.closedFormatLeaves + ' mm' : '/'}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td contenteditable="true">${isDN ? eTextDN : eText}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td contenteditable="true">${item.paperLeaves || pText}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td contenteditable="true">${item.tiskLeaves || printText}</td></tr>
                                                             ${dodatekLeavesHTML}
                                                         </table>
                                                     </td>
-                                                    <td style="width: 48%; vertical-align: top; padding-left: 15px;">
-                                                        <div style="font-weight: bold; font-size: 13px; border-bottom: 1px solid #ddd; padding-bottom: 3px; color: #f43f5e; margin-bottom: 5px;">${isAT ? 'UMSCHLAG' : 'OVITEK'}</div>
-                                                        <table style="width: 100%; font-size: 12px;" cellpadding="0" cellspacing="2">
-                                                            <tr><td style="font-weight: bold; width: 100px;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatCover && item.formatCover !== 'x' ? item.formatCover + ' mm' : '/'}</td></tr>
-                                                            <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatCover && item.closedFormatCover !== 'x' ? item.closedFormatCover + ' mm' : '/'}</td></tr>
-                                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${isDN ? cTextDN : ((item.coverPages || '4') + ' ' + (isAT ? 'Seiten' : 'strani'))}</td></tr>
-                                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperCover || cText}</td></tr>
-                                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskCover || '/'}</td></tr>
+                                                    <td style="width: 50%; vertical-align: top; padding-left: 10px;">
+                                                        <div style="font-weight: bold; font-size: 15px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #f43f5e; margin-bottom: 6px;">${isAT ? 'UMSCHLAG' : 'OVITEK'}</div>
+                                                        <table style="width: 100%; font-size: 13.5px;" cellpadding="0" cellspacing="2">
+                                                            <tr><td style="font-weight: bold; width: 110px;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td contenteditable="true">${item.formatCover && item.formatCover !== 'x' ? item.formatCover + ' mm' : '/'}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td contenteditable="true">${item.closedFormatCover && item.closedFormatCover !== 'x' ? item.closedFormatCover + ' mm' : '/'}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td contenteditable="true">${isDN ? cTextDN : ((item.coverPages || '4') + ' ' + (isAT ? 'Seiten' : 'strani'))}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td contenteditable="true">${item.paperCover || cText}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td contenteditable="true">${item.tiskCover || '/'}</td></tr>
                                                             ${dodatekCoverHTML}
                                                         </table>
                                                     </td>
                                                 </tr>
                                             </table>
                                         ` : `
-                                            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                                                <tr><td style="width: 110px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td>${projName}</td></tr>
-                                                <tr><td colspan="2" style="font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; padding-top: 5px; color: #3b82f6;">${isAT ? 'BLÄTTER' : 'VLOŽEK'}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatLeaves && item.formatLeaves !== 'x' ? item.formatLeaves + ' mm' : fText}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatLeaves && item.closedFormatLeaves !== 'x' ? item.closedFormatLeaves + ' mm' : '/'}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${isDN ? eTextDN : eText}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperLeaves || pText}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskLeaves || printText}</td></tr>
+                                            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                                                <tr><td style="width: 110px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td contenteditable="true">${projName}</td></tr>
+                                                <tr><td colspan="2" style="font-weight: bold; font-size: 14px; border-bottom: 1px solid #ddd; padding-top: 5px; color: #3b82f6;">${isAT ? 'BLÄTTER' : 'VLOŽEK'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td contenteditable="true">${item.formatLeaves && item.formatLeaves !== 'x' ? item.formatLeaves + ' mm' : fText}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td contenteditable="true">${item.closedFormatLeaves && item.closedFormatLeaves !== 'x' ? item.closedFormatLeaves + ' mm' : '/'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td contenteditable="true">${isDN ? eTextDN : eText}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td contenteditable="true">${item.paperLeaves || pText}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td contenteditable="true">${item.tiskLeaves || printText}</td></tr>
                                                 ${dodatekLeavesHTML}
-                                                <tr><td colspan="2" style="font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; padding-top: 10px; color: #f43f5e;">${isAT ? 'UMSCHLAG' : 'OVITEK'}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td>${item.formatCover && item.formatCover !== 'x' ? item.formatCover + ' mm' : '/'}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td>${item.closedFormatCover && item.closedFormatCover !== 'x' ? item.closedFormatCover + ' mm' : '/'}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${isDN ? cTextDN : ((item.coverPages || '4') + ' ' + (isAT ? 'Seiten' : 'strani'))}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.paperCover || cText}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${item.tiskCover || '/'}</td></tr>
+                                                <tr><td colspan="2" style="font-weight: bold; font-size: 14px; border-bottom: 1px solid #ddd; padding-top: 10px; color: #f43f5e;">${isAT ? 'UMSCHLAG' : 'OVITEK'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td contenteditable="true">${item.formatCover && item.formatCover !== 'x' ? item.formatCover + ' mm' : '/'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td contenteditable="true">${item.closedFormatCover && item.closedFormatCover !== 'x' ? item.closedFormatCover + ' mm' : '/'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td contenteditable="true">${isDN ? cTextDN : ((item.coverPages || '4') + ' ' + (isAT ? 'Seiten' : 'strani'))}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td contenteditable="true">${item.paperCover || cText}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td contenteditable="true">${item.tiskCover || '/'}</td></tr>
                                                 ${dodatekCoverHTML}
-                                                <tr><td colspan="2" style="font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; padding-top: 10px; color: #10b981;">${isAT ? 'VERARBEITUNG' : 'DODELAVA'}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Verarbeitung:' : 'Dodelava:'}</td><td>${finText}</td></tr>
+                                                <tr><td colspan="2" style="font-weight: bold; font-size: 14px; border-bottom: 1px solid #ddd; padding-top: 10px; color: #10b981;">${isAT ? 'VERARBEITUNG' : 'DODELAVA'}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Verarbeitung:' : 'Dodelava:'}</td><td contenteditable="true">${finText}</td></tr>
                                             </table>
                                         `}
                                     </td>
@@ -10799,7 +10863,7 @@
 
                             <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000;">
 
-                                <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: left;">${isAT ? 'Auflage' : 'Naklada'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: center;">${isAT ? 'Preis/Stk.' : 'Cena/Kom.'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: center;">${isAT ? 'Preis/1.000 Stk.' : 'Cena za 1.000 kos'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">${isAT ? 'Gesamt Preis:' : 'Cena skupno:'}</th></tr>
+                                <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 12px; text-align: left;">${isAT ? 'Auflage' : 'Naklada'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 12px; text-align: center;">${isAT ? 'Preis/Stk.' : 'Cena/Kom.'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 12px; text-align: center;">${isAT ? 'Preis/1.000 Stk.' : 'Cena za 1.000 kos'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 12px; text-align: right;">${isAT ? 'Gesamt Preis:' : 'Cena skupno:'}</th></tr>
 
                                 ${priceRowsHTML}
 
@@ -10823,11 +10887,13 @@
 
                 const defaultContent = `
 
-                        <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #f99c26; padding-bottom: 5px;" cellpadding="0" cellspacing="0">
+                    <div style="font-family: Arial, sans-serif; font-size: 13px;">
+
+                        <table style="width: 100%; margin-bottom: 10px; border-bottom: 2px solid #f99c26; padding-bottom: 10px;" cellpadding="0" cellspacing="0">
 
                             <tr>
 
-                                <td style="width: 32%; vertical-align: top;">
+                                <td style="width: 32%; vertical-align: middle;">
 
                                     <div style="color: #8c8f91; font-size: 22px; font-weight: 300; font-style: italic; line-height: 0.9;">tiskarna</div>
 
@@ -10835,9 +10901,9 @@
 
                                 </td>
 
-                                <td style="width: 25%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 9px; color: #8c8f91; font-style: italic;"><strong>Tiskarna Petrič d.o.o.</strong><br>Tovarniška cesta 8<br>3210 Slovenske Konjice<br>ID za DDV: SI50694014</td>
+                                <td style="width: 25%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 10px; color: #8c8f91; font-style: italic;"><strong>Tiskarna Petrič d.o.o.</strong><br>Tovarniška cesta 8<br>3210 Slovenske Konjice<br>ID za DDV: SI50694014</td>
 
-                                <td style="width: 20%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 9px; color: #8c8f91; font-style: italic;">T: 03 757 25 56<br>F: 03 757 25 63<br>Mat. št.: 6889433</td>
+                                <td style="width: 20%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 10px; color: #8c8f91; font-style: italic;">T: 03 757 25 56<br>F: 03 757 25 63<br>Mat. št.: 6889433</td>
 
                                 <td style="width: 23%; vertical-align: bottom; border-left: 2px solid #f99c26; padding-left: 15px; padding-bottom: 5px; font-size: 18px; font-weight: bold; color: #f99c26; font-style: italic;">vse stiska</td>
 
@@ -10845,23 +10911,23 @@
 
                         </table>
 
-                        <table style="width: 100%; margin-bottom: 5px;" cellpadding="0" cellspacing="0">
+                        <table style="width: 100%; margin-bottom: 8px;" cellpadding="0" cellspacing="0">
 
                             <tr>
 
                                 <td style="width: 50%; vertical-align: top;">
 
-                                    <div style="font-size: 11px; color: #555; text-transform: uppercase; margin-bottom: 2px;">Stranka:</div>
+                                    <div style="font-size: 12px; color: #555; text-transform: uppercase; margin-bottom: 2px;">Stranka:</div>
 
-                                    <span style="font-size: 13px;"><strong>${customer}</strong></span><br>
+                                    <span style="font-size: 15px;"><strong>${customer}</strong></span><br>
 
-                                    <div style="margin-top: 5px; line-height: 1.2;">
+                                    <div style="margin-top: 5px; line-height: 1.25; font-size: 13px;">
 
                                         ${custAddress ? custAddress.replace(/\n/g, '<br>') : ''}
 
                                     </div>
 
-                                    ${custEmail ? '<div style="margin-top: 3px; color: #444;">' + custEmail + '</div>' : ''}
+                                    ${custEmail ? '<div style="margin-top: 3px; color: #444; font-size: 13px;">' + custEmail + '</div>' : ''}
 
                                 </td>
 
@@ -10903,7 +10969,7 @@
 
                         ${isDN ? '' : `<p class="notes">${isAT ? 'Dieses Angebot ist gültig für 30 Tage. Zahlung erfolgt nach 30 Tagen ab Lieferung der Ware. Wir danken Ihnen für Ihre mögliche Bestellung, und wünschen Ihnen einen angenehmen Tag.' : 'Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.'}</p>`}
 
-                        <div style="margin-top: 10px; font-size: 10px; font-style: italic;">${isAT ? 'Dieses Angebot hat für Sie erstellt:' : 'Ponudbo pripravil:'} ${preparedBy}</div>
+                        <div style="margin-top: 10px; font-size: 11px; font-style: italic;">${isAT ? 'Dieses Angebot hat für Sie erstellt:' : 'Ponudbo pripravil:'} ${preparedBy}</div>
 
             `;
 
@@ -10941,19 +11007,19 @@
 
                 <style>
 
-                    body { font-family: 'Arial', sans-serif; padding: 0; margin: 0; color: #000; line-height: 1.1; font-size: 11px; }
+                    body { font-family: 'Arial', sans-serif; padding: 0; margin: 0; color: #000; line-height: 1.25; font-size: 13px; }
 
                     .info-table { border-collapse: collapse; margin-left: auto; margin-right: 0; }
 
-                    .info-table td { padding: 1px 0 1px 15px; text-align: right; }
+                    .info-table td { padding: 2px 0 2px 15px; text-align: right; font-size: 13px; }
 
                     .info-table td:first-child { font-weight: normal; color: #555; }
 
                     .info-table td:last-child { font-weight: bold; }
 
-                    h1 { font-size: 14px; font-weight: bold; margin-top: 10px; margin-bottom: 5px; letter-spacing: 1px; border-bottom: 1px solid #000; padding-bottom: 3px; }
+                    h1 { font-size: 18px; font-weight: bold; margin-top: 10px; margin-bottom: 6px; letter-spacing: 1px; border-bottom: 2px solid #000; padding-bottom: 4px; }
 
-                    .notes { margin-top: 10px; text-align: justify; font-size: 9px; line-height: 1.1; color: #444; }
+                    .notes { margin-top: 10px; text-align: justify; font-size: 11px; line-height: 1.2; color: #444; }
 
                     @media print { .no-print { display: none !important; } }
 
