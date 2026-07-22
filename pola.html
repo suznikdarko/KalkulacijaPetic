@@ -1061,6 +1061,12 @@
                         <input type="number" id="calc-mut-plates" value="0" min="0" step="1"
                             onchange="calculatePrice()">
                     </div>
+                    <div class="form-group">
+                        <label>Razdelitev naklade po mutacijah</label>
+                        <input type="text" id="calc-mut-breakdown"
+                            placeholder="npr. 3.000 kos vrsta A, 2.000 kos vrsta B" oninput="calculatePrice()"
+                            onchange="calculatePrice()">
+                    </div>
                     <div class="form-group"
                         style="padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 5px;">
                         <label>Pranje / Menjava barv (število pranj)</label>
@@ -3367,18 +3373,21 @@
                 });
             }
             if (document.getElementById('f-personalization-active') && document.getElementById('f-personalization-active').checked) {
-                let isBothSides = document.getElementById('f-personalization-both-sides') && document.getElementById('f-personalization-both-sides').checked;
-                let pMultiplier = (mType === 'S8') ? 2 : 1;
-                if (isBothSides) pMultiplier *= 2; // Obojestransko = 2x več pol
-                let pSheets = sheetsNeeded * pMultiplier;
-                let pPrice = (parseFloat(document.getElementById('f-personalization-price').value) || 0);
-                let pCost = pSheets * pPrice;
-                let sidesText = isBothSides ? ' (obe strani)' : '';
-                let breakdownText = `Delo: ${pSheets} pol${sidesText} po ${formatPrice(pPrice)}/polo = ${formatPrice(pCost)}`;
-                let extraCost = 0;
-                // Preveri ali je B2 format (698x498) in dodaj razrez na 318x448
+                let persSidesSelect = document.getElementById('f-personalization-sides');
+                let persSidesText = persSidesSelect ? persSidesSelect.value : '1/0';
+                let isBothSides = (persSidesText === '1/1');
                 let currentSheetW = g_lastSheetW || 0;
                 let currentSheetH = g_lastSheetH || 0;
+                let maxSheetDim = Math.max(currentSheetW, currentSheetH);
+                let digCutFactor = (maxSheetDim > 460 || mType === 'S8') ? 2 : 1;
+                let pMultiplier = isBothSides ? 2 : 1;
+                let pDigitalSheets = sheetsNeeded * digCutFactor;
+                let pTotalImpressions = pDigitalSheets * pMultiplier;
+                let pPrice = (parseFloat(document.getElementById('f-personalization-price').value) || 0);
+                let pCost = pTotalImpressions * pPrice;
+                let sidesText = isBothSides ? ' (1/1 obojestransko)' : ` (${persSidesText})`;
+                let breakdownText = `Delo: ${pDigitalSheets} digitalnih pol${sidesText} po ${formatPrice(pPrice)}/polo = ${formatPrice(pCost)}`;
+                let extraCost = 0;
                 let isB2Sheet = (currentSheetW === 698 && currentSheetH === 498) || (currentSheetW === 498 && currentSheetH === 698);
                 if (isB2Sheet) {
                     // Razrez B2 (698x498) na 2 poli 318x448 za personalizacijo
@@ -4778,6 +4787,7 @@
                 setV('calc-mut-type', proj.mutType || '');
                 setV('calc-mut-qty', proj.mutQty || 1);
                 setV('calc-mut-plates', proj.mutPlates || 0);
+                setV('calc-mut-breakdown', proj.mutBreakdown || inp.mutBreakdown || '');
                 setV('calc-cust-id', proj.custId || '');
                 setV('calc-quote-number', proj.quoteNum || '');
                 setV('calc-customer-code', proj.customerCode || '');
@@ -5022,6 +5032,7 @@
                         pWaste: document.getElementById('calc-paper-waste').value,
                         platesPrice: document.getElementById('calc-plates-price').value,
                         prepPrice: document.getElementById('calc-prep-price').value,
+                        mutBreakdown: document.getElementById('calc-mut-breakdown') ? document.getElementById('calc-mut-breakdown').value : '',
                         changePrice: document.getElementById('calc-change-price').value,
                         colorWashes: parseInt(document.getElementById('calc-color-washes').value) || 0,
                         washPrice: parseFloat(document.getElementById('calc-wash-price').value) || 25,
@@ -5122,12 +5133,14 @@
                     const oqVal = oqArr[idx] || q;
                     results.push(calculateForSingleQty(q, undefined, undefined, undefined, oqVal));
                 });
+                const mutBreakdown = document.getElementById('calc-mut-breakdown') ? document.getElementById('calc-mut-breakdown').value.trim() : '';
                 itemsToPrint = [{
                     name: projectName,
                     type: 'Tiskovna pola',
                     customer: customer,
                     productCode: document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : '',
                     materialCode: document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '',
+                    mutBreakdown: mutBreakdown,
                     spec: {
                         format: document.getElementById('width').value + ' x ' + document.getElementById('height').value + ' mm',
                         paper: document.getElementById('calc-paper-weight').value + 'g ' + (document.getElementById('calc-paper-type').value || ''),
@@ -5206,7 +5219,7 @@
                 }
                 let priceRowsHTML = (item.quantities && Array.isArray(item.quantities)) ? item.quantities.map(q => `
                     <tr>
-                        <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} ${isAT ? 'Stk.' : 'kos'}</td>
+                        <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} ${isAT ? 'Stk.' : 'kos'}${item.mutBreakdown ? ' (' + item.mutBreakdown + ')' : ''}</td>
                         <td style="padding: 4px;">${formatPrice(q.pricePerUnit !== undefined ? q.pricePerUnit : (q.perItem || 0), 3)}</td>
                         <td style="font-weight: bold; text-align: right; padding: 4px;">${formatPrice(q.priceTotal !== undefined ? q.priceTotal : (q.total || 0), 2)}</td>
                     </tr>
@@ -5534,6 +5547,8 @@
             let dnOld = document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : "";
             let deadline = document.getElementById('calc-dn-deadline') ? document.getElementById('calc-dn-deadline').value : "";
             let packaging = document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : "";
+            let mutBreakdown = document.getElementById('calc-mut-breakdown') ? document.getElementById('calc-mut-breakdown').value.trim() : "";
+            let qtyDisplay = `${q.toLocaleString('de-DE')} kos${mutBreakdown ? ' &nbsp;(' + mutBreakdown + ')' : ''}`;
             let quoteNum = document.getElementById('calc-quote-number').value || "";
             let orderType = document.getElementById('calc-order-type') ? document.getElementById('calc-order-type').value : "";
             let product = document.getElementById('calc-project-name').value || "Ni vpisano";
@@ -5696,10 +5711,15 @@
             if (isChecked('f-personalization-active')) {
                 let persSidesSelect = document.getElementById('f-personalization-sides');
                 let persSidesText = persSidesSelect ? persSidesSelect.value : '1/0';
+                let maxSheetDim = Math.max(sheetW, sheetH);
+                let digCutFactor = (maxSheetDim > 460 || (d && d.print && d.print.mType === 'S8')) ? 2 : 1;
+                let digSheets = calcRes.sheetsNeeded * digCutFactor;
+                let digFormatDetail = (digCutFactor === 2) ? ' 44,8 x 31,8 cm' : '';
+                let persQtyStr = `${persSidesText} ${digSheets.toLocaleString('de-DE')} pol${digFormatDetail}`;
                 finishingRowsHtml += `
                     <tr>
                         <td style="width: 15%;">Personalizacija:</td>
-                        <td style="width: 35%;" class="bold">${persSidesText} ${calcRes.sheetsNeeded.toLocaleString('de-DE')} pol</td>
+                        <td style="width: 35%;" class="bold">${persQtyStr}</td>
                         <td style="width: 50%; text-align: right;" class="bold">/</td>
                     </tr>`;
             }
@@ -5771,7 +5791,7 @@
                     </tr>
                 </table>
                 <table style="margin-top: 5px; width: 100%;">
-                    <tr><td style="width: 15%;">Količina:</td><td class="bold" style="font-size: 15px;">${q.toLocaleString('de-DE')} kos</td></tr>
+                    <tr><td style="width: 15%;">Količina:</td><td class="bold" style="font-size: 15px;">${qtyDisplay}</td></tr>
                     <tr><td>Format:</td><td class="bold">${formatW} x ${formatH} mm</td></tr>
                     <tr><td>Tisk:</td><td class="bold">${colors}</td></tr>
                     <tr><td>Material:</td><td class="bold">${paperWeight ? paperWeight + 'g ' : ''}${paperType}</td></tr>
