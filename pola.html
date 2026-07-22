@@ -1541,8 +1541,24 @@
                 el.classList.remove('has-content');
             }
         }
-        document.addEventListener('input', (e) => updateInputStyles(e.target));
-        document.addEventListener('change', (e) => updateInputStyles(e.target));
+        document.addEventListener('input', (e) => {
+            updateInputStyles(e.target);
+            if (!window.g_loadingProject) {
+                g_editedQuoteHTML = '';
+                g_editedQuoteATHTML = '';
+                g_editedWorkOrderHTML = '';
+                if (typeof updateCustomDocsPreview === 'function') updateCustomDocsPreview();
+            }
+        });
+        document.addEventListener('change', (e) => {
+            updateInputStyles(e.target);
+            if (!window.g_loadingProject) {
+                g_editedQuoteHTML = '';
+                g_editedQuoteATHTML = '';
+                g_editedWorkOrderHTML = '';
+                if (typeof updateCustomDocsPreview === 'function') updateCustomDocsPreview();
+            }
+        });
         var g_editedQuoteHTML = '';
         var g_editedQuoteATHTML = '';
         var g_editedWorkOrderHTML = '';
@@ -3024,17 +3040,22 @@
             }
             // Strojni čas priprave (priprava tiska v minutah)
             let mPrepInp = document.getElementById('calc-machine-prep-time').value;
-            let mPrepMinutes = 10; // Privzeto osnovno
+            let mPrepMinutes = 30;
             if (mPrepInp !== "") {
                 mPrepMinutes = parseFloat(mPrepInp) || 0;
             } else {
-                // Boss formula za pripravo:
-                // Osnovna priprava (10 min) + Menjava plošč (6 min na agregat/ploščo) + Obračalnik (15 min)
-                mPrepMinutes = 10 + (6 * platesNum) + (isObrat ? 15 : 0);
+                if (isObrat) {
+                    mPrepMinutes = 45; // 0,75 h za 4/OB
+                } else if (back > 0) {
+                    mPrepMinutes = 60; // 1,0 h za 4/4
+                } else {
+                    mPrepMinutes = 30; // 0,5 h za 4/0
+                }
                 if (qty === q) {
                     const prepTimeInp = document.getElementById('calc-machine-prep-time');
                     if (prepTimeInp) {
-                        prepTimeInp.placeholder = "Avto (" + mPrepMinutes + " min)";
+                        let hStr = (mPrepMinutes / 60).toString().replace('.', ',');
+                        prepTimeInp.placeholder = "Avto (" + hStr + " h)";
                     }
                 }
             }
@@ -4737,215 +4758,217 @@
         // Pomožna funkcija za nalaganje podatkov v polja (skupna za Arhiv in File Import)
         function loadProjectData(proj) {
             window.g_loadingProject = true;
-            function setV(id, val, isChk = false) {
-                var el = document.getElementById(id);
-                if (!el) return;
-                if (isChk) el.checked = !!val; else el.value = val;
-                updateInputStyles(el);
+            try {
+                function setV(id, val, isChk = false) {
+                    var el = document.getElementById(id);
+                    if (!el) return;
+                    if (isChk) el.checked = !!val; else el.value = (val !== undefined && val !== null) ? val : '';
+                    updateInputStyles(el);
+                }
+                if (!proj) return;
+                g_editedQuoteHTML = proj.editedQuoteHTML || '';
+                g_editedQuoteATHTML = proj.editedQuoteATHTML || '';
+                g_editedWorkOrderHTML = proj.editedWorkOrderHTML || '';
+                setV('calc-order-type', proj.orderType || '');
+                const inp = proj.inputs || {};
+                setV('calc-customer', proj.customer || '');
+                setV('calc-cust-address', proj.custAddress || '');
+                setV('calc-delivery-address', proj.deliveryAddress || '');
+                setV('calc-cust-email', proj.custEmail || '');
+                setV('calc-mut-type', proj.mutType || '');
+                setV('calc-mut-qty', proj.mutQty || 1);
+                setV('calc-mut-plates', proj.mutPlates || 0);
+                setV('calc-cust-id', proj.custId || '');
+                setV('calc-quote-number', proj.quoteNum || '');
+                setV('calc-customer-code', proj.customerCode || '');
+                setV('calc-product-code', proj.productCode || '');
+                setV('calc-prepared-by', proj.preparedBy || '');
+                setV('calc-material-code', proj.materialCode || '');
+                setV('calc-notes', proj.notes || '');
+                setV('calc-dn-number', proj.dnNum || inp.dnNum || '');
+                setV('calc-dn-old', proj.dnOld || inp.dnOld || '');
+                setV('calc-dn-deadline', proj.deadline || inp.deadline || '');
+                setV('calc-dn-packaging', proj.packaging || inp.packaging || '');
+                setV('calc-given-sheets', proj.givenSheets || inp.givenSheets || '');
+
+                if (inp.machine_format !== undefined) setV('machine-format', inp.machine_format);
+                if (inp.sourcePreset !== undefined) setV('calc-source-presets', inp.sourcePreset);
+                if (inp.sourceW !== undefined) setV('calc-source-w', inp.sourceW);
+                if (inp.sourceH !== undefined) setV('calc-source-h', inp.sourceH);
+                if (inp.sourceYield !== undefined) setV('calc-source-yield', inp.sourceYield);
+                if (inp.orderedSheets !== undefined) setV('calc-ordered-sheets', inp.orderedSheets);
+                if (inp.item_w !== undefined) setV('width', inp.item_w);
+                if (inp.item_h !== undefined) setV('height', inp.item_h);
+                if (inp.quantity !== undefined) setV('quantity', inp.quantity);
+                if (inp.bleed !== undefined) setV('bleed', inp.bleed);
+                if (inp.pPrice !== undefined) setV('calc-paper-price', inp.pPrice);
+                if (inp.pUnit !== undefined) setV('calc-paper-unit', inp.pUnit);
+                if (inp.pWeight !== undefined) setV('calc-paper-weight', inp.pWeight);
+                if (inp.pType !== undefined) setV('calc-paper-type', inp.pType);
+                if (inp.pWaste !== undefined) setV('calc-paper-waste', inp.pWaste);
+                if (inp.platesPrice !== undefined) setV('calc-plates-price', inp.platesPrice);
+                if (inp.prepPrice !== undefined) setV('calc-prep-price', inp.prepPrice);
+                if (inp.changePrice !== undefined) setV('calc-change-price', inp.changePrice);
+                if (inp.machineType !== undefined) setV('calc-machine-type', inp.machineType);
+                if (inp.machineRate !== undefined) setV('calc-machine-rate', inp.machineRate);
+                if (inp.machineSpeed !== undefined) setV('calc-machine-speed', inp.machineSpeed);
+                if (inp.machinePrepTime !== undefined) setV('calc-machine-prep-time', inp.machinePrepTime);
+                if (inp.colorFront !== undefined) setV('calc-color-front', inp.colorFront);
+                if (inp.colorBack !== undefined) setV('calc-color-back', inp.colorBack);
+                if (inp.isObrat !== undefined) setV('calc-is-obrat', inp.isObrat, true);
+                if (inp.isSV !== undefined) setV('calc-is-sv', inp.isSV, true);
+                if (inp.commercial !== undefined) setV('calc-commercial', inp.commercial);
+                if (inp.margin !== undefined) setV('calc-margin', inp.margin);
+                if (inp.itemsPerSheet !== undefined) setV('items-per-sheet', inp.itemsPerSheet);
+                if (inp.itemOrientation !== undefined) setV('item-orientation', inp.itemOrientation);
+                if (inp.minusPrice !== undefined) setV('calc-minus-price', inp.minusPrice, true);
+
+                // Load Finishing
+                if (inp.finish) {
+                    const f = inp.finish;
+                    // First reset optional finishing checkboxes
+                    ['cilinder', 'zgibanje', 'tool', 'zasek-grafotehna', 'lepljenje', 'spiral', 'extra', 'uv', 'personalization', 'lam', 'delivery', 'del-fixed'].forEach(t => {
+                        setV('f-' + t + '-active', false, true);
+                        if (typeof toggleFinishRow === 'function') toggleFinishRow(t);
+                    });
+                    setV('f-razrez-format-active', true, true);
+                    if (typeof toggleFinishRow === 'function') toggleFinishRow('razrez-format');
+                    setV('f-precut-active', true, true);
+                    if (typeof toggleFinishRow === 'function') toggleFinishRow('precut');
+
+                    const cil = f.cilinder;
+                    if (cil) {
+                        setV('f-cilinder-active', cil.active, true);
+                        if (cil.prep !== undefined) setV('f-cilinder-prep', cil.prep);
+                        if (cil.hours !== undefined) setV('f-cilinder-hours', cil.hours);
+                        if (cil.rate !== undefined) setV('f-cilinder-rate', cil.rate);
+                        if (cil.dodatek !== undefined) setV('f-cilinder-dodatek', cil.dodatek);
+                        toggleFinishRow('cilinder');
+                    }
+
+                    const zgib = f.zgibanje;
+                    if (zgib) {
+                        setV('f-zgibanje-active', zgib.active, true);
+                        if (zgib.folds !== undefined) setV('f-zgibanje-folds', zgib.folds);
+                        if (zgib.speed !== undefined) setV('f-zgibanje-speed', zgib.speed);
+                        toggleFinishRow('zgibanje');
+                    }
+
+                    const rf = f.razrezFormat || f.razrez;
+                    if (rf) {
+                        setV('f-razrez-format-active', rf.active !== undefined ? rf.active : true, true);
+                        if (rf.speed !== undefined) setV('f-razrez-format-speed', rf.speed);
+                        if (rf.rate !== undefined) setV('f-razrez-format-rate', rf.rate);
+                        toggleFinishRow('razrez-format');
+                    }
+
+                    const pc = f.precut;
+                    if (pc) {
+                        setV('f-precut-active', pc.active !== undefined ? pc.active : true, true);
+                        if (pc.prep !== undefined) setV('f-precut-prep', pc.prep);
+                        if (pc.per1000 !== undefined) setV('f-precut-per1000', pc.per1000);
+                        toggleFinishRow('precut');
+                    }
+
+                    const lep = f.lepljenje;
+                    if (lep) {
+                        setV('f-lepljenje-active', lep.active, true);
+                        if (lep.prep !== undefined) setV('f-lepljenje-prep', lep.prep);
+                        if (lep.per1000 !== undefined) setV('f-lepljenje-per1000', lep.per1000);
+                        toggleFinishRow('lepljenje');
+                    }
+
+                    const sp = f.spiral || f.spiraljenje;
+                    if (sp) {
+                        setV('f-spiral-active', sp.active, true);
+                        if (sp.price !== undefined) setV('f-spiral-price', sp.price);
+                        if (sp.kos !== undefined) setV('f-spiral-price', sp.kos);
+                        toggleFinishRow('spiral');
+                    }
+
+                    const ex = f.extra;
+                    if (ex) {
+                        setV('f-extra-active', ex.active, true);
+                        if (ex.speed !== undefined) setV('f-extra-speed', ex.speed);
+                        if (ex.rate !== undefined) setV('f-extra-rate', ex.rate);
+                        if (ex.manual !== undefined && document.getElementById('f-extra-speed')) setV('f-extra-speed', ex.manual);
+                        toggleFinishRow('extra');
+                    }
+
+                    const tl = f.tool;
+                    if (tl) {
+                        setV('f-tool-active', tl.active, true);
+                        if (tl.cost !== undefined) setV('f-tool-cost', tl.cost);
+                        toggleFinishRow('tool');
+                    }
+
+                    const zg = f.zasekGrafotehna || f.zasek;
+                    if (zg) {
+                        setV('f-zasek-grafotehna-active', zg.active, true);
+                        if (zg.price !== undefined) setV('f-zasek-grafotehna-price', zg.price);
+                        toggleFinishRow('zasek-grafotehna');
+                    }
+
+                    const uvItem = f.uv;
+                    if (uvItem) {
+                        setV('f-uv-active', uvItem.active, true);
+                        if (uvItem.prep !== undefined) setV('f-uv-prep', uvItem.prep);
+                        if (uvItem.per1000 !== undefined) setV('f-uv-per1000', uvItem.per1000);
+                        toggleFinishRow('uv');
+                    }
+
+                    const pers = f.personalization;
+                    if (pers) {
+                        setV('f-personalization-active', pers.active, true);
+                        if (pers.sides !== undefined) setV('f-personalization-sides', pers.sides);
+                        if (pers.price !== undefined) setV('f-personalization-price', pers.price);
+                        toggleFinishRow('personalization');
+                    }
+
+                    const lm = f.lam;
+                    if (lm) {
+                        setV('f-lam-active', lm.active, true);
+                        if (lm.type !== undefined) setV('f-lam-type', lm.type);
+                        if (lm.sides !== undefined) setV('f-lam-sides', lm.sides);
+                        if (lm.per1000 !== undefined) setV('f-lam-per1000', lm.per1000);
+                        if (lm.prep !== undefined) setV('f-lam-prep', lm.prep);
+                        toggleFinishRow('lam');
+                    }
+
+                    const del = f.delivery;
+                    if (del) {
+                        setV('f-delivery-active', del.active, true);
+                        if (del.count !== undefined) setV('f-post-count', del.count);
+                        if (del.pricePer !== undefined) setV('f-post-price-per', del.pricePer);
+                        if (del.km !== undefined) setV('f-post-count', del.km);
+                        toggleFinishRow('delivery');
+                    }
+
+                    const df = f.delFixed || f.deliveryFixed;
+                    if (df) {
+                        setV('f-del-fixed-active', df.active, true);
+                        if (df.price !== undefined) setV('f-del-fixed-price', df.price);
+                        if (df.cost !== undefined) setV('f-del-fixed-price', df.cost);
+                        toggleFinishRow('del-fixed');
+                    }
+                }
+                if (proj.name) setV('calc-project-name', proj.name);
+                calculate();
+            } catch (err) {
+                console.error("loadProjectData error:", err);
+                alert("Napaka pri nalaganju podatkov projekta: " + err.message);
+            } finally {
+                window.g_loadingProject = false;
             }
-            if (!proj || !proj.inputs) return;
-            g_editedQuoteHTML = proj.editedQuoteHTML || '';
-            g_editedQuoteATHTML = proj.editedQuoteATHTML || '';
-            g_editedWorkOrderHTML = proj.editedWorkOrderHTML || '';
-            setV('calc-order-type', proj.orderType || '');
-            const inp = proj.inputs;
-            document.getElementById('calc-customer').value = proj.customer || "";
-            document.getElementById('calc-cust-address').value = proj.custAddress || "";
-            if (document.getElementById('calc-delivery-address')) {
-                document.getElementById('calc-delivery-address').value = proj.deliveryAddress || "";
-            }
-            document.getElementById('calc-cust-email').value = proj.custEmail || "";
-            if (document.getElementById('calc-mut-type')) {
-                document.getElementById('calc-mut-type').value = proj.mutType || "";
-                if (document.getElementById('calc-mut-qty')) {
-                    document.getElementById('calc-mut-qty').value = proj.mutQty || 1;
-                }
-                document.getElementById('calc-mut-plates').value = proj.mutPlates || 0;
-            }
-            document.getElementById('calc-cust-id').value = proj.custId || "";
-            document.getElementById('calc-quote-number').value = proj.quoteNum || "";
-            document.getElementById('calc-customer-code').value = proj.customerCode || "";
-            if (document.getElementById('calc-product-code')) document.getElementById('calc-product-code').value = proj.productCode || "";
-            if (proj.preparedBy) document.getElementById('calc-prepared-by').value = proj.preparedBy;
-            document.getElementById('calc-material-code').value = proj.materialCode || "";
-            if (document.getElementById('calc-notes')) {
-                document.getElementById('calc-notes').value = proj.notes || "";
-            }
-            if (document.getElementById('calc-dn-number')) setV('calc-dn-number', proj.dnNum || (inp ? inp.dnNum : '') || '');
-            if (document.getElementById('calc-dn-old')) setV('calc-dn-old', proj.dnOld || (inp ? inp.dnOld : '') || '');
-            if (document.getElementById('calc-dn-deadline')) setV('calc-dn-deadline', proj.deadline || (inp ? inp.deadline : '') || '');
-            if (document.getElementById('calc-dn-packaging')) setV('calc-dn-packaging', proj.packaging || (inp ? inp.packaging : '') || '');
-            if (document.getElementById('calc-given-sheets')) setV('calc-given-sheets', proj.givenSheets || (inp ? inp.givenSheets : '') || '');
-            document.getElementById('machine-format').value = inp.machine_format;
-            if (inp.sourcePreset !== undefined) document.getElementById('calc-source-presets').value = inp.sourcePreset;
-            if (inp.sourceW !== undefined) document.getElementById('calc-source-w').value = inp.sourceW;
-            if (inp.sourceH !== undefined) document.getElementById('calc-source-h').value = inp.sourceH;
-            if (inp.sourceYield !== undefined) document.getElementById('calc-source-yield').value = inp.sourceYield;
-            if (document.getElementById('calc-ordered-sheets')) {
-                document.getElementById('calc-ordered-sheets').value = inp.orderedSheets || "";
-            }
-            document.getElementById('width').value = inp.item_w;
-            document.getElementById('height').value = inp.item_h;
-            document.getElementById('quantity').value = inp.quantity;
-            document.getElementById('bleed').value = inp.bleed;
-            document.getElementById('calc-paper-price').value = inp.pPrice;
-            document.getElementById('calc-paper-unit').value = inp.pUnit;
-            document.getElementById('calc-paper-weight').value = inp.pWeight;
-            if (inp.pType !== undefined) document.getElementById('calc-paper-type').value = inp.pType;
-            document.getElementById('calc-paper-waste').value = inp.pWaste;
-            document.getElementById('calc-plates-price').value = inp.platesPrice;
-            document.getElementById('calc-prep-price').value = inp.prepPrice;
-            document.getElementById('calc-change-price').value = inp.changePrice;
-            document.getElementById('calc-machine-type').value = inp.machineType;
-            document.getElementById('calc-machine-rate').value = inp.machineRate;
-            document.getElementById('calc-machine-speed').value = inp.machineSpeed;
-            if (inp.machinePrepTime !== undefined) document.getElementById('calc-machine-prep-time').value = inp.machinePrepTime;
-            document.getElementById('calc-color-front').value = inp.colorFront;
-            document.getElementById('calc-color-back').value = inp.colorBack;
-            document.getElementById('calc-is-obrat').checked = inp.isObrat;
-            if (document.getElementById('calc-is-sv')) document.getElementById('calc-is-sv').checked = inp.isSV || false;
-            if (document.getElementById('calc-commercial')) document.getElementById('calc-commercial').value = inp.commercial || 10;
-            if (document.getElementById('calc-margin')) document.getElementById('calc-margin').value = inp.margin || 0;
-            if (inp.itemsPerSheet !== undefined) document.getElementById('items-per-sheet').value = inp.itemsPerSheet;
-            if (inp.itemOrientation !== undefined) document.getElementById('item-orientation').value = inp.itemOrientation;
-            if (document.getElementById('calc-minus-price')) document.getElementById('calc-minus-price').checked = inp.minusPrice || false;
-            // Load Finishing
-            if (inp.finish) {
-                const f = inp.finish;
-                // First reset all finishing checkboxes
-                ['razrez-format', 'precut', 'cilinder', 'zgibanje', 'tool', 'zasek-grafotehna', 'lepljenje', 'spiral', 'extra', 'uv', 'personalization', 'lam', 'delivery', 'del-fixed'].forEach(t => {
-                    setV('f-' + t + '-active', false, true);
-                    if (typeof toggleFinishRow === 'function') toggleFinishRow(t);
-                });
-
-                const cil = f.cilinder;
-                if (cil) {
-                    setV('f-cilinder-active', cil.active, true);
-                    if (cil.prep !== undefined) setV('f-cilinder-prep', cil.prep);
-                    if (cil.hours !== undefined) setV('f-cilinder-hours', cil.hours);
-                    if (cil.rate !== undefined) setV('f-cilinder-rate', cil.rate);
-                    if (cil.dodatek !== undefined) setV('f-cilinder-dodatek', cil.dodatek);
-                    toggleFinishRow('cilinder');
-                }
-
-                const zgib = f.zgibanje;
-                if (zgib) {
-                    setV('f-zgibanje-active', zgib.active, true);
-                    if (zgib.folds !== undefined) setV('f-zgibanje-folds', zgib.folds);
-                    if (zgib.speed !== undefined) setV('f-zgibanje-speed', zgib.speed);
-                    toggleFinishRow('zgibanje');
-                }
-
-                const rf = f.razrezFormat || f.razrez;
-                if (rf) {
-                    setV('f-razrez-format-active', rf.active, true);
-                    if (rf.speed !== undefined) setV('f-razrez-format-speed', rf.speed);
-                    if (rf.rate !== undefined) setV('f-razrez-format-rate', rf.rate);
-                    toggleFinishRow('razrez-format');
-                }
-
-                const pc = f.precut;
-                if (pc) {
-                    setV('f-precut-active', pc.active, true);
-                    if (pc.prep !== undefined) setV('f-precut-prep', pc.prep);
-                    if (pc.per1000 !== undefined) setV('f-precut-per1000', pc.per1000);
-                    toggleFinishRow('precut');
-                }
-
-                const lep = f.lepljenje;
-                if (lep) {
-                    setV('f-lepljenje-active', lep.active, true);
-                    if (lep.prep !== undefined) setV('f-lepljenje-prep', lep.prep);
-                    if (lep.per1000 !== undefined) setV('f-lepljenje-per1000', lep.per1000);
-                    toggleFinishRow('lepljenje');
-                }
-
-                const sp = f.spiral || f.spiraljenje;
-                if (sp) {
-                    setV('f-spiral-active', sp.active, true);
-                    if (sp.price !== undefined) setV('f-spiral-price', sp.price);
-                    if (sp.kos !== undefined) setV('f-spiral-price', sp.kos);
-                    toggleFinishRow('spiral');
-                }
-
-                const ex = f.extra;
-                if (ex) {
-                    setV('f-extra-active', ex.active, true);
-                    if (ex.speed !== undefined) setV('f-extra-speed', ex.speed);
-                    if (ex.rate !== undefined) setV('f-extra-rate', ex.rate);
-                    if (ex.manual !== undefined && document.getElementById('f-extra-speed')) setV('f-extra-speed', ex.manual);
-                    toggleFinishRow('extra');
-                }
-
-                const tl = f.tool;
-                if (tl) {
-                    setV('f-tool-active', tl.active, true);
-                    if (tl.cost !== undefined) setV('f-tool-cost', tl.cost);
-                    toggleFinishRow('tool');
-                }
-
-                const zg = f.zasekGrafotehna || f.zasek;
-                if (zg) {
-                    setV('f-zasek-grafotehna-active', zg.active, true);
-                    if (zg.price !== undefined) setV('f-zasek-grafotehna-price', zg.price);
-                    toggleFinishRow('zasek-grafotehna');
-                }
-
-                const uvItem = f.uv;
-                if (uvItem) {
-                    setV('f-uv-active', uvItem.active, true);
-                    if (uvItem.prep !== undefined) setV('f-uv-prep', uvItem.prep);
-                    if (uvItem.per1000 !== undefined) setV('f-uv-per1000', uvItem.per1000);
-                    toggleFinishRow('uv');
-                }
-
-                const pers = f.personalization;
-                if (pers) {
-                    setV('f-personalization-active', pers.active, true);
-                    if (pers.sides !== undefined) setV('f-personalization-sides', pers.sides);
-                    if (pers.price !== undefined) setV('f-personalization-price', pers.price);
-                    toggleFinishRow('personalization');
-                }
-
-                const lm = f.lam;
-                if (lm) {
-                    setV('f-lam-active', lm.active, true);
-                    if (lm.type !== undefined) setV('f-lam-type', lm.type);
-                    if (lm.sides !== undefined) setV('f-lam-sides', lm.sides);
-                    if (lm.per1000 !== undefined) setV('f-lam-per1000', lm.per1000);
-                    if (lm.prep !== undefined) setV('f-lam-prep', lm.prep);
-                    toggleFinishRow('lam');
-                }
-
-                const del = f.delivery;
-                if (del) {
-                    setV('f-delivery-active', del.active, true);
-                    if (del.count !== undefined) setV('f-post-count', del.count);
-                    if (del.pricePer !== undefined) setV('f-post-price-per', del.pricePer);
-                    if (del.km !== undefined) setV('f-post-count', del.km);
-                    toggleFinishRow('delivery');
-                }
-
-                const df = f.delFixed || f.deliveryFixed;
-                if (df) {
-                    setV('f-del-fixed-active', df.active, true);
-                    if (df.price !== undefined) setV('f-del-fixed-price', df.price);
-                    if (df.cost !== undefined) setV('f-del-fixed-price', df.cost);
-                    toggleFinishRow('del-fixed');
-                }
-            }
-            if (proj.name) document.getElementById('calc-project-name').value = proj.name;
-            // Recalculate everything
-            calculate();
-            window.g_loadingProject = false;
         }
         function loadProject(id) {
             let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-            let proj = arhiv.find(p => p.id === id);
-            if (!proj) return;
-            currentLoadedProjectId = id;
-            // Prikaži samo projekte pola (ali stare brez tipa)
-            arhiv = arhiv.filter(p => !p.calcType || p.calcType === 'tiskovna-pola' || p._source === 'pola');
+            let proj = arhiv.find(p => String(p.id) === String(id));
+            if (!proj) {
+                alert("Projekta ni bilo mogoče najti v arhivu!");
+                return;
+            }
+            currentLoadedProjectId = proj.id;
             loadProjectData(proj);
             alert("Projekt '" + proj.name + "' je uspešno naložen!");
         }
@@ -5103,7 +5126,8 @@
                     name: projectName,
                     type: 'Tiskovna pola',
                     customer: customer,
-                    materialCode: document.getElementById('calc-material-code').value,
+                    productCode: document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : '',
+                    materialCode: document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '',
                     spec: {
                         format: document.getElementById('width').value + ' x ' + document.getElementById('height').value + ' mm',
                         paper: document.getElementById('calc-paper-weight').value + 'g ' + (document.getElementById('calc-paper-type').value || ''),
@@ -5154,7 +5178,7 @@
                             </div><br>
                             <strong>TISKOVNA POLA:</strong> ${item.internal.sheetName} (${item.internal.sheetSize} mm)<br>
                             <strong>MATERIAL:</strong> ${item.spec.paper}<br>
-                            <strong>ŠIFRA:</strong> ${item.materialCode || '/'}
+                            <strong>ŠIFRA:</strong> ${item.productCode || item.materialCode || '/'}
                         </div>
                         <div class="schema-box">
                             <div style="font-size: 12px; font-weight: bold; margin-bottom: 10px; text-align: left;">SHEMA RAZDELITVE:</div>
@@ -5193,16 +5217,16 @@
                             <tr>
                                 <td style="width: 15%; vertical-align: top; border-right: 1px solid #ddd; padding-right: 5px;">
                                     <span style="font-size: 8px; color: #555; text-transform: uppercase;">${isAT ? 'Številka artikla:' : 'Šifra izdelka:'}</span><br>
-                                    <span style="font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; margin-top: 5px; display: block;">${item.materialCode || '/'}</span>
+                                    <span style="font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; margin-top: 5px; display: block;">${item.productCode || item.materialCode || '/'}</span>
                                 </td>
                                 <td style="width: 85%; vertical-align: top; padding-left: 10px;">
                                     <table style="width: 100%; border-collapse: collapse;">
-                                        <tr><td style="width: 100px; font-weight: bold; font-size: 12px; vertical-align: top;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td style="font-size: 12px; vertical-align: top;">${item.name || '/'}</td></tr>
-                                        <tr><td style="width: 100px; font-weight: bold; font-size: 12px; vertical-align: top;">Format:</td><td style="font-size: 12px; vertical-align: top;">${(item.spec && item.spec.format) ? item.spec.format : '/'}</td></tr>
-                                        ${(item.spec && item.spec.paper) ? `<tr><td style="width: 100px; font-weight: bold; font-size: 12px; vertical-align: top;">${isAT ? 'Papier:' : 'Papir:'}</td><td style="font-size: 12px; vertical-align: top;">${item.spec.paper}</td></tr>` : ''}
-                                        <tr><td style="width: 100px; font-weight: bold; font-size: 12px; vertical-align: top;">${isAT ? 'Druck:' : 'Tisk:'}</td><td style="font-size: 12px; vertical-align: top;">${(item.spec && item.spec.colors) ? item.spec.colors : '/'}</td></tr>
-                                        ${specFinishing ? `<tr><td style="width: 100px; font-weight: bold; font-size: 12px; vertical-align: top;">${isAT ? 'Verarbeitung:' : 'Dodel.:'}</td><td style="font-size: 12px; vertical-align: top;">${specFinishing}</td></tr>` : ''}
-                                        ${deliveryAddress ? `<tr><td style="width: 100px; font-weight: bold; font-size: 12px; vertical-align: top;">${isAT ? 'Lieferung:' : 'Dostava:'}</td><td style="font-size: 12px; vertical-align: top;">${deliveryAddress.replace(/\n/g, '<br>')}</td></tr>` : ''}
+                                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${item.name || '/'}</td></tr>
+                                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">Format:</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${(item.spec && item.spec.format) ? item.spec.format : '/'}</td></tr>
+                                        ${(item.spec && item.spec.paper) ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Papier:' : 'Papir:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${item.spec.paper}</td></tr>` : ''}
+                                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Druck:' : 'Tisk:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${(item.spec && item.spec.colors) ? item.spec.colors : '/'}</td></tr>
+                                        ${specFinishing ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Verarbeitung:' : 'Dodel.:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${specFinishing}</td></tr>` : ''}
+                                        ${deliveryAddress ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Lieferung:' : 'Dostava:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${deliveryAddress.replace(/\n/g, '<br>')}</td></tr>` : ''}
                                     </table>
                                 </td>
                             </tr>
@@ -5541,14 +5565,9 @@
                 if (hasPonatis) line1Parts.push('Ponatis!');
                 if (hasAkJpg) line1Parts.push('AK-JPG montaže!');
                 orderTypeLine1 = line1Parts.join(' ');
+            }
 
-                let line2Parts = [];
-                if (hasPrint) line2Parts.push('Print za tiskarja!');
-                orderTypeLine2 = line2Parts.join(' ');
-            }
-            if (dnOld) {
-                orderTypeLine2 = orderTypeLine2 ? `${orderTypeLine2} SDN ${dnOld}` : `SDN ${dnOld}`;
-            }
+            orderTypeLine2 = dnOld ? `Print za tiskarja! SDN ${dnOld}` : `Print za tiskarja!`;
             let front = parseInt(document.getElementById('calc-color-front').value) || 0;
             let back = parseInt(document.getElementById('calc-color-back').value) || 0;
             let isObrat = document.getElementById('calc-is-obrat').checked;
@@ -5636,7 +5655,7 @@
                 finishingRowsHtml += `
                     <tr>
                         <td style="width: 15%;">Lepljenje Petrata:</td>
-                        <td style="width: 35%;"></td>
+                        <td style="width: 35%;" class="bold">${q.toLocaleString('de-DE')} kos</td>
                         <td style="width: 50%; text-align: right;" class="bold">/</td>
                     </tr>`;
             }
@@ -5644,7 +5663,7 @@
                 finishingRowsHtml += `
                     <tr>
                         <td style="width: 15%;">Špiraljenje / Vrvice:</td>
-                        <td style="width: 35%;"></td>
+                        <td style="width: 35%;" class="bold">${q.toLocaleString('de-DE')} kos</td>
                         <td style="width: 50%; text-align: right;" class="bold">/</td>
                     </tr>`;
             }
@@ -5711,7 +5730,8 @@
             let mPasses = rule.passes;
             // Upoštevaj fiksno hitrost 6000 pol/h samo v delovnem nalogu za tiskarja in planiranje
             let dnPrintHours = (finalTotalSheets * mPasses) / 6000;
-            let roundedPrepTime = roundUpTime(d.print.prepTime);
+            let prepTimeVal = d.print.prepTime || 0.5;
+            let prepTimeStr = (prepTimeVal % 1 === 0 ? prepTimeVal.toFixed(0) : prepTimeVal.toString().replace('.', ',')) + ' h';
             let roundedPrintTime = roundUpTime(dnPrintHours);
             let sourceWCm = (sourceW / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
             let sourceHCm = (sourceH / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
@@ -5736,7 +5756,7 @@
                         </td>
                         <td style="width: 50%; text-align: right; vertical-align: top;">
                             <div class="bold" style="font-size: 28px; font-style: italic; text-decoration: underline; margin-bottom: 2px;">D.N.: ${dnNum}</div>
-                            <div class="bold" style="font-size: 16px; font-style: italic; margin-bottom: 8px;">${date}</div>
+                            <div class="bold" style="font-size: 16px; font-style: italic; margin-bottom: 2px;">${date}</div>
                             <div style="line-height: 1.3;">
                                 ${orderTypeLine1 ? `<div class="bold" style="font-size: 16px; font-style: italic; text-decoration: underline;">${orderTypeLine1}</div>` : ''}
                                 ${orderTypeLine2 ? `<div class="bold" style="font-size: 16px; font-style: italic;">${orderTypeLine2}</div>` : ''}
@@ -5775,7 +5795,7 @@
                     <tr>
                         <td style="width: 15%; font-weight: bold;"><strong>${d.print.mType || 'S4'}</strong> priprava:</td>
                         <td class="bold" style="width: 55%;">${tiskMode}</td>
-                        <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">priprava:</span> ${roundedPrepTime.toFixed(1)} h</td>
+                        <td style="width: 30%; text-align: right;" class="bold" colspan="2"><span class="bold">priprava:</span> ${prepTimeStr}</td>
                     </tr>
                     <tr>
                         <td>Tisk:</td>
@@ -5797,9 +5817,9 @@
                         <td style="width: 50%; text-align: right;"></td>
                     </tr>
                     ` : ''}
-                    <tr>
-                        <td style="width: 15%; padding-top: 5px;">Pakiranje:</td>
-                        <td class="bold" style="width: 35%; padding-top: 5px;">${packaging}</td>
+                    <tr style="font-size: 15px; font-weight: bold;">
+                        <td style="width: 15%; padding-top: 2px; font-size: 15px;" class="bold">Pakiranje:</td>
+                        <td class="bold" style="width: 35%; padding-top: 2px; font-size: 15px;">${packaging}</td>
                         <td style="width: 50%; text-align: right;"></td>
                     </tr>
                 </table>
@@ -5818,12 +5838,12 @@
                 <div class="row-divider"></div>
                 <table>
                     <tr>
-                        <td style="width: 50%;" class="bold">Izdobaviti točno naročeno količino!</td>
-                        <td style="width: 50%; text-align: right;" class="bold">${deliveryAddress ? 'Dostava na naslov!' : 'Naša dostava!'}</td>
+                        <td style="width: 50%; font-size: 14px;" class="bold">Izdobaviti točno naročeno količino!</td>
+                        <td style="width: 50%; text-align: right; font-size: 17px; font-weight: bold;" class="bold">${deliveryAddress ? `Dostava na naslov (OTP):<br><span style="font-size: 17px; font-weight: bold;">${deliveryAddress.replace(/\n/g, '<br>')}</span>` : 'Naša dostava!'}</td>
                     </tr>
                     <tr>
-                        <td>Obvezno par vzorcev tiskovine v nalog:</td>
-                        <td style="text-align: right;">Pred dostavo pokliči!</td>
+                        <td style="font-size: 14px;">Obvezno par vzorcev tiskovine v nalog:</td>
+                        <td style="text-align: right; font-size: 14px;" class="bold">Pred dostavo pokliči!</td>
                     </tr>
                 </table>
                 <div class="row-divider"></div>
@@ -5858,14 +5878,14 @@
                 <meta charset="utf-8">
                 <title>${docTitle}</title>
                 <style>
-                    body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.25; color: #000; margin: 0; padding: 0; }
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
-                    td, th { padding: 4px; vertical-align: top; }
+                    body { font-family: Arial, sans-serif; font-size: 15px; line-height: 1.3; color: #000; margin: 0; padding: 0; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 3px; font-size: 15px; }
+                    td, th { padding: 2px 4px; vertical-align: top; }
                     .main-table th { background: #eee; border: 1px solid #ccc; font-size: 11px; }
                     .main-table td { border: 1px solid #ccc; }
-                    .header-top { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
+                    .header-top { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 4px; }
                     .bold { font-weight: bold; }
-                    .row-divider { border-top: 1px dashed #000; margin: 10px 0; }
+                    .row-divider { border-top: 1px dashed #000; margin: 4px 0; }
                     @media print { .no-print { display: none !important; } }
                     .editable-area:focus { outline: 2px dashed #3b82f6; background-color: #eff6ff; }
                     .editable-area p, .editable-area div:not(.header-top) { margin: 0; padding: 0; }
