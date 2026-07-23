@@ -1073,6 +1073,11 @@
                             oninput="g_editedWorkOrderHTML = ''; calculatePrice()"
                             onchange="g_editedWorkOrderHTML = ''; calculatePrice()">
                     </div>
+                    <div id="calc-mut-warning"
+                        style="display: none; margin-top: 5px; padding: 8px 12px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; border-radius: 6px; color: #fca5a5; font-size: 0.85rem; font-weight: bold;">
+                        ⚠️ Opozorilo: Skupna količina mutacij (<span id="calc-mut-warning-qty">0</span> kos) presega
+                        naročeno količino (<span id="calc-mut-warning-target">0</span> kos)!
+                    </div>
                     <div class="form-group"
                         style="padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 5px;">
                         <label>Pranje / Menjava barv (število pranj)</label>
@@ -2439,8 +2444,50 @@
                 mutPlatesInput.value = plates * Math.max(1, mutQty);
             }
         }
+        function checkMutationQuantityWarning() {
+            const warningEl = document.getElementById('calc-mut-warning');
+            if (!warningEl) return;
+
+            const mutType = document.getElementById('calc-mut-type') ? document.getElementById('calc-mut-type').value : "";
+            const mutBreakdown = (mutType !== "" && document.getElementById('calc-mut-breakdown')) ? document.getElementById('calc-mut-breakdown').value.trim() : "";
+
+            if (!mutType || !mutBreakdown) {
+                warningEl.style.display = 'none';
+                return;
+            }
+
+            const qtyStr = document.getElementById('quantity') ? document.getElementById('quantity').value : '0';
+            const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+            const targetQty = qtyArr[0] || 0;
+
+            let items = null;
+            if (typeof parseMutationBreakdown === 'function') {
+                items = parseMutationBreakdown(mutBreakdown, targetQty, 1, 0);
+            }
+            if (!items) {
+                let parts = mutBreakdown.split(/[,;]/).map(s => s.trim()).filter(s => s.length > 0);
+                let sum = 0;
+                parts.forEach(p => {
+                    let m = p.match(/(\d[\d\.]*)/);
+                    if (m) sum += (parseInt(m[1].replace(/\./g, '')) || 0);
+                });
+                if (sum > 0) items = [{ qty: sum }];
+            }
+
+            if (items && items.length > 0) {
+                let sumQty = items.reduce((acc, it) => acc + (it.qty || 0), 0);
+                if (targetQty > 0 && sumQty > targetQty) {
+                    warningEl.style.display = 'block';
+                    document.getElementById('calc-mut-warning-qty').innerText = sumQty.toLocaleString('de-DE');
+                    document.getElementById('calc-mut-warning-target').innerText = targetQty.toLocaleString('de-DE');
+                    return;
+                }
+            }
+            warningEl.style.display = 'none';
+        }
         function updateWasteAndPrice(needed, q, dw, dh) {
             updateMutationPlates();
+            checkMutationQuantityWarning();
             const mType = document.getElementById('calc-machine-type').value;
             const profile = machineProfiles[mType];
             const front = parseInt(document.getElementById('calc-color-front').value) || 0;
@@ -5695,11 +5742,34 @@
             let mutItems = parseMutationBreakdown(mutBreakdown, q, itemsPerSheet, finalDodatek, hasMutDodatek ? mutDodatekInput : NaN);
             let mutPrintRowsHtml = "";
             if (mutItems && mutItems.length > 0) {
-                mutPrintRowsHtml = mutItems.map(it => {
+                let rowsHtml = mutItems.map(it => {
                     let labelDisplay = it.label.length === 1 ? `${it.label}:` : `${it.label}`;
-                    return `<div style="margin-bottom: 2px;"><span class="bold">${labelDisplay}</span> ${it.qty.toLocaleString('de-DE')} kos &nbsp;&nbsp;&nbsp;&nbsp; ${it.netSheets.toLocaleString('de-DE')} pol + ${it.dodatek.toLocaleString('de-DE')} pol = <span class="bold">${it.totalSheets.toLocaleString('de-DE')} tisk. pol</span></div>`;
+                    return `
+                        <tr>
+                            <td style="padding: 1px 12px 1px 0; font-weight: bold; white-space: nowrap;">${labelDisplay} ${it.qty.toLocaleString('de-DE')} kos</td>
+                            <td style="padding: 1px 4px; text-align: right; white-space: nowrap;">${it.netSheets.toLocaleString('de-DE')} pol</td>
+                            <td style="padding: 1px 4px; text-align: center;">+</td>
+                            <td style="padding: 1px 4px; text-align: right; white-space: nowrap;">${it.dodatek.toLocaleString('de-DE')} pol</td>
+                            <td style="padding: 1px 4px; text-align: center;">=</td>
+                            <td style="padding: 1px 0 1px 6px; font-weight: bold; text-align: right; white-space: nowrap;">${it.totalSheets.toLocaleString('de-DE')} tisk. pol</td>
+                        </tr>`;
                 }).join('');
-                mutPrintRowsHtml += `<div style="margin-top: 3px; font-weight: bold; border-top: 1px dashed #cbd5e1; padding-top: 2px;">Skupaj: ${printMathString} &nbsp;&nbsp; (${mPasses}x skozi stroj)</div>`;
+
+                mutPrintRowsHtml = `
+                    <table style="border-collapse: collapse; font-size: 14px; margin-bottom: 2px;">
+                        <tbody>
+                            ${rowsHtml}
+                            <tr style="border-top: 1px dashed #cbd5e1; font-weight: bold;">
+                                <td style="padding: 3px 12px 1px 0; white-space: nowrap;">Skupaj: ${q.toLocaleString('de-DE')} kos</td>
+                                <td style="padding: 3px 4px 1px 4px; text-align: right; white-space: nowrap;">${calcRes.sheetsNeeded.toLocaleString('de-DE')} pol</td>
+                                <td style="padding: 3px 4px 1px 4px; text-align: center;">+</td>
+                                <td style="padding: 3px 4px 1px 4px; text-align: right; white-space: nowrap;">${finalDodatek.toLocaleString('de-DE')} pol</td>
+                                <td style="padding: 3px 4px 1px 4px; text-align: center;">=</td>
+                                <td style="padding: 3px 0 1px 6px; text-align: right; white-space: nowrap;">${finalTotalSheets.toLocaleString('de-DE')} tisk. pol</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style="font-size: 12px; font-weight: normal; color: #475569; margin-top: 2px;">(${mPasses}x skozi stroj)</div>`;
             }
 
             let qtyDisplay = `${q.toLocaleString('de-DE')} kos`;
@@ -5848,7 +5918,18 @@
             let sourceGrain = (sourceW > 0 && sourceH > 0) ? (sourceW < sourceH ? 'SB' : 'BB') : '';
             let sheetWCm = (sheetW / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
             let sheetHCm = (sheetH / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+            let mutExceedsWarningHtml = "";
+            if (mutItems && mutItems.length > 0 && q > 0) {
+                let sumMutQty = mutItems.reduce((acc, it) => acc + (it.qty || 0), 0);
+                if (sumMutQty > q) {
+                    mutExceedsWarningHtml = `
+                        <div style="background: #fef2f2; border: 2px solid #ef4444; color: #991b1b; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 14px; margin-bottom: 10px;">
+                            ⚠️ OPOZORILO: Skupna količina mutacij (${sumMutQty.toLocaleString('de-DE')} kos) PRESEGA naročeno količino (${q.toLocaleString('de-DE')} kos)!
+                        </div>`;
+                }
+            }
             const defaultContent = `
+                ${mutExceedsWarningHtml}
                 <div class="header-top">
                     <div style="width: 50%;">
                         <div class="bold" style="font-size: 14px;">${customer} &nbsp;&nbsp;&nbsp; (Šifra stranke: ${customerCode})</div>
