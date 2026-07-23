@@ -5235,6 +5235,24 @@
                 setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
             } catch (err) { alert("Napaka pri shranjevanju: " + err.message); }
         }
+        function formatMutationBreakdownDisplay(str, isAT) {
+            if (!str || !str.trim()) return "";
+            let unit = isAT ? 'Stk.' : 'kos';
+            let parts = str.split(/[,;]/).map(s => s.trim()).filter(s => s.length > 0);
+            let formattedParts = parts.map(part => {
+                let hasUnit = /\b(kos|kom|stk|stk\.)\b/i.test(part);
+                if (hasUnit) {
+                    return part.replace(/\b(kos|kom|stk|stk\.)\b/gi, unit);
+                }
+                let numMatch = part.match(/(\d[\d\.]*)/);
+                if (numMatch) {
+                    let numStr = numMatch[1];
+                    return part.replace(numStr, `${numStr} ${unit}`);
+                }
+                return part;
+            });
+            return formattedParts.join(' + ');
+        }
         // --- TISKANJE PONUDBE ---
         function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT = false) {
             const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
@@ -5349,13 +5367,15 @@
                         .replace(/Plastifikacija/gi, 'Cellophanierung')
                         .replace(/Dostava/gi, 'Lieferung');
                 }
-                let priceRowsHTML = (item.quantities && Array.isArray(item.quantities)) ? item.quantities.map(q => `
+                let priceRowsHTML = (item.quantities && Array.isArray(item.quantities)) ? item.quantities.map(q => {
+                    let formattedBreakdown = formatMutationBreakdownDisplay(item.mutBreakdown, isAT);
+                    return `
                     <tr>
-                        <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} ${isAT ? 'Stk.' : 'kos'}${item.mutBreakdown ? ' (' + item.mutBreakdown + ')' : ''}</td>
+                        <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} ${isAT ? 'Stk.' : 'kos'}${formattedBreakdown ? `<br><span style="font-size: 13px; font-weight: 500; color: #1e293b; display: block; margin-top: 2px;">(${formattedBreakdown})</span>` : ''}</td>
                         <td style="padding: 4px;">${formatPrice(q.pricePerUnit !== undefined ? q.pricePerUnit : (q.perItem || 0), 3)}</td>
                         <td style="font-weight: bold; text-align: right; padding: 4px;">${formatPrice(q.priceTotal !== undefined ? q.priceTotal : (q.total || 0), 2)}</td>
-                    </tr>
-                `).join('') : '<tr><td colspan="3" style="padding:4px; color:red;">Manjkajoči podatki o ceni</td></tr>';
+                    </tr>`;
+                }).join('') : '<tr><td colspan="3" style="padding:4px; color:red;">Manjkajoči podatki o ceni</td></tr>';
                 return `
                     <div style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
                         <table style="width: 100%; border-collapse: collapse;" cellpadding="0" cellspacing="0">
