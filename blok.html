@@ -5479,13 +5479,20 @@
 
                 // Cover
                 let coverMaterial = document.getElementById('calc-cover-desc').value || "";
-                let formatCover = `${document.getElementById('calc-cover-w').value} x ${document.getElementById('calc-cover-h').value} mm`;
+                let cW = parseFloat(document.getElementById('calc-cover-w')?.value) || parseFloat(document.getElementById('width')?.value) || 0;
+                let cH = parseFloat(document.getElementById('calc-cover-h')?.value) || parseFloat(document.getElementById('height')?.value) || 0;
+                let formatCover = (cW > 0 && cH > 0) ? `${cW} x ${cH} mm` : "Ni vpisano";
+                let bleedC = parseFloat(document.getElementById('calc-cover-bleed')?.value || 2) || 0;
+                let cutWC = cW + (bleedC * 2);
+                let cutHC = cH + (bleedC * 2);
                 let frontC = parseInt(document.getElementById('calc-color-front-cover')?.value || 0) || 0;
                 let backC = parseInt(document.getElementById('calc-color-back-cover')?.value || 0) || 0;
                 let isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
                 let colorsC = (isObratC) ? (frontC + '/' + frontC) : (frontC + '/' + backC);
+                let isNoPrintC = (frontC + backC === 0);
                 let coverQty = parseFloat(document.getElementById('calc-cover-qty')?.value);
-                let coverQtyLine = (!isNaN(coverQty) && coverQty > 0) ? `<tr><td style="width: 15%;">Količina ovitkov:</td><td class="bold" style="font-size: 14px; color: #f43f5e;">${coverQty.toLocaleString('de-DE')} kos</td></tr>` : '';
+                let effectiveCoverQty = (!isNaN(coverQty) && coverQty > 0) ? coverQty : q;
+                let coverQtyLine = (!isNaN(coverQty) && coverQty > 0 && !isNoPrintC) ? `<tr><td style="width: 15%;">Količina ovitkov:</td><td class="bold" style="font-size: 14px; color: #f43f5e;">${coverQty.toLocaleString('de-DE')} kos</td></tr>` : '';
 
                 let calcRes = calculateForSingleQty(q);
                 let d = calcRes ? calcRes.details : null;
@@ -5554,15 +5561,44 @@
                     sheetHCmL = (parseFloat(sTextL.split('x')[1]) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
                 }
 
+                let sourceWCmC = d && d.paper && d.paper.cover ? ((d.paper.cover.sourceW || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
+                let sourceHCmC = d && d.paper && d.paper.cover ? ((d.paper.cover.sourceH || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
+                let srcWC = d && d.paper && d.paper.cover && d.paper.cover.sourceW ? d.paper.cover.sourceW : (parseFloat(document.getElementById('calc-source-cover-w')?.value) || parseFloat(document.getElementById('calc-source-w')?.value) || 700);
+                let srcHC = d && d.paper && d.paper.cover && d.paper.cover.sourceH ? d.paper.cover.sourceH : (parseFloat(document.getElementById('calc-source-cover-h')?.value) || parseFloat(document.getElementById('calc-source-h')?.value) || 1000);
+                if (sourceWCmC === 0 || sourceWCmC === '0') sourceWCmC = (srcWC / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+                if (sourceHCmC === 0 || sourceHCmC === '0') sourceHCmC = (srcHC / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+                let sourceGrainC = (srcWC > 0 && srcHC > 0) ? (srcWC < srcHC ? 'SB' : 'BB') : '';
+
+                let sourceYieldC = 1;
+                if (isNoPrintC) {
+                    if (cW > 0 && cH > 0 && srcWC > 0 && srcHC > 0) {
+                        let y1 = Math.floor(srcWC / (cutWC > 0 ? cutWC : cW)) * Math.floor(srcHC / (cutHC > 0 ? cutHC : cH));
+                        let y2 = Math.floor(srcWC / (cutHC > 0 ? cutHC : cH)) * Math.floor(srcHC / (cutWC > 0 ? cutWC : cW));
+                        let calcYield = Math.max(y1, y2);
+                        if (calcYield > 0) sourceYieldC = calcYield;
+                    }
+                } else {
+                    sourceYieldC = d && d.paper && d.paper.cover ? d.paper.cover.yield : 1;
+                }
+
                 let sheetsNeededC = parseInt(document.getElementById('header-cover-sheets-val')?.innerText) || 0;
-                let sourceYieldC = d && d.paper && d.paper.cover ? d.paper.cover.yield : 1;
-                
                 let printAllowanceC = parseInt(document.getElementById('calc-print-allowance-cover')?.value) || 0;
                 let finalTotalSheetsC = sheetsNeededC + printAllowanceC;
-                let finalSourceSheetsC = Math.ceil(finalTotalSheetsC / sourceYieldC);
-                let defaultDodatekC = printAllowanceC;
-                
-                let totalSheetsC = finalTotalSheetsC; // For compatibility
+                let finalSourceSheetsC = 0;
+                let defaultDodatekC = 0;
+                let totalSheetsC = 0;
+
+                if (isNoPrintC) {
+                    sheetsNeededC = 0;
+                    printAllowanceC = 0;
+                    finalSourceSheetsC = Math.ceil(effectiveCoverQty / sourceYieldC);
+                    defaultDodatekC = 0;
+                    totalSheetsC = 0;
+                } else {
+                    finalSourceSheetsC = Math.ceil(finalTotalSheetsC / sourceYieldC);
+                    defaultDodatekC = printAllowanceC;
+                    totalSheetsC = finalTotalSheetsC;
+                }
 
                 // Cover print times
                 let mTypeC = document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : 'S4';
@@ -5604,12 +5640,6 @@
                     </table>`;
                 }
 
-                let sourceWCmC = d && d.paper && d.paper.cover ? ((d.paper.cover.sourceW || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
-                let sourceHCmC = d && d.paper && d.paper.cover ? ((d.paper.cover.sourceH || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
-                let srcWC = d && d.paper && d.paper.cover && d.paper.cover.sourceW ? d.paper.cover.sourceW : (parseFloat(document.getElementById('calc-source-cover-w')?.value) || 0);
-                let srcHC = d && d.paper && d.paper.cover && d.paper.cover.sourceH ? d.paper.cover.sourceH : (parseFloat(document.getElementById('calc-source-cover-h')?.value) || 0);
-                let sourceGrainC = (srcWC > 0 && srcHC > 0) ? (srcWC < srcHC ? 'SB' : 'BB') : '';
-
                 let sheetWCmC = d && d.paper && d.paper.cover ? ((d.paper.cover.sheetW || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
                 let sheetHCmC = d && d.paper && d.paper.cover ? ((d.paper.cover.sheetH || 0) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : 0;
                 let cTextC = document.getElementById('res-size-cover-val')?.innerText || "";
@@ -5617,6 +5647,10 @@
                     sheetWCmC = (parseFloat(cTextC.split('x')[0]) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
                     sheetHCmC = (parseFloat(cTextC.split('x')[1]) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
                 }
+
+                let coverRazrezText = isNoPrintC
+                    ? `${finalSourceSheetsC.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCmC} x ${sourceHCmC} cm ${sourceGrainC} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na format &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${formatCover} ${effectiveCoverQty.toLocaleString('de-DE')} kos &nbsp;&nbsp; (${sourceYieldC} iz pole)`
+                    : `${finalSourceSheetsC.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCmC} x ${sourceHCmC} cm ${sourceGrainC} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${totalSheetsC.toLocaleString('de-DE')} pol ${sheetWCmC} x ${sheetHCmC} cm &nbsp;&nbsp; (${sourceYieldC} iz pole)`;
 
                 let finishing = getFinishingDesc();
 
@@ -5686,12 +5720,15 @@
                         <tr><td style="width: 15%;">Format ovitka:</td><td class="bold">${formatCover}</td></tr>
                         <tr><td>Material ovitek:</td><td class="bold">${coverMaterial}</td></tr>
                         <tr><td>Tisk ovitek:</td><td class="bold">${colorsC}</td></tr>
-                        <tr><td>Količina pol (ovitek):</td><td class="bold">${sheetsNeededC.toLocaleString('de-DE')} neto ${defaultDodatekC > 0 ? '+ ' + defaultDodatekC.toLocaleString('de-DE') + ' dodatek ' : ''}= ${totalSheetsC.toLocaleString('de-DE')} tiskarskih pol</td></tr>
+                        ${isNoPrintC 
+                            ? `<tr><td>Količina pol za razrez:</td><td class="bold">${finalSourceSheetsC.toLocaleString('de-DE')} pol (samo razrez na format ${formatCover} ${effectiveCoverQty.toLocaleString('de-DE')} kos)</td></tr>`
+                            : `<tr><td>Količina pol (ovitek):</td><td class="bold">${sheetsNeededC.toLocaleString('de-DE')} neto ${defaultDodatekC > 0 ? '+ ' + defaultDodatekC.toLocaleString('de-DE') + ' dodatek ' : ''}= ${totalSheetsC.toLocaleString('de-DE')} tiskarskih pol</td></tr>`
+                        }
                     </table>
                     <table style="width: 100%;">
                         <tr>
                             <td style="width: 15%;">06 razrez:</td>
-                            <td class="bold">${finalSourceSheetsC.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCmC} x ${sourceHCmC} cm ${sourceGrainC} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${totalSheetsC.toLocaleString('de-DE')} pol ${sheetWCmC} x ${sheetHCmC} cm &nbsp;&nbsp; (${sourceYieldC} iz pole)</td>
+                            <td class="bold">${coverRazrezText}</td>
                         </tr>
                     </table>
                     ${printSectionC}
@@ -5718,14 +5755,16 @@
                             <td>Papir listi (${sourceWCmL} x ${sourceHCmL} cm ${sourceGrainL}) - ${leavesMaterial}:</td>
                             <td style="text-align: right;" class="bold">${finalSourceSheetsL.toLocaleString('de-DE')} pol</td>
                         </tr>
-                        ${sheetsNeededC > 0 ? `
+                        ${(finalSourceSheetsC > 0 && coverMaterial) ? `
+                        ${!isNoPrintC ? `
                         <tr>
                             <td style="padding-top: 5px;">of. plošče (<strong>${mTypeC}</strong>) - ovitek:</td>
                             <td style="text-align: right; padding-top: 5px;" class="bold">${platesC} kos</td>
                         </tr>
+                        ` : ''}
                         <tr>
-                            <td>Papir ovitek (${sourceWCmC} x ${sourceHCmC} cm ${sourceGrainC}) - ${coverMaterial}:</td>
-                            <td style="text-align: right;" class="bold">${finalSourceSheetsC.toLocaleString('de-DE')} pol</td>
+                            <td${isNoPrintC ? ' style="padding-top: 5px;"' : ''}>Papir ovitek/podkarton (${sourceWCmC} x ${sourceHCmC} cm ${sourceGrainC}) - ${coverMaterial}:</td>
+                            <td style="text-align: right;${isNoPrintC ? ' padding-top: 5px;' : ''}" class="bold">${finalSourceSheetsC.toLocaleString('de-DE')} pol</td>
                         </tr>
                         ` : ''}
                     </table>
