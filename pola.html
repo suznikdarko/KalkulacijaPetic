@@ -563,7 +563,8 @@
                     <input type="text" id="calc-dn-deadline" placeholder="">
                 </div>
                 <div style="display:flex; align-items:center; gap: 0.5rem; margin-top: 10px;">
-                    <input type="checkbox" id="calc-dn-urgent" style="width:auto; height:auto;">
+                    <input type="checkbox" id="calc-dn-urgent" onchange="g_editedWorkOrderHTML = ''; calculatePrice()"
+                        style="width:auto; height:auto;">
                     <label for="calc-dn-urgent" style="color: #ef4444; font-weight: bold; margin:0;">NUJNO!</label>
                 </div>
                 <div>
@@ -1069,7 +1070,7 @@
                     </div>
                     <div class="form-group">
                         <label>Dodatek na mutacijo (pol)</label>
-                        <input type="number" id="calc-mut-dodatek" placeholder="npr. 200" min="0" step="1"
+                        <input type="text" id="calc-mut-dodatek" placeholder="npr. 200 ali 200, 150, 300"
                             oninput="g_editedWorkOrderHTML = ''; calculatePrice()"
                             onchange="g_editedWorkOrderHTML = ''; calculatePrice()">
                     </div>
@@ -1802,7 +1803,7 @@
                         mutPlates: document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : '',
                         format: (document.getElementById('width') ? document.getElementById('width').value : '') + ' x ' + (document.getElementById('height') ? document.getElementById('height').value : '') + ' mm',
                         paper: (document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value : '') + 'g ' + (document.getElementById('calc-paper-type') ? document.getElementById('calc-paper-type').value : ''),
-                        colors: (() => { const f = parseInt(document.getElementById('calc-color-front').value) || 0; const b = parseInt(document.getElementById('calc-color-back').value) || 0; const isOb = document.getElementById('calc-is-obrat') && document.getElementById('calc-is-obrat').checked; const isSV = document.getElementById('calc-is-sv') && document.getElementById('calc-is-sv').checked; return (isOb || isSV) ? (f + '/' + f) : (f + '/' + b); })(),
+                        colors: getFormattedColorsString(),
                         finishing: getActiveFinishingList()
                     },
                     quantities: results.map((r, idx) => {
@@ -2424,14 +2425,83 @@
                 updateWasteAndPrice(Math.ceil(q / currentCount), q, bestSheet.w, bestSheet.h);
             } catch (e) { alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack); console.error(e); }
         }
+        function parseMutationDodatekList(str) {
+            if (!str || (typeof str !== 'string' && typeof str !== 'number') || !String(str).trim()) return [];
+            let parts = String(str).split(/[,;]/).map(s => s.trim()).filter(s => s.length > 0);
+            let result = [];
+            parts.forEach(part => {
+                let match = part.match(/(\d[\d\.]*)/);
+                if (match) {
+                    let numStr = match[1].replace(/\./g, '');
+                    let val = parseInt(numStr);
+                    if (!isNaN(val) && val >= 0) {
+                        result.push(val);
+                    }
+                }
+            });
+            return result;
+        }
+        function getFormattedColorsString() {
+            const f = parseInt(document.getElementById('calc-color-front') ? document.getElementById('calc-color-front').value : 0) || 0;
+            const b = parseInt(document.getElementById('calc-color-back') ? document.getElementById('calc-color-back').value : 0) || 0;
+            const isOb = document.getElementById('calc-is-obrat') && document.getElementById('calc-is-obrat').checked;
+            const isSV = document.getElementById('calc-is-sv') && document.getElementById('calc-is-sv').checked;
+            let baseCol = (isOb || isSV) ? (f + '/' + f) : (f + '/' + b);
+
+            const mType = document.getElementById('calc-mut-type') ? document.getElementById('calc-mut-type').value : '';
+            if (!mType) return baseCol;
+
+            let numM = 0;
+            let mBreak = document.getElementById('calc-mut-breakdown') ? document.getElementById('calc-mut-breakdown').value.trim() : '';
+            if (mBreak) {
+                let parts = mBreak.split(/[,;]/).map(s => s.trim()).filter(s => s.length > 0);
+                if (parts.length > 1) {
+                    numM = parts.length - 1; // 3 sorte = 1 osnova + 2 mutaciji!
+                } else if (parts.length === 1) {
+                    numM = 1;
+                }
+            }
+            if (numM <= 0) {
+                numM = parseInt(document.getElementById('calc-mut-qty') ? document.getElementById('calc-mut-qty').value : 0) || 0;
+            }
+            if (numM <= 0) return baseCol;
+
+            let mutCol = baseCol;
+            if (mType === "Mutacija po prvi strani (1/0)") {
+                mutCol = f > 0 ? (f + '/0') : '1/0';
+            } else if (mType === "Mutacija po drugi strani (0/1)") {
+                mutCol = b > 0 ? ('0/' + b) : '0/1';
+            }
+            return `${baseCol} + ${numM}x mutacija ${mutCol}`;
+        }
         function updateMutationPlates() {
             const mutType = document.getElementById('calc-mut-type').value;
             const front = parseInt(document.getElementById('calc-color-front').value) || 0;
             const back = parseInt(document.getElementById('calc-color-back').value) || 0;
-            const mutQty = parseInt(document.getElementById('calc-mut-qty').value) || 1;
-            const mutPlatesInput = document.getElementById('calc-mut-plates');
             const isObrat = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
 
+            const mutBreakdown = document.getElementById('calc-mut-breakdown') ? document.getElementById('calc-mut-breakdown').value.trim() : '';
+            const mutQtyInput = document.getElementById('calc-mut-qty');
+            let calcMutCount = 0;
+
+            if (mutBreakdown && mutType !== "") {
+                let parts = mutBreakdown.split(/[,;]/).map(s => s.trim()).filter(s => s.length > 0);
+                if (parts.length > 1) {
+                    calcMutCount = parts.length - 1; // 3 sorte = 2 mutaciji!
+                } else if (parts.length === 1) {
+                    calcMutCount = 1;
+                }
+            }
+
+            let mutQty = parseInt(mutQtyInput ? mutQtyInput.value : 0) || 0;
+            if (calcMutCount > 0) {
+                mutQty = calcMutCount;
+                if (mutQtyInput && (mutQtyInput.value !== String(calcMutCount))) {
+                    mutQtyInput.value = calcMutCount;
+                }
+            }
+
+            const mutPlatesInput = document.getElementById('calc-mut-plates');
             if (mutPlatesInput) {
                 let plates = 0;
                 if (mutType === "Mutacija po prvi strani (1/0)") {
@@ -2441,7 +2511,7 @@
                 } else if (mutType === "Mutacija obojestransko (1/1)") {
                     plates = isObrat ? front : (front + back);
                 }
-                mutPlatesInput.value = plates * Math.max(1, mutQty);
+                mutPlatesInput.value = plates * Math.max(0, mutQty);
             }
         }
         function checkMutationQuantityWarning() {
@@ -4856,6 +4926,7 @@
                 setV('calc-dn-old', proj.dnOld || inp.dnOld || '');
                 setV('calc-dn-deadline', proj.deadline || inp.deadline || '');
                 setV('calc-dn-packaging', proj.packaging || inp.packaging || '');
+                setV('calc-dn-urgent', proj.isUrgent || inp.isUrgent || false, true);
                 setV('calc-given-sheets', proj.givenSheets || inp.givenSheets || '');
 
                 if (inp.machine_format !== undefined) setV('machine-format', inp.machine_format);
@@ -5205,7 +5276,7 @@
                     spec: {
                         format: document.getElementById('width').value + ' x ' + document.getElementById('height').value + ' mm',
                         paper: document.getElementById('calc-paper-weight').value + 'g ' + (document.getElementById('calc-paper-type').value || ''),
-                        colors: (() => { const f = parseInt(document.getElementById('calc-color-front').value) || 0; const b = parseInt(document.getElementById('calc-color-back').value) || 0; const isOb = document.getElementById('calc-is-obrat') && document.getElementById('calc-is-obrat').checked; const isSV = document.getElementById('calc-is-sv') && document.getElementById('calc-is-sv').checked; return (isOb || isSV) ? (f + '/' + f) : (f + '/' + b); })(),
+                        colors: getFormattedColorsString(),
                         finishing: getActiveFinishingList()
                     },
                     quantities: results.map(r => ({
@@ -5600,7 +5671,7 @@
 
             // Preberi dodatek iz polja "Dodatne pole tiskarju" (ID: calc-given-sheets) in "Dodatek na mutacijo (pol)" (ID: calc-mut-dodatek)
             const givenDodatekInput = document.getElementById('calc-given-sheets') ? parseInt(document.getElementById('calc-given-sheets').value) : NaN;
-            const mutDodatekInput = (hasMutations && document.getElementById('calc-mut-dodatek')) ? parseInt(document.getElementById('calc-mut-dodatek').value) : NaN;
+            const mutDodatekRaw = (hasMutations && document.getElementById('calc-mut-dodatek')) ? document.getElementById('calc-mut-dodatek').value : "";
             // Preračunaj vrednosti glede na dodatek
             let d = calcRes.details;
             let customer = document.getElementById('calc-customer').value || "Ni vpisano";
@@ -5612,9 +5683,10 @@
             let dnOld = document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : "";
             let deadline = document.getElementById('calc-dn-deadline') ? document.getElementById('calc-dn-deadline').value : "";
             let packaging = document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : "";
+            let isUrgent = document.getElementById('calc-dn-urgent') ? document.getElementById('calc-dn-urgent').checked : false;
             let mutBreakdown = (hasMutations && document.getElementById('calc-mut-breakdown')) ? document.getElementById('calc-mut-breakdown').value.trim() : "";
 
-            function parseMutationBreakdown(str, totalQ, itemsPerSheet, totalDodatek, explicitMutDodatek) {
+            function parseMutationBreakdown(str, totalQ, itemsPerSheet, totalDodatek, explicitMutDodatekRaw, givenDodatek) {
                 if (!str || !str.trim()) return null;
                 let parts = str.split(/[,;]/).map(s => s.trim()).filter(s => s.length > 0);
                 if (parts.length === 0) return null;
@@ -5642,19 +5714,33 @@
 
                 if (items.length === 0) return null;
 
-                let numMut = items.length;
+                let numSorts = items.length;
                 let ips = parseInt(itemsPerSheet) || 1;
-                let hasExplicit = !isNaN(explicitMutDodatek) && explicitMutDodatek >= 0;
-                let dodatekPerMut = hasExplicit ? explicitMutDodatek : Math.round(totalDodatek / numMut);
-                let remainingDodatek = totalDodatek;
+                let explicitDodatekList = parseMutationDodatekList(explicitMutDodatekRaw);
+                let hasExplicit = explicitDodatekList.length > 0;
+                let hasGiven = !isNaN(givenDodatek) && givenDodatek >= 0;
+                let dodatekPerSort = Math.round(totalDodatek / numSorts);
 
                 items.forEach((item, idx) => {
                     let netSheets = Math.ceil(item.qty / ips);
-                    let itemDodatek = hasExplicit ? explicitMutDodatek : ((idx === numMut - 1) ? remainingDodatek : dodatekPerMut);
-                    if (!hasExplicit) {
-                        remainingDodatek -= itemDodatek;
-                        if (remainingDodatek < 0) remainingDodatek = 0;
+                    let itemDodatek = 0;
+
+                    if (hasExplicit) {
+                        if (idx === 0 && hasGiven) {
+                            itemDodatek = givenDodatek;
+                        } else if (explicitDodatekList.length === 1) {
+                            itemDodatek = explicitDodatekList[0];
+                        } else {
+                            let listIdx = hasGiven ? (idx - 1) : idx;
+                            if (listIdx < 0) listIdx = 0;
+                            itemDodatek = explicitDodatekList[listIdx] !== undefined ? explicitDodatekList[listIdx] : explicitDodatekList[explicitDodatekList.length - 1];
+                        }
+                    } else if (idx === 0 && hasGiven) {
+                        itemDodatek = givenDodatek;
+                    } else {
+                        itemDodatek = dodatekPerSort;
                     }
+
                     let totalSheets = netSheets + itemDodatek;
 
                     item.netSheets = netSheets;
@@ -5703,6 +5789,7 @@
             let isObrat = document.getElementById('calc-is-obrat').checked;
             let isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
             let colors = (isObrat || isSV) ? (front + '/' + front) : (front + '/' + back);
+            let colorsDisplay = getFormattedColorsString();
             let tiskMode = "1 prehod";
             if (isObrat) { tiskMode = "obračanje"; } else if (back > 0) { tiskMode = "prvi/drugi (2 prehoda)"; }
             let prepPasses = front > 0 ? (Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0)) : 1;
@@ -5725,12 +5812,13 @@
             let physicalWasteSheets = totalSheets - calcRes.sheetsNeeded;
             let finalDodatek = physicalWasteSheets;
 
-            let tempMutItems = parseMutationBreakdown(mutBreakdown, q, itemsPerSheet, finalDodatek, mutDodatekInput);
-            let hasMutDodatek = !isNaN(mutDodatekInput) && mutDodatekInput >= 0 && tempMutItems && tempMutItems.length > 0;
+            let tempMutItems = parseMutationBreakdown(mutBreakdown, q, itemsPerSheet, finalDodatek, mutDodatekRaw, givenDodatekInput);
+            let explicitDodatekList = parseMutationDodatekList(mutDodatekRaw);
+            let hasMutDodatek = explicitDodatekList.length > 0 && tempMutItems && tempMutItems.length > 0;
             let hasGivenDodatek = !isNaN(givenDodatekInput) && givenDodatekInput >= 0;
 
             if (hasMutDodatek) {
-                finalDodatek = mutDodatekInput * tempMutItems.length;
+                finalDodatek = tempMutItems.reduce((acc, it) => acc + (it.dodatek || 0), 0);
             } else if (hasGivenDodatek) {
                 finalDodatek = givenDodatekInput;
             }
@@ -5739,7 +5827,7 @@
             let finalSourceSheets = Math.ceil(finalTotalSheets / sourceYield);
             let printMathString = `${calcRes.sheetsNeeded.toLocaleString('de-DE')} pol + ${finalDodatek.toLocaleString('de-DE')} pol = ${finalTotalSheets.toLocaleString('de-DE')} pol`;
 
-            let mutItems = parseMutationBreakdown(mutBreakdown, q, itemsPerSheet, finalDodatek, hasMutDodatek ? mutDodatekInput : NaN);
+            let mutItems = parseMutationBreakdown(mutBreakdown, q, itemsPerSheet, finalDodatek, hasMutDodatek ? mutDodatekRaw : "", givenDodatekInput);
             let mutPrintRowsHtml = "";
             if (mutItems && mutItems.length > 0) {
                 let rowsHtml = mutItems.map(it => {
@@ -5943,7 +6031,7 @@
                 <table style="margin-top: 10px;">
                     <tr>
                         <td style="width: 50%;">
-                            <div style="font-size: 18px;">Rok izdelave: <span class="bold">${deadline}</span></div>
+                            <div style="font-size: 18px;">Rok izdelave: <span class="bold">${deadline}</span> ${isUrgent ? '<span class="bold" style="color: #ef4444; font-size: 22px; margin-left: 10px;">🚨 NUJNO!</span>' : ''}</div>
                         </td>
                         <td style="width: 50%; text-align: right; vertical-align: top;">
                             <div class="bold" style="font-size: 28px; font-style: italic; text-decoration: underline; margin-bottom: 2px;">D.N.: ${dnNum}</div>
@@ -5964,7 +6052,7 @@
                 <table style="margin-top: 5px; width: 100%;">
                     <tr><td style="width: 15%;">Količina:</td><td class="bold" style="font-size: 15px;">${qtyDisplay}</td></tr>
                     <tr><td>Format:</td><td class="bold">${formatW} x ${formatH} mm</td></tr>
-                    <tr><td>Tisk:</td><td class="bold">${colors}</td></tr>
+                    <tr><td>Tisk:</td><td class="bold">${colorsDisplay}</td></tr>
                     <tr><td>Material:</td><td class="bold">${paperWeight ? paperWeight + 'g ' : ''}${paperType}</td></tr>
                 </table>
                 ${dnNotes ? `
@@ -6031,12 +6119,10 @@
                 <div class="row-divider"></div>
                 <table>
                     <tr>
-                        <td style="width: 50%; font-size: 14px;" class="bold">Izdobaviti točno naročeno količino!</td>
-                        <td style="width: 50%; text-align: right; font-size: 17px; font-weight: bold;" class="bold">${deliveryAddress ? `Dostava na naslov (OTP):<br><span style="font-size: 17px; font-weight: bold;">${deliveryAddress.replace(/\n/g, '<br>')}</span>` : 'Naša dostava!'}</td>
+                        <td style="font-size: 14px;" class="bold">Izdobaviti točno naročeno količino!</td>
                     </tr>
                     <tr>
-                        <td style="font-size: 14px;">Obvezno par vzorcev tiskovine v nalog:</td>
-                        <td style="text-align: right; font-size: 14px;" class="bold">Pred dostavo pokliči!</td>
+                        <td style="font-size: 14px;">Obvezno par vzorcev tiskovine v nalog!</td>
                     </tr>
                 </table>
                 <div class="row-divider"></div>
