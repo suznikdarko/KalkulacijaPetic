@@ -577,14 +577,6 @@
             </div>
             <div class="header-group" style="grid-column: span 1; display: flex; flex-direction: column; gap: 0.75rem;">
                 <div>
-                    <label for="calc-prepared-by">Ponudbo pripravil</label>
-                    <select id="calc-prepared-by">
-                        <option selected="" value="Darko Sužnik">Darko Sužnik</option>
-                        <option value="Sašo Slemenšek">Sašo Slemenšek</option>
-                        <option value="Tilen Petrič">Tilen Petrič</option>
-                    </select>
-                </div>
-                <div>
                     <label for="calc-dn-number">Številka D.N.</label>
                     <input id="calc-dn-number" placeholder="" type="text"
                         oninput="g_editedWorkOrderHTML='';" />
@@ -605,24 +597,34 @@
                     <label for="calc-dn-urgent" style="color: #ef4444; font-weight: bold; margin:0;">NUJNO!</label>
                 </div>
             </div>
-            <!-- Tip naročila / status -->
             <div class="header-group" style="grid-column: span 1;">
-                <label for="calc-order-type">Tip naročila</label>
-                <input type="text" id="calc-order-type" list="order-types-list"
-                    oninput="g_editedQuoteHTML=''; g_editedQuoteATHTML=''; g_editedWorkOrderHTML=''; calculatePrice();"
-                    style="width: 100%; border-radius: 6px; padding: 6px; font-size: 13px; background: #475569; color: white; border: 1px solid var(--glass-border);"
-                    placeholder="Izberi ali vpiši...">
-                <datalist id="order-types-list">
-                    <option value="NOVO"></option>
-                    <option value="NOVO AK-JPG Montaže"></option>
-                    <option value="Sprememba"></option>
-                    <option value="Sprememba AK-JPG Montaže"></option>
-                    <option value="Ponatis"></option>
-                    <option value="Ponatis AK-JPG Montaže"></option>
-                </datalist>
+                <div>
+                    <label for="calc-prepared-by">Ponudbo pripravil</label>
+                    <select id="calc-prepared-by">
+                        <option selected="" value="Darko Sužnik">Darko Sužnik</option>
+                        <option value="Sašo Slemenšek">Sašo Slemenšek</option>
+                        <option value="Tilen Petrič">Tilen Petrič</option>
+                    </select>
+                </div>
                 <!-- Predogled dokumentov -->
                 <div id="custom-docs-preview"
                     style="display: flex; gap: 10px; margin-top: 10px; justify-content: center;"></div>
+                <!-- Tip naročila / status -->
+                <div style="margin-top: 10px;">
+                    <label for="calc-order-type">Tip naročila</label>
+                    <input type="text" id="calc-order-type" list="order-types-list"
+                        oninput="g_editedQuoteHTML=''; g_editedQuoteATHTML=''; g_editedWorkOrderHTML=''; calculatePrice();"
+                        style="width: 100%; border-radius: 6px; padding: 6px; font-size: 13px; background: #475569; color: white; border: 1px solid var(--glass-border);"
+                        placeholder="Izberi ali vpiši...">
+                    <datalist id="order-types-list">
+                        <option value="NOVO"></option>
+                        <option value="NOVO AK-JPG Montaže"></option>
+                        <option value="Sprememba"></option>
+                        <option value="Sprememba AK-JPG Montaže"></option>
+                        <option value="Ponatis"></option>
+                        <option value="Ponatis AK-JPG Montaže"></option>
+                    </datalist>
+                </div>
             </div>
             <div class="header-group"
                 style="grid-column: span 6; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; background: rgba(15, 23, 42, 0.4); padding: 15px; border-radius: 12px; border: 1px dashed var(--glass-border);">
@@ -784,7 +786,7 @@
                         <option value="portrait">Prisili Pokončno ↕️</option>
                     </select>
                 </div>
-                <div style="flex: 2.5;">
+                <div style="flex: 1.5; min-width: 280px;">
                     <label style="color: #60a5fa;">Osnovni format listi (Š x V)</label>
                     <div style="display: flex; gap: 0.4rem; align-items: center;">
                         <select id="calc-source-presets-listi"
@@ -808,9 +810,7 @@
                         <input id="calc-source-h" oninput="calculate()"
                             style="background: rgba(0,0,0,0.2); height: 35px; flex: 1;" type="number" value="" />
                     </div>
-                </div>
-                <div style="flex: 2.5;">
-                    <label style="color: #f43f5e;">Osnovni format ovitek (Š x V)</label>
+                    <label style="color: #f43f5e; margin-top: 0.8rem; display: block;">Osnovni format ovitek (Š x V)</label>
                     <div style="display: flex; gap: 0.4rem; align-items: center;">
                         <select id="calc-source-presets-ovitek"
                             onchange="if(this.value){ const parts = this.value.split('x'); document.getElementById('calc-source-cover-w').value = parts[0]; document.getElementById('calc-source-cover-h').value = parts[1]; calculate(); }"
@@ -5447,14 +5447,13 @@
 
                 // Format order type and old DN lines according to requirements (Line 1: Status!, Line 2: Print za tiskarja! SDN StariDN)
                 let orderTypeLine1 = "";
-                let orderTypeLine2 = "";
+                let orderTypeLine2 = dnOld ? `Print za tiskarja! SDN ${dnOld}` : `Print za tiskarja!`;
                 if (typeof orderType === 'string' && orderType.trim() !== "") {
                     let orderTypeLower = orderType.toLowerCase();
                     let hasNovo = orderTypeLower.includes('novo');
                     let hasSprememba = orderTypeLower.includes('sprememba');
                     let hasPonatis = orderTypeLower.includes('ponatis');
                     let hasAkJpg = orderTypeLower.includes('ak') || orderTypeLower.includes('jpg') || orderTypeLower.includes('montaž');
-                    let hasPrint = orderTypeLower.includes('print') || orderTypeLower.includes('tiskar');
 
                     let line1Parts = [];
                     if (hasNovo) line1Parts.push('NOVO!');
@@ -5462,18 +5461,10 @@
                     if (hasPonatis) line1Parts.push('Ponatis!');
                     if (hasAkJpg) line1Parts.push('AK-JPG montaže!');
                     orderTypeLine1 = line1Parts.join(' ');
-
-                    let line2Parts = [];
-                    if (hasPrint) line2Parts.push('Print za tiskarja!');
-                    orderTypeLine2 = line2Parts.join(' ');
                 }
 
                 if (isUrgent) {
                     orderTypeLine1 = orderTypeLine1 ? `NUJNO! ${orderTypeLine1}` : `NUJNO!`;
-                }
-
-                if (dnOld) {
-                    orderTypeLine2 = orderTypeLine2 ? `${orderTypeLine2} SDN ${dnOld}` : `SDN ${dnOld}`;
                 }
 
                 // Leaves
@@ -5639,7 +5630,7 @@
                             </td>
                             <td style="width: 50%; text-align: right; vertical-align: top;">
                                 <div class="bold" style="font-size: 20px; text-decoration: underline; margin-bottom: 2px;">D.N.: ${dnNum || '__________________'}</div>
-                                <div class="bold" style="font-size: 16px; font-style: italic; margin-bottom: 8px;">${date}</div>
+                                <div class="bold" style="font-size: 16px; font-style: italic; margin-bottom: 0px;">${date}</div>
                                 <div style="line-height: 1.3;">
                                     ${orderTypeLine1 ? `<div class="bold" style="font-size: 16px; font-style: italic; text-decoration: underline;${isUrgent ? ' color: red;' : ''}">${orderTypeLine1}</div>` : ''}
                                     ${orderTypeLine2 ? `<div class="bold" style="font-size: 16px; font-style: italic;">${orderTypeLine2}</div>` : ''}
@@ -5739,6 +5730,15 @@
                         <tr>
                             <td>Obvezno par vzorcev tiskovine v nalog!</td>
                             <td style="text-align: right;">Pred dostavo pokliči!</td>
+                        </tr>
+                    </table>
+                    <div class="row-divider"></div>
+                    <table style="width: 100%; margin-bottom: 5px; font-size: 14px;">
+                        <tr>
+                            <td style="width: 25%;"><span class="bold">Št. ponudbe:</span> ${quoteNum || '/'}</td>
+                            <td style="width: 25%; text-align: center;"><span class="bold">Cena za kos:</span> ${formatPrice(calcRes ? calcRes.perItem : 0, 4)}</td>
+                            <td style="width: 25%; text-align: center;"><span class="bold">Cena za 1000 kos:</span> ${formatPrice(calcRes ? (calcRes.perItem * 1000) : 0, 2)}</td>
+                            <td style="width: 25%; text-align: right;"><span class="bold">Skupaj:</span> ${formatPrice(calcRes ? calcRes.totalPrice : 0, 2)}</td>
                         </tr>
                     </table>
                     <div class="row-divider"></div>
