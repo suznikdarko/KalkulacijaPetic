@@ -1016,6 +1016,8 @@
             const w = document.getElementById('width').value;
             const h = document.getElementById('height').value;
             const envType = document.getElementById('envelope-preset').options[document.getElementById('envelope-preset').selectedIndex].text;
+            let envBaseName = envType.split(' (')[0];
+            if (envBaseName === "-- Poljubno") envBaseName = "Poljubno";
             const cFront = document.getElementById('calc-colors-front').value || "0";
             const cBack = document.getElementById('calc-colors-back').value || "0";
             const quantitiesStr = document.getElementById('calc-quantities').value || "";
@@ -1043,7 +1045,7 @@
                 customer: document.getElementById('calc-customer').value || '',
                 materialCode: materialCode,
                 spec: {
-                    format: envType + ' (' + w + ' x ' + h + ' mm)',
+                    format: envBaseName + ' (' + w + ' x ' + h + ' mm)',
                     colors: cFront + ' / ' + cBack,
                     finishing: finishingParts.join(', ')
                 },
@@ -1139,6 +1141,8 @@
                 const w = document.getElementById('width').value;
                 const h = document.getElementById('height').value;
                 const envType = document.getElementById('envelope-preset').options[document.getElementById('envelope-preset').selectedIndex].text;
+                let envBaseName = envType.split(' (')[0];
+                if (envBaseName === "-- Poljubno") envBaseName = "Poljubno";
                 const cFront = document.getElementById('calc-colors-front').value || "0";
                 const cBack = document.getElementById('calc-colors-back').value || "0";
                 const quantitiesStr = document.getElementById('calc-quantities').value || "";
@@ -1160,7 +1164,7 @@
                     type: 'Kuverte',
                     materialCode,
                     spec: {
-                        format: envType + ' (' + w + ' x ' + h + ' mm)',
+                        format: envBaseName + ' (' + w + ' x ' + h + ' mm)',
                         colors: cFront + ' / ' + cBack,
                         finishing: finishingParts.join(', ')
                     },
@@ -1548,10 +1552,15 @@
 
             let materialCode = document.getElementById('calc-material-code').value || "";
             let envType = document.getElementById('envelope-preset').options[document.getElementById('envelope-preset').selectedIndex].text;
+            let orderType = document.getElementById('calc-order-type') ? document.getElementById('calc-order-type').value : "";
+            let envBaseName = envType.split(' (')[0];
+            if (envBaseName === "-- Poljubno") envBaseName = "Poljubno";
             let formatW = document.getElementById('width').value || 0;
             let formatH = document.getElementById('height').value || 0;
 
-            let date = new Date().toLocaleDateString('sl-SI');
+            const dateObj = new Date();
+            const slMonths = ["januar", "februar", "marec", "april", "maj", "junij", "julij", "avgust", "september", "oktober", "november", "december"];
+            let date = dateObj.getDate() + '. ' + slMonths[dateObj.getMonth()] + ' ' + dateObj.getFullYear();
 
             // Formatiranje barv
             const cFront = parseFloat(document.getElementById('calc-colors-front').value) || 0;
@@ -1577,8 +1586,11 @@
 
             let totalQ = q + qo + finalDodatek;
 
-            let roundedPrintTime = totalQ / d.print.speed;
-            let roundedPrepTime = d.plates.plateCount * 0.15; // 0.15h per plate as setup estimation
+            let rawPrintTimeHours = totalQ / d.print.speed;
+            let printTimeMinutes = Math.ceil((rawPrintTimeHours * 60) / 10) * 10;
+            let roundedPrintTime = Math.round((printTimeMinutes / 60) * 20) / 20;
+
+            let roundedPrepTime = d.plates.plateCount * 0.125; // 0.125h na ploščo (0.5h za 4 barve)
 
             let finishList = getActiveFinishingList();
 
@@ -1604,6 +1616,7 @@
                             <div class="bold" style="font-size: 16px;">D.N.: ${dnNum}</div>
                             ${dnOld ? `<div>Stari D.N. (montaža): ${dnOld}</div>` : ''}
                             <div>Datum naloga: ${date}</div>
+                            ${orderType ? `<div style="font-size: 11px; margin-top: 3px; color: #475569;">${orderType}</div>` : ''}
                         </td>
                     </tr>
                 </table>
@@ -1617,9 +1630,9 @@
 
                 <table style="margin-top: 5px; width: 100%;">
                     <tr><td style="width: 15%;">Količina:</td><td class="bold" style="font-size: 15px;">${qty.toLocaleString('de-DE')} kos</td></tr>
-                    <tr><td>Format:</td><td class="bold">${envType} (${formatW} x ${formatH} mm)</td></tr>
+                    <tr><td>Format:</td><td class="bold">${envBaseName} (${formatW} x ${formatH} mm)</td></tr>
                     <tr><td>Tisk:</td><td class="bold">${colors}</td></tr>
-                    <tr><td>Material:</td><td class="bold">Kuverte - šifra: ${materialCode}</td></tr>
+                    <tr><td>Material:</td><td class="bold">Kuverte ${envBaseName}</td></tr>
                 </table>
                 ${dnNotes ? `
                 <table style="margin-top: 5px; width: 100%;">
@@ -1672,7 +1685,7 @@
                         <td style="text-align: right;" class="bold">${d.plates.plateCount} kos</td>
                     </tr>
                     <tr>
-                        <td>Material (${envType} [Šifra: ${materialCode}]):</td>
+                        <td>Material (${envBaseName}):</td>
                         <td style="text-align: right;" class="bold">${totalQ.toLocaleString('de-DE')} kos</td>
                     </tr>
                 </table>
@@ -1861,14 +1874,28 @@
             return html;
         }
 
+        var activeDNWindow = null;
         function printWorkOrder() {
             try {
                 const html = getWorkOrderHTML();
-                const printWindow = window.open('', '', 'width=850,height=900');
-                if (printWindow) {
-                    printWindow.document.write(html);
-                    printWindow.document.close();
-                    printWindow.focus();
+                if (activeDNWindow && !activeDNWindow.closed) {
+                    try {
+                        activeDNWindow.document.open();
+                        activeDNWindow.document.write(html);
+                        activeDNWindow.document.close();
+                        activeDNWindow.focus();
+                        return; // Uspešno posodobljeno
+                    } catch (secErr) {
+                        // Cross-origin napaka, zapremo in odpremo na novo
+                        try { activeDNWindow.close(); } catch(e) {}
+                    }
+                }
+                
+                activeDNWindow = window.open('', '', 'width=850,height=900');
+                if (activeDNWindow) {
+                    activeDNWindow.document.write(html);
+                    activeDNWindow.document.close();
+                    activeDNWindow.focus();
                 } else {
                     alert("Pojavno okno je blokirano. Prosimo, dovolite pojavna okna za to stran.");
                 }
@@ -1877,6 +1904,26 @@
                 console.error(e);
             }
         }
+
+        // Dodano za takojšnjo posodobitev DN ob spremembah
+        function handleFieldChange(e) {
+            const el = e.target;
+            if ((el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') && el.id !== 'calc-order-type') {
+                window.g_editedWorkOrderHTML = '';
+                try {
+                    if (activeDNWindow && !activeDNWindow.closed) {
+                        const html = getWorkOrderHTML();
+                        activeDNWindow.document.open();
+                        activeDNWindow.document.write(html);
+                        activeDNWindow.document.close();
+                    }
+                } catch (err) {
+                    // Ignoriraj napake pri background posodobitvi (cross-origin)
+                }
+            }
+        }
+        document.addEventListener('input', handleFieldChange);
+        document.addEventListener('change', handleFieldChange);
 
         function getProductionOrderHTML() {
             const customer = document.getElementById('calc-customer').value || '/';
@@ -1887,6 +1934,8 @@
             const materialCode = document.getElementById('calc-material-code').value || '/';
             const envPreset = document.getElementById('envelope-preset');
             const envType = envPreset.options[envPreset.selectedIndex].text;
+            let envBaseName = envType.split(' (')[0];
+            if (envBaseName === "-- Poljubno") envBaseName = "Poljubno";
             const preparedBy = document.getElementById('calc-prepared-by').value || '';
             const date = new Date().toLocaleDateString('sl-SI');
 
@@ -1918,7 +1967,7 @@
                         <div style="margin: 10px 0; border: 1px dashed #ccc; padding: 10px; display: inline-block; text-align: left;">
                             <strong>DIMENZIJE KUVERTE:</strong><br>${dimensionDisplay}
                         </div><br>
-                        <strong>TIP KUVERTE:</strong> ${envType}<br>
+                        <strong>TIP KUVERTE:</strong> ${envBaseName}<br>
                         <strong>ŠIFRA:</strong> ${materialCode}
                     </div>
                     <div class="schema-box">
@@ -2672,6 +2721,12 @@
                 editedQuoteATHTML: window.g_editedQuoteATHTML || '',
                 editedWorkOrderHTML: window.g_editedWorkOrderHTML || '',
                 inputs: {
+                    orderType: document.getElementById('calc-order-type') ? document.getElementById('calc-order-type').value : "",
+                    dnNumber: document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value : "",
+                    dnOld: document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : "",
+                    dnDeadline: document.getElementById('calc-dn-deadline') ? document.getElementById('calc-dn-deadline').value : "",
+                    dnUrgent: document.getElementById('calc-dn-urgent') ? document.getElementById('calc-dn-urgent').checked : false,
+                    dnPackaging: document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : "",
                     item_w: document.getElementById('width').value,
                     item_h: document.getElementById('height').value,
                     envelopePreset: document.getElementById('envelope-preset').value,
@@ -2738,6 +2793,12 @@
                     editedWorkOrderHTML: window.g_editedWorkOrderHTML || '',
                     timestamp: Date.now(),
                     inputs: {
+                        orderType: document.getElementById('calc-order-type') ? document.getElementById('calc-order-type').value : "",
+                        dnNumber: document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value : "",
+                        dnOld: document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : "",
+                        dnDeadline: document.getElementById('calc-dn-deadline') ? document.getElementById('calc-dn-deadline').value : "",
+                        dnUrgent: document.getElementById('calc-dn-urgent') ? document.getElementById('calc-dn-urgent').checked : false,
+                        dnPackaging: document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : "",
                         item_w: document.getElementById('width').value,
                         item_h: document.getElementById('height').value,
                         envelopePreset: document.getElementById('envelope-preset').value,
@@ -2789,6 +2850,7 @@
                 let parts = [s_ponudba, s_stranka, s_izdelek, s_naklada, s_barve].filter(Boolean);
                 let baseName = parts.length > 0 ? parts.join('_').replace(/\s+/g, '_') : name.replace(/\s+/g, '_');
                 const suggestedFileName = baseName + '.kuverta.json';
+                const jsonStr = JSON.stringify(data, null, 2);
 
                 if (window.showSaveFilePicker) {
                     try {
@@ -2850,9 +2912,28 @@
             g_editedQuoteHTML = proj.editedQuoteHTML || '';
             g_editedQuoteATHTML = proj.editedQuoteATHTML || '';
             g_editedWorkOrderHTML = proj.editedWorkOrderHTML || '';
+
+            // Počistimo star podvojen zapis dimenzij pri uvozu starih JSON projektov
+            if (g_editedWorkOrderHTML) {
+                g_editedWorkOrderHTML = g_editedWorkOrderHTML.replace(/\(Flat: [^)]+\) /g, '');
+            }
+            if (g_editedQuoteHTML) {
+                g_editedQuoteHTML = g_editedQuoteHTML.replace(/\(Flat: [^)]+\) /g, '');
+            }
+            if (g_editedQuoteATHTML) {
+                g_editedQuoteATHTML = g_editedQuoteATHTML.replace(/\(Flat: [^)]+\) /g, '');
+            }
+
             window.g_editedQuoteHTML = g_editedQuoteHTML;
             window.g_editedQuoteATHTML = g_editedQuoteATHTML;
             window.g_editedWorkOrderHTML = g_editedWorkOrderHTML;
+
+            setV('calc-order-type', inp.orderType);
+            setV('calc-dn-number', inp.dnNumber);
+            setV('calc-dn-old', inp.dnOld);
+            setV('calc-dn-deadline', inp.dnDeadline);
+            setV('calc-dn-urgent', inp.dnUrgent, true);
+            setV('calc-dn-packaging', inp.dnPackaging);
 
             setV('width', inp.item_w);
             setV('height', inp.item_h);
@@ -2944,14 +3025,25 @@
 
         async function refreshDiskProjects() {
             if (!g_projectsDirHandle) return;
-            g_diskProjects = [];
+            let tempProjects = [];
             try {
                 for await (const entry of g_projectsDirHandle.values()) {
                     if (entry.kind === 'file' && entry.name.endsWith('.json')) {
-                        g_diskProjects.push(entry);
+                        tempProjects.push(entry);
                     }
                 }
             } catch (err) { console.error(err); }
+
+            g_diskProjects = [];
+            for (let i = 0; i < tempProjects.length; i++) {
+                try {
+                    const file = await tempProjects[i].getFile();
+                    const text = await file.text();
+                    if (text.includes('"envelopePreset"') || text.includes('"module":"kuverte"')) {
+                        g_diskProjects.push(tempProjects[i]);
+                    }
+                } catch(e) {}
+            }
         }
 
         async function toggleProjectsDropdown() {
