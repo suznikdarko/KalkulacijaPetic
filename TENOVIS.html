@@ -1176,6 +1176,10 @@
                                     <input type="number" id="f-cilinder-prep" value="20.80" onchange="calculatePrice()">
                                 </div>
                                 <div class="form-group" style="margin:0;">
+                                    <label><small>Dodatek (pol)</small></label>
+                                    <input type="number" id="f-cilinder-dodatek" value="0" onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
                                     <label><small>Urna post. (€/h)</small></label>
                                     <input type="number" id="f-cilinder-rate" value="40.00" onchange="calculatePrice()">
                                 </div>
@@ -3902,7 +3906,7 @@
                         sourceW: gv('calc-source-w'),
                         sourceH: gv('calc-source-h'),
                         finish: {
-                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
+                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), dodatek: gv('f-cilinder-dodatek') },
                             zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
                             razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
@@ -4022,7 +4026,7 @@
                         sourceW: gv('calc-source-w'),
                         sourceH: gv('calc-source-h'),
                         finish: {
-                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate') },
+                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), dodatek: gv('f-cilinder-dodatek') },
                             zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
                             razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
@@ -4434,6 +4438,7 @@
                     document.getElementById('f-cilinder-active').checked = f.cilinder.active;
                     document.getElementById('f-cilinder-prep').value = f.cilinder.prep;
                     document.getElementById('f-cilinder-rate').value = f.cilinder.rate;
+                    if (f.cilinder.dodatek !== undefined) document.getElementById('f-cilinder-dodatek').value = f.cilinder.dodatek;
                     toggleFinishRow('cilinder');
                 }
                 if (f.zgibanje) {
@@ -4561,7 +4566,7 @@
                         isObrat: document.getElementById('calc-is-obrat').checked,
                         margin: document.getElementById('calc-margin').value,
                         finish: {
-                            cilinder: { active: document.getElementById('f-cilinder-active').checked, prep: document.getElementById('f-cilinder-prep').value, rate: document.getElementById('f-cilinder-rate').value },
+                            cilinder: { active: document.getElementById('f-cilinder-active').checked, prep: document.getElementById('f-cilinder-prep').value, rate: document.getElementById('f-cilinder-rate').value, dodatek: document.getElementById('f-cilinder-dodatek') ? document.getElementById('f-cilinder-dodatek').value : 0 },
                             zgibanje: { active: document.getElementById('f-zgibanje-active').checked, folds: document.getElementById('f-zgibanje-folds').value, speed: document.getElementById('f-zgibanje-speed').value },
                             extra: { active: document.getElementById('f-extra-active').checked, speed: document.getElementById('f-extra-speed').value, rate: document.getElementById('f-extra-rate').value },
                             precut: { active: document.getElementById('f-precut-active') ? document.getElementById('f-precut-active').checked : false, prep: document.getElementById('f-precut-prep') ? document.getElementById('f-precut-prep').value : 5.00, per1000: document.getElementById('f-precut-per1000') ? document.getElementById('f-precut-per1000').value : 3.60 },
@@ -5053,22 +5058,8 @@
             let totalSheets = d.paper.totalSheets || 0;
             let itemsPerSheet = document.getElementById('items-per-sheet').value || "1";
             let itemsPerSheetVal = parseInt(itemsPerSheet) || 0;
-            let stavkiText = "";
-            let mod100 = itemsPerSheetVal % 100;
-            if (mod100 === 1) {
-                stavkiText = itemsPerSheetVal + " stavek na TP";
-            } else if (mod100 === 2) {
-                stavkiText = itemsPerSheetVal + " stavka na TP";
-            } else if (mod100 === 3 || mod100 === 4) {
-                stavkiText = itemsPerSheetVal + " stavki na TP";
-            } else {
-                stavkiText = itemsPerSheetVal + " stavkov na TP";
-            }
-            let groupCols = document.getElementById('group-cols') ? parseInt(document.getElementById('group-cols').value) || 1 : 1;
             let groupRows = document.getElementById('group-rows') ? parseInt(document.getElementById('group-rows').value) || 1 : 1;
-            if (groupCols > 1 || groupRows > 1) {
-                stavkiText += ` (Združeno v orodju: ${groupCols} x ${groupRows})`;
-            }
+            let stavkiText = `${groupRows} x na poli`;
             let formatW = document.getElementById('width').value || 0;
             let formatH = document.getElementById('height').value || 0;
             let closedW = document.getElementById('closed-width') ? document.getElementById('closed-width').value : "";
@@ -5174,6 +5165,35 @@
                         <td style="width: 15%;">Dodelava:</td>
                         <td class="bold">${finishList ? finishList : 'Brez posebne dodelave'}</td>
                     </tr>
+                    ${document.getElementById('f-cilinder-active') && document.getElementById('f-cilinder-active').checked ? (() => {
+                        let cSpeed = 2000;
+                        let pw = parseFloat(document.getElementById('calc-paper-weight').value) || 0;
+                        if (pw >= 300) cSpeed = 1400; else if (pw > 150) cSpeed = 2000 - ((pw - 150) / 150) * 600;
+                        cSpeed = Math.round(cSpeed);
+                        let dodatek = parseFloat(document.getElementById('f-cilinder-dodatek') ? document.getElementById('f-cilinder-dodatek').value : 0) || 0;
+                        let total = calcRes.sheetsNeeded + dodatek;
+                        let totalHours = total / cSpeed;
+                        let mins = Math.ceil((totalHours * 60) / 10) * 10;
+                        if (mins === 0 && total > 0) mins = 10;
+                        let timeStr = mins >= 60 ? Math.floor(mins / 60) + ' h ' + (mins % 60 > 0 ? (mins % 60) + ' min' : '') : mins + ' min';
+                        return `
+                        <tr>
+                            <td style="width: 15%; padding-top: 10px; vertical-align: top;">Cilinder:</td>
+                            <td class="bold" style="padding-top: 10px; padding-bottom: 0;">
+                                <table style="width: 100%; border-collapse: collapse; margin: 0;" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="padding: 0 0 2px 0;">Priprava: izsek z orodjem št.:</td>
+                                        <td style="text-align: right; padding: 0 0 2px 0;">1 h</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 0;">Tisk: ${calcRes.sheetsNeeded} + ${dodatek} = ${total} tisk. pol (1x skozi stroj)</td>
+                                        <td style="text-align: right; padding: 0;">${timeStr}</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        `;
+                    })() : ''}
                     ${hasTool ? `
                     <tr>
                         <td style="width: 15%; padding-top: 10px; color: #ef4444; font-weight: bold;">Orodje:</td>
