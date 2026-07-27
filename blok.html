@@ -2182,11 +2182,31 @@
                         }
                     };
 
-                    if (mFormat === 'auto') {
-                        sheets.forEach(checkSheet);
+                    let isLeavesUnprinted = (gV('calc-color-front-leaves') === "0" && gV('calc-color-back-leaves') === "0");
+
+                    if (isLeavesUnprinted) {
+                        let l1 = optimizeLayout(sw, sh, itemW, itemH, g, fMode);
+                        let l2 = optimizeLayout(sh, sw, itemW, itemH, g, fMode);
+
+                        let bL = null, bM = 'L';
+                        if (l1 && l2) {
+                            if (l1.count >= l2.count) { bL = l1; bM = 'L'; }
+                            else { bL = l2; bM = 'P'; }
+                        } else if (l1) { bL = l1; bM = 'L'; }
+                        else if (l2) { bL = l2; bM = 'P'; }
+
+                        if (bL) {
+                            bestScore = Number.MAX_SAFE_INTEGER;
+                            bestSheet = { name: sw + "x" + sh + " (Osnovni)", w: sw, h: sh, mode: bM };
+                            bestLayout = bL;
+                        }
                     } else {
-                        let s = sheets.find(s => s.name === mFormat);
-                        if (s) checkSheet(s);
+                        if (mFormat === 'auto') {
+                            sheets.forEach(checkSheet);
+                        } else {
+                            let s = sheets.find(s => s.name === mFormat);
+                            if (s) checkSheet(s);
+                        }
                     }
                 }
 
@@ -2331,10 +2351,30 @@
                         }
                     };
 
-                    if (mFormatCover === 'auto') sheets.forEach(checkCoverSheet);
-                    else {
-                        let s = sheets.find(s => s.name === mFormatCover);
-                        if (s) checkCoverSheet(s);
+                    let isCoverUnprinted = (gV('calc-color-front-cover') === "0" && gV('calc-color-back-cover') === "0");
+
+                    if (isCoverUnprinted) {
+                        let l1 = optimizeLayout(swc, shc, cItemW, cItemH, cg, fModeCover);
+                        let l2 = optimizeLayout(shc, swc, cItemW, cItemH, cg, fModeCover);
+
+                        let bL = null, bM = 'L';
+                        if (l1 && l2) {
+                            if (l1.count >= l2.count) { bL = l1; bM = 'L'; }
+                            else { bL = l2; bM = 'P'; }
+                        } else if (l1) { bL = l1; bM = 'L'; }
+                        else if (l2) { bL = l2; bM = 'P'; }
+
+                        if (bL) {
+                            cBestScore = Number.MAX_SAFE_INTEGER;
+                            cBestSheet = { name: swc + "x" + shc + " (Osnovni)", w: swc, h: shc, mode: bM };
+                            cBestLayout = bL;
+                        }
+                    } else {
+                        if (mFormatCover === 'auto') sheets.forEach(checkCoverSheet);
+                        else {
+                            let s = sheets.find(s => s.name === mFormatCover);
+                            if (s) checkCoverSheet(s);
+                        }
                     }
 
                     if (cBestSheet && cBestLayout) {
@@ -3763,6 +3803,21 @@
             }
 
             function drawCanvas(canvasId, sheetW, sheetH, layout, gripper, origW, origH, bleed, isManualMatch = false, manualTarget = 0) {
+                // Če je prijemalec na 'W' robu (levo), vizualno zarotiramo polo za 90 stopinj, da bo prijemalec vedno v nogi.
+                let _layout = { ...layout };
+                if (_layout.gripEdge === 'W') {
+                    let tempW = sheetW;
+                    sheetW = sheetH;
+                    sheetH = tempW;
+                    _layout.gripEdge = 'H';
+                    _layout.cols = layout.rows;
+                    _layout.rows = layout.cols;
+                    _layout.itemW = layout.itemH;
+                    _layout.itemH = layout.itemW;
+                    _layout.rot = !layout.rot;
+                }
+                layout = _layout;
+
                 const canvas = document.getElementById(canvasId);
                 const ctx = canvas.getContext('2d');
                 canvas.style.display = 'block';
