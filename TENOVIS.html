@@ -5072,6 +5072,17 @@
             let itemsPerSheet = document.getElementById('items-per-sheet').value || "1";
             let itemsPerSheetVal = parseInt(itemsPerSheet) || 0;
             let groupRows = document.getElementById('group-rows') ? parseInt(document.getElementById('group-rows').value) || 1 : 1;
+            let qtyDisplay = `${q.toLocaleString('de-DE')} kos`;
+            if (groupRows > 1) {
+                let qtyPerAssembly = Math.round(q / groupRows);
+                let sestavekLabel = "sestavkov";
+                if (groupRows === 2) {
+                    sestavekLabel = "sestavka";
+                } else if (groupRows === 3 || groupRows === 4) {
+                    sestavekLabel = "sestavki";
+                }
+                qtyDisplay += ` (${qtyPerAssembly.toLocaleString('de-DE')} kos. ${groupRows} ${sestavekLabel} skupaj)`;
+            }
             let stavkiText = `${groupRows} x na poli`;
             let formatW = document.getElementById('width').value || 0;
             let formatH = document.getElementById('height').value || 0;
@@ -5102,6 +5113,59 @@
             let sourceGrain = (sourceW > 0 && sourceH > 0) ? (sourceW < sourceH ? 'SB' : 'BB') : '';
             let sheetWCm = (sheetW / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
             let sheetHCm = (sheetH / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+
+            let finishingRowsHtml = "";
+            if (document.getElementById('f-cilinder-active') && document.getElementById('f-cilinder-active').checked) {
+                let cSpeed = 2000;
+                let pw = parseFloat(document.getElementById('calc-paper-weight').value) || 0;
+                if (pw >= 300) {
+                    cSpeed = 1400;
+                } else if (pw > 150) {
+                    cSpeed = 2000 - ((pw - 150) / 150) * (2000 - 1400);
+                }
+                cSpeed = Math.round(cSpeed);
+                let cPrepStr = hasTool ? "1,5 h" : "1 h";
+                let cilDodatek = parseFloat(document.getElementById('f-cilinder-dodatek') ? document.getElementById('f-cilinder-dodatek').value : 0) || 0;
+                let cilTotalSheets = calcRes.sheetsNeeded + cilDodatek;
+                let cPrintHours = Math.ceil((cilTotalSheets / cSpeed) * 10) / 10;
+                let cilQtyStr = (cilDodatek > 0)
+                    ? `${calcRes.sheetsNeeded.toLocaleString('de-DE')} pol + ${cilDodatek.toLocaleString('de-DE')} pol = ${cilTotalSheets.toLocaleString('de-DE')} pol`
+                    : `${calcRes.sheetsNeeded.toLocaleString('de-DE')} pol`;
+                finishingRowsHtml += `
+                    <tr>
+                        <td style="width: 15%;">Cilinder:</td>
+                        <td style="width: 35%;" class="bold">${cilQtyStr}</td>
+                        <td style="width: 50%; text-align: right;" class="bold"><span class="bold">priprava:</span> ${cPrepStr} &nbsp;&nbsp;&nbsp;&nbsp; <span class="bold">tisk:</span> ${cPrintHours.toFixed(1).replace('.', ',')} h</td>
+                    </tr>`;
+            }
+            if (document.getElementById('f-zgibanje-active') && document.getElementById('f-zgibanje-active').checked) {
+                let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 6800;
+                let foldsSelect = document.getElementById('f-zgibanje-folds');
+                let foldsText = foldsSelect && foldsSelect.options[foldsSelect.selectedIndex] ? foldsSelect.options[foldsSelect.selectedIndex].text : '4';
+                let zFolds = parseInt(foldsText) || 4;
+                let groupCols = document.getElementById('group-cols') ? parseInt(document.getElementById('group-cols').value) || 1 : 1;
+                let groupRows = document.getElementById('group-rows') ? parseInt(document.getElementById('group-rows').value) || 1 : 1;
+                let itemsPerBlock = groupCols * groupRows;
+                let qtyToFold = Math.ceil(q / itemsPerBlock);
+                let zHours = Math.ceil((qtyToFold / zSpeed) * 10) / 10;
+                let zgibQtyStr = `${qtyToFold.toLocaleString('de-DE')} kos`;
+                finishingRowsHtml += `
+                    <tr>
+                        <td style="width: 15%;">Zgibanje (${zFolds}x):</td>
+                        <td style="width: 35%;" class="bold">${zgibQtyStr}</td>
+                        <td style="width: 50%; text-align: right;" class="bold"><span class="bold">tisk:</span> ${zHours.toFixed(1).replace('.', ',')} h</td>
+                    </tr>`;
+            }
+            if (document.getElementById('f-extra-active') && document.getElementById('f-extra-active').checked) {
+                let extraSpeed = parseFloat(document.getElementById('f-extra-speed').value) || 1;
+                let extraHours = Math.ceil((q / extraSpeed) * 10) / 10;
+                finishingRowsHtml += `
+                    <tr>
+                        <td style="width: 15%;">Ročno delo:</td>
+                        <td style="width: 35%;"></td>
+                        <td style="width: 50%; text-align: right;" class="bold"><span class="bold">delo:</span> ${extraHours.toFixed(1).replace('.', ',')} h</td>
+                    </tr>`;
+            }
 
             const defaultContent = `
                 <div class="header-top">
@@ -5139,7 +5203,7 @@
                     </tr>
                 </table>
                 <table style="margin-top: 5px; width: 100%;">
-                    <tr><td style="width: 15%;">Količina:</td><td class="bold" style="font-size: 15px;">${q.toLocaleString('de-DE')} kos</td></tr>
+                    <tr><td style="width: 15%;">Količina:</td><td class="bold" style="font-size: 15px;">${qtyDisplay}</td></tr>
                     <tr><td>Odprt format:</td><td class="bold">${formatW} x ${formatH} mm (${stavkiText})</td></tr>
                     ${closedW && closedH ? `<tr><td>Zaprt format:</td><td class="bold">${closedW} x ${closedH} mm</td></tr>` : ''}
                     <tr><td>Tisk:</td><td class="bold">${colors}${pagesPerItem && pagesPerItem !== '0' ? ' (' + pagesPerItem + ' str)' : ''}</td></tr>
@@ -5165,64 +5229,28 @@
                     </tr>
                 </table>
                 <div class="row-divider"></div>
-                <table>
+                <table style="width: 100%;">
                     <tr>
                         <td style="width: 15%;">Dodelava:</td>
-                        <td class="bold">${finishList ? finishList : 'Brez posebne dodelave'}</td>
+                        <td class="bold" style="width: 85%;" colspan="2">${finishList ? finishList : 'Brez posebne dodelave'}</td>
                     </tr>
-                    ${document.getElementById('f-cilinder-active') && document.getElementById('f-cilinder-active').checked ? (() => {
-                        let cSpeed = 2000;
-                        let pw = parseFloat(document.getElementById('calc-paper-weight').value) || 0;
-                        if (pw >= 300) cSpeed = 1400; else if (pw > 150) cSpeed = 2000 - ((pw - 150) / 150) * 600;
-                        cSpeed = Math.round(cSpeed);
-                        let dodatek = parseFloat(document.getElementById('f-cilinder-dodatek') ? document.getElementById('f-cilinder-dodatek').value : 0) || 0;
-                        let total = calcRes.sheetsNeeded + dodatek;
-                        let totalHours = total / cSpeed;
-                        let mins = Math.ceil((totalHours * 60) / 10) * 10;
-                        if (mins === 0 && total > 0) mins = 10;
-                        let timeStr = mins >= 60 ? Math.floor(mins / 60) + ' h ' + (mins % 60 > 0 ? (mins % 60) + ' min' : '') : mins + ' min';
-                        return `
-                        <tr>
-                            <td style="width: 15%; padding-top: 10px; vertical-align: top;">Cilinder:</td>
-                            <td class="bold" style="padding-top: 10px; padding-bottom: 0;">
-                                <table style="width: 100%; border-collapse: collapse; margin: 0;" cellpadding="0" cellspacing="0">
-                                    <tr>
-                                        <td style="padding: 0 0 2px 0;">Priprava: izsek z orodjem št.:</td>
-                                        <td style="text-align: right; padding: 0 0 2px 0;">1 h</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 0;">Tisk: ${calcRes.sheetsNeeded} + ${dodatek} = ${total} tisk. pol (1x skozi stroj)</td>
-                                        <td style="text-align: right; padding: 0;">${timeStr}</td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                        `;
-                    })() : ''}
-                    ${document.getElementById('f-zgibanje-active') && document.getElementById('f-zgibanje-active').checked ? (() => {
-                        let foldsSelect = document.getElementById('f-zgibanje-folds');
-                        let foldsText = foldsSelect && foldsSelect.options[foldsSelect.selectedIndex] ? foldsSelect.options[foldsSelect.selectedIndex].text : '1 zgib';
-                        return `
-                        <tr>
-                            <td style="width: 15%; padding-top: 10px; vertical-align: top;">Zgibanje:</td>
-                            <td class="bold" style="padding-top: 10px; padding-bottom: 0;">${foldsText}</td>
-                        </tr>
-                        `;
-                    })() : ''}
+                    ${finishingRowsHtml}
                     ${hasTool ? `
                     <tr>
                         <td style="width: 15%; padding-top: 10px; color: #ef4444; font-weight: bold;">Orodje:</td>
-                        <td class="bold" style="padding-top: 10px; color: #ef4444; font-weight: bold;">izdelava novega orodja Smole Branko</td>
+                        <td class="bold" style="width: 35%; padding-top: 10px; color: #ef4444; font-weight: bold;">izdelava novega orodja Smole Branko</td>
+                        <td style="width: 50%;"></td>
                     </tr>
                     ` : ''}
                     <tr>
                         <td style="width: 15%; padding-top: 10px;">Pakiranje:</td>
-                        <td class="bold" style="padding-top: 10px;">${packaging}</td>
+                        <td class="bold" style="width: 35%; padding-top: 10px;">${packaging}</td>
+                        <td style="width: 50%;"></td>
                     </tr>
                     ${dnNotes ? `
                     <tr>
                         <td style="width: 15%; padding-top: 10px; vertical-align: top;"><span class="bold">Opis / pripombe:</span></td>
-                        <td class="bold" style="padding-top: 10px; white-space: pre-wrap; font-size: 14px;">${dnNotes}</td>
+                        <td class="bold" style="width: 85%; padding-top: 10px; white-space: pre-wrap; font-size: 14px;" colspan="2">${dnNotes}</td>
                     </tr>
                     ` : ''}
                 </table>
