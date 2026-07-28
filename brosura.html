@@ -3875,10 +3875,13 @@
             let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
 
             var g_editedQuoteHTML = "";
-
             var g_editedQuoteATHTML = "";
-
             var g_editedWorkOrderHTML = "";
+            var g_quoteWindow = null;
+            var g_quoteATWindow = null;
+            var g_dnWindow = null;
+            var g_loadingProject = false;
+            var g_isSyncingPopups = false;
 
 
 
@@ -4147,6 +4150,11 @@
 
 
             function calculate(isManual = false) {
+                if (typeof g_loadingProject !== 'undefined' && !g_loadingProject) {
+                    g_editedQuoteHTML = "";
+                    g_editedQuoteATHTML = "";
+                    g_editedWorkOrderHTML = "";
+                }
 
                 if (typeof filterAvailableFormats === 'function') filterAvailableFormats();
 
@@ -6941,6 +6949,9 @@
 
 
                     renderDetailedSpec(details);
+                    if (typeof updateOpenDocumentWindows === 'function') {
+                        updateOpenDocumentWindows();
+                    }
 
 
 
@@ -9772,8 +9783,9 @@
 
 
                 // Recalculate everything
-
+                g_loadingProject = true;
                 calculate();
+                g_loadingProject = false;
 
             }
 
@@ -11569,27 +11581,49 @@
 
 
             function printDN(printBasket = false) {
-
                 try {
-
                     const html = getQuoteHTML(false, null, false, false, true, printBasket);
-
-                    const printWin = window.open('', '', 'width=900,height=900');
-
-                    if (!printWin) {
-
-                        alert("Pojavno okno je bilo blokirano.");
-
+                    g_dnWindow = window.open('', 'PrintDNWin', 'width=900,height=900');
+                    if (!g_dnWindow) {
+                        alert("Pojavno okno je bilo blokirano. Prosim omogočite pojavna okna.");
                         return;
-
                     }
-
-                    printWin.document.write(html);
-
-                    printWin.document.close();
-
+                    g_dnWindow.document.open();
+                    g_dnWindow.document.write(html);
+                    g_dnWindow.document.close();
                 } catch (e) { alert("Napaka pri pripravi delovnega naloga: " + e.message); }
+            }
 
+            function updateOpenDocumentWindows() {
+                if (g_isSyncingPopups) return;
+                g_isSyncingPopups = true;
+                try {
+                    if (g_quoteWindow && !g_quoteWindow.closed) {
+                        g_editedQuoteHTML = "";
+                        const html = getQuoteHTML(false, null, false, false, false, false);
+                        g_quoteWindow.document.open();
+                        g_quoteWindow.document.write(html);
+                        g_quoteWindow.document.close();
+                    }
+                    if (g_quoteATWindow && !g_quoteATWindow.closed) {
+                        g_editedQuoteATHTML = "";
+                        const html = getQuoteHTML(false, null, false, true, false, false);
+                        g_quoteATWindow.document.open();
+                        g_quoteATWindow.document.write(html);
+                        g_quoteATWindow.document.close();
+                    }
+                    if (g_dnWindow && !g_dnWindow.closed) {
+                        g_editedWorkOrderHTML = "";
+                        const html = getQuoteHTML(false, null, false, false, true, false);
+                        g_dnWindow.document.open();
+                        g_dnWindow.document.write(html);
+                        g_dnWindow.document.close();
+                    }
+                } catch (e) {
+                    console.error("Napaka pri posodabljanju oken:", e);
+                } finally {
+                    g_isSyncingPopups = false;
+                }
             }
 
 
