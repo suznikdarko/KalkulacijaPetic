@@ -1097,7 +1097,7 @@
                             <label>Hitrost tiska (pol / uro)</label>
                             <input type="number" id="calc-machine-speed" readonly="" value="9000" step="500">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" style="display: none;">
                             <label>Čas priprave stroja za tisk (minuti)</label>
                             <input type="number" id="calc-machine-prep-time" value="10" step="5"
                                 onchange="calculatePrice()">
@@ -2800,8 +2800,21 @@
             if (mSpeedEl && qty === activeQ) {
                 mSpeedEl.value = Math.round(mSpeed);
             }
-            let mPrepInp = document.getElementById('calc-machine-prep-time').value;
-            let mPrepTime = (mPrepInp === "" ? 10 : parseLocaleFloat(mPrepInp)) / 60;
+            // Strojni čas priprave (vedno avtomatsko izračunavanje)
+            let mPrepInp = "";
+            let mPrepMinutes = 30;
+            if (mPrepInp !== "") {
+                mPrepMinutes = parseFloat(mPrepInp) || 0;
+            } else {
+                if (isObrat) {
+                    mPrepMinutes = 45; // 0,75 h za 4/OB (obračanje)
+                } else if (back > 0) {
+                    mPrepMinutes = 45; // 0,75 h za 4/4 (in ostale dvostranske tiske)
+                } else {
+                    mPrepMinutes = 30; // 0,5 h za 4/0
+                }
+            }
+            let mPrepTime = mPrepMinutes / 60;
 
             let printHours = (sheetsNeeded + paperWasteSheets) * mPasses / mSpeed;
             let totalPrintCost = 0;
