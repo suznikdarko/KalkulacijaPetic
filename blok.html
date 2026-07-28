@@ -1460,6 +1460,16 @@
                                     <input id="f-cilinder-rate" onchange="calculatePrice()" type="number"
                                         value="40.00" />
                                 </div>
+                                <div class="form-group" style="margin:0; align-self: center;">
+                                    <label><small>Dodatek DN (pol)</small></label>
+                                    <input id="f-cilinder-dodatek" onchange="calculatePrice()" type="number"
+                                        value="10" />
+                                </div>
+                                <div class="form-group" style="margin:0; align-self: center;">
+                                    <label><small>Št. orodja</small></label>
+                                    <input id="f-cilinder-tool-num" onchange="calculatePrice()" type="text"
+                                        placeholder="št. orodja" style="width: 100px; padding: 4px;" />
+                                </div>
                                 <div
                                     style="grid-column: 1 / -1; display:flex; gap:2rem; margin-left: 2rem; margin-top: 0.2rem; padding-bottom: 0.5rem;">
                                     <label
@@ -4550,7 +4560,7 @@
                             margin: gv('calc-margin'),
                             minusPrice: gc('calc-minus-price'),
                             finish: {
-                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover'), dodatek: gv('f-cilinder-dodatek') },
+                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover'), dodatek: gv('f-cilinder-dodatek'), toolNum: (document.getElementById('f-cilinder-tool-num') ? document.getElementById('f-cilinder-tool-num').value : "") },
                                 zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
 
                                 razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
@@ -4855,6 +4865,8 @@
                         setV('f-cilinder-rate', f.cilinder.rate);
                         if (f.cilinder.leaves !== undefined) setV('f-cilinder-leaves', f.cilinder.leaves, true);
                         if (f.cilinder.cover !== undefined) setV('f-cilinder-cover', f.cilinder.cover, true);
+                        if (f.cilinder.dodatek !== undefined) setV('f-cilinder-dodatek', f.cilinder.dodatek);
+                        if (f.cilinder.toolNum !== undefined) setV('f-cilinder-tool-num', f.cilinder.toolNum);
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('cilinder');
                     }
                     if (f.zgibanje) {
@@ -5066,7 +5078,7 @@
                             margin: gv('calc-margin'),
                             minusPrice: gc('calc-minus-price'),
                             finish: {
-                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover'), dodatek: gv('f-cilinder-dodatek') },
+                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover'), dodatek: gv('f-cilinder-dodatek'), toolNum: (document.getElementById('f-cilinder-tool-num') ? document.getElementById('f-cilinder-tool-num').value : "") },
                                 zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
 
                                 razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
@@ -5856,6 +5868,53 @@
                     : `${finalSourceSheetsC.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCmC} x ${sourceHCmC} cm ${sourceGrainC} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${totalSheetsC.toLocaleString('de-DE')} pol ${sheetWCmC} x ${sheetHCmC} cm &nbsp;&nbsp; (${sourceYieldC} iz pole)`;
 
                 let finishing = getFinishingDesc();
+                let finishingRowsHtml = "";
+                let hasTool = document.getElementById('f-tool-active') && document.getElementById('f-tool-active').checked;
+                if (document.getElementById('f-cilinder-active') && document.getElementById('f-cilinder-active').checked) {
+                    let cSpeed = 2000;
+                    let pw = parseFloat(document.getElementById('calc-paper-weight')?.value) || 80;
+                    if (pw >= 300) {
+                        cSpeed = 1400;
+                    } else if (pw > 150) {
+                        cSpeed = 2000 - ((pw - 150) / 150) * (2000 - 1400);
+                    }
+                    cSpeed = Math.round(cSpeed);
+
+                    let cilLeaves = document.getElementById('f-cilinder-leaves') && document.getElementById('f-cilinder-leaves').checked;
+                    let cilCover = document.getElementById('f-cilinder-cover') && document.getElementById('f-cilinder-cover').checked;
+
+                    let cilTotalSheets = (cilLeaves ? sheetsNeededL : 0) + (cilCover ? sheetsNeededC : 0);
+                    let cilDodatek = document.getElementById('f-cilinder-dodatek') ? (parseFloat(document.getElementById('f-cilinder-dodatek').value) || 0) : 0;
+                    let cTotal = cilTotalSheets + cilDodatek;
+                    let cPrintHours = Math.ceil((cTotal / cSpeed) * 10) / 10;
+                    let cPrepStr = hasTool ? "1,5 h" : "1 h";
+
+                    let toolNumVal = document.getElementById('f-cilinder-tool-num') ? document.getElementById('f-cilinder-tool-num').value.trim() : "";
+                    let toolNumStr = toolNumVal ? `, izsekano z orodjem št.: ${toolNumVal}` : "";
+
+                    let cilQtyStr = (cilDodatek > 0)
+                        ? `${cilTotalSheets.toLocaleString('de-DE')} pol + ${cilDodatek.toLocaleString('de-DE')} pol = ${cTotal.toLocaleString('de-DE')} pol`
+                        : `${cilTotalSheets.toLocaleString('de-DE')} pol`;
+
+                    finishingRowsHtml += `
+                        <tr>
+                            <td style="width: 15%;">Cilinder:</td>
+                            <td style="width: 35%;" class="bold">${cilQtyStr}</td>
+                            <td style="width: 50%; text-align: right;" class="bold"><span class="bold">priprava:</span> ${cPrepStr}${toolNumStr} &nbsp;&nbsp;&nbsp;&nbsp; <span class="bold">tisk:</span> ${cPrintHours.toFixed(1).replace('.', ',')} h</td>
+                        </tr>`;
+                }
+                if (document.getElementById('f-zgibanje-active') && document.getElementById('f-zgibanje-active').checked) {
+                    let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 10000;
+                    let zFolds = parseInt(document.getElementById('f-zgibanje-folds').value) || 4;
+                    let zHours = Math.ceil((q / zSpeed) * 10) / 10;
+                    let zgibQtyStr = `${q.toLocaleString('de-DE')} kos`;
+                    finishingRowsHtml += `
+                        <tr>
+                            <td style="width: 15%;">Zgibanje (${zFolds}x):</td>
+                            <td style="width: 35%;" class="bold">${zgibQtyStr}</td>
+                            <td style="width: 50%; text-align: right;" class="bold"><span class="bold">tisk:</span> ${zHours.toFixed(1).replace('.', ',')} h</td>
+                        </tr>`;
+                }
 
                 const defaultContent = `
                     <div class="header-top">
@@ -5937,32 +5996,23 @@
                     ${printSectionC}
 
                     <div class="row-divider"></div>
-                    <table>
+                    <table style="width: 100%;">
                         <tr>
                             <td style="width: 15%;">Dodelava:</td>
-                            <td class="bold">${finishing ? finishing : 'Brez posebne dodelave'}</td>
+                            <td class="bold" style="width: 85%;" colspan="2">${finishing ? finishing : 'Brez posebne dodelave'}</td>
                         </tr>
-                        ${document.getElementById('f-cilinder-active') && document.getElementById('f-cilinder-active').checked ? `
+                        ${finishingRowsHtml}
+                        ${hasTool ? `
                         <tr>
-                            <td style="width: 15%; padding-top: 10px;">Cilinder:</td>
-                            <td class="bold" style="padding-top: 10px;">
-                                Tisk: ${sheetsNeededL + sheetsNeededC} + ${(document.getElementById('f-cilinder-dodatek') ? parseFloat(document.getElementById('f-cilinder-dodatek').value) || 0 : 0)} = ${(sheetsNeededL + sheetsNeededC) + (document.getElementById('f-cilinder-dodatek') ? parseFloat(document.getElementById('f-cilinder-dodatek').value) || 0 : 0)} tisk. pol (1x skozi stroj)<br>
-                                Priprava: 1 h, izsekano z orodjem št.:
-                            </td>
-                        </tr>
-                        ` : ''}
-                        ${document.getElementById('f-cilinder-active') && document.getElementById('f-cilinder-active').checked ? `
-                        <tr>
-                            <td style="width: 15%; padding-top: 10px;">Cilinder:</td>
-                            <td class="bold" style="padding-top: 10px;">
-                                Priprava 1 h<br>
-                                Tisk: ${sheetsNeededL + sheetsNeededC} + ${(document.getElementById('f-cilinder-dodatek') ? parseFloat(document.getElementById('f-cilinder-dodatek').value) || 0 : 0)} = ${(sheetsNeededL + sheetsNeededC) + (document.getElementById('f-cilinder-dodatek') ? parseFloat(document.getElementById('f-cilinder-dodatek').value) || 0 : 0)} tisk. pol (1x skozi stroj)
-                            </td>
+                            <td style="width: 15%; padding-top: 10px; color: #ef4444; font-weight: bold;">Orodje:</td>
+                            <td class="bold" style="width: 35%; padding-top: 10px; color: #ef4444; font-weight: bold;">izdelava novega orodja Smole Branko</td>
+                            <td style="width: 50%;"></td>
                         </tr>
                         ` : ''}
                         <tr>
                             <td style="width: 15%; padding-top: 10px;">Pakiranje:</td>
-                            <td class="bold" style="padding-top: 10px;">${packaging || '__________________'}</td>
+                            <td class="bold" style="width: 35%; padding-top: 10px;">${packaging || '__________________'}</td>
+                            <td style="width: 50%;"></td>
                         </tr>
                     </table>
                     <div class="row-divider"></div>
