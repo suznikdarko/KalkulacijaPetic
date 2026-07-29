@@ -9316,7 +9316,7 @@
 
                 a.href = url;
 
-                a.download = proj.name.replace(/\s+/g, '_') + '.brosura.json';
+                a.download = getExportFileNameForProject(proj, '.brosura.json');
 
                 document.body.appendChild(a);
 
@@ -9849,6 +9849,75 @@
 
 
 
+            // Pomagalo za sestavljanje imena datoteke (pon. številka, stranka, izdelek, zaprt format, barve, mutacije, naklada)
+            function getExportFileName(extension) {
+                function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+                let parts = [];
+                let qNum = gv('calc-quote-number').trim().replace(/\//g, '-');
+                if (qNum) parts.push("pon." + qNum);
+                let customer = gv('calc-customer').trim();
+                if (customer) parts.push(customer);
+                let product = gv('calc-project-name').trim();
+                if (product) parts.push(product);
+                let closedW = gv('closed-width').trim();
+                let closedH = gv('closed-height').trim();
+                if (closedW && closedH) parts.push(closedW + 'x' + closedH);
+                let frontL = gv('calc-color-front-leaves') || '0';
+                let backL = gv('calc-color-back-leaves') || '0';
+                let colL = frontL + '-' + backL;
+                let frontC = gv('calc-color-front-cover') || '0';
+                let backC = gv('calc-color-back-cover') || '0';
+                if (parseInt(frontC) > 0 || parseInt(backC) > 0) {
+                    colL += '+' + frontC + '-' + backC;
+                }
+                parts.push(colL);
+                let mutL = parseInt(gv('calc-mut-num-leaves')) || 0;
+                let mutC = parseInt(gv('calc-mut-num-cover')) || 0;
+                let mutTotal = mutL + mutC;
+                if (mutTotal > 0) {
+                    parts.push(mutTotal + 'mut');
+                }
+                let qty = gv('quantity').replace(/\./g, '').trim();
+                if (qty) parts.push(qty + 'kos');
+                let baseName = parts.join('_').replace(/[\/\\?%*:|"<>\s]+/g, '_');
+                if (!baseName) baseName = "ponudba";
+                return baseName + extension;
+            }
+
+            function getExportFileNameForProject(proj, extension) {
+                let parts = [];
+                let qNum = (proj.quoteNum || '').trim().replace(/\//g, '-');
+                if (qNum) parts.push("pon." + qNum);
+                let customer = (proj.customer || '').trim();
+                if (customer) parts.push(customer);
+                let product = (proj.name || '').trim();
+                if (product) parts.push(product);
+                let inputs = proj.inputs || {};
+                let closedW = (inputs.closedW || '').trim();
+                let closedH = (inputs.closedH || '').trim();
+                if (closedW && closedH) parts.push(closedW + 'x' + closedH);
+                let frontL = inputs.frontL || '0';
+                let backL = inputs.backL || '0';
+                let colL = frontL + '-' + backL;
+                let frontC = inputs.frontC || '0';
+                let backC = inputs.backC || '0';
+                if (parseInt(frontC) > 0 || parseInt(backC) > 0) {
+                    colL += '+' + frontC + '-' + backC;
+                }
+                parts.push(colL);
+                let mutL = parseInt(inputs.mutNumL) || 0;
+                let mutC = parseInt(inputs.mutNumC) || 0;
+                let mutTotal = mutL + mutC;
+                if (mutTotal > 0) {
+                    parts.push(mutTotal + 'mut');
+                }
+                let qty = (inputs.quantity || '').replace(/\./g, '').trim();
+                if (qty) parts.push(qty + 'kos');
+                let baseName = parts.join('_').replace(/[\/\\?%*:|"<>\s]+/g, '_');
+                if (!baseName) baseName = "ponudba";
+                return baseName + extension;
+            }
+
             // FILE EXPORT / IMPORT LOGIC
 
             async function exportToFile() {
@@ -10177,7 +10246,7 @@
 
                     const jsonStr = JSON.stringify(data, null, 2);
 
-                    const suggestedName = name.replace(/\s+/g, '_') + '.brosura.json';
+                    const suggestedName = getExportFileName('.brosura.json');
 
 
 
@@ -10322,6 +10391,44 @@
 
 
             function getQuoteHTML(isWord = false, canvasImages = null, isInternal = false, isAT = false, isDN = false, printBasket = false) {
+
+                let docTitle = isDN ? 'Delovni_nalog' : (isAT ? 'Ponudba_AT' : 'Ponudba');
+                try {
+                    let parts = [];
+                    let qNumVal = (document.getElementById('calc-quote-number')?.value || '').trim().replace(/\//g, '-');
+                    if (qNumVal) parts.push("pon." + qNumVal);
+                    let custVal = (document.getElementById('calc-customer')?.value || '').trim();
+                    if (custVal) parts.push(custVal);
+                    let projVal = (document.getElementById('calc-project-name')?.value || '').trim();
+                    if (projVal) parts.push(projVal);
+                    let closedWVal = (document.getElementById('closed-width')?.value || '').trim();
+                    let closedHVal = (document.getElementById('closed-height')?.value || '').trim();
+                    if (closedWVal && closedHVal) parts.push(closedWVal + 'x' + closedHVal);
+                    
+                    let frontLVal = document.getElementById('calc-color-front-leaves')?.value || '0';
+                    let backLVal = document.getElementById('calc-color-back-leaves')?.value || '0';
+                    let colVal = frontLVal + '-' + backLVal;
+                    let frontCVal = document.getElementById('calc-color-front-cover')?.value || '0';
+                    let backCVal = document.getElementById('calc-color-back-cover')?.value || '0';
+                    if (parseInt(frontCVal) > 0 || parseInt(backCVal) > 0) {
+                        colVal += '+' + frontCVal + '-' + backCVal;
+                    }
+                    parts.push(colVal);
+                    
+                    let mutLVal = parseInt(document.getElementById('calc-mut-num-leaves')?.value) || 0;
+                    let mutCVal = parseInt(document.getElementById('calc-mut-num-cover')?.value) || 0;
+                    if (mutLVal + mutCVal > 0) {
+                        parts.push((mutLVal + mutCVal) + 'mut');
+                    }
+                    
+                    let qtyVal = (document.getElementById('quantity')?.value || '').replace(/\./g, '').trim();
+                    if (qtyVal) parts.push(qtyVal + 'kos');
+                    
+                    let baseNameVal = parts.join('_').replace(/[\/\\?%*:|"<>\s]+/g, '_');
+                    if (baseNameVal) {
+                        docTitle = (isDN ? 'DN_' : 'Ponudba_') + baseNameVal;
+                    }
+                } catch(e) {}
 
                 const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
 
@@ -11260,7 +11367,7 @@
 
                 ${htmlHeader}
 
-                <head><meta charset="utf-8"><title>${isDN ? 'Delovni nalog' : 'Ponudba'}</title>
+                <head><meta charset="utf-8"><title>${docTitle}</title>
 
                 <style>
 
@@ -11706,11 +11813,9 @@
 
                     const link = document.createElement('a');
 
-                    const projectName = document.getElementById('calc-project-name').value || 'Ponudba';
-
                     link.href = url;
 
-                    link.download = "Ponudba_" + projectName.replace(/\s+/g, '_') + ".doc";
+                    link.download = getExportFileName(".doc");
 
                     document.body.appendChild(link);
 
