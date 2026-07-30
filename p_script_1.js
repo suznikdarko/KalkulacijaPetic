@@ -2740,16 +2740,67 @@
             customers.sort();
             return customers;
         }
+        function getUnifiedCustomersData() {
+            var keys = [
+                'petric_kalkulacija_arhiv', 
+                'petric_pola_arhiv', 
+                'darko_blok_arhiv', 
+                'petric_tenovis_arhiv',
+                'kuverte_kalkulator_arhiv',
+                'brosura_kalkulator_arhiv',
+                'etikete_kalkulator_arhiv'
+            ];
+            var allData = [];
+            for (var k = 0; k < keys.length; k++) {
+                try {
+                    var raw = localStorage.getItem(keys[k]);
+                    if (raw) {
+                        var arr = JSON.parse(raw);
+                        if (Array.isArray(arr)) allData = allData.concat(arr);
+                    }
+                } catch (e) { }
+            }
+            return allData;
+        }
+
+        function getUnifiedCustomersList() {
+            var allData = getUnifiedCustomersData();
+            var customers = [];
+            for (var i = 0; i < allData.length; i++) {
+                var p = allData[i];
+                if (p && p.customer) {
+                    var c = p.customer.trim();
+                    if (c && customers.indexOf(c) === -1) {
+                        customers.push(c);
+                    }
+                }
+            }
+            try {
+                var cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                for (var j = 0; j < cache.length; j++) {
+                    var c2 = cache[j].trim();
+                    if (c2 && customers.indexOf(c2) === -1) {
+                        customers.push(c2);
+                    }
+                }
+            } catch (e) { }
+            customers.sort();
+            return customers;
+        }
+
         function renderCustomerList() {
             try {
-                var customers = getUniqueCustomers();
+                var customers = getUnifiedCustomersList();
+
                 var listDiv = document.getElementById('cust-dropdown-list');
                 if (!listDiv) return;
                 listDiv.innerHTML = "";
+
                 if (customers.length === 0) {
                     listDiv.innerHTML = '<div style="padding: 10px; color: #94a3b8; font-size: 0.8rem;">Arhiv strank je prazen.</div>';
                     return;
                 }
+
                 for (var j = 0; j < customers.length; j++) {
                     var item = document.createElement('div');
                     item.style.padding = "8px 12px";
@@ -2802,12 +2853,16 @@
                     item.onmouseout = function () { this.style.background = "transparent"; };
                     listDiv.appendChild(item);
                 }
-            } catch (e) { alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack); logDebug("Napaka renderCustomerList: " + e.message, true); }
+            } catch (e) {
+                var safeLog = (typeof logDebug === 'function') ? logDebug : console.error;
+                safeLog("Napaka renderCustomerList: " + e.message);
+            }
         }
+
         function updateCustomerDatalist() {
             try {
-                var customers = getUniqueCustomers();
-                // 1. Posodobi standardni datalist
+                var customers = getUnifiedCustomersList();
+
                 var dl = document.getElementById('customer-list');
                 if (dl) {
                     dl.innerHTML = "";
@@ -2817,21 +2872,22 @@
                         dl.appendChild(opt);
                     }
                 }
-                // 2. Posodobi naš novi dropdown (če je odprt)
                 renderCustomerList();
-                logDebug("Arhiv posodobljen (" + customers.length + " strank).");
-            } catch (e) { alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack); logDebug("Napaka updateCustomerDatalist: " + e.message, true); }
+            } catch (e) {
+                var safeLog = (typeof logDebug === 'function') ? logDebug : console.error;
+                safeLog("Napaka updateCustomerDatalist: " + e.message);
+            }
         }
+
         function handleCustomerUpdate(val) {
             try {
                 if (!val) return;
                 var search = val.trim().toLowerCase();
-                if (!search) return;
-                logDebug("Iščem šifro za: " + search);
-                var arhiv = getAllArchives();
+                var arhiv = getUnifiedCustomersData();
+
                 var foundMaterialCode = false;
                 var uniqueEmails = new Set();
-                // Iščemo od ZAČETKA (index 0)
+
                 for (var i = 0; i < arhiv.length; i++) {
                     var p = arhiv[i];
                     if (p && p.customer && p.customer.trim().toLowerCase() === search) {
@@ -2839,38 +2895,39 @@
                         if (p.custEmail && p.custEmail.trim() !== "") {
                             uniqueEmails.add(p.custEmail.trim());
                         }
-                        // 2. Avtomatsko izpolnjevanje šifre (samo prva najdena)
+
+                        // 2. Avtomatsko izpolnjevanje šifre
                         if (!foundMaterialCode && p.materialCode && p.materialCode.trim().length > 1) {
                             var target = document.getElementById('calc-material-code');
-                            // Vstavi šifro le, če je polje prazno ali ima samo placeholder tekst
                             if (target && (!target.value || target.value.trim() === "" || target.value.indexOf("npr.") !== -1)) {
                                 target.value = p.materialCode;
-                                logDebug("AVTOMATIKA: Dodeljena PRVA najdena šifra " + p.materialCode);
                                 foundMaterialCode = true;
                             }
                         }
                     }
                 }
-                // Posodobi spustni seznam za e-maile in avtomatsko izpolni, če je samo en
+
                 var emailTarget = document.getElementById('calc-cust-email');
                 var emailDatalist = document.getElementById('email-list');
                 if (emailTarget && emailDatalist) {
                     emailDatalist.innerHTML = "";
                     var emailsArray = Array.from(uniqueEmails);
+
                     emailsArray.forEach(function (em) {
                         var opt = document.createElement('option');
                         opt.value = em;
                         emailDatalist.appendChild(opt);
                     });
-                    // Če je izključno en e-mail v zgodovini in je polje prazno, ga avtomatsko izpolni
+
                     if (emailsArray.length === 1 && (!emailTarget.value || emailTarget.value.trim() === "")) {
                         emailTarget.value = emailsArray[0];
-                        logDebug("AVTOMATIKA: Dodeljen edini najdeni e-mail " + emailsArray[0]);
                     }
                 }
-            } catch (e) { alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack); logDebug("Napaka v handleCustomerUpdate: " + e.message, true); }
-        }
-        // Attach events safely
+            } catch (e) {
+                var safeLog = (typeof logDebug === 'function') ? logDebug : console.error;
+                safeLog("Napaka v handleCustomerUpdate: " + e.message);
+            }
+        }// Attach events safely
         try {
             var custInput = document.getElementById('calc-customer');
             if (custInput) {

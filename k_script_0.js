@@ -1642,20 +1642,57 @@
             }
         }
 
-        function renderCustomerList() {
-            try {
-                var raw = localStorage.getItem(STORAGE_KEY);
-                var arhiv = [];
-                if (raw) arhiv = JSON.parse(raw);
-                var customers = [];
-                for (var i = 0; i < arhiv.length; i++) {
-                    var p = arhiv[i];
-                    if (p && p.customer) {
-                        var c = p.customer.trim();
-                        if (c && customers.indexOf(c) === -1) customers.push(c);
+        function getUnifiedCustomersData() {
+            var keys = [
+                'petric_kalkulacija_arhiv', 
+                'petric_pola_arhiv', 
+                'darko_blok_arhiv', 
+                'petric_tenovis_arhiv',
+                'kuverte_kalkulator_arhiv',
+                'brosura_kalkulator_arhiv',
+                'etikete_kalkulator_arhiv'
+            ];
+            var allData = [];
+            for (var k = 0; k < keys.length; k++) {
+                try {
+                    var raw = localStorage.getItem(keys[k]);
+                    if (raw) {
+                        var arr = JSON.parse(raw);
+                        if (Array.isArray(arr)) allData = allData.concat(arr);
+                    }
+                } catch (e) { }
+            }
+            return allData;
+        }
+
+        function getUnifiedCustomersList() {
+            var allData = getUnifiedCustomersData();
+            var customers = [];
+            for (var i = 0; i < allData.length; i++) {
+                var p = allData[i];
+                if (p && p.customer) {
+                    var c = p.customer.trim();
+                    if (c && customers.indexOf(c) === -1) {
+                        customers.push(c);
                     }
                 }
-                customers.sort();
+            }
+            try {
+                var cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                for (var j = 0; j < cache.length; j++) {
+                    var c2 = cache[j].trim();
+                    if (c2 && customers.indexOf(c2) === -1) {
+                        customers.push(c2);
+                    }
+                }
+            } catch (e) { }
+            customers.sort();
+            return customers;
+        }
+
+        function renderCustomerList() {
+            try {
+                var customers = getUnifiedCustomersList();
 
                 var listDiv = document.getElementById('cust-dropdown-list');
                 if (!listDiv) return;
@@ -1687,13 +1724,13 @@
                     delBtn.style.padding = '2px 8px';
                     delBtn.style.borderRadius = '4px';
                     delBtn.title = 'Odstrani stranko iz predpomnilnika';
-                    delBtn.onclick = (function(name) {
-                        return function(e) {
+                    delBtn.onclick = (function (name) {
+                        return function (e) {
                             e.stopPropagation();
-                            if(confirm('Ali res želite odstraniti stranko "' + name + '" iz arhiva? (Če je stranka shranjena v katerem od vaših projektov, se bo morda znova pojavila)')) {
+                            if (confirm('Ali res želite odstraniti stranko "' + name + '" iz arhiva? (Če je stranka shranjena v katerem od vaših projektov, se bo morda znova pojavila)')) {
                                 var cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
                                 var idx = cache.indexOf(name);
-                                if(idx > -1) {
+                                if (idx > -1) {
                                     cache.splice(idx, 1);
                                     localStorage.setItem('petric_customers_cache', JSON.stringify(cache));
                                 }
@@ -1703,8 +1740,8 @@
                             }
                         };
                     })(customers[j]);
-                    delBtn.onmouseover = function() { this.style.background = '#fecaca'; };
-                    delBtn.onmouseout = function() { this.style.background = 'transparent'; };
+                    delBtn.onmouseover = function () { this.style.background = '#fecaca'; };
+                    delBtn.onmouseout = function () { this.style.background = 'transparent'; };
                     item.appendChild(delBtn);
 
                     item.onclick = (function (name) {
@@ -1718,20 +1755,15 @@
                     item.onmouseout = function () { this.style.background = "transparent"; };
                     listDiv.appendChild(item);
                 }
-            } catch (e) { console.error("Napaka renderCustomerList: " + e.message); }
+            } catch (e) {
+                var safeLog = (typeof logDebug === 'function') ? logDebug : console.error;
+                safeLog("Napaka renderCustomerList: " + e.message);
+            }
         }
 
         function updateCustomerDatalist() {
             try {
-                var raw = localStorage.getItem(STORAGE_KEY);
-                var arhiv = raw ? JSON.parse(raw) : [];
-                var customers = [];
-                for (var i = 0; i < arhiv.length; i++) {
-                    if (arhiv[i].customer && customers.indexOf(arhiv[i].customer.trim()) === -1) {
-                        customers.push(arhiv[i].customer.trim());
-                    }
-                }
-                customers.sort();
+                var customers = getUnifiedCustomersList();
 
                 var dl = document.getElementById('customer-list');
                 if (dl) {
@@ -1743,23 +1775,24 @@
                     }
                 }
                 renderCustomerList();
-            } catch (e) { }
+            } catch (e) {
+                var safeLog = (typeof logDebug === 'function') ? logDebug : console.error;
+                safeLog("Napaka updateCustomerDatalist: " + e.message);
+            }
         }
 
         function handleCustomerUpdate(val) {
             try {
                 if (!val) return;
                 var search = val.trim().toLowerCase();
-                var raw = localStorage.getItem(STORAGE_KEY);
-                if (!raw) return;
-                var arhiv = JSON.parse(raw);
+                var arhiv = getUnifiedCustomersData();
 
                 var foundMaterialCode = false;
                 var uniqueEmails = new Set();
 
                 for (var i = 0; i < arhiv.length; i++) {
                     var p = arhiv[i];
-                    if (p.customer && p.customer.trim().toLowerCase() === search) {
+                    if (p && p.customer && p.customer.trim().toLowerCase() === search) {
                         // 1. Zbiranje e-mailov
                         if (p.custEmail && p.custEmail.trim() !== "") {
                             uniqueEmails.add(p.custEmail.trim());
@@ -1768,7 +1801,7 @@
                         // 2. Avtomatsko izpolnjevanje šifre
                         if (!foundMaterialCode && p.materialCode && p.materialCode.trim().length > 1) {
                             var target = document.getElementById('calc-material-code');
-                            if (target && (!target.value || target.value.indexOf("npr.") !== -1)) {
+                            if (target && (!target.value || target.value.trim() === "" || target.value.indexOf("npr.") !== -1)) {
                                 target.value = p.materialCode;
                                 foundMaterialCode = true;
                             }
@@ -1776,7 +1809,6 @@
                     }
                 }
 
-                // Posodobi spustni seznam za e-maile in avtomatsko izpolni, če je samo en
                 var emailTarget = document.getElementById('calc-cust-email');
                 var emailDatalist = document.getElementById('email-list');
                 if (emailTarget && emailDatalist) {
@@ -1789,15 +1821,15 @@
                         emailDatalist.appendChild(opt);
                     });
 
-                    // Če je izključno en e-mail v zgodovini in je polje prazno, ga avtomatsko izpolni
                     if (emailsArray.length === 1 && (!emailTarget.value || emailTarget.value.trim() === "")) {
                         emailTarget.value = emailsArray[0];
                     }
                 }
-            } catch (e) { }
-        }
-
-        document.getElementById('calc-customer').addEventListener('input', function (e) { handleCustomerUpdate(e.target.value); });
+            } catch (e) {
+                var safeLog = (typeof logDebug === 'function') ? logDebug : console.error;
+                safeLog("Napaka v handleCustomerUpdate: " + e.message);
+            }
+        }document.getElementById('calc-customer').addEventListener('input', function (e) { handleCustomerUpdate(e.target.value); });
 
         function saveCurrentProject() {
             let name = document.getElementById('calc-project-name').value.trim();
