@@ -10795,6 +10795,12 @@
                     let dodatekLeavesHTML = '';
                     let dodatekCoverHTML = '';
 
+                    const getStranLabel = (n) => {
+                        const num = parseInt(n) || 0;
+                        const mod100 = num % 100;
+                        if (mod100 === 1) return `${num} stran na poli`;
+                        return `${num} strani na poli`;
+                    };
                     let dnSpecsHTML = '';
                     if (isDN) {
                         dnSpecsHTML += `
@@ -10822,7 +10828,7 @@
 
                             for (let i = 0; i < fullSheets; i++) {
                                 runs.push({
-                                    name: fullSheets > 1 ? `${i + 1}. cela pola` : `cela pola`,
+                                    name: `cela pola`,
                                     pages: pagesPerSheet,
                                     net: q.qty
                                 });
@@ -11048,7 +11054,7 @@
                             let sWCm_L = sW_L > 0 ? (sW_L / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : '';
                             let sHCm_L = sH_L > 0 ? (sH_L / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 }) : '';
                             let sheetFormatStrL = (sWCm_L && sHCm_L) ? `${sWCm_L} x ${sHCm_L} cm` : '';
-                            let cutInfoL = `<b>${totalParentSheetsL.toLocaleString('de-DE')} pol</b> ${srcWCm_L} x ${srcHCm_L} cm ${grainLeavesShort}${sheetFormatStrL ? ' &nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp; <b>' + totalSheetsL.toLocaleString('de-DE') + ' tisk. pol</b> &nbsp;&nbsp; ' + sheetFormatStrL : ''} (${d.paper.leaves.yield || 1} iz pole)`;
+                            let cutInfoL = `<b>${totalParentSheetsL.toLocaleString('de-DE')} pol</b> ${srcWCm_L} x ${srcHCm_L} cm ${grainLeavesShort}${sheetFormatStrL ? ' &nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp; <div style="display: inline-block; vertical-align: top;"><b>' + totalSheetsL.toLocaleString('de-DE') + ' tisk. pol</b> &nbsp;&nbsp; ' + sheetFormatStrL + '<div style="font-weight: bold; margin-top: 2px; color: #000; font-size: 13px;">(' + getStranLabel(pagesPerSheet) + ')</div></div>' : ''} (${d.paper.leaves.yield || 1} iz pole)`;
 
                             let printModeL = "";
                             if (frontL > 0 && backL > 0) {
@@ -11057,43 +11063,69 @@
                                 printModeL = "enostranski tisk";
                             }
 
-                            let runsHtmlList = [];
+                            let groupedRuns = [];
                             runs.forEach((run, index) => {
-                                let runPrepTime = (index === 0) ? firstSheetPrepL : 0.5;
-                                let roundedRunPrep = Math.round(runPrepTime * 4) / 4;
+                                let existing = groupedRuns.find(g => g.name === run.name && g.pages === run.pages && g.net === run.net);
+                                if (existing) {
+                                    existing.runs.push({ ...run, index: index });
+                                } else {
+                                    groupedRuns.push({
+                                        name: run.name,
+                                        pages: run.pages,
+                                        net: run.net,
+                                        runs: [{ ...run, index: index }]
+                                    });
+                                }
+                            });
+
+                            let runsHtmlList = [];
+                            groupedRuns.forEach(g => {
+                                let groupCount = g.runs.length;
+                                let totalGroupPrep = 0;
+                                g.runs.forEach(run => {
+                                    let runPrepTime = (run.index === 0) ? firstSheetPrepL : 0.5;
+                                    totalGroupPrep += runPrepTime;
+                                });
+                                let roundedGroupPrep = Math.round(totalGroupPrep * 4) / 4;
 
                                 let runTotalWaste = isNaN(givenDodatekL) ? 0 : wastePerSheetL;
-                                let runTotalSheets = run.net + runTotalWaste;
-                                let runPrintHours = (runTotalSheets * mPassesL) / 6000;
-                                let roundedRunPrint = Math.round(runPrintHours * 4) / 4;
-                                if (roundedRunPrint < 0.25) roundedRunPrint = 0.25;
+                                let singleBruto = g.net + runTotalWaste;
+                                let totalGroupBruto = singleBruto * groupCount;
 
-                                let printMathRun = '';
+                                let printHoursG = (totalGroupBruto * mPassesL) / 6000;
+                                let roundedGroupPrint = Math.round(printHoursG * 4) / 4;
+                                if (roundedGroupPrint < 0.25) roundedGroupPrint = 0.25;
+
+                                let printMathSingle = '';
                                 if (isNaN(givenDodatekL)) {
-                                    printMathRun = `${run.net.toLocaleString('de-DE')} pol + &nbsp;______&nbsp; pol = &nbsp;______&nbsp; tiskovnih pol`;
+                                    printMathSingle = `${g.net.toLocaleString('de-DE')} pol + &nbsp;______&nbsp; pol = &nbsp;______&nbsp; tiskovnih pol`;
                                 } else {
-                                    printMathRun = `${run.net.toLocaleString('de-DE')} pol + ${wastePerSheetL.toLocaleString('de-DE')} pol = ${runTotalSheets.toLocaleString('de-DE')} tiskovnih pol`;
+                                    printMathSingle = `${g.net.toLocaleString('de-DE')} pol + ${wastePerSheetL.toLocaleString('de-DE')} pol = ${singleBruto.toLocaleString('de-DE')} tiskovnih pol`;
                                 }
 
                                 let runPrintMode = isObratL ? "na obračanje" : "prvi drugi";
+                                
+                                let groupNameStr = groupCount > 1 ? `${groupCount}x ${g.name} (${g.pages} str)` : `${g.name} (${g.pages} str)`;
+                                let prepLabelStr = groupCount > 1 ? `${groupCount}x priprava vložka (${runPrintMode})` : `priprava vložka (${runPrintMode})`;
+                                let printLabelStr = groupCount > 1 ? `${groupCount}x (${printMathSingle})` : printMathSingle;
 
                                 runsHtmlList.push(`
                                     <div style="margin-top: 8px; border-top: 1px dashed #ccc; padding-top: 6px; page-break-inside: avoid;">
                                         <div class="bold" style="font-size: 14px; color: #2563eb; margin-bottom: 4px;">
-                                            📄 ${run.name} (${run.pages} str)
+                                            📄 ${groupNameStr}
                                         </div>
                                         <table style="width: 100%; font-size: 13.5px;">
                                             <tr>
                                                 <td style="width: 12%; font-weight: bold;"><strong>${d.leavesPrint.mType || 'S4'}</strong> priprava:</td>
-                                                <td style="width: 58%; font-weight: bold;">priprava vložka (${runPrintMode})</td>
-                                                <td style="width: 30%; text-align: right; font-weight: bold;">priprava: ${roundedRunPrep.toFixed(2)} h</td>
+                                                <td style="width: 58%; font-weight: bold;">${prepLabelStr}</td>
+                                                <td style="width: 30%; text-align: right; font-weight: bold;">priprava: ${roundedGroupPrep.toFixed(2)} h</td>
                                             </tr>
                                             <tr>
                                                 <td>Tisk:</td>
                                                 <td style="font-weight: bold;">
-                                                    ${printMathRun} &nbsp;&nbsp; (${d.leavesPrint.mPasses || 1}x skozi stroj)
+                                                    ${printLabelStr} &nbsp;&nbsp; (${d.leavesPrint.mPasses || 1}x skozi stroj)
                                                 </td>
-                                                <td style="text-align: right; font-weight: bold;">tisk: ${roundedRunPrint.toFixed(2)} h</td>
+                                                <td style="text-align: right; font-weight: bold;">tisk: ${roundedGroupPrint.toFixed(2)} h</td>
                                             </tr>
                                         </table>
                                     </div>
@@ -11473,9 +11505,9 @@
 
                         <script>
 
-                            let moveData = null;
+                            var moveData = null;
 
-                            let waitingForPaste = false;
+                            var waitingForPaste = false;
 
                             window.toggleMoveMode = function(btn) {
 
@@ -11523,7 +11555,7 @@
 
                             };
 
-                            const area = document.querySelector('.editable-area');
+                            var area = document.querySelector('.editable-area');
 
                             if (area) {
 
@@ -11561,7 +11593,7 @@
 
                                 
 
-                                const sync = () => {
+                                var sync = () => {
 
                                     if (window.opener && !window.opener.closed) {
 
@@ -11712,14 +11744,31 @@
             function printDN(printBasket = false) {
                 try {
                     const html = getQuoteHTML(false, null, false, false, true, printBasket);
-                    g_dnWindow = window.open('', 'PrintDNWin', 'width=900,height=900');
-                    if (!g_dnWindow) {
-                        alert("Pojavno okno je bilo blokirano. Prosim omogočite pojavna okna.");
-                        return;
+                    let canReuse = false;
+                    try {
+                        if (g_dnWindow && !g_dnWindow.closed) {
+                            let doc = g_dnWindow.document;
+                            canReuse = true;
+                        }
+                    } catch (e) {
+                        canReuse = false;
                     }
-                    g_dnWindow.document.open();
-                    g_dnWindow.document.write(html);
-                    g_dnWindow.document.close();
+
+                    if (canReuse) {
+                        g_dnWindow.document.open();
+                        g_dnWindow.document.write(html);
+                        g_dnWindow.document.close();
+                        g_dnWindow.focus();
+                    } else {
+                        g_dnWindow = window.open('', '', 'width=900,height=900');
+                        if (!g_dnWindow) {
+                            alert("Pojavno okno je bilo blokirano. Prosim omogočite pojavna okna.");
+                            return;
+                        }
+                        g_dnWindow.document.open();
+                        g_dnWindow.document.write(html);
+                        g_dnWindow.document.close();
+                    }
                 } catch (e) { alert("Napaka pri pripravi delovnega naloga: " + e.message); }
             }
 
@@ -11727,26 +11776,38 @@
                 if (g_isSyncingPopups) return;
                 g_isSyncingPopups = true;
                 try {
-                    if (g_quoteWindow && !g_quoteWindow.closed) {
-                        g_editedQuoteHTML = "";
-                        const html = getQuoteHTML(false, null, false, false, false, false);
-                        g_quoteWindow.document.open();
-                        g_quoteWindow.document.write(html);
-                        g_quoteWindow.document.close();
+                    if (g_quoteWindow) {
+                        try {
+                            if (!g_quoteWindow.closed) {
+                                g_editedQuoteHTML = "";
+                                const html = getQuoteHTML(false, null, false, false, false, false);
+                                g_quoteWindow.document.open();
+                                g_quoteWindow.document.write(html);
+                                g_quoteWindow.document.close();
+                            }
+                        } catch (e) { console.warn("Failed to sync quote window:", e); }
                     }
-                    if (g_quoteATWindow && !g_quoteATWindow.closed) {
-                        g_editedQuoteATHTML = "";
-                        const html = getQuoteHTML(false, null, false, true, false, false);
-                        g_quoteATWindow.document.open();
-                        g_quoteATWindow.document.write(html);
-                        g_quoteATWindow.document.close();
+                    if (g_quoteATWindow) {
+                        try {
+                            if (!g_quoteATWindow.closed) {
+                                g_editedQuoteATHTML = "";
+                                const html = getQuoteHTML(false, null, false, true, false, false);
+                                g_quoteATWindow.document.open();
+                                g_quoteATWindow.document.write(html);
+                                g_quoteATWindow.document.close();
+                            }
+                        } catch (e) { console.warn("Failed to sync quote AT window:", e); }
                     }
-                    if (g_dnWindow && !g_dnWindow.closed) {
-                        g_editedWorkOrderHTML = "";
-                        const html = getQuoteHTML(false, null, false, false, true, false);
-                        g_dnWindow.document.open();
-                        g_dnWindow.document.write(html);
-                        g_dnWindow.document.close();
+                    if (g_dnWindow) {
+                        try {
+                            if (!g_dnWindow.closed) {
+                                g_editedWorkOrderHTML = "";
+                                const html = getQuoteHTML(false, null, false, false, true, false);
+                                g_dnWindow.document.open();
+                                g_dnWindow.document.write(html);
+                                g_dnWindow.document.close();
+                            }
+                        } catch (e) { console.warn("Failed to sync DN window:", e); }
                     }
                 } catch (e) {
                     console.error("Napaka pri posodabljanju oken:", e);
