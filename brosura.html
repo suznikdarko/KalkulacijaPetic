@@ -9329,6 +9329,23 @@
 
 
             function renderSavedProjects() {
+            function getSearchableText(obj) {
+                let text = "";
+                for (let key in obj) {
+                    if (obj.hasOwnProperty(key)) {
+                        if (key.toLowerCase().includes('html') || key === 'id' || key === 'timestamp') {
+                            continue;
+                        }
+                        let val = obj[key];
+                        if (typeof val === 'object' && val !== null) {
+                            text += " " + getSearchableText(val);
+                        } else if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+                            text += " " + val;
+                        }
+                    }
+                }
+                return text;
+            }
 
                 const listContent = document.getElementById('projects-list-content');
 
@@ -9384,21 +9401,11 @@
 
                 // 2. DODAJ ARHIV
 
-                let filtered = arhiv;
-
-                if (filter) {
-
-                    filtered = arhiv.filter(p =>
-
-                        (p.name && p.name.toLowerCase().includes(filter)) ||
-
-                        (p.customer && p.customer.toLowerCase().includes(filter)) ||
-
-                        (p.materialCode && p.materialCode.toLowerCase().includes(filter))
-
-                    );
-
-                }
+                let filtered = filter ? arhiv.filter(proj => {
+                const searchStr = getSearchableText(proj).toLowerCase();
+                const terms = filter.split(/\s+/).filter(Boolean);
+                return terms.every(term => searchStr.includes(term));
+            }) : arhiv;
 
                 filtered.sort((a, b) => b.id - a.id);
 

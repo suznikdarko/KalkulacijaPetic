@@ -2129,6 +2129,23 @@
         }
 
         function renderSavedProjects() {
+            function getSearchableText(obj) {
+                let text = "";
+                for (let key in obj) {
+                    if (obj.hasOwnProperty(key)) {
+                        if (key.toLowerCase().includes('html') || key === 'id' || key === 'timestamp') {
+                            continue;
+                        }
+                        let val = obj[key];
+                        if (typeof val === 'object' && val !== null) {
+                            text += " " + getSearchableText(val);
+                        } else if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+                            text += " " + val;
+                        }
+                    }
+                }
+                return text;
+            }
             const listContent = document.getElementById('projects-list-content');
             if (!listContent) return;
 
@@ -2139,9 +2156,9 @@
 
             arhiv.sort((a, b) => b.id - a.id);
             let filtered = filter ? arhiv.filter(proj => {
-                const name = (proj.name || "").toLowerCase();
-                const customer = (proj.customer || "").toLowerCase();
-                return name.includes(filter) || customer.includes(filter);
+                const searchStr = getSearchableText(proj).toLowerCase();
+                const terms = filter.split(/\s+/).filter(Boolean);
+                return terms.every(term => searchStr.includes(term));
             }) : arhiv;
 
             let html = "";
