@@ -4445,6 +4445,7 @@
                 var lastEmail = "";
                 var lastAddress = "";
 
+                // 1. Zbiranje iz lokalnih arhivov
                 for (var i = 0; i < arhiv.length; i++) {
                     var p = arhiv[i];
                     if (p && p.customer && p.customer.trim().toLowerCase() === search) {
@@ -4471,6 +4472,31 @@
                         }
                     }
                 }
+
+                // 2. Zbiranje iz cache-a kontaktnih podatkov z diska
+                try {
+                    var contactsCache = JSON.parse(localStorage.getItem('petric_customer_contacts_cache') || '{}');
+                    var diskContact = contactsCache[search];
+                    if (diskContact) {
+                        if (diskContact.email && diskContact.email.trim() !== "") {
+                            var de = diskContact.email.trim();
+                            uniqueEmails.add(de);
+                            lastEmail = de;
+                        }
+                        if (diskContact.address && diskContact.address.trim() !== "") {
+                            var da = diskContact.address.trim();
+                            uniqueAddresses.add(da);
+                            lastAddress = da;
+                        }
+                        // Avtomatsko izpolnjevanje šifre stranke, če še ni izpolnjena
+                        if (diskContact.code && diskContact.code.trim() !== "") {
+                            var codeTarget = document.getElementById('calc-customer-code');
+                            if (codeTarget && (!codeTarget.value || codeTarget.value.trim() === "")) {
+                                codeTarget.value = diskContact.code.trim();
+                            }
+                        }
+                    }
+                } catch (e) { }
 
                 var emailTarget = document.getElementById('calc-cust-email');
                 var emailDatalist = document.getElementById('email-list');
@@ -4784,6 +4810,19 @@
         var g_projectsDirHandle = null;
         var g_diskProjects = [];
         var g_diskProjectsMetadata = {};
+        async function autoConnectFolder() {
+            try {
+                const handle = await getHandleFromIndexedDB('pola_dir_handle');
+                if (handle) {
+                    const status = await handle.queryPermission({ mode: 'readwrite' });
+                    if (status === 'granted') {
+                        g_projectsDirHandle = handle;
+                        await refreshDiskProjects();
+                        renderSavedProjects();
+                    }
+                }
+            } catch (e) { }
+        }
         async function syncWithFolder() {
             try {
                 g_projectsDirHandle = await window.showDirectoryPicker();
@@ -4833,17 +4872,38 @@
         async function extractCustomersFromDisk() {
             if (!g_diskProjects || g_diskProjects.length === 0) return;
             try {
-                let cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
-                let changed = false;
-                for (let i = 0; i < g_diskProjects.length; i++) {
+                var cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                var contactsCache = JSON.parse(localStorage.getItem('petric_customer_contacts_cache') || '{}');
+                var changed = false;
+                for (var i = 0; i < g_diskProjects.length; i++) {
                     try {
                         const file = await g_diskProjects[i].getFile();
                         const content = await file.text();
                         const data = JSON.parse(content);
                         if (data && data.customer) {
                             const c = data.customer.trim();
-                            if (c && cache.indexOf(c) === -1) {
+                            const cKey = c.toLowerCase();
+                            if (cache.indexOf(c) === -1) {
                                 cache.push(c);
+                                changed = true;
+                            }
+
+                            var contact = contactsCache[cKey] || {};
+                            var contactChanged = false;
+                            if (data.custEmail && data.custEmail.trim() !== "" && contact.email !== data.custEmail.trim()) {
+                                contact.email = data.custEmail.trim();
+                                contactChanged = true;
+                            }
+                            if (data.custAddress && data.custAddress.trim() !== "" && contact.address !== data.custAddress.trim()) {
+                                contact.address = data.custAddress.trim();
+                                contactChanged = true;
+                            }
+                            if (data.customerCode && data.customerCode.trim() !== "" && contact.code !== data.customerCode.trim()) {
+                                contact.code = data.customerCode.trim();
+                                contactChanged = true;
+                            }
+                            if (contactChanged) {
+                                contactsCache[cKey] = contact;
                                 changed = true;
                             }
                         }
@@ -4851,6 +4911,7 @@
                 }
                 if (changed) {
                     localStorage.setItem('petric_customers_cache', JSON.stringify(cache));
+                    localStorage.setItem('petric_customer_contacts_cache', JSON.stringify(contactsCache));
                     updateCustomerDatalist();
                 }
             } catch (e) { }
@@ -7082,6 +7143,7 @@
             renderSavedProjects();
             updateCustomerDatalist();
             renderBasket();
+            autoConnectFolder();
             const givenSheetsInput = document.getElementById('calc-given-sheets');
             const uvExtraWasteInput = document.getElementById('f-uv-extra-waste');
             // Povezava je bila odstranjena, da dodatek za tisk ne spreminja dodatka za UV lakiranje in s tem cene.

@@ -1783,22 +1783,38 @@
 
         function handleCustomerUpdate(val) {
             try {
-                if (!val) return;
+                var custInput = document.getElementById('calc-customer');
+                if (!val) {
+                    if (custInput) custInput.dataset.lastCustomer = "";
+                    return;
+                }
                 var search = val.trim().toLowerCase();
                 var arhiv = getUnifiedCustomersData();
 
                 var foundMaterialCode = false;
                 var uniqueEmails = new Set();
+                var uniqueAddresses = new Set();
+                var lastEmail = "";
+                var lastAddress = "";
 
+                // 1. Zbiranje iz lokalnih arhivov
                 for (var i = 0; i < arhiv.length; i++) {
                     var p = arhiv[i];
                     if (p && p.customer && p.customer.trim().toLowerCase() === search) {
                         // 1. Zbiranje e-mailov
                         if (p.custEmail && p.custEmail.trim() !== "") {
-                            uniqueEmails.add(p.custEmail.trim());
+                            var em = p.custEmail.trim();
+                            uniqueEmails.add(em);
+                            lastEmail = em;
+                        }
+                        // 2. Zbiranje naslovov
+                        if (p.custAddress && p.custAddress.trim() !== "") {
+                            var adr = p.custAddress.trim();
+                            uniqueAddresses.add(adr);
+                            lastAddress = adr;
                         }
 
-                        // 2. Avtomatsko izpolnjevanje šifre
+                        // 3. Avtomatsko izpolnjevanje šifre
                         if (!foundMaterialCode && p.materialCode && p.materialCode.trim().length > 1) {
                             var target = document.getElementById('calc-material-code');
                             if (target && (!target.value || target.value.trim() === "" || target.value.indexOf("npr.") !== -1)) {
@@ -1808,6 +1824,31 @@
                         }
                     }
                 }
+
+                // 2. Zbiranje iz cache-a kontaktnih podatkov z diska
+                try {
+                    var contactsCache = JSON.parse(localStorage.getItem('petric_customer_contacts_cache') || '{}');
+                    var diskContact = contactsCache[search];
+                    if (diskContact) {
+                        if (diskContact.email && diskContact.email.trim() !== "") {
+                            var de = diskContact.email.trim();
+                            uniqueEmails.add(de);
+                            lastEmail = de;
+                        }
+                        if (diskContact.address && diskContact.address.trim() !== "") {
+                            var da = diskContact.address.trim();
+                            uniqueAddresses.add(da);
+                            lastAddress = da;
+                        }
+                        // Avtomatsko izpolnjevanje šifre stranke, če še ni izpolnjena
+                        if (diskContact.code && diskContact.code.trim() !== "") {
+                            var codeTarget = document.getElementById('calc-customer-code');
+                            if (codeTarget && (!codeTarget.value || codeTarget.value.trim() === "")) {
+                                codeTarget.value = diskContact.code.trim();
+                            }
+                        }
+                    }
+                } catch (e) { }
 
                 var emailTarget = document.getElementById('calc-cust-email');
                 var emailDatalist = document.getElementById('email-list');
@@ -1820,9 +1861,24 @@
                         opt.value = em;
                         emailDatalist.appendChild(opt);
                     });
+                }
 
-                    if (emailsArray.length === 1 && (!emailTarget.value || emailTarget.value.trim() === "")) {
-                        emailTarget.value = emailsArray[0];
+                // Preveri, ali se je stranka dejansko spremenila (da ne prepisujemo ročnih popravkov ob blur/ponovnem kliku)
+                var lastCustomer = custInput ? (custInput.dataset.lastCustomer || "") : "";
+                var hasChanged = (val.trim().toLowerCase() !== lastCustomer.toLowerCase());
+
+                if (hasChanged) {
+                    if (custInput) custInput.dataset.lastCustomer = val.trim();
+
+                    // Izpolni email, če je na voljo
+                    if (emailTarget && lastEmail !== "") {
+                        emailTarget.value = lastEmail;
+                    }
+
+                    // Izpolni naslov, če je na voljo
+                    var addressTarget = document.getElementById('calc-cust-address');
+                    if (addressTarget && lastAddress !== "") {
+                        addressTarget.value = lastAddress;
                     }
                 }
             } catch (e) {
@@ -2132,6 +2188,55 @@
                     }
                 }
             } catch (err) { console.error(err); }
+            extractCustomersFromDisk();
+        }
+
+        async function extractCustomersFromDisk() {
+            if (!g_diskProjects || g_diskProjects.length === 0) return;
+            try {
+                var cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                var contactsCache = JSON.parse(localStorage.getItem('petric_customer_contacts_cache') || '{}');
+                var changed = false;
+                for (var i = 0; i < g_diskProjects.length; i++) {
+                    try {
+                        const file = await g_diskProjects[i].getFile();
+                        const content = await file.text();
+                        const data = JSON.parse(content);
+                        if (data && data.customer) {
+                            const c = data.customer.trim();
+                            const cKey = c.toLowerCase();
+                            if (cache.indexOf(c) === -1) {
+                                cache.push(c);
+                                changed = true;
+                            }
+
+                            var contact = contactsCache[cKey] || {};
+                            var contactChanged = false;
+                            if (data.custEmail && data.custEmail.trim() !== "" && contact.email !== data.custEmail.trim()) {
+                                contact.email = data.custEmail.trim();
+                                contactChanged = true;
+                            }
+                            if (data.custAddress && data.custAddress.trim() !== "" && contact.address !== data.custAddress.trim()) {
+                                contact.address = data.custAddress.trim();
+                                contactChanged = true;
+                            }
+                            if (data.customerCode && data.customerCode.trim() !== "" && contact.code !== data.customerCode.trim()) {
+                                contact.code = data.customerCode.trim();
+                                contactChanged = true;
+                            }
+                            if (contactChanged) {
+                                contactsCache[cKey] = contact;
+                                changed = true;
+                            }
+                        }
+                    } catch (e) { }
+                }
+                if (changed) {
+                    localStorage.setItem('petric_customers_cache', JSON.stringify(cache));
+                    localStorage.setItem('petric_customer_contacts_cache', JSON.stringify(contactsCache));
+                    updateCustomerDatalist();
+                }
+            } catch (e) { }
         }
 
         async function toggleProjectsDropdown() {
