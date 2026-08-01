@@ -482,7 +482,7 @@
             </div>
 
             <!-- OPIS PODATKOV KUVERT -->
-            <div class="header-group" style="grid-column: span 2; display: flex; flex-direction: column; gap: 1.25rem;">
+            <div class="header-group" style="grid-column: span 4; display: flex; flex-direction: column; gap: 1.25rem;">
                 <!-- Zgornja vrstica: Tip in Dimenzije -->
                 <div style="display: flex; gap: 1.25rem;">
                     <div style="flex: 2;">
@@ -1128,6 +1128,7 @@
             const date = new Date().toLocaleDateString('sl-SI');
             const custEmail = document.getElementById('calc-cust-email') ? document.getElementById('calc-cust-email').value : '';
             const deliveryAddress = document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '';
+            const orderType = document.getElementById('calc-order-type') ? document.getElementById('calc-order-type').value : '';
 
             let itemsToRender = [];
 
@@ -1245,6 +1246,7 @@
                                 <tr><td>Datum:</td><td>${date}</td></tr>
                                 <tr><td>${isAT ? 'Kunde' : 'Šifra stranke:'}</td><td>${customerCode}</td></tr>
                                 <tr><td><strong style="font-size: 14px;">${isAT ? 'Angebot' : 'Ponudba št.:'}</strong></td><td><strong style="font-size: 14px;">${quoteNum}</strong></td></tr>
+<tr><td>${isAT ? 'Art' : 'Tip naloga:'}</td><td style="color:#ef4444; font-weight:bold;">${orderType}</td></tr>
                             </table>
                         </div>
                     </div>
@@ -1536,6 +1538,23 @@
 
             let dnNum = document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value : "";
             let dnOld = document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : "";
+
+let orderType = document.getElementById('calc-order-type') ? document.getElementById('calc-order-type').value : "";
+let orderTypeLine1 = "";
+let orderTypeLine2 = dnOld ? `Print za tiskarja! SDN ${dnOld}` : `Print za tiskarja!`;
+let orderTypeLower = orderType.toLowerCase();
+let hasNovo = orderTypeLower.includes('novo');
+let hasSprememba = orderTypeLower.includes('sprememba');
+let hasPonatis = orderTypeLower.includes('ponatis');
+let hasAkJpg = orderTypeLower.includes('ak') || orderTypeLower.includes('jpg') || orderTypeLower.includes('montaž');
+if (hasNovo) {
+    orderTypeLine1 = hasAkJpg ? `Za prenos pripravi repro - Nova montaža` : `Za prenos pripravi repro - Naredi novo formo!`;
+} else if (hasSprememba) {
+    orderTypeLine1 = hasAkJpg ? `Za prenos pripravi repro - Stara montaža (spremembe)` : `Za prenos pripravi repro - Sprememba! Naredi novo formo!`;
+} else if (hasPonatis) {
+    orderTypeLine1 = hasAkJpg ? `Poišči staro montažo` : `Poišči staro formo!`;
+    orderTypeLine2 = dnOld ? `Print za tiskarja! SDN ${dnOld}` : `Poišči staro mapo - preveri SDN in print za tiskarja!`;
+}
             let deadline = document.getElementById('calc-dn-deadline') ? document.getElementById('calc-dn-deadline').value : "";
             let urgent = document.getElementById('calc-dn-urgent') && document.getElementById('calc-dn-urgent').checked;
             let packaging = document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : "";
@@ -2775,6 +2794,8 @@
                     }
                 };
 
+                const jsonStr = JSON.stringify(data, null, 2);
+
                 let _gv = id => { let el = document.getElementById(id); return el ? el.value : ''; };
                 let s_ponudba = (_gv('calc-quote-number') || '').replace(/[\/\\]/g, '-').trim();
                 if (s_ponudba) s_ponudba = 'pon.' + s_ponudba;
@@ -2846,6 +2867,7 @@
             setV('calc-prepared-by', proj.preparedBy);
             setV('calc-material-code', proj.materialCode);
             setV('calc-notes', proj.notes);
+            setV('calc-order-type', proj.orderType || '');
 
             g_editedQuoteHTML = proj.editedQuoteHTML || '';
             g_editedQuoteATHTML = proj.editedQuoteATHTML || '';
