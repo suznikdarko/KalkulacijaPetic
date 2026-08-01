@@ -3685,25 +3685,28 @@
             }
 
             function extractGrammage(sourceEl, targetId) {
-
-                const val = sourceEl.value;
-
-                const match = val.match(/(\d+)\s*g/i);
-
-                if (match) {
-
-                    const target = document.getElementById(targetId);
-
-                    if (target) {
-
-                        target.value = match[1];
-
-                        if (typeof calculatePrice === 'function') calculatePrice();
-
-                    }
-
+                if (!sourceEl._grammageBlurBound) {
+                    sourceEl.addEventListener('blur', function() {
+                        if (/^\d+$/.test(this.value)) {
+                            this.value += 'g';
+                            if (typeof calculate === 'function') calculate();
+                        }
+                    });
+                    sourceEl._grammageBlurBound = true;
                 }
-
+                let val = sourceEl.value;
+                if (/^\d+\s$/.test(val)) {
+                    sourceEl.value = val.trim() + "g ";
+                    val = sourceEl.value;
+                }
+                const match = val.match(/(\d+)\s*g/i) || val.match(/^(\d+)/);
+                if (match) {
+                    const target = document.getElementById(targetId);
+                    if (target) {
+                        target.value = match[1];
+                        if (typeof calculatePrice === 'function') calculatePrice();
+                    }
+                }
             }
 
 
