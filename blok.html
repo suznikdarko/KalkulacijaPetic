@@ -2225,20 +2225,22 @@
 
                     const itemW = w + (2 * b);
                     const itemH = h + (2 * b);
-                    let actualArea = bestLayout.count * (itemW * itemH);
+                    const leavesPerBlock = parseFloat(gV('calc-leaves')) || 1;
+                    const finalCountLeaves = targetCount > 0 ? targetCount : bestLayout.count;
+                    window.bestLayoutLeaves = bestLayout;
+
+                    let actualArea = finalCountLeaves * (itemW * itemH);
                     let totalArea = bestSheet.w * bestSheet.h;
                     let usage = (actualArea / totalArea * 100).toFixed(1) + '%';
 
                     setT('res-sheet', bestSheet.name);
-                    setT('res-count', bestLayout.count);
+                    setT('res-count', finalCountLeaves);
                     setT('res-usage', usage);
 
                     setT('res-sheet-mini', bestSheet.name);
-                    setT('res-count-leaves', bestLayout.count);
+                    setT('res-count-leaves', finalCountLeaves);
                     setT('res-usage-leaves', usage);
 
-                    const leavesPerBlock = parseFloat(gV('calc-leaves')) || 1;
-                    const finalCountLeaves = targetCount > 0 ? targetCount : bestLayout.count;
                     sheetsNeededLeaves = Math.ceil((q * leavesPerBlock) / finalCountLeaves);
                     setT('res-sheets-needed', sheetsNeededLeaves);
                     setT('res-sheets-leaves-net', sheetsNeededLeaves + ' pol');
@@ -2387,16 +2389,18 @@
 
                     if (cBestSheet && cBestLayout) {
                         if (document.getElementById('empty-state-cover')) document.getElementById('empty-state-cover').style.display = 'none';
-                        let cActualArea = cBestLayout.count * (cItemW * cItemH);
+                        let cQtyTotal = parseFloat(gV('calc-cover-qty')) || 0;
+                        const finalCountCover = targetCountCover > 0 ? targetCountCover : cBestLayout.count;
+                        window.bestLayoutCover = cBestLayout;
+
+                        let cActualArea = finalCountCover * (cItemW * cItemH);
                         let cTotalArea = cBestSheet.w * cBestSheet.h;
                         let cUsage = (cActualArea / cTotalArea * 100).toFixed(1) + '%';
 
                         setT('res-sheet-cover-mini', cBestSheet.name);
-                        setT('res-count-cover', cBestLayout.count);
+                        setT('res-count-cover', finalCountCover);
                         setT('res-usage-cover', cUsage);
 
-                        let cQtyTotal = parseFloat(gV('calc-cover-qty')) || 0;
-                        const finalCountCover = targetCountCover > 0 ? targetCountCover : cBestLayout.count;
                         sheetsNeededCover = Math.ceil(cQtyTotal / finalCountCover);
                         setT('res-sheets-cover-net', sheetsNeededCover + ' pol');
                         setT('res-cover-sheets-needed', sheetsNeededCover);
@@ -2787,6 +2791,60 @@
                 let cFront = gV('calc-color-front-' + comp);
                 let cBack = gV('calc-color-back-' + comp);
                 let isOB = gC('calc-is-obrat-' + comp);
+                
+                if (isOB) {
+                    let itemsCount = 0;
+                    if (comp === 'leaves') {
+                        itemsCount = parseInt(document.getElementById('res-count')?.innerText) || 0;
+                    } else if (comp === 'cover') {
+                        itemsCount = parseInt(document.getElementById('res-count-cover')?.innerText) || 0;
+                    }
+                    if (itemsCount > 0 && itemsCount % 2 !== 0) {
+                        if (itemsCount > 1) {
+                            let maxEven = itemsCount - 1;
+                            
+                            // Poišči največjo polno mrežo, ki je soda
+                            let bl = null;
+                            if (comp === 'leaves' && window.bestLayoutLeaves) bl = window.bestLayoutLeaves;
+                            if (comp === 'cover' && window.bestLayoutCover) bl = window.bestLayoutCover;
+                            
+                            if (bl && !bl.isMixed) {
+                                let bestPerfect = 2;
+                                for (let c = bl.cols; c >= 1; c--) {
+                                    for (let r = bl.rows; r >= 1; r--) {
+                                        let total = c * r;
+                                        if (total % 2 === 0 && total <= itemsCount - 1 && total > bestPerfect) {
+                                            bestPerfect = total;
+                                        }
+                                    }
+                                }
+                                if (bestPerfect > 0) {
+                                    maxEven = bestPerfect;
+                                }
+                            }
+
+                            itemsCount = maxEven;
+                            
+                            if (comp === 'leaves') {
+                                let inp = document.getElementById('items-per-sheet');
+                                if (inp) inp.value = itemsCount;
+                            } else {
+                                let inp = document.getElementById('items-per-sheet-cover');
+                                if (inp) inp.value = itemsCount;
+                            }
+                            alert("Opozorilo: Za 'Obračanje / OB' (" + (comp==='leaves'?'listi':'ovitek') + ") je potrebno sodo število stavkov na poli. Da bi preprečili nesimetrično mrežo ali luknje v postavitvi, se je število stavkov samodejno zmanjšalo na " + itemsCount + ".");
+                            
+                            calculate(false);
+                            return;
+                        } else {
+                            alert("Opozorilo: Izbrano je 'Obračanje / OB' (" + (comp==='leaves'?'listi':'ovitek') + "), vendar je na poli samo 1 stavek. Obračanje ni mogoče, zato je izklopljeno.");
+                            let obCb = document.getElementById('calc-is-obrat-' + comp);
+                            if (obCb) obCb.checked = false;
+                            isOB = false;
+                        }
+                    }
+                }
+                
                 let isSV = gC('calc-is-sv-' + comp);
 
                 let cFrontVal = parseInt(cFront) || 0;
@@ -3933,7 +3991,8 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = isManualMatch ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.08)';
-                ctx.fillText(layout.count, canvas.width / 2, canvas.height / 2);
+                let countToDisplay = (manualTarget > 0) ? manualTarget : layout.count;
+                ctx.fillText(countToDisplay, canvas.width / 2, canvas.height / 2);
                 ctx.restore();
 
                 // Mreža stavkov
@@ -3945,8 +4004,57 @@
                 const gridTotalW = layout.cols * layout.itemW;
                 const gridTotalH = layout.rows * layout.itemH;
 
-                const startX = offsetX + ((usableW - gridTotalW) / 2);
-                const startY = offsetY + ((usableH - gridTotalH) / 2);
+                const obratCbId = canvasId === 'canvas-leaves' ? 'calc-is-obrat-leaves' : 'calc-is-obrat-cover';
+                const isObratChecked = document.getElementById(obratCbId) ? document.getElementById(obratCbId).checked : false;
+
+                let bestC = layout.cols;
+                let bestR = layout.rows;
+                
+                if (manualTarget > 0 && manualTarget < layout.rows * layout.cols) {
+                    let foundPerfect = false;
+                    let bestPerfectDiff = 999999;
+                    for (let tempC = 1; tempC <= layout.cols; tempC++) {
+                        if (manualTarget % tempC === 0) {
+                            let tempR = manualTarget / tempC;
+                            if (tempR <= layout.rows) {
+                                let diff = Math.abs(tempC - tempR);
+                                if (isObratChecked && tempC % 2 !== 0) diff += 1000;
+                                if (!foundPerfect || diff < bestPerfectDiff || (diff === bestPerfectDiff && tempC > bestC)) {
+                                    bestC = tempC;
+                                    bestR = tempR;
+                                    bestPerfectDiff = diff;
+                                    foundPerfect = true;
+                                }
+                            }
+                        }
+                    }
+                    if (!foundPerfect) {
+                        for (let tempC = 1; tempC <= layout.cols; tempC++) {
+                            let tempR = Math.ceil(manualTarget / tempC);
+                            if (tempR <= layout.rows) {
+                                let diff = Math.abs(tempC - tempR);
+                                let currentBestDiff = Math.abs(bestC - bestR);
+                                if (isObratChecked) {
+                                    if (bestC % 2 !== 0) currentBestDiff += 1000;
+                                    if (tempC % 2 !== 0) diff += 1000;
+                                }
+                                if (diff < currentBestDiff || (diff === currentBestDiff && tempC > bestC)) {
+                                    bestC = tempC;
+                                    bestR = tempR;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let usedCols = bestC;
+                let usedRows = bestR;
+
+                const actualGridTotalW = usedCols * layout.itemW;
+                const actualGridTotalH = usedRows * layout.itemH;
+
+                const startX = offsetX + ((usableW - actualGridTotalW) / 2);
+                const startY = offsetY + ((usableH - actualGridTotalH) / 2);
 
                 // Grain direction indicator
                 let sw_v, sh_v;
@@ -3975,24 +4083,16 @@
                     // Main red dashed line
                     ctx.strokeStyle = '#ef4444';
                     ctx.lineWidth = 2;
-                    ctx.setLineDash([12, 6]);
+                    ctx.setLineDash([5, 5]);
                     ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, canvas.height - 40); ctx.stroke();
-
-                    // Arrow heads
                     ctx.setLineDash([]);
+
+                    // Arrows
                     ctx.fillStyle = '#ef4444';
-                    const drawArrV = (y, rot) => {
-                        ctx.save();
-                        ctx.translate(midX, y);
-                        ctx.rotate(rot);
-                        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-6, 12); ctx.lineTo(6, 12); ctx.fill();
-                        ctx.restore();
-                    };
-                    drawArrV(25, 0);
-                    drawArrV(canvas.height - 25, Math.PI);
+                    ctx.beginPath(); ctx.moveTo(midX - 5, 45); ctx.lineTo(midX + 5, 45); ctx.lineTo(midX, 35); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(midX - 5, canvas.height - 45); ctx.lineTo(midX + 5, canvas.height - 45); ctx.lineTo(midX, canvas.height - 35); ctx.fill();
 
                     // Text Badge
-                    ctx.save();
                     ctx.translate(midX, midY);
                     ctx.rotate(-Math.PI / 2);
                     ctx.fillStyle = 'white';
@@ -4007,32 +4107,20 @@
                     ctx.fillText('SMER VLAKEN', 0, 4);
                     ctx.restore();
                 } else {
-                    // White shadow
                     ctx.strokeStyle = 'rgba(255,255,255,0.8)';
                     ctx.lineWidth = 4;
                     ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(canvas.width - 40, midY); ctx.stroke();
 
-                    // Main red dashed line
                     ctx.strokeStyle = '#ef4444';
                     ctx.lineWidth = 2;
-                    ctx.setLineDash([12, 6]);
+                    ctx.setLineDash([5, 5]);
                     ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(canvas.width - 40, midY); ctx.stroke();
-
-                    // Arrow heads
                     ctx.setLineDash([]);
-                    ctx.fillStyle = '#ef4444';
-                    const drawArrH = (x, rot) => {
-                        ctx.save();
-                        ctx.translate(x, midY);
-                        ctx.rotate(rot);
-                        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-6, 12); ctx.lineTo(6, 12); ctx.fill();
-                        ctx.restore();
-                    };
-                    drawArrH(25, -Math.PI / 2);
-                    drawArrH(canvas.width - 25, Math.PI / 2);
 
-                    // Text Badge
-                    ctx.save();
+                    ctx.fillStyle = '#ef4444';
+                    ctx.beginPath(); ctx.moveTo(45, midY - 5); ctx.lineTo(45, midY + 5); ctx.lineTo(35, midY); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(canvas.width - 45, midY - 5); ctx.lineTo(canvas.width - 45, midY + 5); ctx.lineTo(canvas.width - 35, midY); ctx.fill();
+
                     ctx.translate(midX, midY);
                     ctx.fillStyle = 'white';
                     ctx.strokeStyle = '#ef4444';
@@ -4048,51 +4136,75 @@
                 }
                 ctx.restore();
 
-                for (let r = 0; r < layout.rows; r++) {
-                    for (let c = 0; c < layout.cols; c++) {
-                        const x = (startX + (c * layout.itemW)) * scale;
-                        const y = (startY + (r * layout.itemH)) * scale;
-                        const w = layout.itemW * scale;
-                        const h = layout.itemH * scale;
-
-                        // Polnilo stavka
-                        ctx.fillStyle = isManualMatch ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)';
-                        ctx.fillStyle = '#3b82f6';
-                        ctx.globalAlpha = 0.8;
-                        ctx.fillRect(x, y, w, h);
-                        ctx.globalAlpha = 1.0;
-                        ctx.strokeStyle = '#2563eb';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(x, y, w, h);
-
-                        // Bleed rob
-                        ctx.strokeStyle = isManualMatch ? 'rgba(245, 158, 11, 0.5)' : 'rgba(59, 130, 246, 0.5)';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(x, y, w, h);
-
-                        // Netto rob (rez)
-                        const innerW = (layout.rot ? origH : origW) * scale;
-                        const innerH = (layout.rot ? origW : origH) * scale;
-                        const bX = bleed * scale;
-                        const bY = bleed * scale;
-
-                        ctx.strokeStyle = isManualMatch ? '#d97706' : '#2563eb';
-                        ctx.setLineDash([2, 2]);
-                        ctx.strokeRect(x + bX, y + bY, innerW, innerH);
-                        ctx.setLineDash([]);
-
-                        // Dimenzije v sredini vsakega stavka
-                        ctx.save();
-                        ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
-                        ctx.fillStyle = isManualMatch ? '#92400e' : '#1e40af';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        const labelW = layout.rot ? origH : origW;
-                        const labelH = layout.rot ? origW : origH;
-                        ctx.fillText(`${labelW}x${labelH}`, x + (w / 2), y + (h / 2));
-                        ctx.restore();
+                let slots = [];
+                let itemsToDraw = (manualTarget > 0) ? manualTarget : (layout.rows * layout.cols);
+                
+                if (isObratChecked && manualTarget > 0 && manualTarget < usedCols * usedRows) {
+                    let midC = Math.floor(usedCols / 2);
+                    let hasCenter = usedCols % 2 !== 0;
+                    for (let r = 0; r < usedRows; r++) {
+                        for (let c = midC - 1; c >= 0; c--) {
+                            slots.push({r, c});
+                            slots.push({r, c: usedCols - 1 - c});
+                        }
+                    }
+                    if (hasCenter) {
+                        for (let r = 0; r < usedRows; r++) {
+                            slots.push({r, c: midC});
+                        }
+                    }
+                    slots = slots.slice(0, itemsToDraw);
+                } else {
+                    let tempCount = 0;
+                    for (let r = 0; r < usedRows && tempCount < itemsToDraw; r++) {
+                        for (let c = 0; c < usedCols && tempCount < itemsToDraw; c++) {
+                            slots.push({r, c});
+                            tempCount++;
+                        }
                     }
                 }
+
+                slots.forEach(slot => {
+                    let r = slot.r;
+                    let c = slot.c;
+                    
+                    const x = (startX + (c * layout.itemW)) * scale;
+                    const y = (startY + (r * layout.itemH)) * scale;
+                    const w = layout.itemW * scale;
+                    const h = layout.itemH * scale;
+
+                    ctx.fillStyle = isManualMatch ? 'rgba(245, 158, 11, 0.15)' : '#3b82f6';
+                    ctx.globalAlpha = 0.8;
+                    ctx.fillRect(x, y, w, h);
+                    ctx.globalAlpha = 1.0;
+                    ctx.strokeStyle = '#2563eb';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x, y, w, h);
+
+                    ctx.strokeStyle = isManualMatch ? 'rgba(245, 158, 11, 0.5)' : 'rgba(59, 130, 246, 0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x, y, w, h);
+
+                    const innerW = (layout.rot ? origH : origW) * scale;
+                    const innerH = (layout.rot ? origW : origH) * scale;
+                    const bX = bleed * scale;
+                    const bY = bleed * scale;
+
+                    ctx.strokeStyle = isManualMatch ? '#d97706' : '#2563eb';
+                    ctx.setLineDash([2, 2]);
+                    ctx.strokeRect(x + bX, y + bY, innerW, innerH);
+                    ctx.setLineDash([]);
+
+                    ctx.save();
+                    ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
+                    ctx.fillStyle = isManualMatch ? '#92400e' : '#1e40af';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const labelW = layout.rot ? origH : origW;
+                    const labelH = layout.rot ? origW : origH;
+                    ctx.fillText(`${labelW}x${labelH}`, x + (w / 2), y + (h / 2));
+                    ctx.restore();
+                });
 
                 // Info značka
                 ctx.save();

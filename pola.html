@@ -2424,12 +2424,31 @@
                     g_autoCount = bestLayout.count;
                 }
                 g_lastBestLayout = bestLayout;
-                const currentCount = parseInt(itemsInp.value) || bestLayout.count;
+                let currentCount = parseInt(itemsInp.value) || bestLayout.count;
                 
                 const obratCheckbox = document.getElementById('calc-is-obrat');
                 if (obratCheckbox && obratCheckbox.checked && currentCount % 2 !== 0) {
-                    alert("Opozorilo: Izbrano je 'Obračanje / OB', vendar število stavkov na poli (" + currentCount + ") ni simetrično (liho število). Obračanje ni mogoče, zato je izklopljeno.");
-                    obratCheckbox.checked = false;
+                    if (currentCount > 1) {
+                        let maxEven = currentCount - 1;
+                        if (bestLayout && !bestLayout.isMixed) {
+                            let bestPerfect = 2;
+                            for (let c = bestLayout.cols; c >= 1; c--) {
+                                for (let r = bestLayout.rows; r >= 1; r--) {
+                                    let total = c * r;
+                                    if (total % 2 === 0 && total <= currentCount - 1 && total > bestPerfect) {
+                                        bestPerfect = total;
+                                    }
+                                }
+                            }
+                            if (bestPerfect > 0) maxEven = bestPerfect;
+                        }
+                        currentCount = maxEven;
+                        itemsInp.value = currentCount;
+                        alert("Opozorilo: Za 'Obračanje / OB' je potrebno sodo število stavkov na poli. Da bi preprečili nesimetrično mrežo ali luknje v postavitvi, se je število stavkov samodejno zmanjšalo na " + currentCount + ".");
+                    } else {
+                        alert("Opozorilo: Izbrano je 'Obračanje / OB', vendar je na poli samo 1 stavek. Obračanje ni mogoče, zato je izklopljeno.");
+                        obratCheckbox.checked = false;
+                    }
                 }
 
                 let usage = (currentCount * itemW * itemH) / (bestSheet.w * bestSheet.h);
