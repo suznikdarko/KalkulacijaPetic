@@ -1192,8 +1192,7 @@
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
                         ${d.print.mType === 'digital'
                     ? `<span>Cena tiska (${d.paper.totalSheets} pol):</span> <span>${formatPrice(d.print.cost)}</span>`
-                    : (d.print.prepTime > 0 ? `<span>Priprava stroja (${(d.print.prepTime * 60).toFixed(0)} min):</span> <span>${formatPrice(d.print.prepTime * d.print.mRate)}</span>` : '') +
-                    `<span>Neto čas tiska (${(d.print.hours * 60).toFixed(0)} min pri hitrosti <b>${d.print.mSpeed} pol/h</b>):</span> <span>${formatPrice(d.print.hours * d.print.mRate)}</span>`
+                    : `<span>Neto čas tiska (${(d.print.hours * 60).toFixed(0)} min pri hitrosti <b>${d.print.mSpeed} pol/h</b>):</span> <span>${formatPrice(d.print.hours * d.print.mRate)}</span>`
                 }
                         <span>Prijemalec (gripper):</span> <span style="color: #fbbf24; font-weight: bold;">${d.print.gripper} mm</span>
                         <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
@@ -2740,16 +2739,67 @@
             customers.sort();
             return customers;
         }
+        function getUnifiedCustomersData() {
+            var keys = [
+                'petric_kalkulacija_arhiv', 
+                'petric_pola_arhiv', 
+                'darko_blok_arhiv', 
+                'petric_tenovis_arhiv',
+                'kuverte_kalkulator_arhiv',
+                'brosura_kalkulator_arhiv',
+                'etikete_kalkulator_arhiv'
+            ];
+            var allData = [];
+            for (var k = 0; k < keys.length; k++) {
+                try {
+                    var raw = localStorage.getItem(keys[k]);
+                    if (raw) {
+                        var arr = JSON.parse(raw);
+                        if (Array.isArray(arr)) allData = allData.concat(arr);
+                    }
+                } catch (e) { }
+            }
+            return allData;
+        }
+
+        function getUnifiedCustomersList() {
+            var allData = getUnifiedCustomersData();
+            var customers = [];
+            for (var i = 0; i < allData.length; i++) {
+                var p = allData[i];
+                if (p && p.customer) {
+                    var c = p.customer.trim();
+                    if (c && customers.indexOf(c) === -1) {
+                        customers.push(c);
+                    }
+                }
+            }
+            try {
+                var cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                for (var j = 0; j < cache.length; j++) {
+                    var c2 = cache[j].trim();
+                    if (c2 && customers.indexOf(c2) === -1) {
+                        customers.push(c2);
+                    }
+                }
+            } catch (e) { }
+            customers.sort();
+            return customers;
+        }
+
         function renderCustomerList() {
             try {
-                var customers = getUniqueCustomers();
+                var customers = getUnifiedCustomersList();
+
                 var listDiv = document.getElementById('cust-dropdown-list');
                 if (!listDiv) return;
                 listDiv.innerHTML = "";
+
                 if (customers.length === 0) {
                     listDiv.innerHTML = '<div style="padding: 10px; color: #94a3b8; font-size: 0.8rem;">Arhiv strank je prazen.</div>';
                     return;
                 }
+
                 for (var j = 0; j < customers.length; j++) {
                     var item = document.createElement('div');
                     item.style.padding = "8px 12px";
@@ -2802,12 +2852,16 @@
                     item.onmouseout = function () { this.style.background = "transparent"; };
                     listDiv.appendChild(item);
                 }
-            } catch (e) { alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack); logDebug("Napaka renderCustomerList: " + e.message, true); }
+            } catch (e) {
+                var safeLog = (typeof logDebug === 'function') ? logDebug : console.error;
+                safeLog("Napaka renderCustomerList: " + e.message);
+            }
         }
+
         function updateCustomerDatalist() {
             try {
-                var customers = getUniqueCustomers();
-                // 1. Posodobi standardni datalist
+                var customers = getUnifiedCustomersList();
+
                 var dl = document.getElementById('customer-list');
                 if (dl) {
                     dl.innerHTML = "";
@@ -2817,60 +2871,118 @@
                         dl.appendChild(opt);
                     }
                 }
-                // 2. Posodobi naš novi dropdown (če je odprt)
                 renderCustomerList();
-                logDebug("Arhiv posodobljen (" + customers.length + " strank).");
-            } catch (e) { alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack); logDebug("Napaka updateCustomerDatalist: " + e.message, true); }
+            } catch (e) {
+                var safeLog = (typeof logDebug === 'function') ? logDebug : console.error;
+                safeLog("Napaka updateCustomerDatalist: " + e.message);
+            }
         }
+
         function handleCustomerUpdate(val) {
             try {
-                if (!val) return;
+                var custInput = document.getElementById('calc-customer');
+                if (!val) {
+                    if (custInput) custInput.dataset.lastCustomer = "";
+                    return;
+                }
                 var search = val.trim().toLowerCase();
-                if (!search) return;
-                logDebug("Iščem šifro za: " + search);
-                var arhiv = getAllArchives();
+                var arhiv = getUnifiedCustomersData();
+
                 var foundMaterialCode = false;
                 var uniqueEmails = new Set();
-                // Iščemo od ZAČETKA (index 0)
+                var uniqueAddresses = new Set();
+                var lastEmail = "";
+                var lastAddress = "";
+
+                // 1. Zbiranje iz lokalnih arhivov
                 for (var i = 0; i < arhiv.length; i++) {
                     var p = arhiv[i];
                     if (p && p.customer && p.customer.trim().toLowerCase() === search) {
                         // 1. Zbiranje e-mailov
                         if (p.custEmail && p.custEmail.trim() !== "") {
-                            uniqueEmails.add(p.custEmail.trim());
+                            var em = p.custEmail.trim();
+                            uniqueEmails.add(em);
+                            lastEmail = em;
                         }
-                        // 2. Avtomatsko izpolnjevanje šifre (samo prva najdena)
+                        // 2. Zbiranje naslovov
+                        if (p.custAddress && p.custAddress.trim() !== "") {
+                            var adr = p.custAddress.trim();
+                            uniqueAddresses.add(adr);
+                            lastAddress = adr;
+                        }
+
+                        // 3. Avtomatsko izpolnjevanje šifre
                         if (!foundMaterialCode && p.materialCode && p.materialCode.trim().length > 1) {
                             var target = document.getElementById('calc-material-code');
-                            // Vstavi šifro le, če je polje prazno ali ima samo placeholder tekst
                             if (target && (!target.value || target.value.trim() === "" || target.value.indexOf("npr.") !== -1)) {
                                 target.value = p.materialCode;
-                                logDebug("AVTOMATIKA: Dodeljena PRVA najdena šifra " + p.materialCode);
                                 foundMaterialCode = true;
                             }
                         }
                     }
                 }
-                // Posodobi spustni seznam za e-maile in avtomatsko izpolni, če je samo en
+
+                // 2. Zbiranje iz cache-a kontaktnih podatkov z diska
+                try {
+                    var contactsCache = JSON.parse(localStorage.getItem('petric_customer_contacts_cache') || '{}');
+                    var diskContact = contactsCache[search];
+                    if (diskContact) {
+                        if (diskContact.email && diskContact.email.trim() !== "") {
+                            var de = diskContact.email.trim();
+                            uniqueEmails.add(de);
+                            lastEmail = de;
+                        }
+                        if (diskContact.address && diskContact.address.trim() !== "") {
+                            var da = diskContact.address.trim();
+                            uniqueAddresses.add(da);
+                            lastAddress = da;
+                        }
+                        // Avtomatsko izpolnjevanje šifre stranke, če še ni izpolnjena
+                        if (diskContact.code && diskContact.code.trim() !== "") {
+                            var codeTarget = document.getElementById('calc-customer-code');
+                            if (codeTarget && (!codeTarget.value || codeTarget.value.trim() === "")) {
+                                codeTarget.value = diskContact.code.trim();
+                            }
+                        }
+                    }
+                } catch (e) { }
+
                 var emailTarget = document.getElementById('calc-cust-email');
                 var emailDatalist = document.getElementById('email-list');
                 if (emailTarget && emailDatalist) {
                     emailDatalist.innerHTML = "";
                     var emailsArray = Array.from(uniqueEmails);
+
                     emailsArray.forEach(function (em) {
                         var opt = document.createElement('option');
                         opt.value = em;
                         emailDatalist.appendChild(opt);
                     });
-                    // Če je izključno en e-mail v zgodovini in je polje prazno, ga avtomatsko izpolni
-                    if (emailsArray.length === 1 && (!emailTarget.value || emailTarget.value.trim() === "")) {
-                        emailTarget.value = emailsArray[0];
-                        logDebug("AVTOMATIKA: Dodeljen edini najdeni e-mail " + emailsArray[0]);
+                }
+
+                // Preveri, ali se je stranka dejansko spremenila (da ne prepisujemo ročnih popravkov ob blur/ponovnem kliku)
+                var lastCustomer = custInput ? (custInput.dataset.lastCustomer || "") : "";
+                var hasChanged = (val.trim().toLowerCase() !== lastCustomer.toLowerCase());
+
+                if (hasChanged) {
+                    if (custInput) custInput.dataset.lastCustomer = val.trim();
+
+                    // Izpolni email, če je na voljo
+                    if (emailTarget && lastEmail !== "") {
+                        emailTarget.value = lastEmail;
+                    }
+
+                    // Izpolni naslov, če je na voljo
+                    var addressTarget = document.getElementById('calc-cust-address');
+                    if (addressTarget && lastAddress !== "") {
+                        addressTarget.value = lastAddress;
                     }
                 }
-            } catch (e) { alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack); logDebug("Napaka v handleCustomerUpdate: " + e.message, true); }
-        }
-        // Attach events safely
+            } catch (e) {
+                var safeLog = (typeof logDebug === 'function') ? logDebug : console.error;
+                safeLog("Napaka v handleCustomerUpdate: " + e.message);
+            }
+        }// Attach events safely
         try {
             var custInput = document.getElementById('calc-customer');
             if (custInput) {
@@ -3166,17 +3278,38 @@
         async function extractCustomersFromDisk() {
             if (!g_diskProjects || g_diskProjects.length === 0) return;
             try {
-                let cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
-                let changed = false;
-                for (let i = 0; i < g_diskProjects.length; i++) {
+                var cache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+                var contactsCache = JSON.parse(localStorage.getItem('petric_customer_contacts_cache') || '{}');
+                var changed = false;
+                for (var i = 0; i < g_diskProjects.length; i++) {
                     try {
                         const file = await g_diskProjects[i].getFile();
                         const content = await file.text();
                         const data = JSON.parse(content);
                         if (data && data.customer) {
                             const c = data.customer.trim();
-                            if (c && cache.indexOf(c) === -1) {
+                            const cKey = c.toLowerCase();
+                            if (cache.indexOf(c) === -1) {
                                 cache.push(c);
+                                changed = true;
+                            }
+
+                            var contact = contactsCache[cKey] || {};
+                            var contactChanged = false;
+                            if (data.custEmail && data.custEmail.trim() !== "" && contact.email !== data.custEmail.trim()) {
+                                contact.email = data.custEmail.trim();
+                                contactChanged = true;
+                            }
+                            if (data.custAddress && data.custAddress.trim() !== "" && contact.address !== data.custAddress.trim()) {
+                                contact.address = data.custAddress.trim();
+                                contactChanged = true;
+                            }
+                            if (data.customerCode && data.customerCode.trim() !== "" && contact.code !== data.customerCode.trim()) {
+                                contact.code = data.customerCode.trim();
+                                contactChanged = true;
+                            }
+                            if (contactChanged) {
+                                contactsCache[cKey] = contact;
                                 changed = true;
                             }
                         }
@@ -3184,6 +3317,7 @@
                 }
                 if (changed) {
                     localStorage.setItem('petric_customers_cache', JSON.stringify(cache));
+                    localStorage.setItem('petric_customer_contacts_cache', JSON.stringify(contactsCache));
                     updateCustomerDatalist();
                 }
             } catch (e) { }
@@ -3213,6 +3347,23 @@
             reader.readAsText(file);
         }
         function renderSavedProjects() {
+            function getSearchableText(obj) {
+                let text = "";
+                for (let key in obj) {
+                    if (obj.hasOwnProperty(key)) {
+                        if (key.toLowerCase().includes('html') || key === 'id' || key === 'timestamp') {
+                            continue;
+                        }
+                        let val = obj[key];
+                        if (typeof val === 'object' && val !== null) {
+                            text += " " + getSearchableText(val);
+                        } else if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+                            text += " " + val;
+                        }
+                    }
+                }
+                return text;
+            }
             const listContent = document.getElementById('projects-list-content');
             if (!listContent) return;
             const searchInput = document.getElementById('project-search-input');
@@ -3250,15 +3401,11 @@
                 });
             }
             // 2. DODAJ ARHIV
-            let filtered = arhiv;
-            if (filter) {
-                filtered = arhiv.filter(proj => {
-                    const name = (proj.name || "").toLowerCase();
-                    const customer = (proj.customer || "").toLowerCase();
-                    const code = (proj.materialCode || "").toLowerCase();
-                    return name.includes(filter) || customer.includes(filter) || code.includes(filter);
-                });
-            }
+            let filtered = filter ? arhiv.filter(proj => {
+                const searchStr = getSearchableText(proj).toLowerCase();
+                const terms = filter.split(/\s+/).filter(Boolean);
+                return terms.every(term => searchStr.includes(term));
+            }) : arhiv;
             filtered.sort((a, b) => b.id - a.id);
             if (filtered.length > 0) {
                 html += '<div style="padding: 5px 12px; background: rgba(59, 130, 246, 0.1); color: #60a5fa; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(59, 130, 246, 0.2);">P+ ARHIV (Baza)</div>';
@@ -4326,7 +4473,15 @@
             let sourceYield = d.paper.sourceYield || 1;
             let sourceSheets = d.paper.sourceSheets || 0;
             let totalSheets = d.paper.totalSheets || 0;
-            let itemsPerSheet = document.getElementById('items-per-sheet').value || "1";
+            let itemsPerSheet = parseInt(document.getElementById('res-count').innerText) || 1;
+            const getStavekLabel = (n) => {
+                const num = parseInt(n) || 0;
+                const mod100 = num % 100;
+                if (mod100 === 1) return `${num} stavek na poli`;
+                if (mod100 === 2) return `${num} stavka na poli`;
+                if (mod100 === 3 || mod100 === 4) return `${num} stavki na poli`;
+                return `${num} stavkov na poli`;
+            };
             let formatW = document.getElementById('width').value || 0;
             let formatH = document.getElementById('height').value || 0;
             let finishList = getActiveFinishingList();
@@ -4588,8 +4743,14 @@
                 <div class="row-divider"></div>
                 <table>
                     <tr>
-                        <td style="width: 15%;">06 razrez:</td>
-                        <td class="bold">${finalSourceSheets.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCm} x ${sourceHCm} cm ${sourceGrain} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${finalTotalSheets.toLocaleString('de-DE')} pol ${sheetWCm} x ${sheetHCm} cm &nbsp;&nbsp; (${sourceYield} iz pole)</td>
+                        <td style="width: 15%; vertical-align: top;">06 razrez:</td>
+                        <td class="bold">
+                            ${finalSourceSheets.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCm} x ${sourceHCm} cm ${sourceGrain} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+                            <div style="display: inline-block; vertical-align: top;">
+                                ${finalTotalSheets.toLocaleString('de-DE')} pol ${sheetWCm} x ${sheetHCm} cm &nbsp;&nbsp; (${sourceYield} iz pole)
+                                <div style="font-weight: bold; margin-top: 2px;">(${getStavekLabel(itemsPerSheet)})</div>
+                            </div>
+                        </td>
                     </tr>
                 </table>
                 <table style="margin-top: 5px; width: 100%;">
