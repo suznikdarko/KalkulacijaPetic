@@ -4068,9 +4068,19 @@
                     <p class="notes">${isAT ? 'Dieses Angebot ist gültig für 30 Tage. Zahlung erfolgt nach 30 Tagen ab Lieferung der Ware. Wir danken Ihnen für Ihre mögliche Bestellung, and wünschen Ihnen einen angenehmen Tag.' : 'Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.'}</p>
                     <div style="margin-top: 10px; font-size: 10px; font-style: italic;">${isAT ? 'Dieses Angebot hat für Sie erstellt:' : 'Kalkulacijo pripravil:'} ${preparedBy}</div>
             `;
-            const contentToRender = (isAT && typeof g_editedQuoteATHTML !== 'undefined' && g_editedQuoteATHTML) ? g_editedQuoteATHTML :
+            let contentToRender = (isAT && typeof g_editedQuoteATHTML !== 'undefined' && g_editedQuoteATHTML) ? g_editedQuoteATHTML :
                 (!isAT && typeof g_editedQuoteHTML !== 'undefined' && g_editedQuoteHTML) ? g_editedQuoteHTML : defaultContent;
-            const editedHTMLVar = isAT ? 'g_editedQuoteATHTML' : 'g_editedQuoteHTML';
+            
+            if (isWord) {
+                contentToRender = contentToRender.replace(
+                    /<div[^>]*style="[^"]*color:\s*(#8c8f91|#475569);[^"]*"[^>]*>\s*tiskarna\s*<\/div>\s*<div[^>]*style="[^"]*color:\s*#f99c26;[^"]*"[^>]*>\s*petrič\s*<\/div>/gi,
+                    `<table cellpadding="0" cellspacing="0" style="border: none; margin: 0; padding: 0; font-family: Arial, sans-serif;">
+                        <tr><td style="color: $1; font-size: 20px; font-style: italic; font-weight: normal; margin: 0; padding: 0; line-height: 1.1;">tiskarna</td></tr>
+                        <tr><td style="color: #f99c26; font-size: 36px; font-style: italic; font-weight: bold; margin: 0; padding: 0; padding-left: 15px; line-height: 1.1;">petrič</td></tr>
+                     </table>`
+                );
+            }
+const editedHTMLVar = isAT ? 'g_editedQuoteATHTML' : 'g_editedQuoteHTML';
             const projectName = document.getElementById('calc-project-name').value || '';
             const nakladaStr = document.getElementById('quantity') ? document.getElementById('quantity').value : '';
             const qW = document.getElementById('width') ? document.getElementById('width').value : '';
@@ -4838,7 +4848,7 @@
                     </tr>
                 </table>
             `;
-            const contentToRender = g_editedWorkOrderHTML ? g_editedWorkOrderHTML : defaultContent;
+            let contentToRender = g_editedWorkOrderHTML ? g_editedWorkOrderHTML : defaultContent;
             const qW = document.getElementById('width') ? document.getElementById('width').value : '';
             const qH = document.getElementById('height') ? document.getElementById('height').value : '';
             const fFormat = (qW && qH) ? `${qW}x${qH}` : '';
