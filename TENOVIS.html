@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <!-- saved from url=(0059)file:///C:/DARKO/KalkulacijaPetric/TISKOVNA%20POLA/TEN.html -->
 <html lang="sl">
 
@@ -5017,7 +5017,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                         <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">ZAPRI</button>
                         <button onclick="if(confirm('Ali želite ponastaviti ponudbo na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.g_editedQuoteHTML=''; const newHtml = window.opener.getQuoteHTML(false, '', false); document.open(); document.write(newHtml); document.close();} }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">PONASTAVI</button>
                     <button id="btn-move-text" onclick="toggleMoveMode(this)" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;" title="Premakni označeno besedilo na drugo mesto. Označite besedilo, kliknite ta gumb in nato kliknite na novo mesto v besedilu.">PREMAKNI</button>
-                    <button onclick="saveQuoteToDisk()" style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;" title="Shrani to ponudbo kot datoteko na računalnik">SHRANI PONUDBO NA DISK</button>
+                    <button onclick="saveQuoteToDisk()" style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;" title="Shrani to ponudbo v Word (.doc) formatu na računalnik">SHRANI PONUDBO (WORD)</button>
                         <div style="font-size: 12px; color: #475569; margin-left: 10px;">💾 Spremembe besedila se samodejno shranjujejo v kalkulacijo.</div>
                     </div>
                     ` : ''}
@@ -5111,18 +5111,32 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                         });
 
                         function saveQuoteToDisk() {
-                            const htmlContent = "<!DOCTYPE html>\\n" + document.documentElement.outerHTML;
-                            const blob = new Blob([htmlContent], {type: "text/html;charset=utf-8"});
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            let fileName = document.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                            if (!fileName) fileName = "ponudba";
-                            a.download = fileName + ".html";
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
+                            try {
+                                var area = document.querySelector('.editable-area');
+                                var content = area ? area.innerHTML : document.body.innerHTML;
+                                var fileName = (document.title || 'ponudba').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_');
+                                if (!fileName || fileName === '_') fileName = "ponudba";
+                                if (!fileName.endsWith('.doc')) fileName += ".doc";
+
+                                if (window.opener && !window.opener.closed && typeof window.opener.downloadWordDoc === 'function') {
+                                    window.opener.downloadWordDoc(fileName, content);
+                                    return;
+                                }
+
+                                var bom = String.fromCharCode(0xFEFF);
+                                var htmlContent = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + fileName + "</title><style>body { font-family: Arial, sans-serif; font-size: 11pt; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + content + "</body></html>";
+                                var base64 = btoa(unescape(encodeURIComponent(bom + htmlContent)));
+                                var dataUri = 'data:application/msword;base64,' + base64;
+
+                                var a = document.createElement('a');
+                                a.href = dataUri;
+                                a.download = fileName;
+                                document.body.appendChild(a);
+                                a.click();
+                                setTimeout(function() { if (a.parentNode) a.parentNode.removeChild(a); }, 300);
+                            } catch (err) {
+                                alert("Napaka pri shranjevanju: " + err.message);
+                            }
                         }
                     <\/script>
                 </body></html>`;
@@ -5181,6 +5195,45 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                 setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(url); }, 100);
             } catch (e) {
                 alert("Napaka pri pripravi Word dokumenta: " + e.message);
+                console.error(e);
+            }
+        }
+
+        function downloadWordDoc(filename, htmlContent) {
+            try {
+                let name = filename || 'dokument';
+                if (!name.endsWith('.doc')) name += '.doc';
+
+                let fullHtml = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + name + "</title><style>body { font-family: Arial, sans-serif; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + htmlContent + "</body></html>";
+
+                let base64 = btoa(unescape(encodeURIComponent('\ufeff' + fullHtml)));
+                let dataUri = 'data:application/msword;base64,' + base64;
+
+                let a = document.createElement('a');
+                a.href = dataUri;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    if (a.parentNode) a.parentNode.removeChild(a);
+                }, 500);
+            } catch (e) {
+                alert("Napaka pri prenosu Word datoteke: " + e.message);
+            }
+        }
+
+        function exportDNWord() {
+            try {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = getWorkOrderHTML();
+                const area = tempDiv.querySelector('.editable-area');
+                const content = area ? area.innerHTML : '';
+                const dnNum = document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value : "";
+                const product = document.getElementById('calc-project-name').value || "delovni_nalog";
+                let fileName = "DN_" + (dnNum || product).replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_');
+                downloadWordDoc(fileName, content);
+            } catch (e) {
+                alert("Napaka pri pripravi Word dokumenta za DN: " + e.message);
                 console.error(e);
             }
         }
@@ -5521,7 +5574,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">ZAPRI</button>
                     <button onclick="if(confirm('Ali želite ponastaviti delovni nalog na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.g_editedWorkOrderHTML=''; const newHtml = window.opener.getWorkOrderHTML(); document.open(); document.write(newHtml); document.close();} }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">PONASTAVI</button>
                     <button id="btn-move-text" onclick="toggleMoveMode(this)" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;" title="Premakni označeno besedilo na drugo mesto. Označite besedilo, kliknite ta gumb in nato kliknite na novo mesto v besedilu.">PREMAKNI</button>
-                    <button onclick="saveDNToDisk()" style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;" title="Shrani ta delovni nalog kot datoteko na računalnik">SHRANI DN NA DISK</button>
+                    <button onclick="saveDNToDisk()" style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;" title="Shrani ta delovni nalog v Word (.doc) formatu na računalnik">SHRANI DN (WORD)</button>
                     <div style="font-size: 12px; color: #475569; margin-left: 10px;">💾 Spremembe besedila se samodejno shranjujejo v kalkulacijo.</div>
                 </div>
                 <div class="editable-area" contenteditable="true" style="padding: 20px;">
@@ -5613,18 +5666,32 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     });
 
                     function saveDNToDisk() {
-                        const htmlContent = "<!DOCTYPE html>\\n" + document.documentElement.outerHTML;
-                        const blob = new Blob([htmlContent], {type: "text/html;charset=utf-8"});
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        let fileName = document.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                        if (!fileName) fileName = "delovni_nalog";
-                        a.download = fileName + ".html";
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
+                        try {
+                            var area = document.querySelector('.editable-area');
+                            var content = area ? area.innerHTML : document.body.innerHTML;
+                            var fileName = (document.title || 'delovni_nalog').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_');
+                            if (!fileName || fileName === '_') fileName = "delovni_nalog";
+                            if (!fileName.endsWith('.doc')) fileName += ".doc";
+
+                            if (window.opener && !window.opener.closed && typeof window.opener.downloadWordDoc === 'function') {
+                                window.opener.downloadWordDoc(fileName, content);
+                                return;
+                            }
+
+                            var bom = String.fromCharCode(0xFEFF);
+                            var htmlContent = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + fileName + "</title><style>body { font-family: Arial, sans-serif; font-size: 11pt; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + content + "</body></html>";
+                            var base64 = btoa(unescape(encodeURIComponent(bom + htmlContent)));
+                            var dataUri = 'data:application/msword;base64,' + base64;
+
+                            var a = document.createElement('a');
+                            a.href = dataUri;
+                            a.download = fileName;
+                            document.body.appendChild(a);
+                            a.click();
+                            setTimeout(function() { if (a.parentNode) a.parentNode.removeChild(a); }, 300);
+                        } catch (err) {
+                            alert("Napaka pri shranjevanju: " + err.message);
+                        }
                     }
                 <\/script>
             </body>
@@ -5755,9 +5822,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                 style="margin: 0; width: auto; background: #ef4444; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);"
                 title="Delovni nalog">📋
                 D.NALOG</button>
-            <button class="calculate-btn" onclick="exportQuoteWord()"
-                style="margin: 0; width: auto; background: #2b5797; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(43, 87, 151, 0.4);">📄
-                WORD</button>
+
             <button class="calculate-btn" onclick="addToBasket()"
                 style="margin: 0; width: auto; background: #f59e0b; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);">
                 🛒 DODAJ</button>
