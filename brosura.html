@@ -5010,6 +5010,24 @@
 
                         ],
 
+                        "4/1": [
+
+                            { q: 1000, waste: 980, s150: 3500, s250: 3500, s350: 3150 },
+
+                            { q: 5000, waste: 980, s150: 6600, s250: 6600, s350: 5480 },
+
+                            { q: 10000, waste: 980, s150: 6900, s250: 6900, s350: 5700 },
+
+                            { q: 50000, waste: 980, s150: 7400, s250: 7400, s350: 6000 },
+
+                            { q: 100000, waste: 2000, s150: 7400, s250: 7400, s350: 6000 },
+
+                            { q: 300000, waste: 6000, s150: 7400, s250: 7400, s350: 6000 },
+
+                            { q: 500000, waste: 7000, s150: 7400, s250: 7400, s350: 6000 }
+
+                        ],
+
                         "4/OB": [
 
                             { q: 1000, waste: 540, s150: 4200, s250: 4200, s350: 3600 },
@@ -5088,6 +5106,24 @@
 
                         ],
 
+                        "4/1": [
+
+                            { q: 1000, waste: 980, s150: 2900, s250: 2900, s350: 2700 },
+
+                            { q: 5000, waste: 980, s150: 5600, s250: 5200, s350: 4800 },
+
+                            { q: 10000, waste: 980, s150: 6400, s250: 6000, s350: 5450 },
+
+                            { q: 50000, waste: 980, s150: 6800, s250: 6300, s350: 5700 },
+
+                            { q: 100000, waste: 1000, s150: 7140, s250: 6600, s350: 6060 },
+
+                            { q: 300000, waste: 1000, s150: 7140, s250: 6600, s350: 6060 },
+
+                            { q: 500000, waste: 1000, s150: 7140, s250: 6600, s350: 6060 }
+
+                        ],
+
                         "4/OB": [
 
                             { q: 1000, waste: 540, s150: 3580, s250: 3300, s350: 3250 },
@@ -5132,7 +5168,7 @@
 
                 let impressions = qty * passes;
 
-                let baseColorMode = _isSV ? '8/0' : (_isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0'));
+                let baseColorMode = _isSV ? '8/0' : (_isObrat ? '4/OB' : (((_front === 4 && _back === 1) || (_front === 1 && _back === 4)) ? '4/1' : (_back > 0 ? '4/4' : '4/0')));
 
                 let mType = document.getElementById('calc-machine-type-' + comp)?.value || 'S4';
 
@@ -5606,15 +5642,17 @@
 
 
 
-            function getBossLogic(front, back, isObrat, qty, mutPlates) {
+            function getBossLogic(front, back, isObrat, qty, mutPlates, mType, grammage) {
 
                 if (front === 0 && back === 0) return null;
 
                 let colorMode = front + '/' + (isObrat ? 'OB' : back);
 
-                let speedTableMode = isObrat ? '4/OB' : (back > 0 ? '4/4' : '4/0');
-
-
+                let bossTable = null;
+                let is41 = (colorMode === '4/1' || (front === 1 && back === 4 && !isObrat));
+                if (is41 && mType) {
+                    bossTable = getBossTables(mType)['4/1'];
+                }
 
                 let basicPlates = front + (isObrat ? 0 : back);
 
@@ -5634,13 +5672,31 @@
 
 
 
-                let bossTable = newBossTables[speedTableMode];
+                if (!bossTable) {
+                    let speedTableMode = isObrat ? '4/OB' : (back > 0 ? '4/4' : '4/0');
+                    bossTable = newBossTables[speedTableMode];
+                }
 
                 if (!bossTable) return null;
 
 
 
-                let s = bossTable[0].speed;
+                let getS = (obj) => {
+                    if (obj.speed !== undefined) return obj.speed;
+                    let g = grammage || 80;
+                    if (g <= 150) return obj.s150;
+                    if (g <= 250) {
+                        let f = (g - 150) / 100;
+                        return obj.s150 + f * (obj.s250 - obj.s150);
+                    }
+                    if (g <= 350) {
+                        let f = (g - 250) / 100;
+                        return obj.s250 + f * (obj.s350 - obj.s250);
+                    }
+                    return obj.s350;
+                };
+
+                let s = getS(bossTable[0]);
 
                 let w = bossTable[0].waste;
 
@@ -5648,13 +5704,13 @@
 
                 if (qty <= bossTable[0].q) {
 
-                    s = bossTable[0].speed;
+                    s = getS(bossTable[0]);
 
                     w = bossTable[0].waste;
 
                 } else if (qty >= bossTable[bossTable.length - 1].q) {
 
-                    s = bossTable[bossTable.length - 1].speed;
+                    s = getS(bossTable[bossTable.length - 1]);
 
                     w = bossTable[bossTable.length - 1].waste;
 
@@ -5666,13 +5722,13 @@
 
                             let rangeQ = bossTable[i + 1].q - bossTable[i].q;
 
-                            let rangeS = bossTable[i + 1].speed - bossTable[i].speed;
+                            let rangeS = getS(bossTable[i + 1]) - getS(bossTable[i]);
 
                             let rangeW = bossTable[i + 1].waste - bossTable[i].waste;
 
                             let fraction = (qty - bossTable[i].q) / rangeQ;
 
-                            s = bossTable[i].speed + fraction * rangeS;
+                            s = getS(bossTable[i]) + fraction * rangeS;
 
                             w = bossTable[i].waste + fraction * rangeW;
 
@@ -5900,7 +5956,11 @@
 
 
 
-                    let bossL = getBossLogic(frontL, backL, isObratL, totalItemsForm, mutPlatesL);
+                    let mTypeL = document.getElementById('calc-machine-type-leaves')?.value || 'S4';
+
+                    let pwL = parseFloat(document.getElementById('calc-paper-weight')?.value) || 80;
+
+                    let bossL = getBossLogic(frontL, backL, isObratL, totalItemsForm, mutPlatesL, mTypeL, pwL);
 
                     if (bossL) {
 
@@ -5914,7 +5974,11 @@
 
 
 
-                    let bossC = getBossLogic(frontC, backC, isObratC, totalItemsForm, mutPlatesC);
+                    let mTypeC = document.getElementById('calc-machine-type-cover')?.value || 'S4';
+
+                    let pwC = parseFloat(document.getElementById('calc-cardboard-weight')?.value) || 250;
+
+                    let bossC = getBossLogic(frontC, backC, isObratC, totalItemsForm, mutPlatesC, mTypeC, pwC);
 
                     if (bossC) {
 

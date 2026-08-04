@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <!-- saved from url=(0059)file:///C:/DARKO/KalkulacijaPetric/TISKOVNA%20POLA/TEN.html -->
 <html lang="sl">
 
@@ -1785,6 +1785,15 @@
                         { q: 300000, waste: 1500, s150: 7140, s250: 7140, s350: 6050 },
                         { q: 500000, waste: 2500, s150: 7140, s250: 7140, s350: 6050 }
                     ],
+                    "4/1": [
+                        { q: 1000, waste: 980, s150: 3500, s250: 3500, s350: 3150 },
+                        { q: 5000, waste: 980, s150: 6600, s250: 6600, s350: 5480 },
+                        { q: 10000, waste: 980, s150: 6900, s250: 6900, s350: 5700 },
+                        { q: 50000, waste: 980, s150: 7400, s250: 7400, s350: 6000 },
+                        { q: 100000, waste: 2000, s150: 7400, s250: 7400, s350: 6000 },
+                        { q: 300000, waste: 6000, s150: 7400, s250: 7400, s350: 6000 },
+                        { q: 500000, waste: 7000, s150: 7400, s250: 7400, s350: 6000 }
+                    ],
                     "4/OB": [
                         { q: 1000, waste: 540, s150: 4200, s250: 4200, s350: 3600 },
                         { q: 5000, waste: 540, s150: 6600, s250: 6600, s350: 5400 },
@@ -1877,6 +1886,15 @@
                         { q: 100000, waste: 1280, s150: 6800, s250: 6600, s350: 6050 },
                         { q: 300000, waste: 1500, s150: 7140, s250: 6600, s350: 6050 },
                         { q: 500000, waste: 2500, s150: 7140, s250: 6600, s350: 6050 }
+                    ],
+                    "4/1": [
+                        { q: 1000, waste: 980, s150: 2900, s250: 2900, s350: 2700 },
+                        { q: 5000, waste: 980, s150: 5600, s250: 5200, s350: 4800 },
+                        { q: 10000, waste: 980, s150: 6400, s250: 6000, s350: 5450 },
+                        { q: 50000, waste: 980, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 1000, s150: 7140, s250: 6600, s350: 6060 },
+                        { q: 300000, waste: 1000, s150: 7140, s250: 6600, s350: 6060 },
+                        { q: 500000, waste: 1000, s150: 7140, s250: 6600, s350: 6060 }
                     ],
                     "4/OB": [
                         { q: 1000, waste: 540, s150: 3580, s250: 3300, s350: 3250 },
@@ -2697,7 +2715,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                 else if (mutPlatesVal === 2) mutSuffix = " + mutacija 2x";
                 else if (mutPlatesVal >= 3) mutSuffix = " + mutacija 3x";
                 let isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
-                let baseColorMode = isSV ? '8/0' : (_isObrat ? '4/OB' : (_back > 0 ? '4/4' : '4/0'));
+                let baseColorMode = isSV ? '8/0' : (_isObrat ? '4/OB' : (((_front === 4 && _back === 1) || (_front === 1 && _back === 4)) ? '4/1' : (_back > 0 ? '4/4' : '4/0')));
                 let speedTableMode = baseColorMode + mutSuffix;
                 let bossTable = getBossTables()[speedTableMode] || getBossTables()[baseColorMode];
                 if (bossTable) {
@@ -2714,24 +2732,25 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                         return obj.s350;
                     };
                     let s = getS(bossTable[0]);
-                    if (qty <= bossTable[0].q && bossTable.length > 1) {
+                    let lookupQty = (isSV) ? qty : ((_back > 0 || _isObrat) ? qty * 2 : qty);
+                    if (lookupQty <= bossTable[0].q && bossTable.length > 1) {
                         let rangeQ = bossTable[1].q - bossTable[0].q;
                         let speed1 = getS(bossTable[0]);
                         let speed2 = getS(bossTable[1]);
                         let rangeS = speed2 - speed1;
-                        let fraction = (qty - bossTable[0].q) / rangeQ;
+                        let fraction = (lookupQty - bossTable[0].q) / rangeQ;
                         s = speed1 + fraction * rangeS;
                         s = Math.max(s, speed1 * 0.5); // Prevent extremely low or negative speeds
-                    } else if (qty >= bossTable[bossTable.length - 1].q) {
+                    } else if (lookupQty >= bossTable[bossTable.length - 1].q) {
                         s = getS(bossTable[bossTable.length - 1]);
                     } else {
                         for (let i = 0; i < bossTable.length - 1; i++) {
-                            if (qty >= bossTable[i].q && qty <= bossTable[i + 1].q) {
+                            if (lookupQty >= bossTable[i].q && lookupQty <= bossTable[i + 1].q) {
                                 let rangeQ = bossTable[i + 1].q - bossTable[i].q;
                                 let speed1 = getS(bossTable[i]);
                                 let speed2 = getS(bossTable[i + 1]);
                                 let rangeS = speed2 - speed1;
-                                let fraction = (qty - bossTable[i].q) / rangeQ;
+                                let fraction = (lookupQty - bossTable[i].q) / rangeQ;
                                 s = speed1 + fraction * rangeS;
                                 break;
                             }
