@@ -589,6 +589,12 @@
         }
         function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceMode) {
             const isObrat = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
+            const isPers = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+            let isB2Sheet = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698);
+            let maxSheetDim = Math.max(sheetW, sheetH);
+            let mType = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
+            let cutFactor = (isPers && (maxSheetDim > 460 || mType === 'S8')) ? 2 : 1;
+            let cutAxis = sheetW >= sheetH ? 'W' : 'H';
             let best = null;
             const baseConfigs = [
                 { iw: itemW, ih: itemH, rot: false, edge: 'H' },
@@ -600,6 +606,24 @@
                 if (usableW <= 0 || usableH <= 0) return;
                 let cols = Math.floor(usableW / cfg.iw);
                 let rows = Math.floor(usableH / cfg.ih);
+                if (cutFactor === 2) {
+                    if (isB2Sheet) {
+                        let halfW = cutAxis === 'W' ? 318 : 448;
+                        let halfH = cutAxis === 'W' ? 448 : 318;
+                        let halfUsableW = cfg.edge === 'W' ? halfW - gripper : halfW;
+                        let halfUsableH = cfg.edge === 'H' ? halfH - gripper : halfH;
+                        let halfCols = Math.floor(halfUsableW / cfg.iw);
+                        let halfRows = Math.floor(halfUsableH / cfg.ih);
+                        cols = cutAxis === 'W' ? halfCols * 2 : halfCols;
+                        rows = cutAxis === 'H' ? halfRows * 2 : halfRows;
+                    } else {
+                        if (cutAxis === 'W') {
+                            cols = Math.floor(cols / 2) * 2;
+                        } else {
+                            rows = Math.floor(rows / 2) * 2;
+                        }
+                    }
+                }
                 let isPlacedLandscape = cfg.iw >= cfg.ih;
                 if (forceMode === 'landscape' && !isPlacedLandscape) return;
                 if (forceMode === 'portrait' && isPlacedLandscape && cfg.iw !== cfg.ih) return;
@@ -608,7 +632,6 @@
                 let isMixed = false;
                 if (forceMode === 'auto' && !isObrat && count > 0) {
                     // Odstranjena avtomatska "mešana" postavitev (isMixed), da se ohrani simetrija in enotna smer vlaken.
-                    // Če stranka želi dodati več stavkov, se mora to ročno preveriti, sicer sistem vsiljuje nesimetrične pole.
                 }
                 if (isObrat) {
                     let maxColsEven = Math.floor(cols / 2) * 2;
