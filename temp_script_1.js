@@ -4647,7 +4647,7 @@ const editedHTMLVar = isAT ? 'g_editedQuoteATHTML' : 'g_editedQuoteHTML';
             if (isChecked('f-zgibanje-active')) {
                 let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 10800;
                 let ips = parseFloat(itemsPerSheet) || 1;
-                let zgibNetItems = calcRes.sheetsNeeded * ips;
+                let zgibNetItems = calcRes.qty;
                 let zHours = roundUpTime(zgibNetItems / zSpeed);
                 let folds = document.getElementById('f-zgibanje-folds') ? document.getElementById('f-zgibanje-folds').value : '1';
                 let zgibQtyStr = (ips > 1)
