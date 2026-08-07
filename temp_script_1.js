@@ -1776,14 +1776,27 @@
             if (document.getElementById('f-personalization-active') && document.getElementById('f-personalization-active').checked) {
                 let persSidesVal = document.getElementById('f-personalization-sides') ? document.getElementById('f-personalization-sides').value : '1/0';
                 let pMultiplier = (persSidesVal === '1/1' || persSidesVal === '2') ? 2 : 1;
-                totalFinishCost += (sheetsNeeded * pMultiplier) * (parseFloat(document.getElementById('f-personalization-price').value) || 0);
-                if (mType === 'S8') {
+                let currentSheetW = g_lastSheetW || 0;
+                let currentSheetH = g_lastSheetH || 0;
+                let maxSheetDim = Math.max(currentSheetW, currentSheetH);
+                let digCutFactor = (maxSheetDim > 460 || mType === 'S8') ? 2 : 1;
+                let pCost = (sheetsNeeded * digCutFactor * pMultiplier) * (parseFloat(document.getElementById('f-personalization-price').value) || 0);
+                
+                let extraCost = 0;
+                let isB2Sheet = (currentSheetW === 698 && currentSheetH === 498) || (currentSheetW === 498 && currentSheetH === 698);
+                if (isB2Sheet) {
+                    let razrezSheets = totalSheetsNeeded * 2;
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
                     else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
-                    let cutCost = (totalSheetsNeeded / autoCutSpeed) * 30.00;
-                    totalFinishCost += cutCost;
+                    extraCost += (razrezSheets / Math.round(autoCutSpeed)) * 30.00;
+                } else if (mType === 'S8') {
+                    let autoCutSpeed = 7400;
+                    if (paperWeight >= 300) autoCutSpeed = 4100;
+                    else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
+                    extraCost += (totalSheetsNeeded / autoCutSpeed) * 30.00;
                 }
+                totalFinishCost += pCost + extraCost;
             }
             if (document.getElementById('f-precut-active') && document.getElementById('f-precut-active').checked) {
                 let prePrep = parseFloat(document.getElementById('f-precut-prep').value) || 0;
@@ -1995,7 +2008,7 @@
                 let pPrice = (parseFloat(document.getElementById('f-personalization-price').value) || 0);
                 let pCost = pTotalImpressions * pPrice;
                 let sidesText = isBothSides ? ' (1/1 obojestransko)' : ` (${persSidesText})`;
-                let breakdownText = `Delo: ${pDigitalSheets} digitalnih pol${sidesText} po ${formatPrice(pPrice)}/polo = ${formatPrice(pCost)}`;
+                let breakdownText = `Delo: ${pTotalImpressions} odtisov${sidesText} na ${pDigitalSheets} pol po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
                 let extraCost = 0;
                 let isB2Sheet = (currentSheetW === 698 && currentSheetH === 498) || (currentSheetW === 498 && currentSheetH === 698);
                 if (isB2Sheet) {
