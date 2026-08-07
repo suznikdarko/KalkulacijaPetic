@@ -756,11 +756,11 @@
                             style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: flex-end;">
                             <label
                                 style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem; height: 100%;">
-                                <input type="checkbox" id="calc-use-personalization" onchange="calculate()"
+                                <input type="checkbox" id="calc-use-personalization" onchange="if(this.checked) document.getElementById('calc-personalization').dataset.manual='false'; calculate()"
                                     style="width: auto; margin: 3px 0 0 0;">
                                 Personalizacija (št. kos)
                             </label>
-                            <input type="number" id="calc-personalization" value="0" onchange="calculate()"
+                            <input type="number" id="calc-personalization" value="0" oninput="this.dataset.manual='true'" onchange="this.dataset.manual='true'; calculate()"
                                 style="width: 100%;">
                         </div>
                         <div class="form-group"
@@ -2231,11 +2231,21 @@ if (isWord) {
             document.getElementById('calc-waste').value = waste;
 
             let deliveryCost = 0;
-            if (document.getElementById('f-delivery-active') && document.getElementById('f-delivery-active').checked) {
-                deliveryCost += (parseFloat(document.getElementById('f-post-count').value) || 0) * (parseFloat(document.getElementById('f-post-price-per').value) || 0);
+            let deliveryDesc = "";
+            let postActive = document.getElementById('f-delivery-active') && document.getElementById('f-delivery-active').checked;
+            let fixActive = document.getElementById('f-del-fixed-active') && document.getElementById('f-del-fixed-active').checked;
+            
+            if (postActive) {
+                let pc = parseFloat(document.getElementById('f-post-count').value) || 0;
+                let pp = parseFloat(document.getElementById('f-post-price-per').value) || 0;
+                deliveryCost += (pc * pp);
+                deliveryDesc += `(Pošta: ${pc} kos × ${pp.toFixed(2)} €/kos)`;
             }
-            if (document.getElementById('f-del-fixed-active') && document.getElementById('f-del-fixed-active').checked) {
-                deliveryCost += parseFloat(document.getElementById('f-del-fixed-price').value) || 0;
+            if (fixActive) {
+                let fx = parseFloat(document.getElementById('f-del-fixed-price').value) || 0;
+                deliveryCost += fx;
+                if(deliveryDesc) deliveryDesc += " + ";
+                deliveryDesc += `(Fiksno: ${fx.toFixed(2)} €)`;
             }
 
             const overrideTotal = document.getElementById('calc-override-total') ? parseFloat(document.getElementById('calc-override-total').value) : NaN;
@@ -2307,10 +2317,10 @@ if (isWord) {
                     },
                     colorChange: { cost: colorChangeCost, autoCost: autoColorChangeCost, autoCount: autoColorChangeCount, manualCost: manualColorChangeCost, manualCount: colorChangeCount, priceBase: changePriceBase },
                     print: { cost: printCost, speed: mSpeed, rate: mRate },
-                    additional: { cost: additionalCost, persCost, manualCost },
+                    additional: { cost: additionalCost, persCost, persCount, manualCost, manualWork, totalQ },
                     commercial: { cost: commercialCost },
                     grafotehna: { cost: grafotehnaCost },
-                    delivery: { cost: deliveryCost },
+                    delivery: { cost: deliveryCost, desc: deliveryDesc },
                     margin: { amount: marginAmount, percent: margin },
                     finalTotal
                 }
@@ -2345,8 +2355,7 @@ if (isWord) {
                 <div style="padding: 10px; background: rgba(16, 185, 129, 0.05); border-radius: 8px;">
                     <div style="font-weight: bold; color: #10b981; margin-bottom: 5px;">3. Tisk</div>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                        <span>Strojno delo:</span> <span>${formatPrice(details.print.cost)}</span>
-                        <small style="grid-column: 1/-1; color: #94a3b8;">Hitrost: ${details.print.speed} kos/h | Urna post.: ${details.print.rate}€/h</small>
+                        <span>Strojno delo (${formatQty(details.material.q)} kos / ${details.print.speed} kos/h = ${(details.material.q / details.print.speed).toFixed(2)} h × ${details.print.rate} €/h):</span> <span>${formatPrice(details.print.cost)}</span>
                     </div>
                 </div>
 
@@ -2354,8 +2363,8 @@ if (isWord) {
                 <div style="padding: 10px; background: rgba(236, 72, 153, 0.05); border-radius: 8px;">
                     <div style="font-weight: bold; color: #ec4899; margin-bottom: 5px;">5. Dodatno / Dodelava</div>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                        ${details.additional.persCost > 0 ? `<span>Personalizacija:</span> <span>${formatPrice(details.additional.persCost)}</span>` : ''}
-                        ${details.additional.manualCost > 0 ? `<span>Ročno delo:</span> <span>${formatPrice(details.additional.manualCost)}</span>` : ''}
+                        ${details.additional.persCost > 0 ? `<span>Personalizacija (${formatQty(details.additional.persCount)} kos × 0.05 €/kos):</span> <span>${formatPrice(details.additional.persCost)}</span>` : ''}
+                        ${details.additional.manualCost > 0 ? `<span>Ročno delo (${formatQty(details.additional.totalQ)} kos / ${details.additional.manualWork} kos/h = ${(details.additional.totalQ / details.additional.manualWork).toFixed(2)} h × 20 €/h):</span> <span>${formatPrice(details.additional.manualCost)}</span>` : ''}
                     </div>
                 </div>
                 ` : ''}
@@ -2364,9 +2373,9 @@ if (isWord) {
                 <div style="padding: 10px; background: rgba(251, 191, 36, 0.05); border-radius: 8px;">
                     <div style="font-weight: bold; color: #fbbf24; margin-bottom: 5px;">6. Ostalo</div>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                        ${details.grafotehna.cost > 0 ? `<span>Dodelava Grafotehna:</span> <span>${formatPrice(details.grafotehna.cost)}</span>` : ''}
-                        ${details.commercial.cost > 0 ? `<span>Komerciala / Admin:</span> <span>${formatPrice(details.commercial.cost)}</span>` : ''}
-                        ${details.delivery.cost > 0 ? `<span>Dostava:</span> <span>${formatPrice(details.delivery.cost)}</span>` : ''}
+                        ${details.grafotehna.cost > 0 ? `<span>Dodelava Grafotehna (fiksni znesek):</span> <span>${formatPrice(details.grafotehna.cost)}</span>` : ''}
+                        ${details.commercial.cost > 0 ? `<span>Komerciala / Admin (fiksni znesek):</span> <span>${formatPrice(details.commercial.cost)}</span>` : ''}
+                        ${details.delivery.cost > 0 ? `<span>Dostava ${details.delivery.desc}:</span> <span>${formatPrice(details.delivery.cost)}</span>` : ''}
                     </div>
                 </div>
                 ` : ''}
@@ -2446,6 +2455,13 @@ if (isWord) {
             const qList = qStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0);
             if (qList.length === 0) return;
             const q = qList[0];
+
+            // Sync personalization if enabled and not manually overridden
+            const usePersElem = document.getElementById('calc-use-personalization');
+            const persElem = document.getElementById('calc-personalization');
+            if (usePersElem && persElem && usePersElem.checked && persElem.dataset.manual !== 'true') {
+                persElem.value = q;
+            }
 
             // Samodejna prilagoditev hitrosti
             const speedInput = document.getElementById('calc-machine-speed');
