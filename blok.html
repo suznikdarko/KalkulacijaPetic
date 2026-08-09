@@ -670,12 +670,6 @@
             <div class="header-group"
                 style="grid-column: span 6; display: flex; gap: 1rem; flex-wrap: wrap; background: rgba(59, 130, 246, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.2);">
                 <div style="flex: 2; min-width: min-content;">
-                    <label for="calc-leaves-material">Material listi</label>
-                    <input id="calc-leaves-material"
-                        oninput="if(typeof extractGrammage === 'function') extractGrammage(this, 'calc-paper-weight'); calculate()"
-                        placeholder="80g brezlesni" style="width: 100%;" type="text" />
-                </div>
-                <div style="flex: 2; min-width: min-content;">
                     <label style="color: #60a5fa; font-weight: bold;">Dimenzije list (Š x V mm)</label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <input id="width" oninput="document.getElementById('items-per-sheet').value=''; calculate()"
@@ -715,12 +709,6 @@
             </div>
             <div class="header-group"
                 style="grid-column: span 6; display: flex; gap: 1rem; flex-wrap: wrap; background: rgba(244, 63, 94, 0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(244, 63, 94, 0.2);">
-                <div style="flex: 2; min-width: min-content;">
-                    <label>Material ovitek/podkarton</label>
-                    <input id="calc-cover-desc" onchange="calculate()"
-                        oninput="extractGrammage(this, 'calc-cardboard-weight'); calculate()" placeholder="300g GD2"
-                        style="width: 100%;" type="text" />
-                </div>
                 <div style="flex: 2; min-width: min-content;">
                     <label>Dimenzije ovitek (Š x V mm)</label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -1206,6 +1194,12 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="form-group">
+                            <label for="calc-leaves-material">Material listi</label>
+                            <input id="calc-leaves-material"
+                                oninput="if(typeof extractGrammage === 'function') extractGrammage(this, 'calc-paper-weight'); calculate()"
+                                placeholder="" style="width: 100%;" type="text" />
+                        </div>
                         <div class="form-group" style="display: none;">
                             <label>Gramatura listov (g/m²)</label>
                             <input id="calc-paper-weight" onchange="calculatePrice()" placeholder="80" type="number"
@@ -1235,6 +1229,12 @@
                                         <option selected="" value="ton">na tono</option>
                                     </select>
                                 </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Material ovitek/podkarton</label>
+                                <input id="calc-cover-desc" onchange="calculate()"
+                                    oninput="extractGrammage(this, 'calc-cardboard-weight'); calculate()" placeholder=""
+                                    style="width: 100%;" type="text" />
                             </div>
                             <div class="form-group" style="display: none;">
                                 <label>Gramatura podkartona (g/m²)</label>
@@ -3547,7 +3547,7 @@
                     if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = totalFinishCost.toFixed(2) + " €";
 
                     // GENERIRANJE PODROBNE SPECIFIKACIJE
-                    
+
                     let w_m = (parseFloat(document.getElementById('width')?.value.replace(',', '.')) || 0) / 1000;
                     let h_m = (parseFloat(document.getElementById('height')?.value.replace(',', '.')) || 0) / 1000;
                     let pagesL = parseFloat(document.getElementById('calc-leaves')?.value) || 0;
@@ -3558,7 +3558,7 @@
                     let cH_m = (parseFloat(document.getElementById('calc-cover-h')?.value.replace(',', '.')) || h_m) / 1000;
                     let pWeightC = parseFloat(document.getElementById('calc-cardboard-weight')?.value) || 0;
                     let wCoverKg = document.getElementById('calc-cover-w')?.value || document.getElementById('calc-cardboard-weight')?.value ? (cW_m * cH_m * (pWeightC / 1000)) : 0;
-                    
+
                     let singleWeightKg = wLeavesKg + wCoverKg;
                     let totalWeightKg = singleWeightKg * totalItemsForm;
 
@@ -6149,8 +6149,15 @@
                 if (sourceHCmC === 0 || sourceHCmC === '0') sourceHCmC = (srcHC / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
                 let sourceGrainC = (srcWC > 0 && srcHC > 0) ? (srcWC < srcHC ? 'SB' : 'BB') : '';
 
+                let sheetsNeededC = parseInt(document.getElementById('header-cover-sheets-val')?.innerText) || 0;
+                let printAllowanceC = parseInt(document.getElementById('calc-print-allowance-cover')?.value) || 0;
+                let cilActive = document.getElementById('f-cilinder-active') && document.getElementById('f-cilinder-active').checked;
+                let cilCover = document.getElementById('f-cilinder-cover') && document.getElementById('f-cilinder-cover').checked;
+
+                let needsIntermediateSheetsC = (!isNoPrintC || (cilActive && cilCover) || printAllowanceC > 0);
+
                 let sourceYieldC = 1;
-                if (isNoPrintC) {
+                if (!needsIntermediateSheetsC) {
                     if (cW > 0 && cH > 0 && srcWC > 0 && srcHC > 0) {
                         let y1 = Math.floor(srcWC / (cutWC > 0 ? cutWC : cW)) * Math.floor(srcHC / (cutHC > 0 ? cutHC : cH));
                         let y2 = Math.floor(srcWC / (cutHC > 0 ? cutHC : cH)) * Math.floor(srcHC / (cutWC > 0 ? cutWC : cW));
@@ -6161,14 +6168,12 @@
                     sourceYieldC = d && d.paper && d.paper.cover ? d.paper.cover.yield : 1;
                 }
 
-                let sheetsNeededC = parseInt(document.getElementById('header-cover-sheets-val')?.innerText) || 0;
-                let printAllowanceC = parseInt(document.getElementById('calc-print-allowance-cover')?.value) || 0;
                 let finalTotalSheetsC = sheetsNeededC + printAllowanceC;
                 let finalSourceSheetsC = 0;
                 let defaultDodatekC = 0;
                 let totalSheetsC = 0;
 
-                if (isNoPrintC) {
+                if (!needsIntermediateSheetsC) {
                     sheetsNeededC = 0;
                     printAllowanceC = 0;
                     finalSourceSheetsC = Math.ceil(effectiveCoverQty / sourceYieldC);
@@ -6230,7 +6235,7 @@
                     sheetHCmC = (parseFloat(cTextC.split('x')[1]) / 10).toLocaleString('de-DE', { maximumFractionDigits: 2 });
                 }
 
-                let coverRazrezText = isNoPrintC
+                let coverRazrezText = !needsIntermediateSheetsC
                     ? `${finalSourceSheetsC.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCmC} x ${sourceHCmC} cm ${sourceGrainC} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na format &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${formatCover} ${effectiveCoverQty.toLocaleString('de-DE')} kos &nbsp;&nbsp; (${sourceYieldC} iz pole)`
                     : `${finalSourceSheetsC.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCmC} x ${sourceHCmC} cm ${sourceGrainC} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <div style="display: inline-block; vertical-align: top;">${totalSheetsC.toLocaleString('de-DE')} pol ${sheetWCmC} x ${sheetHCmC} cm &nbsp;&nbsp; (${sourceYieldC} iz pole)<div style="font-weight: bold; margin-top: 2px;">(${getStavekLabel(itemsCover)})</div></div>`;
 
@@ -6355,7 +6360,7 @@
                         <tr><td style="width: 15%;">Format ovitka:</td><td class="bold">${formatCover}</td></tr>
                         <tr><td>Material ovitek:</td><td class="bold">${coverMaterial}</td></tr>
                         <tr><td>Tisk ovitek:</td><td class="bold">${colorsC}</td></tr>
-                        ${isNoPrintC
+                        ${!needsIntermediateSheetsC
                         ? `<tr><td>Količina pol za razrez:</td><td class="bold">${finalSourceSheetsC.toLocaleString('de-DE')} pol (samo razrez na format ${formatCover} ${effectiveCoverQty.toLocaleString('de-DE')} kos)</td></tr>`
                         : `<tr><td>Količina pol (ovitek):</td><td class="bold">${sheetsNeededC.toLocaleString('de-DE')} neto ${defaultDodatekC > 0 ? '+ ' + defaultDodatekC.toLocaleString('de-DE') + ' dodatek ' : ''}= ${totalSheetsC.toLocaleString('de-DE')} tiskarskih pol</td></tr>`
                     }
