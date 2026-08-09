@@ -3547,7 +3547,27 @@
                     if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = totalFinishCost.toFixed(2) + " €";
 
                     // GENERIRANJE PODROBNE SPECIFIKACIJE
+                    
+                    let w_m = (parseFloat(document.getElementById('width')?.value.replace(',', '.')) || 0) / 1000;
+                    let h_m = (parseFloat(document.getElementById('height')?.value.replace(',', '.')) || 0) / 1000;
+                    let pagesL = parseFloat(document.getElementById('calc-leaves')?.value) || 0;
+                    let pWeightL = parseFloat(document.getElementById('calc-paper-weight')?.value) || 0;
+                    let wLeavesKg = w_m * h_m * (pWeightL / 1000) * pagesL;
+
+                    let cW_m = (parseFloat(document.getElementById('calc-cover-w')?.value.replace(',', '.')) || w_m) / 1000;
+                    let cH_m = (parseFloat(document.getElementById('calc-cover-h')?.value.replace(',', '.')) || h_m) / 1000;
+                    let pWeightC = parseFloat(document.getElementById('calc-cardboard-weight')?.value) || 0;
+                    let wCoverKg = document.getElementById('calc-cover-w')?.value || document.getElementById('calc-cardboard-weight')?.value ? (cW_m * cH_m * (pWeightC / 1000)) : 0;
+                    
+                    let singleWeightKg = wLeavesKg + wCoverKg;
+                    let totalWeightKg = singleWeightKg * totalItemsForm;
+
                     let details = {
+                        weight: {
+                            singleKg: singleWeightKg,
+                            totalKg: totalWeightKg,
+                            q: totalItemsForm
+                        },
                         paper: {
                             cost: paperCost,
                             leaves: {
@@ -3756,6 +3776,17 @@
                         <span style="font-size: 0.9rem; font-weight: bold; color: #10b981;">SKUPAJ PROIZVODNJA:</span>
                         <span style="font-size: 1.1rem; font-weight: 800; color: #10b981;">${formatPrice(d.total)}</span>
                     </div>
+
+                    <!-- TEŽA -->
+                    ${d.weight ? `
+                    <div style="padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 8px; margin-top: 5px;">
+                        <div style="font-weight: bold; color: #f59e0b; margin-bottom: 5px;">Informativna teža</div>
+                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1; font-size: 0.85rem;">
+                            <span>Teža 1 kosa:</span> <span>${safeFixed(d.weight.singleKg * 1000, 1)} g (${safeFixed(d.weight.singleKg, 3)} kg)</span>
+                            <span>Skupna teža (${d.weight.q} kos):</span> <span style="font-weight: bold; color: #fcd34d;">${safeFixed(d.weight.totalKg, 2)} kg</span>
+                        </div>
+                    </div>
+                    ` : ''}
 
                     <!-- KOMERCIALA -->
                     ${d.commercial > 0 ? `
