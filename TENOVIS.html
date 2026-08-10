@@ -529,7 +529,7 @@
                 </div>
                 <div>
                     <label style="font-size: 0.75rem; margin-bottom: 0.2rem;">Šifra izdelka</label>
-                    <input type="text" id="calc-material-code" placeholder=""
+                    <input type="text" id="calc-product-code" placeholder=""
                         style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
                 </div>
                 <div>
@@ -965,6 +965,10 @@
                     <div class="form-group">
                         <label>Vrsta materiala (mat, glos...)</label>
                         <input type="text" id="calc-paper-type" value="" placeholder="" onchange="calculate()">
+                    </div>
+                    <div class="form-group">
+                        <label>Šifra materiala</label>
+                        <input type="text" id="calc-material-code" value="" placeholder="" onchange="calculate()">
                     </div>
                     <div class="form-group"
                         style="border: 2px solid #fbbf24; padding: 10px; border-radius: 10px; background: rgba(251, 191, 36, 0.05); box-shadow: 0 0 10px rgba(251, 191, 36, 0.15);">
@@ -1564,6 +1568,7 @@
                     name: projectName,
                     version: document.getElementById('calc-project-version') ? document.getElementById('calc-project-version').value : '',
                     customer: document.getElementById('calc-customer').value || '',
+                    productCode: (document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : '') || '/',
                     materialCode: document.getElementById('calc-material-code').value || '/',
                     spec: {
                         format: {
@@ -2622,6 +2627,11 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
             container.style.display = 'block';
             const d = r.details;
 
+            const safeFixed = (val, dec = 1) => {
+                const n = parseFloat(val);
+                return isNaN(n) ? "0" : n.toFixed(dec);
+            };
+
             let html = `
                 <!-- PAPER -->
                 <div style="padding: 10px; background: rgba(59, 130, 246, 0.05); border-radius: 8px;">
@@ -2686,6 +2696,17 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     <span style="font-size: 1rem; font-weight: bold; color: #10b981;">SKUPAJ PROIZVODNJA:</span>
                     <span style="font-size: 1.25rem; font-weight: 800; color: #10b981;">${formatPrice(r.totalPrice)}</span>
                 </div>
+
+                <!-- TEZA -->
+                ${d.weight && d.weight.singleKg > 0 ? `
+                <div style="padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 8px; margin-top: 5px;">
+                    <div style="font-weight: bold; color: #f59e0b; margin-bottom: 5px;">Informativna teža</div>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1; font-size: 0.85rem;">
+                        <span>Teža 1 kosa:</span> <span>${safeFixed(d.weight.singleKg * 1000, 1)} g (${safeFixed(d.weight.singleKg, 3)} kg)</span>
+                        <span>Skupna teža (${d.weight.q} kos):</span> <span style="font-weight: bold; color: #fcd34d;">${safeFixed(d.weight.totalKg, 2)} kg</span>
+                    </div>
+                </div>
+                ` : ''}
 
                 <!-- KOMERCIALA -->
                 ${r.commercialCost > 0 ? `
@@ -2964,8 +2985,24 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
             let totalPrice = subtotal * (1 + marginPercent / 100);
             let perItemFinal = totalPrice / qty;
 
+            let itemWForWeight = getFloatValue('width') || getFloatValue('closed-width');
+            let itemHForWeight = getFloatValue('height') || getFloatValue('closed-height');
+            let itemW_m = itemWForWeight / 1000;
+            let itemH_m = itemHForWeight / 1000;
+            let lamSidesForWeight = 0;
+            if (document.getElementById('f-lam-active') && document.getElementById('f-lam-active').checked) {
+                lamSidesForWeight = parseInt(document.getElementById('f-lam-sides')?.value) || 1;
+            }
+            let singleWeightKg = (itemW_m * itemH_m) * ((paperWeight + (lamSidesForWeight * 25)) / 1000);
+            let totalWeightKg = singleWeightKg * qty;
+
             // DETAILED SPECS OBJECT
             let details = {
+                weight: {
+                    singleKg: singleWeightKg,
+                    totalKg: totalWeightKg,
+                    q: qty
+                },
                 paper: {
                     totalSheets: totalSheetsNeeded,
                     sourceSheets: totalSourceSheetsNeeded,
@@ -3981,6 +4018,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     dnDeadline: gv('calc-dn-deadline'),
                     dnPackaging: gv('calc-dn-packaging'),
                     customerCode: gv('calc-customer-code'),
+                    productCode: gv('calc-product-code'),
                     preparedBy: gv('calc-prepared-by'),
                     materialCode: gv('calc-material-code'),
                     notes: gv('calc-notes'),
@@ -4102,6 +4140,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     dnPackaging: gv('calc-dn-packaging'),
                     tenovisOrder: gv('calc-tenovis-order'),
                     customerCode: gv('calc-customer-code'),
+                    productCode: gv('calc-product-code'),
                     preparedBy: gv('calc-prepared-by'),
                     materialCode: gv('calc-material-code'),
                     notes: gv('calc-notes'),
@@ -4571,6 +4610,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
             if (document.getElementById('calc-tenovis-order')) document.getElementById('calc-tenovis-order').value = proj.tenovisOrder || "";
             document.getElementById('calc-customer-code').value = proj.customerCode || "";
             if (proj.preparedBy) document.getElementById('calc-prepared-by').value = proj.preparedBy;
+            if (document.getElementById('calc-product-code')) document.getElementById('calc-product-code').value = proj.productCode || "";
             document.getElementById('calc-material-code').value = proj.materialCode || "";
             if (document.getElementById('calc-notes')) {
                 document.getElementById('calc-notes').value = proj.notes || "";
@@ -4732,6 +4772,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     name: name,
                     _source: 'pola',
                     customer: document.getElementById('calc-customer').value,
+                    productCode: (document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : ''),
                     materialCode: document.getElementById('calc-material-code').value,
                     tenovisOrder: document.getElementById('calc-tenovis-order') ? document.getElementById('calc-tenovis-order').value : '',
                     timestamp: Date.now(),
@@ -4860,6 +4901,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     version: document.getElementById('calc-project-version') ? document.getElementById('calc-project-version').value : '',
                     type: 'Tiskovna pola',
                     customer: customer,
+                    productCode: (document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : '') || '/',
                     materialCode: document.getElementById('calc-material-code').value,
                     spec: {
                         format: {

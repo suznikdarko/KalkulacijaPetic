@@ -2748,6 +2748,10 @@
             if (!container || !content || !r.details) return;
             container.style.display = 'block';
             const d = r.details;
+            const safeFixed = (val, dec = 1) => {
+                const n = parseFloat(val);
+                return isNaN(n) ? "0" : n.toFixed(dec);
+            };
             let html = `
                 <!-- PAPER -->
                 <div style="padding: 10px; background: rgba(59, 130, 246, 0.05); border-radius: 8px;">
@@ -2811,12 +2815,12 @@
                     <span style="font-size: 1.25rem; font-weight: 800; color: #10b981;">${formatPrice(r.totalPrice)}</span>
                 </div>
                 <!-- TEZA -->
-                ${d.productWeight && d.productWeight.oneProductGrams > 0 ? `
+                ${(d.weight && d.weight.singleKg > 0) || (d.productWeight && d.productWeight.oneProductGrams > 0) ? `
                 <div style="padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 8px; margin-top: 5px;">
                     <div style="font-weight: bold; color: #f59e0b; margin-bottom: 5px;">Informativna teža</div>
-                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                        <span>Teža 1 kosa:</span> <span>${d.productWeight.oneProductGrams >= 1000 ? (d.productWeight.oneProductGrams/1000).toFixed(3) + ' kg' : d.productWeight.oneProductGrams.toFixed(1) + ' g (' + (d.productWeight.oneProductGrams/1000).toFixed(3) + ' kg)'}</span>
-                        <span>Skupna teža (${d.productWeight.effectiveQty || '?'} kos):</span> <span style="font-weight: bold; color: #fbbf24;">${d.productWeight.totalOrderKg.toFixed(2)} kg</span>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1; font-size: 0.85rem;">
+                        <span>Teža 1 kosa:</span> <span>${safeFixed((d.weight ? d.weight.singleKg : d.productWeight.oneProductGrams / 1000) * 1000, 1)} g (${safeFixed(d.weight ? d.weight.singleKg : d.productWeight.oneProductGrams / 1000, 3)} kg)</span>
+                        <span>Skupna teža (${d.weight ? d.weight.q : d.productWeight.effectiveQty || '?'} kos):</span> <span style="font-weight: bold; color: #fcd34d;">${safeFixed(d.weight ? d.weight.totalKg : d.productWeight.totalOrderKg, 2)} kg</span>
                     </div>
                 </div>
                 ` : ''}
@@ -3452,12 +3456,20 @@
             if (document.getElementById('f-lam-active') && document.getElementById('f-lam-active').checked) {
                 lamSidesForWeight = parseInt(document.getElementById('f-lam-sides').value) || 1;
             }
-            let productAreaM2 = (drawW / 1000) * (drawH / 1000);
+            let itemWForWeight = parseFloat(document.getElementById('width')?.value.replace(',', '.')) || 0;
+            let itemHForWeight = parseFloat(document.getElementById('height')?.value.replace(',', '.')) || 0;
+            let productAreaM2 = (itemWForWeight / 1000) * (itemHForWeight / 1000);
             let productWeightGrams = productAreaM2 * (paperWeight + (lamSidesForWeight * 25)); // 25g/m2 na plastifikacijo
-            let totalOrderWeightKg = (productWeightGrams * effectiveQty) / 1000;
+            let singleWeightKg = productWeightGrams / 1000;
+            let totalOrderWeightKg = singleWeightKg * effectiveQty;
 
             // DETAILED SPECS OBJECT
             let details = {
+                weight: {
+                    singleKg: singleWeightKg,
+                    totalKg: totalOrderWeightKg,
+                    q: effectiveQty
+                },
                 productWeight: {
                     oneProductGrams: productWeightGrams,
                     totalOrderKg: totalOrderWeightKg,
