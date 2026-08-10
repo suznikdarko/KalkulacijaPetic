@@ -1240,6 +1240,10 @@
                                     oninput="extractGrammage(this, 'calc-cardboard-weight'); calculate()" placeholder=""
                                     style="width: 100%;" type="text" />
                             </div>
+                            <div class="form-group">
+                                <label>Šifra materiala (ovitek/podkarton)</label>
+                                <input id="calc-cover-material-code" onchange="calculate()" placeholder="" type="text" value="" />
+                            </div>
                             <div class="form-group" style="display: none;">
                                 <label>Gramatura podkartona (g/m²)</label>
                                 <input id="calc-cardboard-weight" onchange="calculatePrice()" placeholder="300"
@@ -3876,6 +3880,7 @@
                 const projectName = document.getElementById('calc-project-name').value || "Brez imena";
                 const productCode = document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : '/';
                 const materialCode = document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '/';
+                const coverMaterialCode = document.getElementById('calc-cover-material-code') ? document.getElementById('calc-cover-material-code').value : '/';
 
                 let leaves = document.getElementById('calc-leaves').value || '/';
                 let extentText = `${leaves} listov`;
@@ -3885,6 +3890,7 @@
                     projectName: projectName,
                     productCode: productCode,
                     materialCode: materialCode,
+                    coverMaterialCode: coverMaterialCode,
                     formatLeaves: `${document.getElementById('width').value}x${document.getElementById('height').value}`,
                     formatCover: `${document.getElementById('calc-cover-w').value}x${document.getElementById('calc-cover-h').value}`,
                     extentText: extentText,
@@ -4805,6 +4811,7 @@
                         productCode: gv('calc-product-code'),
                         preparedBy: gv('calc-prepared-by'),
                         materialCode: gv('calc-material-code'),
+                        coverMaterialCode: gv('calc-cover-material-code'),
                         orderType: gv('calc-order-type'),
                         dnNumber: gv('calc-dn-number'),
                         dnOld: gv('calc-dn-old'),
@@ -5113,6 +5120,7 @@
                 setV('calc-leaves-material', proj.leavesMaterial);
                 setV('calc-product-code', proj.productCode || '');
                 setV('calc-material-code', proj.materialCode);
+                setV('calc-cover-material-code', proj.coverMaterialCode || '');
                 setV('calc-notes', proj.notes);
                 setV('calc-project-name', proj.name);
 
@@ -5354,6 +5362,7 @@
                         productCode: gv('calc-product-code'),
                         preparedBy: gv('calc-prepared-by'),
                         materialCode: gv('calc-material-code'),
+                        coverMaterialCode: gv('calc-cover-material-code'),
                         orderType: gv('calc-order-type'),
                         dnNumber: gv('calc-dn-number'),
                         dnOld: gv('calc-dn-old'),
@@ -6056,6 +6065,8 @@
                 }
 
                 // Leaves
+                let materialCode = document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value.trim() : "";
+                let coverMaterialCode = document.getElementById('calc-cover-material-code') ? document.getElementById('calc-cover-material-code').value.trim() : "";
                 let leavesMaterial = document.getElementById('calc-leaves-material').value || "";
                 let itemsLeaves = parseInt(document.getElementById('res-count-leaves')?.innerText) || 1;
                 let itemsCover = parseInt(document.getElementById('res-count-cover')?.innerText) || 1;
@@ -6355,7 +6366,7 @@
                     <div class="bold" style="font-size: 11pt; margin-bottom: 5px; color: #3b82f6;">📄 LISTI (NOTRANJOST) - obseg: ${leavesCount} listov</div>
                     <table style="width: 100%;">
                         <tr><td style="width: 15%;">Format listov:</td><td class="bold">${formatLeaves}</td></tr>
-                        <tr><td>Material listi:</td><td class="bold">${leavesMaterial}</td></tr>
+                        <tr><td>Material listi:</td><td class="bold">${materialCode ? '[' + materialCode + '] ' : ''}${leavesMaterial}</td></tr>
                         <tr><td>Tisk listi:</td><td class="bold">${colorsL}</td></tr>
                         ${defaultDodatekL > 0 ? `<tr><td>Dodatek za tisk:</td><td class="bold">${defaultDodatekL.toLocaleString('de-DE')} pol</td></tr>` : ''}
                         <tr><td>Količina pol (notranjost):</td><td class="bold">${sheetsNeededL.toLocaleString('de-DE')} neto ${defaultDodatekL > 0 ? '+ ' + defaultDodatekL.toLocaleString('de-DE') + ' dodatek ' : ''}= ${totalSheetsL.toLocaleString('de-DE')} tiskarskih pol</td></tr>
@@ -6379,7 +6390,7 @@
                     <table style="width: 100%;">
                         ${coverQtyLine}
                         <tr><td style="width: 15%;">Format ovitka:</td><td class="bold">${formatCover}</td></tr>
-                        <tr><td>Material ovitek:</td><td class="bold">${coverMaterial}</td></tr>
+                        <tr><td>Material ovitek:</td><td class="bold">${coverMaterialCode ? '[' + coverMaterialCode + '] ' : ''}${coverMaterial}</td></tr>
                         <tr><td>Tisk ovitek:</td><td class="bold">${colorsC}</td></tr>
                         ${defaultDodatekC > 0 ? `<tr><td>Dodatek za tisk:</td><td class="bold">${defaultDodatekC.toLocaleString('de-DE')} pol</td></tr>` : ''}
                         ${!needsIntermediateSheetsC
@@ -6425,7 +6436,7 @@
                             <td style="text-align: right;" class="bold">${platesL} kos</td>
                         </tr>
                         <tr>
-                            <td>Papir listi (${sourceWCmL} x ${sourceHCmL} cm ${sourceGrainL}) - ${leavesMaterial}:</td>
+                            <td>${materialCode ? '[' + materialCode + '] ' : ''}Papir listi (${sourceWCmL} x ${sourceHCmL} cm ${sourceGrainL}) - ${leavesMaterial}:</td>
                             <td style="text-align: right;" class="bold">${finalSourceSheetsL.toLocaleString('de-DE')} pol</td>
                         </tr>
                         ${(finalSourceSheetsC > 0 && coverMaterial) ? `
@@ -6436,7 +6447,7 @@
                         </tr>
                         ` : ''}
                         <tr>
-                            <td${isNoPrintC ? ' style="padding-top: 5px;"' : ''}>Papir ovitek/podkarton (${sourceWCmC} x ${sourceHCmC} cm ${sourceGrainC}) - ${coverMaterial}:</td>
+                            <td${isNoPrintC ? ' style="padding-top: 5px;"' : ''}>${coverMaterialCode ? '[' + coverMaterialCode + '] ' : ''}Papir ovitek/podkarton (${sourceWCmC} x ${sourceHCmC} cm ${sourceGrainC}) - ${coverMaterial}:</td>
                             <td style="text-align: right;${isNoPrintC ? ' padding-top: 5px;' : ''}" class="bold">${finalSourceSheetsC.toLocaleString('de-DE')} pol</td>
                         </tr>
                         ` : ''}
