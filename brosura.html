@@ -2296,7 +2296,7 @@
 
                             <label>Šifra materiala</label>
 
-                            <input type="text" id="calc-material-code" value="" placeholder="" onchange="calculate()">
+                            <input type="text" id="calc-material-code" value="" placeholder="" oninput="g_editedWorkOrderHTML=''; calculate()" onchange="g_editedWorkOrderHTML=''; calculate()">
 
                         </div>
 
@@ -2373,7 +2373,7 @@
 
                                 <label>Šifra materiala (ovitek)</label>
 
-                                <input type="text" id="calc-cover-material-code" value="" placeholder="" onchange="calculate()">
+                                <input type="text" id="calc-cover-material-code" value="" placeholder="" oninput="g_editedWorkOrderHTML=''; calculate()" onchange="g_editedWorkOrderHTML=''; calculate()">
 
                             </div>
 
@@ -10614,6 +10614,8 @@
 
                         materialCode: materialCode,
 
+                        coverMaterialCode: coverMaterialCode,
+
                         formatLeaves: formatLeaves,
 
                         formatCover: formatCover,
@@ -10716,7 +10718,7 @@
 
                                     <div class="info-item"><strong>Obseg:</strong> ${item.extentText}</div>
 
-                                    <div class="info-item"><strong>Papir:</strong> ${item.paperLeaves}</div>
+                                    <div class="info-item"><strong>Papir:</strong> ${(item.materialCode && item.materialCode !== '/' ? '[' + item.materialCode + '] ' : '') + item.paperLeaves}</div>
 
                                     <div class="info-item"><strong>Tisk:</strong> ${item.tiskLeaves}</div>
 
@@ -10736,7 +10738,7 @@
 
                                     <div class="info-item"><strong>Format:</strong> ${item.formatCover} mm</div>
 
-                                    <div class="info-item"><strong>Papir:</strong> ${item.paperCover}</div>
+                                    <div class="info-item"><strong>Papir:</strong> ${(item.coverMaterialCode && item.coverMaterialCode !== '/' ? '[' + item.coverMaterialCode + '] ' : '') + item.paperCover}</div>
 
                                     <div class="info-item"><strong>Tisk:</strong> ${item.tiskCover}</div>
 
@@ -11274,11 +11276,11 @@
                                                 <tr>
                                                     <td style="width: 50%; vertical-align: top; border-right: 1px dashed #ccc; padding-right: 10px;">
                                                         <div style="font-weight: bold; font-size: 15px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #3b82f6; margin-bottom: 6px;">${isAT ? 'BLÄTTER' : 'VLOŽEK'}</div>
-                                                        <table style="width: 100%; font-size: 13.5px;" cellpadding="0" cellspacing="2">
+                                                         <table style="width: 100%; font-size: 13.5px;" cellpadding="0" cellspacing="2">
                                                             <tr><td style="font-weight: bold; width: 110px;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td contenteditable="true">${item.formatLeaves && item.formatLeaves !== 'x' ? item.formatLeaves + ' mm' : fText}</td></tr>
                                                             <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td contenteditable="true">${item.closedFormatLeaves && item.closedFormatLeaves !== 'x' ? item.closedFormatLeaves + ' mm' : '/'}</td></tr>
                                                             <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td contenteditable="true">${isDN ? eTextDN : eText}</td></tr>
-                                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td contenteditable="true">${item.paperLeaves || pText}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td contenteditable="true">${(item.materialCode && item.materialCode !== '/' ? '[' + item.materialCode + '] ' : '') + (item.paperLeaves || pText)}</td></tr>
                                                             <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td contenteditable="true">${item.tiskLeaves || printText}</td></tr>
                                                             ${dodatekLeavesHTML}
                                                         </table>
@@ -11289,7 +11291,7 @@
                                                             <tr><td style="font-weight: bold; width: 110px;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td contenteditable="true">${item.formatCover && item.formatCover !== 'x' ? item.formatCover + ' mm' : '/'}</td></tr>
                                                             <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td contenteditable="true">${item.closedFormatCover && item.closedFormatCover !== 'x' ? item.closedFormatCover + ' mm' : '/'}</td></tr>
                                                             <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td contenteditable="true">${isDN ? cTextDN : ((item.coverPages || '4') + ' ' + (isAT ? 'Seiten' : 'strani'))}</td></tr>
-                                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td contenteditable="true">${item.paperCover || cText}</td></tr>
+                                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td contenteditable="true">${(item.coverMaterialCode && item.coverMaterialCode !== '/' ? '[' + item.coverMaterialCode + '] ' : '') + (item.paperCover || cText)}</td></tr>
                                                             <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td contenteditable="true">${item.tiskCover || '/'}</td></tr>
                                                             ${dodatekCoverHTML}
                                                         </table>
@@ -11303,14 +11305,14 @@
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td contenteditable="true">${item.formatLeaves && item.formatLeaves !== 'x' ? item.formatLeaves + ' mm' : fText}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td contenteditable="true">${item.closedFormatLeaves && item.closedFormatLeaves !== 'x' ? item.closedFormatLeaves + ' mm' : '/'}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td contenteditable="true">${isDN ? eTextDN : eText}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td contenteditable="true">${item.paperLeaves || pText}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td contenteditable="true">${(item.materialCode && item.materialCode !== '/' ? '[' + item.materialCode + '] ' : '') + (item.paperLeaves || pText)}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td contenteditable="true">${item.tiskLeaves || printText}</td></tr>
                                                 ${dodatekLeavesHTML}
                                                 <tr><td colspan="2" style="font-weight: bold; font-size: 11pt; border-bottom: 1px solid #ddd; padding-top: 10px; color: #f43f5e;">${isAT ? 'UMSCHLAG' : 'OVITEK'}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Offenes Format:' : 'Odprt format:'}</td><td contenteditable="true">${item.formatCover && item.formatCover !== 'x' ? item.formatCover + ' mm' : '/'}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Geschlossenes Format:' : 'Zaprt format:'}</td><td contenteditable="true">${item.closedFormatCover && item.closedFormatCover !== 'x' ? item.closedFormatCover + ' mm' : '/'}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td contenteditable="true">${isDN ? cTextDN : ((item.coverPages || '4') + ' ' + (isAT ? 'Seiten' : 'strani'))}</td></tr>
-                                                <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td contenteditable="true">${item.paperCover || cText}</td></tr>
+                                                <tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td contenteditable="true">${(item.coverMaterialCode && item.coverMaterialCode !== '/' ? '[' + item.coverMaterialCode + '] ' : '') + (item.paperCover || cText)}</td></tr>
                                                 <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td contenteditable="true">${item.tiskCover || '/'}</td></tr>
                                                 ${dodatekCoverHTML}
                                                 <tr><td colspan="2" style="font-weight: bold; font-size: 11pt; border-bottom: 1px solid #ddd; padding-top: 10px; color: #10b981;">${isAT ? 'VERARBEITUNG' : 'DODELAVA'}</td></tr>
