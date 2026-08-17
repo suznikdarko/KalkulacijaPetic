@@ -849,10 +849,10 @@ if (isWord) {
 
                 <table style="width: 100%; margin-bottom: 5px; font-size: 11px;">
                     <tr>
-                        <td style="width: 25%;"><span class="bold">Št. ponudbe:</span> ${quoteNum || '/'}</td>
-                        <td style="width: 25%; text-align: center;"><span class="bold">Cena za kos:</span> ${formatPrice(calcRes.pricePerItem, 4)} €</td>
-                        <td style="width: 25%; text-align: center;"><span class="bold">Cena za 1000 kos:</span> ${formatPrice(calcRes.pricePerItem * 1000, 2)} €</td>
-                        <td style="width: 25%; text-align: right;"><span class="bold">Skupaj:</span> ${formatPrice(calcRes.finalTotal, 2)} €</td>
+                        <td style="width: 20%; white-space: nowrap;"><span class="bold">Št. ponudbe:</span> ${quoteNum || '/'}</td>
+                        <td style="width: 25%; text-align: center; white-space: nowrap;"><span class="bold">Cena za kos:</span> ${formatPrice(calcRes.pricePerItem, 4)}</td>
+                        <td style="width: 30%; text-align: center; white-space: nowrap;"><span class="bold">Cena za 1000 kos:</span> ${formatPrice(calcRes.pricePerItem * 1000, 2)}</td>
+                        <td style="width: 25%; text-align: right; white-space: nowrap;"><span class="bold">Skupaj:</span> ${formatPrice(calcRes.finalTotal, 2)}</td>
                     </tr>
                 </table>
             `;
