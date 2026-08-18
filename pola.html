@@ -1209,6 +1209,26 @@
                                 <input type="number" id="f-cilinder-dodatek" value="0" min="0" placeholder="0">
                             </div>
                         </div>
+                        <!-- Ril - rilmašina -->
+                        <div class="finish-item" id="row-finish-ril" style="grid-template-columns: 140px 1fr 1fr 1fr;">
+                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                <input type="checkbox" id="f-ril-active" onchange="toggleFinishRow('ril')">
+                                Ril - rilmašina
+                            </label>
+                            <div class="form-group" style="margin:0;">
+                                <label><small>Normativ (kom/h)</small></label>
+                                <input type="number" id="f-ril-speed" value="1200" onchange="calculatePrice()">
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label><small>Cena ure (€/h)</small></label>
+                                <input type="number" id="f-ril-rate" value="20.00" onchange="calculatePrice()">
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label><small>Ročno ur (h)</small></label>
+                                <input type="number" id="f-ril-hours" value="" placeholder="Avto" step="0.1"
+                                    onchange="calculatePrice()">
+                            </div>
+                        </div>
                         <!-- Zgibanje -->
                         <div class="finish-item" id="row-finish-zgibanje">
                             <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
@@ -1757,6 +1777,7 @@
             const list = [];
             const isChecked = (id) => document.getElementById(id) && document.getElementById(id).checked;
             if (isChecked('f-cilinder-active')) list.push('Cilinder');
+            if (isChecked('f-ril-active')) list.push('Ril - rilmašina');
             if (isChecked('f-zgibanje-active')) {
                 const folds = document.getElementById('f-zgibanje-folds') ? document.getElementById('f-zgibanje-folds').value : '1';
                 list.push(`${folds}x zgibano`);
@@ -3343,6 +3364,18 @@
                 }
                 totalFinishCost += cPrep + (workHours * cRate);
             }
+            if (document.getElementById('f-ril-active').checked) {
+                let rSpeed = parseFloat(document.getElementById('f-ril-speed').value.replace(',', '.')) || 1200;
+                let rRate = parseFloat(document.getElementById('f-ril-rate').value.replace(',', '.')) || 20;
+                let manualHours = parseFloat(document.getElementById('f-ril-hours').value.replace(',', '.'));
+                let workHours = 0;
+                if (!isNaN(manualHours) && manualHours > 0) {
+                    workHours = manualHours;
+                } else {
+                    workHours = qty / rSpeed;
+                }
+                totalFinishCost += workHours * rRate;
+            }
             if (document.getElementById('f-zgibanje-active').checked) {
                 let zFolds = parseInt(document.getElementById('f-zgibanje-folds').value) || 1;
                 let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value.replace(',', '.')) || 10800;
@@ -3538,6 +3571,26 @@
                     name: 'Cilinder (izsek)',
                     cost: cCost,
                     breakdown: `Priprava: ${formatPrice(cPrep)} | Delo: ${hourText} (${formatPrice(cWork)})`
+                });
+            }
+            if (document.getElementById('f-ril-active').checked) {
+                let rSpeed = parseFloat(document.getElementById('f-ril-speed').value.replace(',', '.')) || 1200;
+                let rRate = parseFloat(document.getElementById('f-ril-rate').value.replace(',', '.')) || 20;
+                let manualHours = parseFloat(document.getElementById('f-ril-hours').value.replace(',', '.'));
+                let workHours = 0;
+                let isAuto = true;
+                if (!isNaN(manualHours) && manualHours > 0) {
+                    workHours = manualHours;
+                    isAuto = false;
+                } else {
+                    workHours = qty / rSpeed;
+                }
+                let rCost = workHours * rRate;
+                let hourText = isAuto ? `${workHours.toFixed(2)}h (avto)` : `${workHours.toFixed(2)}h (ročno)`;
+                details.finish.items.push({
+                    name: 'Ril - rilmašina',
+                    cost: rCost,
+                    breakdown: `Delo: ${hourText} (${formatPrice(rCost)})`
                 });
             }
             if (document.getElementById('f-zgibanje-active').checked) {
@@ -4746,6 +4799,7 @@
                         minusPrice: gc('calc-minus-price'),
                         finish: {
                             cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), hours: gv('f-cilinder-hours'), rate: gv('f-cilinder-rate'), dodatek: gv('f-cilinder-dodatek') },
+                            ril: { active: gc('f-ril-active'), speed: gv('f-ril-speed'), rate: gv('f-ril-rate'), hours: gv('f-ril-hours') },
                             zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
                             razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                             razrez: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
@@ -4870,6 +4924,7 @@
                         minusPrice: gc('calc-minus-price'),
                         finish: {
                             cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), hours: gv('f-cilinder-hours'), rate: gv('f-cilinder-rate'), dodatek: gv('f-cilinder-dodatek') },
+                            ril: { active: gc('f-ril-active'), speed: gv('f-ril-speed'), rate: gv('f-ril-rate'), hours: gv('f-ril-hours') },
                             zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
                             razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                             razrez: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
@@ -5329,7 +5384,7 @@
                 if (inp.finish) {
                     const f = inp.finish;
                     // First reset optional finishing checkboxes
-                    ['cilinder', 'zgibanje', 'tool', 'zasek-grafotehna', 'lepljenje', 'spiral', 'extra', 'uv', 'personalization', 'lam', 'delivery', 'del-fixed'].forEach(t => {
+                    ['cilinder', 'ril', 'zgibanje', 'tool', 'zasek-grafotehna', 'lepljenje', 'spiral', 'extra', 'uv', 'personalization', 'lam', 'delivery', 'del-fixed'].forEach(t => {
                         setV('f-' + t + '-active', false, true);
                         if (typeof toggleFinishRow === 'function') toggleFinishRow(t);
                     });
@@ -5346,6 +5401,15 @@
                         if (cil.rate !== undefined) setV('f-cilinder-rate', cil.rate);
                         if (cil.dodatek !== undefined) setV('f-cilinder-dodatek', cil.dodatek);
                         toggleFinishRow('cilinder');
+                    }
+
+                    const ril = f.ril;
+                    if (ril) {
+                        setV('f-ril-active', ril.active, true);
+                        if (ril.speed !== undefined) setV('f-ril-speed', ril.speed);
+                        if (ril.rate !== undefined) setV('f-ril-rate', ril.rate);
+                        if (ril.hours !== undefined) setV('f-ril-hours', ril.hours);
+                        toggleFinishRow('ril');
                     }
 
                     const zgib = f.zgibanje;
@@ -5542,6 +5606,7 @@
                         margin: document.getElementById('calc-margin').value,
                         finish: {
                             cilinder: { active: document.getElementById('f-cilinder-active').checked, prep: document.getElementById('f-cilinder-prep').value, hours: document.getElementById('f-cilinder-hours').value, rate: document.getElementById('f-cilinder-rate').value },
+                            ril: { active: document.getElementById('f-ril-active').checked, speed: document.getElementById('f-ril-speed').value, rate: document.getElementById('f-ril-rate').value, hours: document.getElementById('f-ril-hours').value },
                             zgibanje: { active: document.getElementById('f-zgibanje-active').checked, folds: document.getElementById('f-zgibanje-folds').value, speed: document.getElementById('f-zgibanje-speed').value },
                             razrezFormat: { active: document.getElementById('f-razrez-format-active').checked, speed: document.getElementById('f-razrez-format-speed').value, rate: document.getElementById('f-razrez-format-rate').value },
                             razrez: { active: document.getElementById('f-razrez-format-active').checked, speed: document.getElementById('f-razrez-format-speed').value, rate: document.getElementById('f-razrez-format-rate').value },
@@ -5722,6 +5787,7 @@
                 if (isAT && specFinishing) {
                     specFinishing = specFinishing
                         .replace(/Cilinder/gi, 'Zylinder')
+                        .replace(/Ril - rilmašina/gi, 'Rillen')
                         .replace(/x zgibano/gi, 'x gefalzt')
                         .replace(/Zgibanje/gi, 'Falzen')
                         .replace(/Razrez/gi, 'Zuschnitt')
@@ -6302,6 +6368,17 @@
             let finishingRowsHtml = "";
             const isChecked = (id) => document.getElementById(id) && document.getElementById(id).checked;
 
+            if (isChecked('f-ril-active')) {
+                let rSpeed = parseFloat(document.getElementById('f-ril-speed').value) || 1200;
+                let rHours = roundUpTime(calcRes.qty / rSpeed);
+                let rilQtyStr = `${calcRes.qty.toLocaleString('de-DE')} kos`;
+                finishingRowsHtml += `
+                    <tr>
+                        <td style="width: 15%;">Ril - rilmašina:</td>
+                        <td style="width: 35%;" class="bold">${rilQtyStr}</td>
+                        <td style="width: 50%; text-align: right;" class="bold"><span class="bold">delo:</span> ${rHours.toFixed(1).replace('.', ',')} h</td>
+                    </tr>`;
+            }
             if (isChecked('f-cilinder-active')) {
                 let cSpeed = 2000;
                 let paperWeightNum = parseFloat(paperWeight) || 0;
