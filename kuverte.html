@@ -490,7 +490,7 @@
 
             <!-- OPIS PODATKOV KUVERT -->
             <div class="header-group" style="grid-column: span 4; display: flex; flex-direction: column; gap: 1.25rem;">
-                <!-- Zgornja vrstica: Tip in Dimenzije -->
+                <!-- Zgornja vrstica: Tip, Dimenzije in Gramatura -->
                 <div style="display: flex; gap: 1.25rem;">
                     <div style="flex: 2;">
                         <label>Tip Kuverte (Hitri izbor)</label>
@@ -507,13 +507,17 @@
                             <option value="B4">B4 (Flat: 353x500 mm)</option>
                         </select>
                     </div>
-                    <div style="flex: 2;">
+                    <div style="flex: 1.5;">
                         <label>Dimenzije (ŠxV mm)</label>
                         <div style="display: flex; gap: 0.4rem; align-items: center;">
                             <input type="number" id="width" value="229" onchange="calculate()">
                             <span style="color:var(--text-muted);">x</span>
                             <input type="number" id="height" value="162" onchange="calculate()">
                         </div>
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Gramatura (g/m²)</label>
+                        <input type="number" id="calc-paper-weight" value="90" onchange="calculate()">
                     </div>
                 </div>
 
@@ -756,11 +760,13 @@
                             style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: flex-end;">
                             <label
                                 style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem; height: 100%;">
-                                <input type="checkbox" id="calc-use-personalization" onchange="if(this.checked) document.getElementById('calc-personalization').dataset.manual='false'; calculate()"
+                                <input type="checkbox" id="calc-use-personalization"
+                                    onchange="if(this.checked) document.getElementById('calc-personalization').dataset.manual='false'; calculate()"
                                     style="width: auto; margin: 3px 0 0 0;">
                                 Personalizacija (št. kos)
                             </label>
-                            <input type="number" id="calc-personalization" value="0" oninput="this.dataset.manual='true'" onchange="this.dataset.manual='true'; calculate()"
+                            <input type="number" id="calc-personalization" value="0"
+                                oninput="this.dataset.manual='true'" onchange="this.dataset.manual='true'; calculate()"
                                 style="width: 100%;">
                         </div>
                         <div class="form-group"
@@ -1336,7 +1342,7 @@
                 ? (window.g_editedQuoteATHTML ? window.g_editedQuoteATHTML : defaultContent)
                 : (window.g_editedQuoteHTML ? window.g_editedQuoteHTML : defaultContent);
 
-            
+
             if (isWord) {
                 contentToRender = contentToRender.replace(
                     /<div[^>]*style="[^"]*color:\s*(#8c8f91|#475569);[^"]*"[^>]*>\s*tiskarna\s*<\/div>\s*<div[^>]*style="[^"]*color:\s*#f99c26;[^"]*"[^>]*>\s*petrič\s*<\/div>/gi,
@@ -1346,7 +1352,7 @@
                      </table>`
                 );
             }
-if (isWord) {
+            if (isWord) {
                 return `<html><body>${contentToRender}</body></html>`;
             }
 
@@ -1717,7 +1723,8 @@ if (isWord) {
                     <tr><td style="width: 15%;">Količina:</td><td class="bold" style="font-size: 11pt;">${qty.toLocaleString('de-DE')} kos</td></tr>
                     <tr><td>Format:</td><td class="bold">${envBaseName} (${formatW} x ${formatH} mm)</td></tr>
                     <tr><td>Tisk:</td><td class="bold">${colors}</td></tr>
-                    <tr><td>Material:</td><td class="bold">Kuverte ${envBaseName}</td></tr>
+                    <tr><td>Material:</td><td class="bold">Kuverte ${envBaseName} (${document.getElementById('calc-paper-weight')?.value || '90'} g)</td></tr>
+                    ${calcRes.weight ? `<tr><td>Teža:</td><td class="bold">${(calcRes.weight.singleKg * 1000).toFixed(1)} g/kos (skupaj: ${calcRes.weight.totalKg.toFixed(1)} kg)</td></tr>` : ''}
                 </table>
                 ${dnNotes ? `
                 <table style="margin-top: 5px; width: 100%;">
@@ -2234,7 +2241,7 @@ if (isWord) {
             let deliveryDesc = "";
             let postActive = document.getElementById('f-delivery-active') && document.getElementById('f-delivery-active').checked;
             let fixActive = document.getElementById('f-del-fixed-active') && document.getElementById('f-del-fixed-active').checked;
-            
+
             if (postActive) {
                 let pc = parseFloat(document.getElementById('f-post-count').value) || 0;
                 let pp = parseFloat(document.getElementById('f-post-price-per').value) || 0;
@@ -2244,7 +2251,7 @@ if (isWord) {
             if (fixActive) {
                 let fx = parseFloat(document.getElementById('f-del-fixed-price').value) || 0;
                 deliveryCost += fx;
-                if(deliveryDesc) deliveryDesc += " + ";
+                if (deliveryDesc) deliveryDesc += " + ";
                 deliveryDesc += `(Fiksno: ${fx.toFixed(2)} €)`;
             }
 
@@ -2294,6 +2301,25 @@ if (isWord) {
             const marginAmount = (subtotal * margin) / 100;
             const finalTotal = subtotal + marginAmount;
 
+            // Izračun teže
+            const paperWeight = parseFloat(document.getElementById('calc-paper-weight')?.value) || 90;
+            const wText = parseFloat(document.getElementById('width')?.value) || 0;
+            const hText = parseFloat(document.getElementById('height')?.value) || 0;
+
+            let isClosedSize = false;
+            const envPreset = document.getElementById('envelope-preset')?.value || '';
+            if (envPreset.startsWith('Amerikanka_') || (wText <= 250 && hText <= 120)) {
+                isClosedSize = true;
+            }
+
+            const envelopeAreaM2 = isClosedSize
+                ? (wText * (hText * 2)) / 1000000
+                : (wText * hText) / 1000000;
+
+            const singleWeightGrams = envelopeAreaM2 * paperWeight * (isClosedSize ? 1.05 : 1.02);
+            const singleWeightKg = singleWeightGrams / 1000;
+            const totalOrderWeightKg = singleWeightKg * q;
+
             return {
                 qty: q,
                 materialCost,
@@ -2303,6 +2329,11 @@ if (isWord) {
                 additionalCost,
                 finalTotal,
                 pricePerItem: finalTotal / q,
+                weight: {
+                    singleKg: singleWeightKg,
+                    totalKg: totalOrderWeightKg,
+                    q: q
+                },
                 details: {
                     material: { cost: materialCost, q: totalQ, mPrice, waste },
                     plates: {
@@ -2322,6 +2353,11 @@ if (isWord) {
                     grafotehna: { cost: grafotehnaCost },
                     delivery: { cost: deliveryCost, desc: deliveryDesc },
                     margin: { amount: marginAmount, percent: margin },
+                    weight: {
+                        singleKg: singleWeightKg,
+                        totalKg: totalOrderWeightKg,
+                        q: q
+                    },
                     finalTotal
                 }
             };
@@ -2389,6 +2425,16 @@ if (isWord) {
                 </div>
                 ` : ''}
 
+                ${details.weight ? `
+                <div style="padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 8px; margin-top: 5px;">
+                    <div style="font-weight: bold; color: #f59e0b; margin-bottom: 5px;">Informativna teža</div>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1; font-size: 0.85rem;">
+                        <span>Teža 1 kosa:</span> <span>${(details.weight.singleKg * 1000).toFixed(1)} g (${details.weight.singleKg.toFixed(3)} kg)</span>
+                        <span>Skupna teža (${formatQty(details.weight.q)} kos):</span> <span style="font-weight: bold; color: #fcd34d;">${details.weight.totalKg.toFixed(2)} kg</span>
+                    </div>
+                </div>
+                ` : ''}
+
                 <div style="padding: 10px; border-top: 2px solid #10b981; margin-top: 5px; display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 1rem; font-weight: bold; color: #10b981;">SKUPAJ (brez DDV):</span>
                     <span style="font-size: 1.25rem; font-weight: 800; color: #10b981;">${formatPrice(details.finalTotal)}</span>
@@ -2398,15 +2444,15 @@ if (isWord) {
         }
 
         const envelopePresets = {
-            'Amerikanka_LO': { w: 230, h: 110 },
-            'Amerikanka_DO': { w: 230, h: 110 },
-            'Amerikanka_BO': { w: 230, h: 110 },
-            'C6': { w: 230, h: 162 },
-            'DL': { w: 220, h: 220 },
-            'C5': { w: 324, h: 229 },
-            'C4': { w: 458, h: 324 },
-            'B5': { w: 353, h: 250 },
-            'B4': { w: 500, h: 353 }
+            'Amerikanka_LO': { w: 230, h: 110, g: 90 },
+            'Amerikanka_DO': { w: 230, h: 110, g: 90 },
+            'Amerikanka_BO': { w: 230, h: 110, g: 90 },
+            'C6': { w: 230, h: 162, g: 90 },
+            'DL': { w: 220, h: 220, g: 90 },
+            'C5': { w: 324, h: 229, g: 90 },
+            'C4': { w: 458, h: 324, g: 100 },
+            'B5': { w: 353, h: 250, g: 90 },
+            'B4': { w: 500, h: 353, g: 100 }
         };
 
         function applyEnvelopePreset() {
@@ -2414,6 +2460,9 @@ if (isWord) {
             if (type !== 'custom' && envelopePresets[type]) {
                 document.getElementById('width').value = envelopePresets[type].w;
                 document.getElementById('height').value = envelopePresets[type].h;
+                if (envelopePresets[type].g) {
+                    document.getElementById('calc-paper-weight').value = envelopePresets[type].g;
+                }
                 calculate();
             }
         }
@@ -2981,6 +3030,7 @@ if (isWord) {
                     item_w: document.getElementById('width').value,
                     item_h: document.getElementById('height').value,
                     envelopePreset: document.getElementById('envelope-preset').value,
+                    paperWeight: document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value : "90",
                     quantities: document.getElementById('calc-quantities').value,
                     qtyOrdered: 0,
                     mPrice: document.getElementById('calc-material-price').value,
@@ -3054,6 +3104,7 @@ if (isWord) {
                         item_w: document.getElementById('width').value,
                         item_h: document.getElementById('height').value,
                         envelopePreset: document.getElementById('envelope-preset').value,
+                        paperWeight: document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value : "90",
                         quantities: document.getElementById('calc-quantities').value,
                         qtyOrdered: 0,
                         mPrice: document.getElementById('calc-material-price').value,
@@ -3193,6 +3244,7 @@ if (isWord) {
             setV('width', inp.item_w);
             setV('height', inp.item_h);
             setV('envelope-preset', inp.envelopePreset);
+            setV('calc-paper-weight', inp.paperWeight || "90");
             setV('calc-quantities', inp.quantities);
             // setV('calc-qty-ordered', inp.qtyOrdered);
             setV('calc-material-price', inp.mPrice);
