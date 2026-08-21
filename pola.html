@@ -806,6 +806,17 @@
                             </select>
                         </div>
                     </div>
+                    <div style="flex: 1;">
+                        <label>Število prehodov (ročni popravek)</label>
+                        <select id="calc-machine-passes" onchange="updateWasteAndPrice()"
+                            style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: #fff; padding: 0.5rem; border-radius: 8px; width: 100%;">
+                            <option value="auto" selected>Samodejno</option>
+                            <option value="1">1 prehod</option>
+                            <option value="2">2 prehoda</option>
+                            <option value="3">3 prehodi</option>
+                            <option value="4">4 prehodi</option>
+                        </select>
+                    </div>
                 </div>
                 <div style="display: flex; gap: 1.25rem;">
                     <div id="obrat-container"
@@ -3262,6 +3273,10 @@
             let rule = prepRules[colorMode] || { passes: prepPasses, wasteImpressions: defaultWaste };
             let isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
             let mPasses = isSV ? 1 : rule.passes;
+            const manualPassesSelect = document.getElementById('calc-machine-passes');
+            if (manualPassesSelect && manualPassesSelect.value !== 'auto') {
+                mPasses = parseInt(manualPassesSelect.value) || mPasses;
+            }
             let mutPlates = parseInt(document.getElementById('calc-mut-plates').value) || 0;
             let platesNum = parseInt(document.getElementById('calc-plates-num').value) || (front + (isObrat ? 0 : back) + mutPlates);
             let platesPrice = parseFloat(document.getElementById('calc-plates-price').value) || 0;
@@ -4788,6 +4803,7 @@
                         machineRate: gv('calc-machine-rate'),
                         machineSpeed: gv('calc-machine-speed'),
                         machinePrepTime: gv('calc-machine-prep-time'),
+                        machinePasses: gv('calc-machine-passes'),
                         colorFront: gv('calc-color-front'),
                         colorBack: gv('calc-color-back'),
                         isObrat: gc('calc-is-obrat'),
@@ -4913,6 +4929,7 @@
                         machineRate: gv('calc-machine-rate'),
                         machineSpeed: gv('calc-machine-speed'),
                         machinePrepTime: gv('calc-machine-prep-time'),
+                        machinePasses: gv('calc-machine-passes'),
                         colorFront: gv('calc-color-front'),
                         colorBack: gv('calc-color-back'),
                         isObrat: gc('calc-is-obrat'),
@@ -5370,6 +5387,7 @@
                 if (inp.machineRate !== undefined) setV('calc-machine-rate', inp.machineRate);
                 if (inp.machineSpeed !== undefined) setV('calc-machine-speed', inp.machineSpeed);
                 if (inp.machinePrepTime !== undefined) setV('calc-machine-prep-time', inp.machinePrepTime);
+                if (inp.machinePasses !== undefined) setV('calc-machine-passes', inp.machinePasses);
                 if (inp.colorFront !== undefined) setV('calc-color-front', inp.colorFront);
                 if (inp.colorBack !== undefined) setV('calc-color-back', inp.colorBack);
                 if (inp.isObrat !== undefined) setV('calc-is-obrat', inp.isObrat, true);
@@ -5599,6 +5617,7 @@
                         machineRate: document.getElementById('calc-machine-rate').value,
                         machineSpeed: document.getElementById('calc-machine-speed').value,
                         machinePrepTime: document.getElementById('calc-machine-prep-time').value,
+                        machinePasses: document.getElementById('calc-machine-passes') ? document.getElementById('calc-machine-passes').value : 'auto',
                         colorFront: document.getElementById('calc-color-front').value,
                         colorBack: document.getElementById('calc-color-back').value,
                         isObrat: document.getElementById('calc-is-obrat').checked,
@@ -6278,6 +6297,15 @@
             let colorMode = front + '/' + (isObrat ? 'OB' : back);
             let rule = prepRules[colorMode] || { passes: prepPasses };
             let mPasses = rule.passes;
+            const manualPassesSelect = document.getElementById('calc-machine-passes');
+            if (manualPassesSelect && manualPassesSelect.value !== 'auto') {
+                const pVal = parseInt(manualPassesSelect.value);
+                if (pVal === 1) tiskMode = "1 prehod (ročno)";
+                else if (pVal === 2) tiskMode = "2 prehoda (ročno)";
+                else if (pVal === 3) tiskMode = "3 prehodi (ročno)";
+                else if (pVal === 4) tiskMode = "4 prehodi (ročno)";
+                mPasses = pVal;
+            }
             let sourceW = d.paper.sourceW || 0;
             let sourceH = d.paper.sourceH || 0;
             let resSizeTxt = document.getElementById('res-size') ? document.getElementById('res-size').innerText.split('x') : [];
