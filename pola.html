@@ -744,17 +744,23 @@
                             <option value="auto">Samodejno (B2 max)</option>
                             <option value="B1">B1 (1000 x 700 mm)</option>
                             <option value="A1">A1 (841 x 594 mm)</option>
+                            <option value="900x640">900x640 (900 x 640 mm)</option>
                             <option value="B2">B2 (698 x 498 mm)</option>
+                            <option value="640x450">640x450 (640 x 450 mm)</option>
                             <option value="6 iz B1">6 iz B1 (349 x 332 mm)</option>
                             <option value="638x448">Izrez (638 x 448 mm)</option>
                             <option value="B3">B3 (498 x 348 mm)</option>
                             <option value="Riba">Riba (698 x 332 mm)</option>
+                            <option value="640x300">640x300 (640 x 300 mm)</option>
+                            <option value="450x320">450x320 (450 x 320 mm)</option>
                             <option value="498x232">Izrez (498 x 232 mm)</option>
                             <option value="B4">B4 (348 x 248 mm)</option>
                             <option value="A2">A2 (592 x 418 mm)</option>
                             <option value="A3">A3 (418 x 295 mm)</option>
                             <option value="SRA3">SRA3 (448 x 318 mm)</option>
                             <option value="A4">A4 (295 x 208 mm)</option>
+                            <option value="320x300">320x300 (320 x 300 mm)</option>
+                            <option value="320x225">320x225 (320 x 225 mm)</option>
                             <option value="Digital (480x320)">Digital (480 x 320 mm)</option>
                         </select>
                     </div>
@@ -2017,21 +2023,49 @@
                 }
             }
         }
+        function getPaperFamily(sw, sh) {
+            const maxS = Math.max(sw, sh);
+            const minS = Math.min(sw, sh);
+            if ((maxS >= 950 && maxS <= 1080 && minS >= 660 && minS <= 740) ||
+                (maxS >= 660 && maxS <= 740 && minS >= 460 && minS <= 540)) {
+                return 'B';
+            }
+            if ((maxS >= 870 && maxS <= 940 && minS >= 610 && minS <= 670) ||
+                (maxS >= 610 && maxS <= 670 && minS >= 420 && minS <= 470)) {
+                return 'N';
+            }
+            if ((maxS >= 800 && maxS <= 870 && minS >= 570 && minS <= 610) ||
+                (maxS >= 570 && maxS <= 610 && minS >= 400 && minS <= 430)) {
+                return 'A';
+            }
+            return 'OTHER';
+        }
+        function isSheetFamilyMatching(rawFamily, sheetFamily) {
+            if (sheetFamily === 'DIGITAL') return true;
+            if (rawFamily === 'OTHER') return true;
+            return rawFamily === sheetFamily;
+        }
         const sheets = [
-            { name: "B1", w: 1000, h: 700 },
-            { name: "A1", w: 841, h: 594 },
-            { name: "B2", w: 698, h: 498 },
-            { name: "6 iz B1", w: 349, h: 332 },
-            { name: "638x448", w: 638, h: 448 },
-            { name: "B3", w: 498, h: 348 },
-            { name: "Riba", w: 698, h: 332 },
-            { name: "498x232", w: 498, h: 232 },
-            { name: "B4", w: 348, h: 248 },
-            { name: "A2", w: 592, h: 418 },
-            { name: "A3", w: 418, h: 295 },
-            { name: "SRA3", w: 448, h: 318 },
-            { name: "A4", w: 295, h: 208 },
-            { name: "Digital (480x320)", w: 480, h: 320 }
+            { name: "B1", w: 1000, h: 700, family: "B" },
+            { name: "A1", w: 841, h: 594, family: "A" },
+            { name: "900x640", w: 900, h: 640, family: "N" },
+            { name: "B2", w: 698, h: 498, family: "B" },
+            { name: "640x450", w: 640, h: 450, family: "N" },
+            { name: "6 iz B1", w: 349, h: 332, family: "B" },
+            { name: "638x448", w: 638, h: 448, family: "B" },
+            { name: "B3", w: 498, h: 348, family: "B" },
+            { name: "Riba", w: 698, h: 332, family: "B" },
+            { name: "640x300", w: 640, h: 300, family: "N" },
+            { name: "450x320", w: 450, h: 320, family: "N" },
+            { name: "498x232", w: 498, h: 232, family: "B" },
+            { name: "B4", w: 348, h: 248, family: "B" },
+            { name: "A2", w: 592, h: 418, family: "A" },
+            { name: "A3", w: 418, h: 295, family: "A" },
+            { name: "SRA3", w: 448, h: 318, family: "A" },
+            { name: "A4", w: 295, h: 208, family: "A" },
+            { name: "320x300", w: 320, h: 300, family: "N" },
+            { name: "320x225", w: 320, h: 225, family: "N" },
+            { name: "Digital (480x320)", w: 480, h: 320, family: "DIGITAL" }
         ];
         const prepRules = {
             '0/0': { passes: 0, wasteImpressions: 0 },
@@ -2143,6 +2177,7 @@
             const options = select.options;
             const mType = document.getElementById('calc-machine-type').value;
             const profile = machineProfiles[mType];
+            const rawFamily = getPaperFamily(sw, sh);
             for (let i = 0; i < options.length; i++) {
                 const val = options[i].value;
                 if (val === 'auto') continue;
@@ -2153,7 +2188,8 @@
                     if (profile && profile.maxW) {
                         fitsMachine = (sheet.w <= profile.maxW && sheet.h <= profile.maxH) || (sheet.h <= profile.maxW && sheet.w <= profile.maxH);
                     }
-                    const fits = fitsSource && fitsMachine;
+                    let familyMatches = isSheetFamilyMatching(rawFamily, sheet.family);
+                    const fits = fitsSource && fitsMachine && familyMatches;
                     options[i].disabled = !fits;
                     if (!fits && select.value === val) select.value = 'auto';
                 }
@@ -2181,7 +2217,7 @@
             let isB2Sheet = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698);
             let maxSheetDim = Math.max(sheetW, sheetH);
             let mType = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
-            let cutFactor = (isPers && (maxSheetDim > 460 || mType === 'S8')) ? 2 : 1;
+            let cutFactor = (isPers && (maxSheetDim > 480 || Math.min(sheetW, sheetH) > 320 || mType === 'S8')) ? 2 : 1;
             let cutAxis = sheetW >= sheetH ? 'W' : 'H';
             let best = null;
             const baseConfigs = [
@@ -2191,13 +2227,22 @@
             baseConfigs.forEach(cfg => {
                 let usableW = cfg.edge === 'W' ? sheetW - gripper : sheetW;
                 let usableH = cfg.edge === 'H' ? sheetH - gripper : sheetH;
+                if (mType === 'digital') {
+                    if (sheetW >= sheetH) {
+                        usableW = Math.min(usableW, 470);
+                        usableH = Math.min(usableH, 310);
+                    } else {
+                        usableW = Math.min(usableW, 310);
+                        usableH = Math.min(usableH, 470);
+                    }
+                }
                 if (usableW <= 0 || usableH <= 0) return;
                 let cols = Math.floor(usableW / cfg.iw);
                 let rows = Math.floor(usableH / cfg.ih);
                 if (cutFactor === 2) {
                     if (isB2Sheet) {
-                        let halfW = cutAxis === 'W' ? 318 : 448;
-                        let halfH = cutAxis === 'W' ? 448 : 318;
+                        let halfW = cutAxis === 'W' ? 320 : 480;
+                        let halfH = cutAxis === 'W' ? 480 : 320;
                         let halfUsableW = cfg.edge === 'W' ? halfW - gripper : halfW;
                         let halfUsableH = cfg.edge === 'H' ? halfH - gripper : halfH;
                         let halfCols = Math.floor(halfUsableW / cfg.iw);
@@ -2370,13 +2415,15 @@
                         cols: 1, rows: g_manualLayout.items.length, rot: false, isMixed: true, gripEdge: 'H', itemW: 0, itemH: 0
                     };
                 } else {
+                    const rawFamily = getPaperFamily(sw, sh);
                     const checkSheet = (s) => {
                         let fitsSource = (sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w);
                         let fitsMachine = true;
                         if (profile && profile.maxW) {
                             fitsMachine = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
                         }
-                        if (!fitsSource || !fitsMachine) return;
+                        let familyMatches = isSheetFamilyMatching(rawFamily, s.family);
+                        if (!fitsSource || !fitsMachine || !familyMatches) return;
                         let currLayout = optimizeLayout(s.w, s.h, itemW, itemH, g, fMode);
                         if (!currLayout) return;
                         const y1 = Math.floor(sw / s.w) * Math.floor(sh / s.h);
@@ -2384,7 +2431,7 @@
                         const sYield = Math.max(y1, y2, 1);
                         let score;
                         let isSatisfied = (targetCount > 0 && currLayout.count >= targetCount);
-                        const isStandard = s.name.startsWith('B') || s.name.startsWith('A') || s.name.startsWith('SRA') || s.name.startsWith('Digital');
+                        const isStandard = s.family === 'B' || s.family === 'A' || s.family === 'N' || s.family === 'DIGITAL';
                         const standardBonus = isStandard ? 10000000 : 0;
                         const standardBonusNormal = isStandard ? 500 : 0;
 
@@ -3453,7 +3500,7 @@
                 let currentSheetW = g_lastSheetW || 0;
                 let currentSheetH = g_lastSheetH || 0;
                 let maxSheetDim = Math.max(currentSheetW, currentSheetH);
-                let digCutFactor = (maxSheetDim > 460 || mType === 'S8') ? 2 : 1;
+                let digCutFactor = (maxSheetDim > 480 || Math.min(currentSheetW, currentSheetH) > 320 || mType === 'S8') ? 2 : 1;
                 let pCost = (sheetsNeeded * digCutFactor * pMultiplier) * (parseFloat(document.getElementById('f-personalization-price').value.replace(',', '.')) || 0);
                 
                 let extraCost = 0;
@@ -3725,7 +3772,7 @@
                 let currentSheetW = g_lastSheetW || 0;
                 let currentSheetH = g_lastSheetH || 0;
                 let maxSheetDim = Math.max(currentSheetW, currentSheetH);
-                let digCutFactor = (maxSheetDim > 460 || mType === 'S8') ? 2 : 1;
+                let digCutFactor = (maxSheetDim > 480 || Math.min(currentSheetW, currentSheetH) > 320 || mType === 'S8') ? 2 : 1;
                 let pMultiplier = isBothSides ? 2 : 1;
                 let pDigitalSheets = sheetsNeeded * digCutFactor;
                 let pTotalImpressions = pDigitalSheets * pMultiplier;
@@ -3736,7 +3783,7 @@
                 let extraCost = 0;
                 let isB2Sheet = (currentSheetW === 698 && currentSheetH === 498) || (currentSheetW === 498 && currentSheetH === 698);
                 if (isB2Sheet) {
-                    // Razrez B2 (698x498) na 2 poli 318x448 za personalizacijo
+                    // Razrez B2 (698x498) na 2 poli 480x320 za personalizacijo
                     let razrezSheets = totalSheetsNeeded * 2; // Vsaka polo se razreže na 2
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
@@ -3744,21 +3791,22 @@
                     autoCutSpeed = Math.round(autoCutSpeed);
                     let razrezCost = (razrezSheets / autoCutSpeed) * 30.00;
                     extraCost += razrezCost;
-                    breakdownText += ` | Razrez B2->2x(318x448): ${formatPrice(razrezCost)}`;
+                    breakdownText += ` | Razrez B2->2x(480x320): ${formatPrice(razrezCost)}`;
                     // Dodaj opozorilo
                     if (!window.g_personalizationCutWarningShown) {
-                        console.warn('?? PERSONALIZACIJA: B2 polo (698x498) bo razrezana na 2 poli 318x448 za personalizacijo!');
+                        console.warn('?? PERSONALIZACIJA: B2 polo (698x498) bo razrezana na 2 poli 480x320 za personalizacijo!');
                         window.g_personalizationCutWarningShown = true;
                     }
                 } else if (mType === 'S8') {
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
                     else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
+                    autoCutSpeed = Math.round(autoCutSpeed);
                     let cutCost = (totalSheetsNeeded / autoCutSpeed) * 30.00;
                     extraCost += cutCost;
                     breakdownText += ` | Dodaten razrez na pol: ${formatPrice(cutCost)}`;
                 }
-                let nameSuffix = isB2Sheet ? ' (B2->2x 318x448)' : (mType === 'S8' ? ' (Digitalni format - S8)' : '');
+                let nameSuffix = isB2Sheet ? ' (B2->2x 480x320)' : (mType === 'S8' ? ' (Digitalni format - S8)' : '');
                 if (isBothSides) nameSuffix = ' (Obojestransko)' + (isB2Sheet ? ' B2->2x' : '');
                 details.finish.items.push({
                     name: 'Personalizacija' + nameSuffix + sidesText,
@@ -6516,9 +6564,9 @@
                 let persSidesSelect = document.getElementById('f-personalization-sides');
                 let persSidesText = persSidesSelect ? persSidesSelect.value : '1/0';
                 let maxSheetDim = Math.max(sheetW, sheetH);
-                let digCutFactor = (maxSheetDim > 460 || (d && d.print && d.print.mType === 'S8')) ? 2 : 1;
+                let digCutFactor = (maxSheetDim > 480 || Math.min(sheetW, sheetH) > 320 || (d && d.print && d.print.mType === 'S8')) ? 2 : 1;
                 let digSheets = calcRes.sheetsNeeded * digCutFactor;
-                let digFormatDetail = (digCutFactor === 2) ? ' 44,8 x 31,8 cm' : '';
+                let digFormatDetail = (digCutFactor === 2) ? ' 48 x 32 cm' : '';
                 let persQtyStr = `${persSidesText} ${digSheets.toLocaleString('de-DE')} pol${digFormatDetail}`;
                 finishingRowsHtml += `
                     <tr>
@@ -7300,6 +7348,7 @@
             // Pripravi HTML
             const sheetW = g_lastSheetW || 1000;
             const sheetH = g_lastSheetH || 700;
+            const machineName = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
             // Nastavi CSS in vsebino. Za tisk bomo naštimali, da se polje prilagodi strani
             const html = `
                 <html>
@@ -7369,7 +7418,7 @@
 </style>
             </head>
                 <body>
-                    <h2>Montažni list (Osnovni format: \${sheetW} x \${sheetH} mm, Elementi: \${m_items.length})</h2>
+                    <h2>Montažni list (Stroj: \${machineName}, Osnovni format: \${sheetW} x \${sheetH} mm, Elementi: \${m_items.length})</h2>
                     <div class="print-wrapper">
                         \${container.outerHTML}
                     </div>

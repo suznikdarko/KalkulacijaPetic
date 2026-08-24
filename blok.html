@@ -2081,7 +2081,7 @@
                 }
             });
 
-            function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceOrientation = 'auto') {
+            function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceOrientation = 'auto', isDigital = false) {
                 let count1 = 0, count2 = 0, count3 = 0, count4 = 0;
                 let cols1 = 0, rows1 = 0, cols2 = 0, rows2 = 0;
                 let cols3 = 0, rows3 = 0, cols4 = 0, rows4 = 0;
@@ -2089,13 +2089,17 @@
                 // 1 & 2: Prijemalec je vzdolž sheetH strani (zmanjša sheetW).
                 if (sheetH >= sheetW) {
                     if (forceOrientation === 'auto' || forceOrientation === 'landscape') {
-                        cols1 = Math.max(0, Math.floor((sheetW - gripper) / itemW));
-                        rows1 = Math.max(0, Math.floor(sheetH / itemH));
+                        let printW = Math.min(sheetW - gripper, isDigital ? 310 : sheetW - gripper);
+                        let printH = Math.min(sheetH, isDigital ? 470 : sheetH);
+                        cols1 = Math.max(0, Math.floor(printW / itemW));
+                        rows1 = Math.max(0, Math.floor(printH / itemH));
                         count1 = cols1 * rows1;
                     }
                     if (forceOrientation === 'auto' || forceOrientation === 'portrait') {
-                        cols2 = Math.max(0, Math.floor((sheetW - gripper) / itemH));
-                        rows2 = Math.max(0, Math.floor(sheetH / itemW));
+                        let printW = Math.min(sheetW - gripper, isDigital ? 310 : sheetW - gripper);
+                        let printH = Math.min(sheetH, isDigital ? 470 : sheetH);
+                        cols2 = Math.max(0, Math.floor(printW / itemH));
+                        rows2 = Math.max(0, Math.floor(printH / itemW));
                         count2 = cols2 * rows2;
                     }
                 }
@@ -2103,13 +2107,17 @@
                 // 3 & 4: Prijemalec je vzdolž sheetW strani (zmanjša sheetH).
                 if (sheetW >= sheetH) {
                     if (forceOrientation === 'auto' || forceOrientation === 'landscape') {
-                        cols3 = Math.max(0, Math.floor(sheetW / itemW));
-                        rows3 = Math.max(0, Math.floor((sheetH - gripper) / itemH));
+                        let printW = Math.min(sheetW, isDigital ? 470 : sheetW);
+                        let printH = Math.min(sheetH - gripper, isDigital ? 310 : sheetH - gripper);
+                        cols3 = Math.max(0, Math.floor(printW / itemW));
+                        rows3 = Math.max(0, Math.floor(printH / itemH));
                         count3 = cols3 * rows3;
                     }
                     if (forceOrientation === 'auto' || forceOrientation === 'portrait') {
-                        cols4 = Math.max(0, Math.floor(sheetW / itemH));
-                        rows4 = Math.max(0, Math.floor((sheetH - gripper) / itemW));
+                        let printW = Math.min(sheetW, isDigital ? 470 : sheetW);
+                        let printH = Math.min(sheetH - gripper, isDigital ? 310 : sheetH - gripper);
+                        cols4 = Math.max(0, Math.floor(printW / itemH));
+                        rows4 = Math.max(0, Math.floor(printH / itemW));
                         count4 = cols4 * rows4;
                     }
                 }
@@ -2227,8 +2235,8 @@
                         let fitsSource = (sw >= sheet.w && sh >= sheet.h) || (sw >= sheet.h && sh >= sheet.w);
                         if (!fitsSource) return;
 
-                        let layout1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode);
-                        let layout2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode);
+                        let layout1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode, mTypeL === 'digital');
+                        let layout2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode, mTypeL === 'digital');
 
                         let bestForThisSheet = null;
                         let mode = 'L';
@@ -2400,8 +2408,8 @@
                         let fitsSource = (swc >= sheet.w && shc >= sheet.h) || (swc >= sheet.h && shc >= sheet.w);
                         if (!fitsSource) return;
 
-                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeCover);
-                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeCover);
+                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital');
+                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital');
 
                         let bL = null, bM = 'L';
                         if (l1 && l2) {
@@ -4034,6 +4042,8 @@
                     paperCover: document.getElementById('calc-cover-desc').value || '/',
                     tiskLeaves: (document.getElementById('calc-color-front-leaves').value || '0') + "/" + (document.getElementById('calc-color-back-leaves').value || '0'),
                     tiskCover: (document.getElementById('calc-color-front-cover').value || '0') + "/" + (document.getElementById('calc-color-back-cover').value || '0'),
+                    mTypeL: document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : 'S4',
+                    mTypeC: document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : 'S4',
                     options: [],
                     quantities: []
                 };
@@ -5769,6 +5779,8 @@
                         paperCover: paperCover,
                         tiskLeaves: tiskLeaves,
                         tiskCover: tiskCover,
+                        mTypeL: document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : 'S4',
+                        mTypeC: document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : 'S4',
                         finishingText: finishing,
                         quantities: quantities
                     });
@@ -5809,6 +5821,7 @@
                                     <div class="info-item"><strong>Obseg:</strong> ${item.extentText}</div>
                                     <div class="info-item"><strong>Papir:</strong> ${item.paperLeaves}</div>
                                     <div class="info-item"><strong>Tisk:</strong> ${item.tiskLeaves}</div>
+                                    <div class="info-item"><strong>Stroj:</strong> ${item.mTypeL || '/'}</div>
                                 </div>
                                 ${canvasImages.leaves ? `<div class="schema-box"><img src="${canvasImages.leaves}"></div>` : ''}
                             </div>
@@ -5819,6 +5832,7 @@
                                     <div class="info-item"><strong>Format:</strong> ${item.formatCover} mm</div>
                                     <div class="info-item"><strong>Papir:</strong> ${item.paperCover}</div>
                                     <div class="info-item"><strong>Tisk:</strong> ${item.tiskCover}</div>
+                                    <div class="info-item"><strong>Stroj:</strong> ${item.mTypeC || '/'}</div>
                                 </div>
                                 ${canvasImages.cover ? `<div class="schema-box"><img src="${canvasImages.cover}"></div>` : ''}
                             </div>

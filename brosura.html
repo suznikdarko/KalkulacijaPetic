@@ -3964,7 +3964,7 @@
 
 
 
-            function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceOrientation = 'auto') {
+            function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceOrientation = 'auto', isDigital = false) {
 
                 let bestLayout = null;
 
@@ -3990,9 +3990,31 @@
 
                 const check = (sW, sH, iW, iH, gripOnW, rot) => {
 
-                    let cols = Math.floor((sW - (gripOnW ? gripper : 0)) / iW);
+                    let printW = sW - (gripOnW ? gripper : 0);
 
-                    let rows = Math.floor((sH - (gripOnW ? 0 : gripper)) / iH);
+                    let printH = sH - (gripOnW ? 0 : gripper);
+
+                    if (isDigital) {
+
+                        if (sW >= sH) {
+
+                            printW = Math.min(printW, 470);
+
+                            printH = Math.min(printH, 310);
+
+                        } else {
+
+                            printW = Math.min(printW, 310);
+
+                            printH = Math.min(printH, 470);
+
+                        }
+
+                    }
+
+                    let cols = Math.floor(printW / iW);
+
+                    let rows = Math.floor(printH / iH);
 
                     if (cols < 0) cols = 0;
 
@@ -4107,8 +4129,8 @@
 
                             let fitsObratL = true;
                             if (isObratL && itemW > 0 && itemH > 0) {
-                                let l1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode);
-                                let l2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode);
+                                let l1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode, mType === 'digital');
+                                let l2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode, mType === 'digital');
                                 let maxCount = Math.max(l1 ? l1.count : 0, l2 ? l2.count : 0);
                                 let evenCount = Math.floor(maxCount / 2) * 2;
                                 if (evenCount < 2) fitsObratL = false;
@@ -4183,8 +4205,8 @@
 
                             let fitsObrat = true;
                             if (isObratC && cItemW > 0 && cItemH > 0) {
-                                let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeC);
-                                let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeC);
+                                let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeC, mTypeCover === 'digital');
+                                let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeC, mTypeCover === 'digital');
                                 let count1 = l1 ? l1.count : 0;
                                 let count2 = l2 ? l2.count : 0;
                                 let maxCount = Math.max(count1, count2);
@@ -4333,9 +4355,9 @@
 
 
 
-                        let layout1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode);
+                        let layout1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode, mTypeL === 'digital');
 
-                        let layout2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode);
+                        let layout2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode, mTypeL === 'digital');
 
 
 
@@ -4705,9 +4727,9 @@
 
 
 
-                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeC);
+                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeC, mTypeC === 'digital');
 
-                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeC);
+                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeC, mTypeC === 'digital');
 
                         let bL = null, bM = 'L';
 
@@ -7693,6 +7715,10 @@
                     tiskCover: getTiskDescription('cover'),
 
                     coverPages: document.getElementById('calc-cover-pages').value || '4',
+
+                    mTypeL: document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : 'S4',
+
+                    mTypeC: document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : 'S4',
 
                     options: [],
 
@@ -10760,6 +10786,10 @@
 
                         tiskCover: tiskCover,
 
+                        mTypeL: document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : 'S4',
+
+                        mTypeC: document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : 'S4',
+
                         finishingText: finishing,
 
                         quantities: quantities
@@ -10848,6 +10878,8 @@
 
                                     <div class="info-item"><strong>Tisk:</strong> ${item.tiskLeaves}</div>
 
+                                    <div class="info-item"><strong>Stroj:</strong> ${item.mTypeL || '/'}</div>
+
                                 </div>
 
                                 ${canvasImages.leaves ? `<div class="schema-box"><img src="${canvasImages.leaves}"></div>` : ''}
@@ -10867,6 +10899,8 @@
                                     <div class="info-item"><strong>Papir:</strong> ${item.paperCover}</div>
 
                                     <div class="info-item"><strong>Tisk:</strong> ${item.tiskCover}</div>
+
+                                    <div class="info-item"><strong>Stroj:</strong> ${item.mTypeC || '/'}</div>
 
                                 </div>
 
