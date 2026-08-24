@@ -1349,7 +1349,7 @@
                         <!-- Razrez materiala - PREMAKNJENO NA VRH -->
                         <!-- UV tuja usluga -->
                         <div class="finish-item" id="row-finish-uv"
-                            style="display: grid; grid-template-columns: 120px 1.2fr 1fr 1fr 1fr 1fr; gap: 0.4rem; align-items: center;">
+                            style="display: grid; grid-template-columns: 110px 1.2fr 0.7fr 1fr 1fr 1fr 1fr; gap: 0.4rem; align-items: center;">
                             <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; margin: 0;">
                                 <input type="checkbox" id="f-uv-active" onchange="toggleFinishRow('uv')">
                                 UV lak (tuja)
@@ -1366,6 +1366,14 @@
                                     <option value="blescice">Bleščice 10%</option>
                                     <option value="rubl_sij">Rubl + Sij lak</option>
                                     <option value="rubl_mat">Rubl + Mat lak</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label><small>Strani</small></label>
+                                <select id="f-uv-sides" onchange="calculatePrice()"
+                                    style="padding: 0.2rem; font-size: 0.75rem;">
+                                    <option value="1/0" selected>1/0</option>
+                                    <option value="1/1">1/1</option>
                                 </select>
                             </div>
                             <div class="form-group" style="margin:0;">
@@ -1801,7 +1809,11 @@
             if (isChecked('f-extra-active')) list.push('Ročno delo');
             if (isChecked('f-tool-active')) list.push('Orodje');
             if (isChecked('f-zasek-grafotehna-active')) list.push('Zasek-Grafotehna');
-            if (isChecked('f-uv-active')) list.push('UV lak');
+            if (isChecked('f-uv-active')) {
+                const uvSidesEl = document.getElementById('f-uv-sides');
+                const uvSides = uvSidesEl ? uvSidesEl.value : '1/0';
+                list.push(`UV lak (${uvSides})`);
+            }
             if (isChecked('f-personalization-active')) {
                 const persSidesEl = document.getElementById('f-personalization-sides');
                 const persSides = persSidesEl ? persSidesEl.value : '1/0';
@@ -3423,7 +3435,9 @@
                 let pricePerSheet = uP1000 / 1000;
                 let extraWaste = parseFloat(document.getElementById('f-uv-extra-waste').value.replace(',', '.')) || 0;
                 let uvSheetsCalculated = sheetsNeeded + extraWaste;
-                totalFinishCost += uPrep + (uvSheetsCalculated * pricePerSheet);
+                let uvSides = document.getElementById('f-uv-sides') ? document.getElementById('f-uv-sides').value : '1/0';
+                let uvMultiplier = (uvSides === '1/1') ? 2 : 1;
+                totalFinishCost += uPrep + (uvSheetsCalculated * pricePerSheet * uvMultiplier);
             }
             if (document.getElementById('f-personalization-active') && document.getElementById('f-personalization-active').checked) {
                 let persSidesVal = document.getElementById('f-personalization-sides') ? document.getElementById('f-personalization-sides').value : '1/0';
@@ -3679,12 +3693,21 @@
                 let pricePerSheet = uP1000 / 1000;
                 let extraWaste = parseFloat(document.getElementById('f-uv-extra-waste').value.replace(',', '.')) || 0;
                 let uvSheetsCalculated = sheetsNeeded + extraWaste;
-                let uWork = uvSheetsCalculated * pricePerSheet;
-                let uCost = uPrep + uWork;
+                let uvSides = document.getElementById('f-uv-sides') ? document.getElementById('f-uv-sides').value : '1/0';
+                let uvMultiplier = (uvSides === '1/1') ? 2 : 1;
+                let uWorkTotal = uvSheetsCalculated * pricePerSheet * uvMultiplier;
+                let uCost = uPrep + uWorkTotal;
+                
+                let breakdownText = `Priprava: ${formatPrice(uPrep)} | Delo: ${sheetsNeeded} (neto) + ${extraWaste} (tiskar) = ${uvSheetsCalculated.toFixed(0)} pol po ${pricePerSheet.toFixed(3)} €`;
+                if (uvMultiplier > 1) {
+                    breakdownText += ` x 2 (obojestransko)`;
+                }
+                breakdownText += ` = ${formatPrice(uWorkTotal)}`;
+
                 details.finish.items.push({
-                    name: 'UV lak (tuja)',
+                    name: 'UV lak (tuja) ' + uvSides,
                     cost: uCost,
-                    breakdown: `Priprava: ${formatPrice(uPrep)} | Delo: ${sheetsNeeded} (neto) + ${extraWaste} (tiskar) = ${uvSheetsCalculated.toFixed(0)} pol po ${pricePerSheet.toFixed(3)} € (${formatPrice(uWork)})`
+                    breakdown: breakdownText
                 });
             }
             if (document.getElementById('f-personalization-active') && document.getElementById('f-personalization-active').checked) {
@@ -4813,7 +4836,7 @@
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
                             zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
                             zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
-                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type') },
                             personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price') },
                             lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
                             delivery: { active: gc('f-delivery-active'), count: gv('f-post-count'), pricePer: gv('f-post-price-per') },
@@ -4939,7 +4962,7 @@
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
                             zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
                             zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
-                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type') },
                             personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price') },
                             lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
                             delivery: { active: gc('f-delivery-active'), count: gv('f-post-count'), pricePer: gv('f-post-price-per') },
@@ -5484,6 +5507,8 @@
                         setV('f-uv-active', uvItem.active, true);
                         if (uvItem.prep !== undefined) setV('f-uv-prep', uvItem.prep);
                         if (uvItem.per1000 !== undefined) setV('f-uv-per1000', uvItem.per1000);
+                        if (uvItem.sides !== undefined) setV('f-uv-sides', uvItem.sides);
+                        if (uvItem.type !== undefined) setV('f-uv-type', uvItem.type);
                         toggleFinishRow('uv');
                     }
 
@@ -5623,7 +5648,7 @@
                             tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
                             zasekGrafotehna: { active: document.getElementById('f-zasek-grafotehna-active') ? document.getElementById('f-zasek-grafotehna-active').checked : false, price: document.getElementById('f-zasek-grafotehna-price') ? document.getElementById('f-zasek-grafotehna-price').value : 0.05 },
                             zasek: { active: document.getElementById('f-zasek-grafotehna-active') ? document.getElementById('f-zasek-grafotehna-active').checked : false, price: document.getElementById('f-zasek-grafotehna-price') ? document.getElementById('f-zasek-grafotehna-price').value : 0.05 },
-                            uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
+                            uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value, sides: document.getElementById('f-uv-sides') ? document.getElementById('f-uv-sides').value : '1/0', type: document.getElementById('f-uv-type') ? document.getElementById('f-uv-type').value : 'manual' },
                             personalization: { active: document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false, price: document.getElementById('f-personalization-price') ? document.getElementById('f-personalization-price').value : 0.03 },
                             lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type') ? document.getElementById('f-lam-type').value : '', sides: document.getElementById('f-lam-sides') ? document.getElementById('f-lam-sides').value : 1, per1000: document.getElementById('f-lam-per1000') ? document.getElementById('f-lam-per1000').value : 0, prep: document.getElementById('f-lam-prep') ? document.getElementById('f-lam-prep').value : 0 },
                             delivery: { active: document.getElementById('f-delivery-active').checked, count: document.getElementById('f-post-count').value, pricePer: document.getElementById('f-post-price-per').value },
@@ -6468,10 +6493,14 @@
                     </tr>`;
             }
             if (isChecked('f-uv-active')) {
+                let uvSidesSelect = document.getElementById('f-uv-sides');
+                let uvSidesText = uvSidesSelect ? uvSidesSelect.value : '1/0';
+                let uvTypeSelect = document.getElementById('f-uv-type');
+                let uvTypeText = uvTypeSelect ? uvTypeSelect.options[uvTypeSelect.selectedIndex].text : '';
                 finishingRowsHtml += `
                     <tr>
                         <td style="width: 15%;">UV lak (tuja):</td>
-                        <td style="width: 35%;"></td>
+                        <td style="width: 35%;" class="bold">${uvTypeText} (${uvSidesText})</td>
                         <td style="width: 50%; text-align: right;" class="bold">/</td>
                     </tr>`;
             }
