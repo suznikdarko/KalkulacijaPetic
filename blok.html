@@ -746,32 +746,44 @@
                     <select id="machine-format"
                         onchange="document.getElementById('items-per-sheet').value=''; document.getElementById('items-per-sheet-cover').value=''; calculate()">
                         <option value="auto">Samodejno (B2 max)</option>
+                        <option value="900x640">900x640 (900 x 640 mm)</option>
                         <option value="B2">B2 (698 x 498 mm)</option>
+                        <option value="640x450">640x450 (640 x 450 mm)</option>
                         <option value="638x448">Izrez (638 x 448 mm)</option>
                         <option value="B3">B3 (498 x 348 mm)</option>
                         <option value="Riba">Riba (698 x 332 mm)</option>
+                        <option value="640x300">640x300 (640 x 300 mm)</option>
+                        <option value="450x320">450x320 (450 x 320 mm)</option>
                         <option value="498x232">Izrez (498 x 232 mm)</option>
                         <option value="B4">B4 (348 x 248 mm)</option>
                         <option value="A2">A2 (592 x 418 mm)</option>
                         <option value="A3">A3 (418 x 295 mm)</option>
                         <option value="SRA3">SRA3 (448 x 318 mm)</option>
                         <option value="A4">A4 (295 x 208 mm)</option>
+                        <option value="320x300">320x300 (320 x 300 mm)</option>
+                        <option value="320x225">320x225 (320 x 225 mm)</option>
                         <option value="Digital (480x320)">Digital (480 x 320 mm)</option>
                     </select>
                     <label style="margin-top: 0.8rem; display: block;">Format tiskarske pole ovitek</label>
                     <select id="machine-format-cover"
                         onchange="const el = document.getElementById('items-per-sheet-cover'); if(el) el.value=''; calculate()">
                         <option value="auto">Samodejno (B2 max)</option>
+                        <option value="900x640">900x640 (900 x 640 mm)</option>
                         <option value="B2">B2 (698 x 498 mm)</option>
+                        <option value="640x450">640x450 (640 x 450 mm)</option>
                         <option value="638x448">Izrez (638 x 448 mm)</option>
                         <option value="B3">B3 (498 x 348 mm)</option>
                         <option value="Riba">Riba (698 x 332 mm)</option>
+                        <option value="640x300">640x300 (640 x 300 mm)</option>
+                        <option value="450x320">450x320 (450 x 320 mm)</option>
                         <option value="498x232">Izrez (498 x 232 mm)</option>
                         <option value="B4">B4 (348 x 248 mm)</option>
                         <option value="A2">A2 (592 x 418 mm)</option>
                         <option value="A3">A3 (418 x 295 mm)</option>
                         <option value="SRA3">SRA3 (448 x 318 mm)</option>
                         <option value="A4">A4 (295 x 208 mm)</option>
+                        <option value="320x300">320x300 (320 x 300 mm)</option>
+                        <option value="320x225">320x225 (320 x 225 mm)</option>
                         <option value="Digital (480x320)">Digital (480 x 320 mm)</option>
                     </select>
                 </div>
@@ -1914,19 +1926,51 @@
                 }
             }
 
+            function getPaperFamily(sw, sh) {
+                const maxS = Math.max(sw, sh);
+                const minS = Math.min(sw, sh);
+                if ((maxS >= 950 && maxS <= 1080 && minS >= 660 && minS <= 740) ||
+                    (maxS >= 660 && maxS <= 740 && minS >= 460 && minS <= 540)) {
+                    return 'B';
+                }
+                if ((maxS >= 870 && maxS <= 940 && minS >= 610 && minS <= 670) ||
+                    (maxS >= 610 && maxS <= 670 && minS >= 420 && minS <= 470)) {
+                    return 'N';
+                }
+                if ((maxS >= 800 && maxS <= 870 && minS >= 570 && minS <= 610) ||
+                    (maxS >= 570 && maxS <= 610 && minS >= 400 && minS <= 430)) {
+                    return 'A';
+                }
+                return 'OTHER';
+            }
+            function isSheetFamilyMatching(rawFamily, sheetFamily, mType = '') {
+                if (sheetFamily === 'DIGITAL') return mType === 'digital';
+                if (rawFamily === 'OTHER') return true;
+                return rawFamily === sheetFamily;
+            }
+
             // Standard sheets (mere pole so 2 mm manjše od idealnega standarda)
             const sheets = [
-                { name: "B2", w: 698, h: 498 },
-                { name: "638x448", w: 638, h: 448 },
-                { name: "B3", w: 498, h: 348 },
-                { name: "Riba", w: 698, h: 332 },
-                { name: "498x232", w: 498, h: 232 },
-                { name: "B4", w: 348, h: 248 },
-                { name: "A2", w: 592, h: 418 },
-                { name: "A3", w: 418, h: 295 },
-                { name: "SRA3", w: 448, h: 318 },
-                { name: "A4", w: 295, h: 208 },
-                { name: "Digital (480x320)", w: 480, h: 320 }
+                { name: "B1", w: 1000, h: 700, family: "B" },
+                { name: "A1", w: 841, h: 594, family: "A" },
+                { name: "900x640", w: 900, h: 640, family: "N" },
+                { name: "B2", w: 698, h: 498, family: "B" },
+                { name: "640x450", w: 640, h: 450, family: "N" },
+                { name: "6 iz B1", w: 349, h: 332, family: "B" },
+                { name: "638x448", w: 638, h: 448, family: "B" },
+                { name: "B3", w: 498, h: 348, family: "B" },
+                { name: "Riba", w: 698, h: 332, family: "B" },
+                { name: "640x300", w: 640, h: 300, family: "N" },
+                { name: "450x320", w: 450, h: 320, family: "N" },
+                { name: "498x232", w: 498, h: 232, family: "B" },
+                { name: "B4", w: 348, h: 248, family: "B" },
+                { name: "A2", w: 592, h: 418, family: "A" },
+                { name: "A3", w: 418, h: 295, family: "A" },
+                { name: "SRA3", w: 448, h: 318, family: "A" },
+                { name: "A4", w: 295, h: 208, family: "A" },
+                { name: "320x300", w: 320, h: 300, family: "N" },
+                { name: "320x225", w: 320, h: 225, family: "N" },
+                { name: "Digital (480x320)", w: 480, h: 320, family: "DIGITAL" }
             ];
 
             let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
@@ -2232,8 +2276,10 @@
                         }
 
                         // Preveri če gre v vir materiala
+                        const rawFamily = getPaperFamily(sw, sh);
                         let fitsSource = (sw >= sheet.w && sh >= sheet.h) || (sw >= sheet.h && sh >= sheet.w);
-                        if (!fitsSource) return;
+                        let familyMatches = isSheetFamilyMatching(rawFamily, sheet.family, mTypeL);
+                        if (!fitsSource || !familyMatches) return;
 
                         let layout1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode, mTypeL === 'digital');
                         let layout2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode, mTypeL === 'digital');
@@ -2255,7 +2301,7 @@
                             let score;
                             let isSatisfied = (targetCount > 0 && bestForThisSheet.count >= targetCount);
 
-                            const isStandard = sheet.name.startsWith('B') || sheet.name.startsWith('A') || sheet.name.startsWith('SRA') || sheet.name.startsWith('Digital');
+                            const isStandard = sheet.family === 'B' || sheet.family === 'A' || sheet.family === 'N' || sheet.family === 'DIGITAL';
                             const standardBonus = isStandard ? 10000000 : 0;
                             const standardBonusNormal = isStandard ? 500 : 0;
 
@@ -2266,7 +2312,7 @@
                                     score = bestForThisSheet.count + (isStandard ? 0.1 : 0);
                                 }
                             } else {
-                                score = (bestForThisSheet.count * 1000000) + (sYield * 1000) - ((sheet.w * sheet.h) / 1000.0) + standardBonusNormal;
+                                score = (bestForThisSheet.count * 1000000) + (sYield * 1000) + ((sheet.w * sheet.h) / 1000.0) + standardBonusNormal;
                             }
 
                             if (score > bestScore) {
@@ -2405,8 +2451,10 @@
                             if (!machineFits) return;
                         }
 
+                        const rawFamilyC = getPaperFamily(swc, shc);
                         let fitsSource = (swc >= sheet.w && shc >= sheet.h) || (swc >= sheet.h && shc >= sheet.w);
-                        if (!fitsSource) return;
+                        let familyMatches = isSheetFamilyMatching(rawFamilyC, sheet.family, mTypeC);
+                        if (!fitsSource || !familyMatches) return;
 
                         let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital');
                         let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital');
@@ -2426,7 +2474,7 @@
                             let score;
                             let isSatisfied = (targetCountCover > 0 && bL.count >= targetCountCover);
 
-                            const isStandard = sheet.name.startsWith('B') || sheet.name.startsWith('A') || sheet.name.startsWith('SRA') || sheet.name.startsWith('Digital');
+                            const isStandard = sheet.family === 'B' || sheet.family === 'A' || sheet.family === 'N' || sheet.family === 'DIGITAL';
                             const standardBonus = isStandard ? 10000000 : 0;
                             const standardBonusNormal = isStandard ? 500 : 0;
 
