@@ -3781,11 +3781,10 @@
                 let pPrice = (parseFloat(document.getElementById('f-personalization-price').value.replace(',', '.')) || 0);
                 let pCost = pTotalImpressions * pPrice;
                 let sidesText = isBothSides ? ' (1/1 obojestransko)' : ` (${persSidesText})`;
-                let halfW = Math.round(currentSheetW / 2);
-                let breakdownText = `Delo: ${pTotalImpressions.toLocaleString('de-DE')} odtisov${sidesText} na ${pDigitalSheets.toLocaleString('de-DE')} pol za personalizacijo (razrez B2 -> 2x ${halfW}x${currentSheetH} mm) po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
+                let breakdownText = `Delo: ${pTotalImpressions.toLocaleString('de-DE')} odtisov${sidesText} na ${pDigitalSheets.toLocaleString('de-DE')} pol za personalizacijo (razrez B2 -> 2x 478x318 mm) po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
                 let extraCost = 0;
                 if (isB2Sheet) {
-                    // Razrez B2 (698x498) na 2 poli 349x498 za personalizacijo
+                    // Razrez B2 (698x498) na 2 poli 478x318 mm za personalizacijo
                     let razrezSheets = totalSheetsNeeded * 2; // Vsaka polo se razreže na 2
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
@@ -3793,7 +3792,7 @@
                     autoCutSpeed = Math.round(autoCutSpeed);
                     let razrezCost = (razrezSheets / autoCutSpeed) * 30.00;
                     extraCost += razrezCost;
-                    breakdownText += ` | Razrez B2->2x(${halfW}x${currentSheetH}): ${formatPrice(razrezCost)}`;
+                    breakdownText += ` | Razrez B2->2x(478x318 mm): ${formatPrice(razrezCost)}`;
                 } else if (mType === 'S8') {
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
@@ -3803,8 +3802,8 @@
                     extraCost += cutCost;
                     breakdownText += ` | Dodaten razrez na pol: ${formatPrice(cutCost)}`;
                 }
-                let nameSuffix = isB2Sheet ? ` (Razrez B2 -> 2x ${halfW}x${currentSheetH} mm)` : (mType === 'S8' ? ' (Digitalni format - S8)' : '');
-                if (isBothSides) nameSuffix = ' (Obojestransko)' + (isB2Sheet ? ` B2->2x ${halfW}x${currentSheetH} mm` : '');
+                let nameSuffix = isB2Sheet ? ' (Razrez B2 -> 2x 478x318 mm)' : (mType === 'S8' ? ' (Digitalni format - S8)' : '');
+                if (isBothSides) nameSuffix = ' (Obojestransko)' + (isB2Sheet ? ' B2->2x 478x318 mm' : '');
                 details.finish.items.push({
                     name: 'Personalizacija' + nameSuffix + sidesText,
                     cost: pCost + extraCost,
@@ -4466,6 +4465,15 @@
             let isB2ForPers = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698) || Math.max(sheetW, sheetH) >= 600;
             if (isPersActive && isB2ForPers) {
                 ctx.save();
+                // Preveri ali postavitev kosov na polovici pole ustreza max digitalnemu formatu 478x318 mm
+                let halfW_items = (gridW / 2);
+                let halfH_items = gridH;
+                if (sheetH > sheetW) {
+                    halfW_items = gridW;
+                    halfH_items = (gridH / 2);
+                }
+                let fitsDigital = (halfW_items <= 478 && halfH_items <= 318) || (halfW_items <= 318 && halfH_items <= 478);
+
                 if (sheetW >= sheetH) {
                     // Vertikalni rez po sredini (X = sheetW / 2)
                     const cutX = (sheetW / 2) * scale;
@@ -4485,8 +4493,9 @@
                     ctx.stroke();
                     ctx.setLineDash([]);
 
-                    const halfW = Math.round(sheetW / 2);
-                    const badgeText = `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfW}x${sheetH} mm)`;
+                    const badgeText = fitsDigital
+                        ? `✂ RAZREZ ZA PERSONALIZACIJO (2x 478x318 mm)`
+                        : `✂ RAZREZ ZA PERSONALIZACIJO (2x 478x318 mm) ⚠️ PRESEGA DIGITAL`;
                     ctx.font = 'bold 11px Inter, sans-serif';
                     const textMetrics = ctx.measureText(badgeText);
                     const bw = textMetrics.width + 20;
@@ -4494,7 +4503,7 @@
                     const bx = cutX - bw / 2;
                     const by = (canvas.height - bh) / 2;
 
-                    ctx.fillStyle = '#dc2626';
+                    ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
                     ctx.shadowColor = 'rgba(0,0,0,0.4)';
                     ctx.shadowBlur = 6;
                     ctx.beginPath();
@@ -4525,8 +4534,9 @@
                     ctx.stroke();
                     ctx.setLineDash([]);
 
-                    const halfH = Math.round(sheetH / 2);
-                    const badgeText = `✂ RAZREZ ZA PERSONALIZACIJO (2x ${sheetW}x${halfH} mm)`;
+                    const badgeText = fitsDigital
+                        ? `✂ RAZREZ ZA PERSONALIZACIJO (2x 478x318 mm)`
+                        : `✂ RAZREZ ZA PERSONALIZACIJO (2x 478x318 mm) ⚠️ PRESEGA DIGITAL`;
                     ctx.font = 'bold 11px Inter, sans-serif';
                     const textMetrics = ctx.measureText(badgeText);
                     const bw = textMetrics.width + 20;
@@ -4534,7 +4544,7 @@
                     const bx = (canvas.width - bw) / 2;
                     const by = cutY - bh / 2;
 
-                    ctx.fillStyle = '#dc2626';
+                    ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
                     ctx.shadowColor = 'rgba(0,0,0,0.4)';
                     ctx.shadowBlur = 6;
                     ctx.beginPath();
