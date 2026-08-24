@@ -27,15 +27,14 @@ sheets = [
     {"name": "B3", "w": 498, "h": 348, "family": "B"},
     {"name": "Riba", "w": 698, "h": 332, "family": "B"},
     {"name": "640x300", "w": 640, "h": 300, "family": "N"},
-    {"name": "450x320", "w": 450, "h": 320, "family": "N"},
     {"name": "498x232", "w": 498, "h": 232, "family": "B"},
     {"name": "B4", "w": 348, "h": 248, "family": "B"},
     {"name": "A2", "w": 592, "h": 418, "family": "A"},
     {"name": "A3", "w": 418, "h": 295, "family": "A"},
     {"name": "SRA3", "w": 448, "h": 318, "family": "A"},
     {"name": "A4", "w": 295, "h": 208, "family": "A"},
-    {"name": "320x300", "w": 320, "h": 300, "family": "N"},
-    {"name": "320x225", "w": 320, "h": 225, "family": "N"},
+    {"name": "318x298", "w": 318, "h": 298, "family": "N"},
+    {"name": "318x223", "w": 318, "h": 223, "family": "N"},
     {"name": "Digital (480x320)", "w": 480, "h": 320, "family": "DIGITAL"}
 ]
 
