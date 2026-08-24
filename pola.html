@@ -3781,10 +3781,11 @@
                 let pPrice = (parseFloat(document.getElementById('f-personalization-price').value.replace(',', '.')) || 0);
                 let pCost = pTotalImpressions * pPrice;
                 let sidesText = isBothSides ? ' (1/1 obojestransko)' : ` (${persSidesText})`;
-                let breakdownText = `Delo: ${pTotalImpressions} odtisov${sidesText} na ${pDigitalSheets} pol po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
+                let halfW = Math.round(currentSheetW / 2);
+                let breakdownText = `Delo: ${pTotalImpressions.toLocaleString('de-DE')} odtisov${sidesText} na ${pDigitalSheets.toLocaleString('de-DE')} pol za personalizacijo (razrez B2 -> 2x ${halfW}x${currentSheetH} mm) po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
                 let extraCost = 0;
                 if (isB2Sheet) {
-                    // Razrez B2 (698x498) na 2 poli 478x318 za personalizacijo
+                    // Razrez B2 (698x498) na 2 poli 349x498 za personalizacijo
                     let razrezSheets = totalSheetsNeeded * 2; // Vsaka polo se razreže na 2
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
@@ -3792,12 +3793,7 @@
                     autoCutSpeed = Math.round(autoCutSpeed);
                     let razrezCost = (razrezSheets / autoCutSpeed) * 30.00;
                     extraCost += razrezCost;
-                    breakdownText += ` | Razrez B2->2x(478x318): ${formatPrice(razrezCost)}`;
-                    // Dodaj opozorilo
-                    if (!window.g_personalizationCutWarningShown) {
-                        console.warn('?? PERSONALIZACIJA: B2 polo (698x498) bo razrezana na 2 poli 478x318 za personalizacijo!');
-                        window.g_personalizationCutWarningShown = true;
-                    }
+                    breakdownText += ` | Razrez B2->2x(${halfW}x${currentSheetH}): ${formatPrice(razrezCost)}`;
                 } else if (mType === 'S8') {
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
@@ -3807,8 +3803,8 @@
                     extraCost += cutCost;
                     breakdownText += ` | Dodaten razrez na pol: ${formatPrice(cutCost)}`;
                 }
-                let nameSuffix = isB2Sheet ? ' (B2->2x 478x318)' : (mType === 'S8' ? ' (Digitalni format - S8)' : '');
-                if (isBothSides) nameSuffix = ' (Obojestransko)' + (isB2Sheet ? ' B2->2x' : '');
+                let nameSuffix = isB2Sheet ? ` (Razrez B2 -> 2x ${halfW}x${currentSheetH} mm)` : (mType === 'S8' ? ' (Digitalni format - S8)' : '');
+                if (isBothSides) nameSuffix = ' (Obojestransko)' + (isB2Sheet ? ` B2->2x ${halfW}x${currentSheetH} mm` : '');
                 details.finish.items.push({
                     name: 'Personalizacija' + nameSuffix + sidesText,
                     cost: pCost + extraCost,
@@ -3918,20 +3914,8 @@
                         updateInputStyles(cnt);
                     }
                 }
-                if (type === 'personalization') {
-                    const mFormatSelect = document.getElementById('machine-format');
-                    if (mFormatSelect) {
-                        mFormatSelect.value = 'Digital (478x318)';
-                    }
-                }
             } else {
                 row.classList.remove('active');
-                if (type === 'personalization') {
-                    const mFormatSelect = document.getElementById('machine-format');
-                    if (mFormatSelect && mFormatSelect.value === 'Digital (478x318)') {
-                        mFormatSelect.value = 'auto';
-                    }
-                }
             }
             if (typeof filterAvailableFormats === 'function') filterAvailableFormats();
             calculatePrice();
@@ -4475,6 +4459,95 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(`⚠️ OPOZORILO: ${targetCount} kosov ni mogoče simetrično razporediti na to polo!`, canvas.width / 2, 15);
+            }
+
+            // Nariši linijo razreza po sredini za personalizacijo (če je vklopljena personalizacija)
+            const isPersActive = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+            let isB2ForPers = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698) || Math.max(sheetW, sheetH) >= 600;
+            if (isPersActive && isB2ForPers) {
+                ctx.save();
+                if (sheetW >= sheetH) {
+                    // Vertikalni rez po sredini (X = sheetW / 2)
+                    const cutX = (sheetW / 2) * scale;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    ctx.moveTo(cutX, 0);
+                    ctx.lineTo(cutX, canvas.height);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = '#dc2626';
+                    ctx.lineWidth = 2.5;
+                    ctx.setLineDash([8, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(cutX, 0);
+                    ctx.lineTo(cutX, canvas.height);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    const halfW = Math.round(sheetW / 2);
+                    const badgeText = `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfW}x${sheetH} mm)`;
+                    ctx.font = 'bold 11px Inter, sans-serif';
+                    const textMetrics = ctx.measureText(badgeText);
+                    const bw = textMetrics.width + 20;
+                    const bh = 24;
+                    const bx = cutX - bw / 2;
+                    const by = (canvas.height - bh) / 2;
+
+                    ctx.fillStyle = '#dc2626';
+                    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                    ctx.shadowBlur = 6;
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 6); else ctx.rect(bx, by, bw, bh);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(badgeText, cutX, by + bh / 2 + 1);
+                } else {
+                    // Horizontalni rez po sredini (Y = sheetH / 2)
+                    const cutY = (sheetH / 2) * scale;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    ctx.moveTo(0, cutY);
+                    ctx.lineTo(canvas.width, cutY);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = '#dc2626';
+                    ctx.lineWidth = 2.5;
+                    ctx.setLineDash([8, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(0, cutY);
+                    ctx.lineTo(canvas.width, cutY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    const halfH = Math.round(sheetH / 2);
+                    const badgeText = `✂ RAZREZ ZA PERSONALIZACIJO (2x ${sheetW}x${halfH} mm)`;
+                    ctx.font = 'bold 11px Inter, sans-serif';
+                    const textMetrics = ctx.measureText(badgeText);
+                    const bw = textMetrics.width + 20;
+                    const bh = 24;
+                    const bx = (canvas.width - bw) / 2;
+                    const by = cutY - bh / 2;
+
+                    ctx.fillStyle = '#dc2626';
+                    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                    ctx.shadowBlur = 6;
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 6); else ctx.rect(bx, by, bw, bh);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(badgeText, canvas.width / 2, cutY + 1);
+                }
+                ctx.restore();
             }
         }
         // INITIAL CALLS ON LOAD (MOVED TO BOTTOM)
