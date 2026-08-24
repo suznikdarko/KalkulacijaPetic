@@ -1695,11 +1695,18 @@
                                 </div>
                             </div>
                             <!-- UV tuja usluga -->
-                            <div class="finish-item" id="row-finish-uv">
-                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                            <div class="finish-item" id="row-finish-uv" style="display: grid; grid-template-columns: 140px 1fr 1fr 1fr; gap: 0.5rem; align-items: center;">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; margin:0;">
                                     <input id="f-uv-active" onchange="toggleFinishRow('uv')" type="checkbox" />
                                     UV lak (tuja)
                                 </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Strani</small></label>
+                                    <select id="f-uv-sides" onchange="calculatePrice()" style="padding:0.2rem; font-size:0.75rem;">
+                                        <option value="1/0" selected>1/0</option>
+                                        <option value="1/1">1/1</option>
+                                    </select>
+                                </div>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Priprava (€)</small></label>
                                     <input id="f-uv-prep" onchange="calculatePrice()" type="number" value="90.00" />
@@ -3495,10 +3502,19 @@
                     if (document.getElementById('f-uv-active').checked) {
                         let uvPrep = parseFloat(document.getElementById('f-uv-prep').value) || 0;
                         let uvPerUnit = parseFloat(document.getElementById('f-uv-per1000').value) || 0;
-                        let uvWork = sheetsNeededCover * uvPerUnit;
+                        let uvSides = document.getElementById('f-uv-sides') ? document.getElementById('f-uv-sides').value : '1/0';
+                        let uvMultiplier = (uvSides === '1/1') ? 2 : 1;
+                        let uvWork = sheetsNeededCover * uvPerUnit * uvMultiplier;
                         let uvCost = uvPrep + uvWork;
                         totalFinishCost += uvCost;
-                        finishItems.push({ name: 'UV lak (tuja)', cost: uvCost, breakdown: `Priprava: ${formatPrice(uvPrep)} | Delo (${sheetsNeededCover} kos ovitka) | Cena: ${uvPerUnit.toFixed(3)} €/kos: ${formatPrice(uvWork)}` });
+                        
+                        let breakdownText = `Priprava: ${formatPrice(uvPrep)} | Delo (${sheetsNeededCover} kos ovitka)`;
+                        if (uvMultiplier > 1) {
+                            breakdownText += ` x 2 (obojestransko)`;
+                        }
+                        breakdownText += ` | Cena: ${uvPerUnit.toFixed(3)} €/kos: ${formatPrice(uvWork)}`;
+                        
+                        finishItems.push({ name: 'UV lak (tuja) ' + uvSides, cost: uvCost, breakdown: breakdownText });
                     }
 
                     // Plastifikacija
@@ -4946,7 +4962,7 @@
 
                                 extra: { active: gc('f-extra-active'), manual: gv('f-extra-manual'), external: gv('f-extra-external') },
                                 tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
-                                uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                                uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides') },
                                 lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
                                 delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
                                 delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
@@ -5331,6 +5347,7 @@
                         setV('f-uv-active', f.uv.active, true);
                         setV('f-uv-prep', f.uv.prep);
                         setV('f-uv-per1000', f.uv.per1000);
+                        if (f.uv.sides !== undefined) setV('f-uv-sides', f.uv.sides);
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('uv');
                     }
                     if (f.lam) {
@@ -5505,7 +5522,7 @@
 
                                 extra: { active: gc('f-extra-active'), manual: gv('f-extra-manual'), external: gv('f-extra-external') },
                                 tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
-                                uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                                uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides') },
                                 lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
                                 delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
                                 delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
@@ -5599,7 +5616,10 @@
                     let type = gV('f-lam-type');
                     desc.push("plastifikacija (" + type + ")");
                 }
-                if (gC('f-uv-active')) desc.push("UV lak");
+                if (gC('f-uv-active')) {
+                    let uvSides = document.getElementById('f-uv-sides') ? document.getElementById('f-uv-sides').value : '1/0';
+                    desc.push("UV lak (" + uvSides + ")");
+                }
                 return desc.join(", ") || "/";
             }
 

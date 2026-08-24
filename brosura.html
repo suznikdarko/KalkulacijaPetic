@@ -3293,34 +3293,26 @@
 
 
                             <!-- UV tuja usluga -->
-
-                            <div class="finish-item" id="row-finish-uv">
-
-                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-
+                            <div class="finish-item" id="row-finish-uv" style="display: grid; grid-template-columns: 140px 1fr 1fr 1fr; gap: 0.5rem; align-items: center;">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; margin:0;">
                                     <input type="checkbox" id="f-uv-active" onchange="toggleFinishRow('uv')">
-
                                     UV lak (tuja)
-
                                 </label>
-
                                 <div class="form-group" style="margin:0;">
-
+                                    <label><small>Strani</small></label>
+                                    <select id="f-uv-sides" onchange="calculatePrice()" style="padding:0.2rem; font-size:0.75rem;">
+                                        <option value="1/0" selected>1/0</option>
+                                        <option value="1/1">1/1</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin:0;">
                                     <label><small>Priprava (€)</small></label>
-
                                     <input type="number" id="f-uv-prep" value="90.00" onchange="calculatePrice()">
-
                                 </div>
-
                                 <div class="form-group" style="margin:0;">
-
                                     <label><small>Cena/kos (€)</small></label>
-
-                                    <input type="number" id="f-uv-per1000" value="0.000" step="0.001"
-                                        onchange="calculatePrice()">
-
+                                    <input type="number" id="f-uv-per1000" value="0.000" step="0.001" onchange="calculatePrice()">
                                 </div>
-
                             </div>
 
 
@@ -6712,21 +6704,22 @@
 
 
                     // UV tuja usluga
-
                     if (document.getElementById('f-uv-active').checked) {
-
                         let uvPrep = parseFloat(document.getElementById('f-uv-prep').value) || 0;
-
                         let uvPerUnit = parseFloat(document.getElementById('f-uv-per1000').value) || 0;
-
-                        let uvWork = sheetsNeededCover * uvPerUnit;
-
+                        let uvSides = document.getElementById('f-uv-sides') ? document.getElementById('f-uv-sides').value : '1/0';
+                        let uvMultiplier = (uvSides === '1/1') ? 2 : 1;
+                        let uvWork = sheetsNeededCover * uvPerUnit * uvMultiplier;
                         let uvCost = uvPrep + uvWork;
-
                         totalFinishCost += uvCost;
-
-                        finishItems.push({ name: 'UV lak (tuja)', cost: uvCost, breakdown: `Priprava: ${formatPrice(uvPrep)} | Delo (${sheetsNeededCover} kos ovitka) | Cena: ${uvPerUnit.toFixed(3)} €/kos: ${formatPrice(uvWork)}` });
-
+                        
+                        let breakdownText = `Priprava: ${formatPrice(uvPrep)} | Delo (${sheetsNeededCover} kos ovitka)`;
+                        if (uvMultiplier > 1) {
+                            breakdownText += ` x 2 (obojestransko)`;
+                        }
+                        breakdownText += ` | Cena: ${uvPerUnit.toFixed(3)} €/kos: ${formatPrice(uvWork)}`;
+                        
+                        finishItems.push({ name: 'UV lak (tuja) ' + uvSides, cost: uvCost, breakdown: breakdownText });
                     }
 
 
@@ -9215,7 +9208,7 @@
 
                                 tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
 
-                                uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                                uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides') },
 
                                 lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000') },
 
@@ -9258,7 +9251,7 @@
 
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
 
-                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides') },
 
                             lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000') },
 
@@ -9874,6 +9867,7 @@
                         setV('f-uv-active', uvItem.active, true);
                         if (uvItem.prep !== undefined) setV('f-uv-prep', uvItem.prep);
                         if (uvItem.per1000 !== undefined) setV('f-uv-per1000', uvItem.per1000);
+                        if (uvItem.sides !== undefined) setV('f-uv-sides', uvItem.sides);
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('uv');
                     }
 
@@ -10299,7 +10293,7 @@
 
                                 tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
 
-                                uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                                uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides') },
 
                                 lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000') },
 
@@ -10342,7 +10336,7 @@
 
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
 
-                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
+                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides') },
 
                             lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000') },
 
@@ -10495,7 +10489,10 @@
 
                 }
 
-                if (gC('f-uv-active')) desc.push("UV lak");
+                if (gC('f-uv-active')) {
+                    let uvSides = document.getElementById('f-uv-sides') ? document.getElementById('f-uv-sides').value : '1/0';
+                    desc.push("UV lak (" + uvSides + ")");
+                }
 
                 return desc.join(", ") || "/";
 
