@@ -1754,6 +1754,29 @@
                                     <input id="f-uv-per1000" onchange="calculatePrice()" step="0.01" type="number" value="25.00" style="padding: 0.2rem; font-size: 0.75rem; width: 100%;" />
                                 </div>
                             </div>
+                            <!-- Personalizacija -->
+                            <div class="finish-item" id="row-finish-personalization"
+                                style="padding: 0.75rem; border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; background: rgba(251, 191, 36, 0.05);">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-personalization-active"
+                                        onchange="toggleFinishRow('personalization')">
+                                    Personalizacija
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Strani</small></label>
+                                    <select id="f-personalization-sides" onchange="calculatePrice()"
+                                        style="padding:0.2rem; font-size:0.75rem;">
+                                        <option value="1/0" selected>1/0</option>
+                                        <option value="1/1">1/1</option>
+                                        <option value="0/1">0/1</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena na polo (€)</small></label>
+                                    <input type="number" id="f-personalization-price" value="0.03" step="0.01"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
                             <!-- Dostava -->
                             <div class="finish-item" id="row-finish-delivery">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
@@ -1937,9 +1960,22 @@
                 }
                 return 'OTHER';
             }
-            function isSheetFamilyMatching(rawFamily, sheetFamily, mType = '') {
+            function isSheetCompatibleWithPers(s) {
+                if (!s) return true;
+                const minDim = Math.min(s.w, s.h);
+                const maxDim = Math.max(s.w, s.h);
+                if (maxDim <= 478 && minDim <= 318) return true;
+                if ((s.w === 698 && s.h === 498) || (s.w === 498 && s.h === 698) || s.name === 'B2' || s.name === '638x448' || s.name === 'B3' || (s.w === 498 && s.h === 348) || (s.w === 348 && s.h === 498)) return true;
+                if (s.name === 'B1' || s.name === 'A1' || s.name === '900x640') return true;
+                return false;
+            }
+
+            function isSheetFamilyMatching(rawFamily, sheetFamily, mType = '', sheetName = '') {
                 if (sheetFamily === 'DIGITAL') return mType === 'digital';
                 if (rawFamily === 'OTHER') return true;
+                if (rawFamily === 'N') {
+                    return sheetFamily === 'N' || sheetName === '638x448' || sheetName === 'SRA3';
+                }
                 return rawFamily === sheetFamily;
             }
 
@@ -2372,6 +2408,12 @@
 
                     drawW = bestSheet.mode === 'L' ? bestSheet.w : bestSheet.h;
                     drawH = bestSheet.mode === 'L' ? bestSheet.h : bestSheet.w;
+                    const isPersActiveL = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+                    const mTypeL = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
+                    if (isPersActiveL && mTypeL === 'S4') {
+                        drawW = drawW >= drawH ? 478 : 318;
+                        drawH = drawW >= drawH ? 318 : 478;
+                    }
                     setT('res-size', `${drawW} x ${drawH}`);
                     setT('res-size-leaves-val', `${drawW}x${drawH}`);
 
@@ -2530,11 +2572,19 @@
                         sheetsNeededCover = Math.ceil(cQtyTotal / finalCountCover);
                         setT('res-sheets-cover-net', sheetsNeededCover + ' pol');
                         setT('res-cover-sheets-needed', sheetsNeededCover);
-                        setT('header-cover-sheets-val', sheetsNeededCover);
 
                         cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
                         cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
+                        const isPersActiveC = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+                        const mTypeC = document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : '';
+                        if (isPersActiveC && mTypeC === 'S4') {
+                            cDrawW = cDrawW >= cDrawH ? 478 : 318;
+                            cDrawH = cDrawW >= cDrawH ? 318 : 478;
+                        }
+                        setT('res-size-cover', `${cDrawW} x ${cDrawH}`);
                         setT('res-size-cover-val', `${cDrawW}x${cDrawH}`);
+                        setT('header-cover-sheets-val', sheetsNeededCover);
+
                         // Če listov ni, posodobi glavni res-size
                         if (!bestSheet) {
                             setT('res-size', `${cDrawW} x ${cDrawH}`);
@@ -3599,6 +3649,54 @@
                         finishItems.push({ name: 'UV lak (tuja) ' + uvSides, cost: uvCost, breakdown: breakdownText });
                     }
 
+                    // Personalizacija
+                    if (document.getElementById('f-personalization-active') && document.getElementById('f-personalization-active').checked) {
+                        let persSidesVal = document.getElementById('f-personalization-sides') ? document.getElementById('f-personalization-sides').value : '1/0';
+                        let isBothSides = (persSidesVal === '1/1');
+                        let currentSheetW = drawW || 0;
+                        let currentSheetH = drawH || 0;
+                        let isB2Sheet = (currentSheetW === 698 && currentSheetH === 498) || (currentSheetW === 498 && currentSheetH === 698);
+                        let maxSheetDim = Math.max(currentSheetW, currentSheetH);
+                        const mTypeLVal = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
+                        let isLargeSheetForPers = (isB2Sheet || maxSheetDim >= 500 || mTypeLVal === 'S8');
+                        let digCutFactor = isLargeSheetForPers ? 2 : 1;
+                        let pMultiplier = isBothSides ? 2 : 1;
+                        let pDigitalSheets = sheetsNeededLeaves * digCutFactor;
+                        let pTotalImpressions = pDigitalSheets * pMultiplier;
+                        let pPrice = (parseFloat(document.getElementById('f-personalization-price').value.replace(',', '.')) || 0);
+                        let pCost = pTotalImpressions * pPrice;
+                        let sidesText = isBothSides ? ' (1/1 obojestransko)' : ` (${persSidesVal})`;
+                        
+                        let cutW = currentSheetW >= currentSheetH ? Math.round(currentSheetW / 2) : currentSheetW;
+                        let cutH = currentSheetW >= currentSheetH ? currentSheetH : Math.round(currentSheetH / 2);
+                        let maxD = Math.min(Math.max(cutW, cutH), 478);
+                        let minD = Math.min(Math.min(cutW, cutH), 318);
+                        let halfStr = (maxD > 0 && minD > 0) ? `${maxD}x${minD} mm` : '478x318 mm';
+                        let currentSheetStr = (currentSheetW > 0 && currentSheetH > 0) ? `${Math.min(Math.max(currentSheetW, currentSheetH), 478)}x${Math.min(Math.min(currentSheetW, currentSheetH), 318)} mm` : '478x318 mm';
+                        
+                        let persFormatInfo = isLargeSheetForPers ? ` (razrez -> 2x ${halfStr})` : (currentSheetStr ? ` (format ${currentSheetStr})` : '');
+                        let breakdownText = `Delo: ${pTotalImpressions.toLocaleString('de-DE')} odtisov${sidesText} na ${pDigitalSheets.toLocaleString('de-DE')} pol za personalizacijo${persFormatInfo} po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
+                        let extraCost = 0;
+                        if (isLargeSheetForPers) {
+                            let razrezSheets = sheetsNeededLeaves * 2;
+                            let autoCutSpeed = 7400;
+                            if (paperWeight >= 300) autoCutSpeed = 4100;
+                            else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
+                            autoCutSpeed = Math.round(autoCutSpeed);
+                            let razrezCost = (razrezSheets / autoCutSpeed) * 30.00;
+                            extraCost += razrezCost;
+                            breakdownText += ` | Razrez -> 2x (${halfStr}): ${formatPrice(razrezCost)}`;
+                        }
+                        let nameSuffix = isLargeSheetForPers ? ` (Razrez -> 2x ${halfStr})` : (currentSheetStr ? ` (Format ${currentSheetStr})` : '');
+                        if (isBothSides) nameSuffix = ' (Obojestransko)' + (isLargeSheetForPers ? ` -> 2x ${halfStr}` : (currentSheetStr ? ` (${currentSheetStr})` : ''));
+                        finishItems.push({
+                            name: 'Personalizacija' + nameSuffix + sidesText,
+                            cost: pCost + extraCost,
+                            breakdown: breakdownText
+                        });
+                        totalFinishCost += pCost + extraCost;
+                    }
+
                     // Plastifikacija
                     if (document.getElementById('f-lam-active').checked) {
                         let lamSides = parseInt(document.getElementById('f-lam-sides').value) || 1;
@@ -4517,6 +4615,116 @@
                 ctx.rotate(Math.PI / 2);
                 ctx.fillText(sheetH + ' mm', 0, 0);
                 ctx.restore();
+
+                // Nariši linijo razreza po sredini za personalizacijo (če je vklopljena personalizacija)
+                const isPersActiveCanvas = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+                const currentMTypeCanvas = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : (document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : '');
+                let isB2ForPersCanvas = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698) || Math.max(sheetW, sheetH) >= 500 || currentMTypeCanvas === 'S8';
+                if (isPersActiveCanvas && isB2ForPersCanvas) {
+                    ctx.save();
+                    let gridW = layout ? (layout.cols * layout.itemW) : sheetW;
+                    let gridH = layout ? (layout.rows * layout.itemH) : sheetH;
+                    let halfW_items = (gridW / 2);
+                    let halfH_items = gridH;
+                    if (sheetH > sheetW) {
+                        halfW_items = gridW;
+                        halfH_items = (gridH / 2);
+                    }
+                    let fitsDigital = (halfW_items <= 478 && halfH_items <= 318) || (halfW_items <= 318 && halfH_items <= 478);
+
+                    if (sheetW >= sheetH) {
+                        const cutX = (sheetW / 2) * scale;
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                        ctx.lineWidth = 6;
+                        ctx.beginPath();
+                        ctx.moveTo(cutX, 0);
+                        ctx.lineTo(cutX, canvas.height);
+                        ctx.stroke();
+
+                        ctx.strokeStyle = '#dc2626';
+                        ctx.lineWidth = 2.5;
+                        ctx.setLineDash([8, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(cutX, 0);
+                        ctx.lineTo(cutX, canvas.height);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        let cutW = sheetW >= sheetH ? Math.round(sheetW / 2) : sheetW;
+                        let cutH = sheetW >= sheetH ? sheetH : Math.round(sheetH / 2);
+                        let maxD = Math.min(Math.max(cutW, cutH), 478);
+                        let minD = Math.min(Math.min(cutW, cutH), 318);
+                        let halfStr = `${maxD}x${minD} mm`;
+                        const badgeText = fitsDigital
+                            ? `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfStr})`
+                            : `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfStr}) ⚠️ PRESEGA DIGITAL`;
+                        ctx.font = 'bold 11px Inter, sans-serif';
+                        const textMetrics = ctx.measureText(badgeText);
+                        const bw = textMetrics.width + 20;
+                        const bh = 24;
+                        const bx = cutX - bw / 2;
+                        const by = (canvas.height - bh) / 2;
+
+                        ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
+                        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                        ctx.shadowBlur = 6;
+                        ctx.beginPath();
+                        if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 6); else ctx.rect(bx, by, bw, bh);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(badgeText, cutX, by + bh / 2 + 1);
+                    } else {
+                        const cutY = (sheetH / 2) * scale;
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                        ctx.lineWidth = 6;
+                        ctx.beginPath();
+                        ctx.moveTo(0, cutY);
+                        ctx.lineTo(canvas.width, cutY);
+                        ctx.stroke();
+
+                        ctx.strokeStyle = '#dc2626';
+                        ctx.lineWidth = 2.5;
+                        ctx.setLineDash([8, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(0, cutY);
+                        ctx.lineTo(canvas.width, cutY);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        let cutW = sheetW >= sheetH ? Math.round(sheetW / 2) : sheetW;
+                        let cutH = sheetW >= sheetH ? sheetH : Math.round(sheetH / 2);
+                        let maxD = Math.min(Math.max(cutW, cutH), 478);
+                        let minD = Math.min(Math.min(cutW, cutH), 318);
+                        let halfStr = `${maxD}x${minD} mm`;
+                        const badgeText = fitsDigital
+                            ? `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfStr})`
+                            : `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfStr}) ⚠️ PRESEGA DIGITAL`;
+                        ctx.font = 'bold 11px Inter, sans-serif';
+                        const textMetrics = ctx.measureText(badgeText);
+                        const bw = textMetrics.width + 20;
+                        const bh = 24;
+                        const bx = (canvas.width - bw) / 2;
+                        const by = cutY - bh / 2;
+
+                        ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
+                        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                        ctx.shadowBlur = 6;
+                        ctx.beginPath();
+                        if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 6); else ctx.rect(bx, by, bw, bh);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(badgeText, canvas.width / 2, by + bh / 2 + 1);
+                    }
+                    ctx.restore();
+                }
             }
 
             function updatePriceFromManualCount() {
@@ -5094,6 +5302,7 @@
                                 extra: { active: gc('f-extra-active'), manual: gv('f-extra-manual'), external: gv('f-extra-external') },
                                 tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
                                 uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type'), format: gv('f-uv-format'), extraWaste: gv('f-uv-extra-waste') },
+                                personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price') },
                                 lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
                                 delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
                                 delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
@@ -5484,6 +5693,12 @@
                         if (f.uv.extraWaste !== undefined) setV('f-uv-extra-waste', f.uv.extraWaste);
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('uv');
                     }
+                    if (f.personalization) {
+                        setV('f-personalization-active', f.personalization.active, true);
+                        if (f.personalization.sides !== undefined) setV('f-personalization-sides', f.personalization.sides);
+                        if (f.personalization.price !== undefined) setV('f-personalization-price', f.personalization.price);
+                        if (typeof toggleFinishRow === 'function') toggleFinishRow('personalization');
+                    }
                     if (f.lam) {
                         setV('f-lam-active', f.lam.active, true);
                         setV('f-lam-type', f.lam.type);
@@ -5657,6 +5872,7 @@
                                 extra: { active: gc('f-extra-active'), manual: gv('f-extra-manual'), external: gv('f-extra-external') },
                                 tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
                                 uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type'), format: gv('f-uv-format'), extraWaste: gv('f-uv-extra-waste') },
+                                personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price') },
                                 lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
                                 delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
                                 delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
@@ -5755,6 +5971,26 @@
                     let uvTypeSelect = document.getElementById('f-uv-type');
                     let uvTypeText = uvTypeSelect ? uvTypeSelect.options[uvTypeSelect.selectedIndex].text : 'UV lak';
                     desc.push(uvTypeText + " (" + uvSides + ")");
+                }
+                if (gC('f-personalization-active')) {
+                    let persSidesSelect = document.getElementById('f-personalization-sides');
+                    let persSidesText = persSidesSelect ? persSidesSelect.value : '1/0';
+                    let sheetW = parseFloat(document.getElementById('res-size') ? document.getElementById('res-size').innerText.split('x')[0] : '498') || 498;
+                    let sheetH = parseFloat(document.getElementById('res-size') ? document.getElementById('res-size').innerText.split('x')[1] : '348') || 348;
+                    let isB2Sheet = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698);
+                    let maxSheetDim = Math.max(sheetW, sheetH);
+                    const mTypeVal = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
+                    let digCutFactor = (isB2Sheet || maxSheetDim >= 500 || mTypeVal === 'S8') ? 2 : 1;
+                    let sheetsNeeded = parseInt(document.getElementById('res-sheets-needed') ? document.getElementById('res-sheets-needed').innerText : '0') || 0;
+                    let digSheets = sheetsNeeded * digCutFactor;
+                    let cutW = sheetW >= sheetH ? Math.round(sheetW / 2) : sheetW;
+                    let cutH = sheetW >= sheetH ? sheetH : Math.round(sheetH / 2);
+                    let maxD = Math.min(Math.max(cutW, cutH), 478);
+                    let minD = Math.min(Math.min(cutW, cutH), 318);
+                    let halfStr = (maxD > 0 && minD > 0) ? `${maxD} x ${minD} mm` : '478 x 318 mm';
+                    let currentSheetStr = (sheetW > 0 && sheetH > 0) ? `${Math.min(Math.max(sheetW, sheetH), 478)} x ${Math.min(Math.min(sheetW, sheetH), 318)} mm` : '';
+                    let digFormatDetail = (digCutFactor === 2) ? ` ${halfStr}` : (currentSheetStr ? ` ${currentSheetStr}` : '');
+                    desc.push("personalizacija (" + persSidesText + " " + digSheets.toLocaleString('de-DE') + " pol" + digFormatDetail + ")");
                 }
                 return desc.join(", ") || "/";
             }
