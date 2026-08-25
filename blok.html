@@ -1642,19 +1642,48 @@
                                         value="15.00" />
                                 </div>
                             </div>
-                            <!-- Numeracija -->
-                            <div class="finish-item" id="row-finish-numeracija">
+                            <!-- Numeracija / Personalizacija - liste -->
+                            <div class="finish-item" id="row-finish-numeracija-leaves"
+                                style="padding: 0.75rem; border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; background: rgba(251, 191, 36, 0.05);">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                    <input id="f-numeracija-active" onchange="toggleFinishRow('numeracija')"
+                                    <input id="f-numeracija-leaves-active" onchange="toggleFinishRow('numeracija-leaves')"
                                         type="checkbox" />
-                                    Numeracija
+                                    Numeracija / Personalizacija (liste)
                                 </label>
                                 <div class="form-group" style="margin:0;">
-                                    <label><small>Cena/polo (€)</small></label>
-                                    <input id="f-numeracija-kos" onchange="calculatePrice()" type="number"
-                                        value="0.03" />
+                                    <label><small>Strani</small></label>
+                                    <select id="f-numeracija-leaves-sides" onchange="calculatePrice()"
+                                        style="padding:0.2rem; font-size:0.75rem;">
+                                        <option value="1/0" selected>1/0</option>
+                                        <option value="1/1">1/1</option>
+                                    </select>
                                 </div>
                                 <div class="form-group" style="margin:0;">
+                                    <label><small>Cena na polo (€)</small></label>
+                                    <input id="f-numeracija-leaves-kos" onchange="calculatePrice()" type="number"
+                                        value="0.03" step="0.01" />
+                                </div>
+                            </div>
+                            <!-- Numeracija / Personalizacija - ovitek -->
+                            <div class="finish-item" id="row-finish-numeracija-cover"
+                                style="padding: 0.75rem; border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; background: rgba(245, 158, 11, 0.05);">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input id="f-numeracija-cover-active" onchange="toggleFinishRow('numeracija-cover')"
+                                        type="checkbox" />
+                                    Numeracija / Personalizacija (ovitek)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Strani</small></label>
+                                    <select id="f-numeracija-cover-sides" onchange="calculatePrice()"
+                                        style="padding:0.2rem; font-size:0.75rem;">
+                                        <option value="1/0" selected>1/0</option>
+                                        <option value="1/1">1/1</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena na polo (€)</small></label>
+                                    <input id="f-numeracija-cover-kos" onchange="calculatePrice()" type="number"
+                                        value="0.03" step="0.01" />
                                 </div>
                             </div>
                             <!-- Plastifikacija -->
@@ -1754,29 +1783,7 @@
                                     <input id="f-uv-per1000" onchange="calculatePrice()" step="0.01" type="number" value="25.00" style="padding: 0.2rem; font-size: 0.75rem; width: 100%;" />
                                 </div>
                             </div>
-                            <!-- Personalizacija -->
-                            <div class="finish-item" id="row-finish-personalization"
-                                style="padding: 0.75rem; border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; background: rgba(251, 191, 36, 0.05);">
-                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                    <input type="checkbox" id="f-personalization-active"
-                                        onchange="toggleFinishRow('personalization')">
-                                    Personalizacija
-                                </label>
-                                <div class="form-group" style="margin:0;">
-                                    <label><small>Strani</small></label>
-                                    <select id="f-personalization-sides" onchange="calculatePrice()"
-                                        style="padding:0.2rem; font-size:0.75rem;">
-                                        <option value="1/0" selected>1/0</option>
-                                        <option value="1/1">1/1</option>
-                                        <option value="0/1">0/1</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" style="margin:0;">
-                                    <label><small>Cena na polo (€)</small></label>
-                                    <input type="number" id="f-personalization-price" value="0.03" step="0.01"
-                                        onchange="calculatePrice()">
-                                </div>
-                            </div>
+
                             <!-- Dostava -->
                             <div class="finish-item" id="row-finish-delivery">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
@@ -1960,6 +1967,54 @@
                 }
                 return 'OTHER';
             }
+            function getIsPersLeavesActive() {
+                const nl = document.getElementById('f-numeracija-leaves-active') ? document.getElementById('f-numeracija-leaves-active').checked : false;
+                const n = document.getElementById('f-numeracija-active') ? document.getElementById('f-numeracija-active').checked : false;
+                const p = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+                return nl || n || p;
+            }
+
+            function getIsPersCoverActive() {
+                const nc = document.getElementById('f-numeracija-cover-active') ? document.getElementById('f-numeracija-cover-active').checked : false;
+                return nc;
+            }
+
+            function getIsPersActive() {
+                return getIsPersLeavesActive() || getIsPersCoverActive();
+            }
+
+            function getPersLeavesSidesVal() {
+                if (document.getElementById('f-numeracija-leaves-active') && document.getElementById('f-numeracija-leaves-active').checked) {
+                    return document.getElementById('f-numeracija-leaves-sides') ? document.getElementById('f-numeracija-leaves-sides').value : '1/0';
+                }
+                if (document.getElementById('f-numeracija-sides')) return document.getElementById('f-numeracija-sides').value;
+                return '1/0';
+            }
+
+            function getPersCoverSidesVal() {
+                if (document.getElementById('f-numeracija-cover-active') && document.getElementById('f-numeracija-cover-active').checked) {
+                    return document.getElementById('f-numeracija-cover-sides') ? document.getElementById('f-numeracija-cover-sides').value : '1/0';
+                }
+                return '1/0';
+            }
+
+            function getPersLeavesPriceVal() {
+                if (document.getElementById('f-numeracija-leaves-kos')) {
+                    return parseFloat(document.getElementById('f-numeracija-leaves-kos').value.replace(',', '.')) || 0.03;
+                }
+                if (document.getElementById('f-numeracija-kos')) {
+                    return parseFloat(document.getElementById('f-numeracija-kos').value.replace(',', '.')) || 0.03;
+                }
+                return 0.03;
+            }
+
+            function getPersCoverPriceVal() {
+                if (document.getElementById('f-numeracija-cover-kos')) {
+                    return parseFloat(document.getElementById('f-numeracija-cover-kos').value.replace(',', '.')) || 0.03;
+                }
+                return 0.03;
+            }
+
             function isSheetCompatibleWithPers(s) {
                 if (!s) return true;
                 const minDim = Math.min(s.w, s.h);
@@ -2408,7 +2463,7 @@
 
                     drawW = bestSheet.mode === 'L' ? bestSheet.w : bestSheet.h;
                     drawH = bestSheet.mode === 'L' ? bestSheet.h : bestSheet.w;
-                    const isPersActiveL = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+                    const isPersActiveL = getIsPersLeavesActive();
                     const mTypeL = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
                     if (isPersActiveL && mTypeL === 'S4') {
                         drawW = drawW >= drawH ? 478 : 318;
@@ -2575,7 +2630,7 @@
 
                         cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
                         cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
-                        const isPersActiveC = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+                        const isPersActiveC = getIsPersCoverActive();
                         const mTypeC = document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : '';
                         if (isPersActiveC && mTypeC === 'S4') {
                             cDrawW = cDrawW >= cDrawH ? 478 : 318;
@@ -3649,10 +3704,14 @@
                         finishItems.push({ name: 'UV lak (tuja) ' + uvSides, cost: uvCost, breakdown: breakdownText });
                     }
 
-                    // Personalizacija
-                    if (document.getElementById('f-personalization-active') && document.getElementById('f-personalization-active').checked) {
-                        let persSidesVal = document.getElementById('f-personalization-sides') ? document.getElementById('f-personalization-sides').value : '1/0';
+                    // 1. Numeracija / Personalizacija (liste)
+                    if (getIsPersLeavesActive() && sheetsNeededLeaves > 0) {
+                        let persSidesVal = getPersLeavesSidesVal();
                         let isBothSides = (persSidesVal === '1/1');
+                        let pMultiplier = isBothSides ? 2 : 1;
+                        let pPrice = getPersLeavesPriceVal();
+                        let sidesText = isBothSides ? ' (1/1 obojestransko)' : ` (${persSidesVal})`;
+
                         let currentSheetW = drawW || 0;
                         let currentSheetH = drawH || 0;
                         let isB2Sheet = (currentSheetW === 698 && currentSheetH === 498) || (currentSheetW === 498 && currentSheetH === 698);
@@ -3660,12 +3719,9 @@
                         const mTypeLVal = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
                         let isLargeSheetForPers = (isB2Sheet || maxSheetDim >= 500 || mTypeLVal === 'S8');
                         let digCutFactor = isLargeSheetForPers ? 2 : 1;
-                        let pMultiplier = isBothSides ? 2 : 1;
                         let pDigitalSheets = sheetsNeededLeaves * digCutFactor;
                         let pTotalImpressions = pDigitalSheets * pMultiplier;
-                        let pPrice = (parseFloat(document.getElementById('f-personalization-price').value.replace(',', '.')) || 0);
                         let pCost = pTotalImpressions * pPrice;
-                        let sidesText = isBothSides ? ' (1/1 obojestransko)' : ` (${persSidesVal})`;
                         
                         let cutW = currentSheetW >= currentSheetH ? Math.round(currentSheetW / 2) : currentSheetW;
                         let cutH = currentSheetW >= currentSheetH ? currentSheetH : Math.round(currentSheetH / 2);
@@ -3675,9 +3731,10 @@
                         let currentSheetStr = (currentSheetW > 0 && currentSheetH > 0) ? `${Math.min(Math.max(currentSheetW, currentSheetH), 478)}x${Math.min(Math.min(currentSheetW, currentSheetH), 318)} mm` : '478x318 mm';
                         
                         let persFormatInfo = isLargeSheetForPers ? ` (razrez -> 2x ${halfStr})` : (currentSheetStr ? ` (format ${currentSheetStr})` : '');
-                        let breakdownText = `Delo: ${pTotalImpressions.toLocaleString('de-DE')} odtisov${sidesText} na ${pDigitalSheets.toLocaleString('de-DE')} pol za personalizacijo${persFormatInfo} po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
+                        let breakdownText = `Delo: ${pTotalImpressions.toLocaleString('de-DE')} odtisov${sidesText} na ${pDigitalSheets.toLocaleString('de-DE')} pol za numeracijo/personalizacijo listov${persFormatInfo} po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
                         let extraCost = 0;
                         if (isLargeSheetForPers) {
+                            let paperWeight = parseFloat(document.getElementById('calc-paper-weight')?.value) || 80;
                             let razrezSheets = sheetsNeededLeaves * 2;
                             let autoCutSpeed = 7400;
                             if (paperWeight >= 300) autoCutSpeed = 4100;
@@ -3689,8 +3746,60 @@
                         }
                         let nameSuffix = isLargeSheetForPers ? ` (Razrez -> 2x ${halfStr})` : (currentSheetStr ? ` (Format ${currentSheetStr})` : '');
                         if (isBothSides) nameSuffix = ' (Obojestransko)' + (isLargeSheetForPers ? ` -> 2x ${halfStr}` : (currentSheetStr ? ` (${currentSheetStr})` : ''));
+                        
                         finishItems.push({
-                            name: 'Personalizacija' + nameSuffix + sidesText,
+                            name: 'Numeracija / Personalizacija (liste)' + nameSuffix + sidesText,
+                            cost: pCost + extraCost,
+                            breakdown: breakdownText
+                        });
+                        totalFinishCost += pCost + extraCost;
+                    }
+
+                    // 2. Numeracija / Personalizacija (ovitek)
+                    if (getIsPersCoverActive() && sheetsNeededCover > 0) {
+                        let persSidesVal = getPersCoverSidesVal();
+                        let isBothSides = (persSidesVal === '1/1');
+                        let pMultiplier = isBothSides ? 2 : 1;
+                        let pPrice = getPersCoverPriceVal();
+                        let sidesText = isBothSides ? ' (1/1 obojestransko)' : ` (${persSidesVal})`;
+
+                        let currentSheetW = cDrawW || 0;
+                        let currentSheetH = cDrawH || 0;
+                        let isB2Sheet = (currentSheetW === 698 && currentSheetH === 498) || (currentSheetW === 498 && currentSheetH === 698);
+                        let maxSheetDim = Math.max(currentSheetW, currentSheetH);
+                        const mTypeCVal = document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : '';
+                        let isLargeSheetForPers = (isB2Sheet || maxSheetDim >= 500 || mTypeCVal === 'S8');
+                        let digCutFactor = isLargeSheetForPers ? 2 : 1;
+                        let pDigitalSheets = sheetsNeededCover * digCutFactor;
+                        let pTotalImpressions = pDigitalSheets * pMultiplier;
+                        let pCost = pTotalImpressions * pPrice;
+                        
+                        let cutW = currentSheetW >= currentSheetH ? Math.round(currentSheetW / 2) : currentSheetW;
+                        let cutH = currentSheetW >= currentSheetH ? currentSheetH : Math.round(currentSheetH / 2);
+                        let maxD = Math.min(Math.max(cutW, cutH), 478);
+                        let minD = Math.min(Math.min(cutW, cutH), 318);
+                        let halfStr = (maxD > 0 && minD > 0) ? `${maxD}x${minD} mm` : '478x318 mm';
+                        let currentSheetStr = (currentSheetW > 0 && currentSheetH > 0) ? `${Math.min(Math.max(currentSheetW, currentSheetH), 478)}x${Math.min(Math.min(currentSheetW, currentSheetH), 318)} mm` : '478x318 mm';
+                        
+                        let persFormatInfo = isLargeSheetForPers ? ` (razrez -> 2x ${halfStr})` : (currentSheetStr ? ` (format ${currentSheetStr})` : '');
+                        let breakdownText = `Delo: ${pTotalImpressions.toLocaleString('de-DE')} odtisov${sidesText} na ${pDigitalSheets.toLocaleString('de-DE')} pol za numeracijo/personalizacijo ovitka${persFormatInfo} po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
+                        let extraCost = 0;
+                        if (isLargeSheetForPers) {
+                            let paperWeightCover = parseFloat(document.getElementById('calc-cover-paper-weight')?.value) || 250;
+                            let razrezSheets = sheetsNeededCover * 2;
+                            let autoCutSpeed = 7400;
+                            if (paperWeightCover >= 300) autoCutSpeed = 4100;
+                            else if (paperWeightCover > 150) autoCutSpeed = 7400 - ((paperWeightCover - 150) / 150) * (7400 - 4100);
+                            autoCutSpeed = Math.round(autoCutSpeed);
+                            let razrezCost = (razrezSheets / autoCutSpeed) * 30.00;
+                            extraCost += razrezCost;
+                            breakdownText += ` | Razrez -> 2x (${halfStr}): ${formatPrice(razrezCost)}`;
+                        }
+                        let nameSuffix = isLargeSheetForPers ? ` (Razrez -> 2x ${halfStr})` : (currentSheetStr ? ` (Format ${currentSheetStr})` : '');
+                        if (isBothSides) nameSuffix = ' (Obojestransko)' + (isLargeSheetForPers ? ` -> 2x ${halfStr}` : (currentSheetStr ? ` (${currentSheetStr})` : ''));
+                        
+                        finishItems.push({
+                            name: 'Numeracija / Personalizacija (ovitek)' + nameSuffix + sidesText,
                             cost: pCost + extraCost,
                             breakdown: breakdownText
                         });
@@ -4616,8 +4725,9 @@
                 ctx.fillText(sheetH + ' mm', 0, 0);
                 ctx.restore();
 
-                // Nariši linijo razreza po sredini za personalizacijo (če je vklopljena personalizacija)
-                const isPersActiveCanvas = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+                // Nariši linijo razreza po sredini za personalizacijo (če je vklopljena personalizacija za zadevno platno)
+                const isLeavesCanvas = (canvasId === 'canvas-leaves');
+                const isPersActiveCanvas = isLeavesCanvas ? getIsPersLeavesActive() : getIsPersCoverActive();
                 const currentMTypeCanvas = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : (document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : '');
                 let isB2ForPersCanvas = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698) || Math.max(sheetW, sheetH) >= 500 || currentMTypeCanvas === 'S8';
                 if (isPersActiveCanvas && isB2ForPersCanvas) {
@@ -5972,9 +6082,8 @@
                     let uvTypeText = uvTypeSelect ? uvTypeSelect.options[uvTypeSelect.selectedIndex].text : 'UV lak';
                     desc.push(uvTypeText + " (" + uvSides + ")");
                 }
-                if (gC('f-personalization-active')) {
-                    let persSidesSelect = document.getElementById('f-personalization-sides');
-                    let persSidesText = persSidesSelect ? persSidesSelect.value : '1/0';
+                if (getIsPersLeavesActive()) {
+                    let persSidesText = getPersLeavesSidesVal();
                     let sheetW = parseFloat(document.getElementById('res-size') ? document.getElementById('res-size').innerText.split('x')[0] : '498') || 498;
                     let sheetH = parseFloat(document.getElementById('res-size') ? document.getElementById('res-size').innerText.split('x')[1] : '348') || 348;
                     let isB2Sheet = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698);
@@ -5990,7 +6099,26 @@
                     let halfStr = (maxD > 0 && minD > 0) ? `${maxD} x ${minD} mm` : '478 x 318 mm';
                     let currentSheetStr = (sheetW > 0 && sheetH > 0) ? `${Math.min(Math.max(sheetW, sheetH), 478)} x ${Math.min(Math.min(sheetW, sheetH), 318)} mm` : '';
                     let digFormatDetail = (digCutFactor === 2) ? ` ${halfStr}` : (currentSheetStr ? ` ${currentSheetStr}` : '');
-                    desc.push("personalizacija (" + persSidesText + " " + digSheets.toLocaleString('de-DE') + " pol" + digFormatDetail + ")");
+                    desc.push("numeracija/personalizacija liste (" + persSidesText + " " + digSheets.toLocaleString('de-DE') + " pol" + digFormatDetail + ")");
+                }
+                if (getIsPersCoverActive()) {
+                    let persSidesText = getPersCoverSidesVal();
+                    let sheetW = parseFloat(document.getElementById('res-size-cover') ? document.getElementById('res-size-cover').innerText.split('x')[0] : '498') || 498;
+                    let sheetH = parseFloat(document.getElementById('res-size-cover') ? document.getElementById('res-size-cover').innerText.split('x')[1] : '348') || 348;
+                    let isB2Sheet = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698);
+                    let maxSheetDim = Math.max(sheetW, sheetH);
+                    const mTypeVal = document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : '';
+                    let digCutFactor = (isB2Sheet || maxSheetDim >= 500 || mTypeVal === 'S8') ? 2 : 1;
+                    let sheetsNeeded = parseInt(document.getElementById('header-cover-sheets-val') ? document.getElementById('header-cover-sheets-val').innerText : '0') || 0;
+                    let digSheets = sheetsNeeded * digCutFactor;
+                    let cutW = sheetW >= sheetH ? Math.round(sheetW / 2) : sheetW;
+                    let cutH = sheetW >= sheetH ? sheetH : Math.round(sheetH / 2);
+                    let maxD = Math.min(Math.max(cutW, cutH), 478);
+                    let minD = Math.min(Math.min(cutW, cutH), 318);
+                    let halfStr = (maxD > 0 && minD > 0) ? `${maxD} x ${minD} mm` : '478 x 318 mm';
+                    let currentSheetStr = (sheetW > 0 && sheetH > 0) ? `${Math.min(Math.max(sheetW, sheetH), 478)} x ${Math.min(Math.min(sheetW, sheetH), 318)} mm` : '';
+                    let digFormatDetail = (digCutFactor === 2) ? ` ${halfStr}` : (currentSheetStr ? ` ${currentSheetStr}` : '');
+                    desc.push("numeracija/personalizacija ovitek (" + persSidesText + " " + digSheets.toLocaleString('de-DE') + " pol" + digFormatDetail + ")");
                 }
                 return desc.join(", ") || "/";
             }
