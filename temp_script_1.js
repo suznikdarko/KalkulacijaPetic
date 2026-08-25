@@ -1362,6 +1362,32 @@
 
             }
 
+        function getUVSheetFactor(w, h, selectedUVFormat) {
+            if (!selectedUVFormat || selectedUVFormat === 'auto') return 1;
+            const maxDim = Math.max(w || 0, h || 0);
+            const minDim = Math.min(w || 0, h || 0);
+            if (maxDim > 750 || (maxDim > 700 && minDim > 520)) {
+                if (selectedUVFormat === '50x35') return 4;
+                if (selectedUVFormat === '70x33') return 2;
+                if (selectedUVFormat === '70x50') return 2;
+                return 1;
+            }
+            let autoFormat = '70x50';
+            if (maxDim <= 500 && minDim <= 350) {
+                autoFormat = '50x35';
+            } else if (maxDim <= 700 && minDim <= 330) {
+                autoFormat = '70x33';
+            } else {
+                autoFormat = '70x50';
+            }
+            if (selectedUVFormat === autoFormat) return 1;
+            if (autoFormat === '70x50' && selectedUVFormat === '50x35') {
+                return 2;
+            }
+            if (autoFormat === '70x50' && selectedUVFormat === '70x33') {
+                return -1;
+            }
+            return 1;
         }
 
         function updateUVLakPrice() {
@@ -3588,9 +3614,27 @@
 
                 let extraWaste = parseFloat(document.getElementById('f-uv-extra-waste').value) || 0;
 
-                let uvSheetsCalculated = sheetsNeeded + extraWaste;
+                let uvFormat = document.getElementById('f-uv-format') ? document.getElementById('f-uv-format').value : 'auto';
 
-                totalFinishCost += uPrep + (uvSheetsCalculated * pricePerSheet);
+                let currentSheetW = g_lastSheetW || 700;
+
+                let currentSheetH = g_lastSheetH || 500;
+
+                let uvCutFactor = getUVSheetFactor(currentSheetW, currentSheetH, uvFormat);
+
+                if (uvCutFactor !== -1) {
+
+                    let uvSheetsNet = sheetsNeeded * uvCutFactor;
+
+                    let uvSheetsCalculated = uvSheetsNet + extraWaste;
+
+                    let uvSides = document.getElementById('f-uv-sides') ? document.getElementById('f-uv-sides').value : '1/0';
+
+                    let uvMultiplier = (uvSides === '1/1') ? 2 : 1;
+
+                    totalFinishCost += uPrep + (uvSheetsCalculated * pricePerSheet * uvMultiplier);
+
+                }
 
             }
 
@@ -4018,19 +4062,57 @@
 
                 let extraWaste = parseFloat(document.getElementById('f-uv-extra-waste').value) || 0;
 
-                let uvSheetsCalculated = sheetsNeeded + extraWaste;
+                let uvFormat = document.getElementById('f-uv-format') ? document.getElementById('f-uv-format').value : 'auto';
 
-                let uWork = uvSheetsCalculated * pricePerSheet;
+                let currentSheetW = g_lastSheetW || 700;
 
-                let uCost = uPrep + uWork;
+                let currentSheetH = g_lastSheetH || 500;
+
+                let uvCutFactor = getUVSheetFactor(currentSheetW, currentSheetH, uvFormat);
+
+                let uvSides = document.getElementById('f-uv-sides') ? document.getElementById('f-uv-sides').value : '1/0';
+
+                let uCost = 0;
+
+                let breakdownText = "";
+
+                if (uvCutFactor === -1) {
+
+                    breakdownText = `Pola ni za lakirati, ker je napačen format!`;
+
+                    uCost = 0;
+
+                } else {
+
+                    let uvSheetsNet = sheetsNeeded * uvCutFactor;
+
+                    let uvSheetsCalculated = uvSheetsNet + extraWaste;
+
+                    let uvMultiplier = (uvSides === '1/1') ? 2 : 1;
+
+                    let uWork = uvSheetsCalculated * pricePerSheet * uvMultiplier;
+
+                    uCost = uPrep + uWork;
+
+                    let sheetDetailText = (uvCutFactor > 1) ? `${uvSheetsNet} (${sheetsNeeded}x${uvCutFactor} neto)` : `${sheetsNeeded} (neto)`;
+
+                    breakdownText = `Priprava: ${formatPrice(uPrep)} | Delo: ${sheetDetailText} + ${extraWaste} (tiskar) = ${uvSheetsCalculated.toFixed(0)} pol po ${pricePerSheet.toFixed(3)} €`;
+
+                    if (uvMultiplier > 1) {
+                        breakdownText += ` x 2 (obojestransko)`;
+                    }
+
+                    breakdownText += ` = ${formatPrice(uWork)}`;
+
+                }
 
                 details.finish.items.push({
 
-                    name: 'UV lak (tuja)',
+                    name: 'UV lak (tuja) ' + uvSides,
 
                     cost: uCost,
 
-                    breakdown: `Priprava: ${formatPrice(uPrep)} | Delo: ${sheetsNeeded} (neto) + ${extraWaste} (tiskar) = ${uvSheetsCalculated.toFixed(0)} pol po ${pricePerSheet.toFixed(3)} € (${formatPrice(uWork)})`
+                    breakdown: breakdownText
 
                 });
 
