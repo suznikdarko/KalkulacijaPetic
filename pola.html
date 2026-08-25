@@ -2041,13 +2041,12 @@
             const minDim = Math.min(s.w, s.h);
             const maxDim = Math.max(s.w, s.h);
             if (maxDim <= 478 && minDim <= 318) return true;
-            if ((s.w === 698 && s.h === 498) || (s.w === 498 && s.h === 698) || s.name === 'B2' || s.name === '638x448') return true;
+            if ((s.w === 698 && s.h === 498) || (s.w === 498 && s.h === 698) || s.name === 'B2' || s.name === '638x448' || s.name === 'B3' || (s.w === 498 && s.h === 348) || (s.w === 348 && s.h === 498)) return true;
             if (s.name === 'B1' || s.name === 'A1' || s.name === '900x640') return true;
             return false;
         }
         function isSheetFamilyMatching(rawFamily, sheetFamily, mType = '', sheetName = '') {
-            const isPers = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
-            if (sheetFamily === 'DIGITAL') return mType === 'digital' || isPers;
+            if (sheetFamily === 'DIGITAL') return mType === 'digital';
             if (rawFamily === 'OTHER') return true;
             if (rawFamily === 'N') {
                 return sheetFamily === 'N' || sheetName === '638x448' || sheetName === 'SRA3';
@@ -2584,10 +2583,19 @@
                 let usage = (currentCount * itemW * itemH) / (bestSheet.w * bestSheet.h);
                 document.getElementById('res-usage').innerText = (usage * 100).toFixed(1) + "%";
                 document.getElementById('res-usage-mini').innerText = (usage * 100).toFixed(1) + "%";
-                document.getElementById('res-size').innerText = bestSheet.w + " x " + bestSheet.h;
+
+                let drawSheetW = bestSheet.w;
+                let drawSheetH = bestSheet.h;
+                const isPersActive = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+                if (isPersActive && mType === 'S4') {
+                    drawSheetW = bestSheet.w >= bestSheet.h ? 478 : 318;
+                    drawSheetH = bestSheet.w >= bestSheet.h ? 318 : 478;
+                }
+
+                document.getElementById('res-size').innerText = drawSheetW + " x " + drawSheetH;
                 const isOverride = currentCount !== bestLayout.count;
-                drawAllLayouts(bestSheet.w, bestSheet.h, bestLayout, g, w, h, b, sw, sh, isOverride, currentCount);
-                updateWasteAndPrice(Math.ceil(q / currentCount), q, bestSheet.w, bestSheet.h);
+                drawAllLayouts(drawSheetW, drawSheetH, bestLayout, g, w, h, b, sw, sh, isOverride, currentCount);
+                updateWasteAndPrice(Math.ceil(q / currentCount), q, drawSheetW, drawSheetH);
             } catch (e) { alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack); console.error(e); }
         }
         function parseMutationDodatekList(str) {
@@ -3791,9 +3799,13 @@
                 
                 let cutW = currentSheetW >= currentSheetH ? Math.round(currentSheetW / 2) : currentSheetW;
                 let cutH = currentSheetW >= currentSheetH ? currentSheetH : Math.round(currentSheetH / 2);
-                let halfStr = (cutW > 0 && cutH > 0) ? `${Math.max(cutW, cutH)}x${Math.min(cutW, cutH)} mm` : '478x318 mm';
+                let maxD = Math.min(Math.max(cutW, cutH), 478);
+                let minD = Math.min(Math.min(cutW, cutH), 318);
+                let halfStr = (maxD > 0 && minD > 0) ? `${maxD}x${minD} mm` : '478x318 mm';
+                let currentSheetStr = (currentSheetW > 0 && currentSheetH > 0) ? `${Math.min(Math.max(currentSheetW, currentSheetH), 478)}x${Math.min(Math.min(currentSheetW, currentSheetH), 318)} mm` : '478x318 mm';
                 
-                let breakdownText = `Delo: ${pTotalImpressions.toLocaleString('de-DE')} odtisov${sidesText} na ${pDigitalSheets.toLocaleString('de-DE')} pol za personalizacijo (razrez -> 2x ${halfStr}) po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
+                let persFormatInfo = isLargeSheetForPers ? ` (razrez -> 2x ${halfStr})` : (currentSheetStr ? ` (format ${currentSheetStr})` : '');
+                let breakdownText = `Delo: ${pTotalImpressions.toLocaleString('de-DE')} odtisov${sidesText} na ${pDigitalSheets.toLocaleString('de-DE')} pol za personalizacijo${persFormatInfo} po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
                 let extraCost = 0;
                 if (isLargeSheetForPers) {
                     let razrezSheets = totalSheetsNeeded * 2;
@@ -3805,8 +3817,8 @@
                     extraCost += razrezCost;
                     breakdownText += ` | Razrez -> 2x (${halfStr}): ${formatPrice(razrezCost)}`;
                 }
-                let nameSuffix = isLargeSheetForPers ? ` (Razrez -> 2x ${halfStr})` : (mType === 'S8' ? ' (Digitalni format - S8)' : '');
-                if (isBothSides) nameSuffix = ' (Obojestransko)' + (isLargeSheetForPers ? ` -> 2x ${halfStr}` : '');
+                let nameSuffix = isLargeSheetForPers ? ` (Razrez -> 2x ${halfStr})` : (currentSheetStr ? ` (Format ${currentSheetStr})` : '');
+                if (isBothSides) nameSuffix = ' (Obojestransko)' + (isLargeSheetForPers ? ` -> 2x ${halfStr}` : (currentSheetStr ? ` (${currentSheetStr})` : ''));
                 details.finish.items.push({
                     name: 'Personalizacija' + nameSuffix + sidesText,
                     cost: pCost + extraCost,
@@ -4499,7 +4511,9 @@
 
                     let cutW = sheetW >= sheetH ? Math.round(sheetW / 2) : sheetW;
                     let cutH = sheetW >= sheetH ? sheetH : Math.round(sheetH / 2);
-                    let halfStr = `${Math.max(cutW, cutH)}x${Math.min(cutW, cutH)} mm`;
+                    let maxD = Math.min(Math.max(cutW, cutH), 478);
+                    let minD = Math.min(Math.min(cutW, cutH), 318);
+                    let halfStr = `${maxD}x${minD} mm`;
                     const badgeText = fitsDigital
                         ? `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfStr})`
                         : `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfStr}) ⚠️ PRESEGA DIGITAL`;
@@ -4543,7 +4557,9 @@
 
                     let cutW = sheetW >= sheetH ? Math.round(sheetW / 2) : sheetW;
                     let cutH = sheetW >= sheetH ? sheetH : Math.round(sheetH / 2);
-                    let halfStr = `${Math.max(cutW, cutH)}x${Math.min(cutW, cutH)} mm`;
+                    let maxD = Math.min(Math.max(cutW, cutH), 478);
+                    let minD = Math.min(Math.min(cutW, cutH), 318);
+                    let halfStr = `${maxD}x${minD} mm`;
                     const badgeText = fitsDigital
                         ? `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfStr})`
                         : `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfStr}) ⚠️ PRESEGA DIGITAL`;
@@ -6676,7 +6692,11 @@
                 let digSheets = calcRes.sheetsNeeded * digCutFactor;
                 let cutW = sheetW >= sheetH ? Math.round(sheetW / 2) : sheetW;
                 let cutH = sheetW >= sheetH ? sheetH : Math.round(sheetH / 2);
-                let digFormatDetail = (digCutFactor === 2) ? ` ${Math.max(cutW, cutH)} x ${Math.min(cutW, cutH)} mm` : '';
+                let maxD = Math.min(Math.max(cutW, cutH), 478);
+                let minD = Math.min(Math.min(cutW, cutH), 318);
+                let halfStr = (maxD > 0 && minD > 0) ? `${maxD} x ${minD} mm` : '478 x 318 mm';
+                let currentSheetStr = (sheetW > 0 && sheetH > 0) ? `${Math.min(Math.max(sheetW, sheetH), 478)} x ${Math.min(Math.min(sheetW, sheetH), 318)} mm` : '';
+                let digFormatDetail = (digCutFactor === 2) ? ` ${halfStr}` : (currentSheetStr ? ` ${currentSheetStr}` : '');
                 let persQtyStr = `${persSidesText} ${digSheets.toLocaleString('de-DE')} pol${digFormatDetail}`;
                 finishingRowsHtml += `
                     <tr>
