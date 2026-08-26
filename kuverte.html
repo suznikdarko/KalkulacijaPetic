@@ -2203,13 +2203,37 @@
             calculate();
         }
 
+        function getAutoSpeed(q) {
+            if (q <= 100) {
+                return 1600;
+            } else if (q <= 500) {
+                return Math.round(1600 + (q - 100) * (2150 - 1600) / (500 - 100));
+            } else if (q <= 1000) {
+                return Math.round(2150 + (q - 500) * (2500 - 2150) / (1000 - 500));
+            } else if (q <= 2000) {
+                return Math.round(2500 + (q - 1000) * (3300 - 2500) / (2000 - 1000));
+            } else if (q <= 3000) {
+                return Math.round(3300 + (q - 2000) * (3320 - 3300) / (3000 - 2000));
+            } else if (q <= 10000) {
+                return Math.round(3320 + (q - 3000) * (3500 - 3320) / (10000 - 3000));
+            } else if (q <= 50000) {
+                return Math.round(3500 + (q - 10000) * (3700 - 3500) / (50000 - 10000));
+            } else {
+                return 3700;
+            }
+        }
+
         function calculateForSingleQty(q) {
             const qo = 0;
             const mPrice = parseFloat(document.getElementById('calc-material-price').value) || 0;
             const cFront = parseFloat(document.getElementById('calc-colors-front').value) || 0;
             const cBack = parseFloat(document.getElementById('calc-colors-back').value) || 0;
             const mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 120;
-            const mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 10000;
+            const autoSpeed = document.getElementById('calc-auto-speed') && document.getElementById('calc-auto-speed').checked;
+            let mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 10000;
+            if (autoSpeed) {
+                mSpeed = getAutoSpeed(q);
+            }
             const platePrice = parseFloat(document.getElementById('calc-plate-price').value) || 0;
             const plateCount = parseInt(document.getElementById('calc-plate-count').value) || 0;
             const prepPrice = parseFloat(document.getElementById('calc-prep-price').value) || 0;
@@ -2230,11 +2254,19 @@
             if (!isNaN(manualWaste)) {
                 waste = manualWaste;
             } else {
+                let baseWaste = 320;
+                if (q > 10000) {
+                    if (q >= 50000) {
+                        baseWaste = 500;
+                    } else {
+                        baseWaste = Math.round(320 + (q - 10000) * (500 - 320) / (50000 - 10000));
+                    }
+                }
                 const isObr = document.getElementById('calc-is-obrat').checked;
                 if (cFront === 4 && cBack === 4) {
-                    waste = isObr ? 320 : 640;
+                    waste = isObr ? baseWaste : baseWaste * 2;
                 } else {
-                    waste = 320;
+                    waste = baseWaste;
                 }
             }
             document.getElementById('calc-waste').value = waste;
@@ -2514,24 +2546,11 @@
                 persElem.value = q;
             }
 
-            // Samodejna prilagoditev hitrosti
+            // Samodejna prilagoditev hitrosti (vnosno polje osvežimo s hitrostjo prve naklade)
             const speedInput = document.getElementById('calc-machine-speed');
             const autoSpeed = document.getElementById('calc-auto-speed').checked;
             if (speedInput && autoSpeed) {
-                if (q <= 100) {
-                    speedInput.value = 1600;
-                } else if (q <= 500) {
-                    let interpolatedSpeed = 1600 + (q - 100) * (2100 - 1600) / (500 - 100);
-                    speedInput.value = Math.round(interpolatedSpeed);
-                } else if (q <= 1000) {
-                    let interpolatedSpeed = 2100 + (q - 500) * (2500 - 2100) / (1000 - 500);
-                    speedInput.value = Math.round(interpolatedSpeed);
-                } else if (q <= 2000) {
-                    let interpolatedSpeed = 2500 + (q - 1000) * (3300 - 2500) / (2000 - 1000);
-                    speedInput.value = Math.round(interpolatedSpeed);
-                } else {
-                    speedInput.value = 3300;
-                }
+                speedInput.value = getAutoSpeed(q);
             }
 
             let layout = optimizeLayout(sheetB3.w, sheetB3.h, w, h, gripper);
