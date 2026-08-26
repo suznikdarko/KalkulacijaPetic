@@ -2333,11 +2333,57 @@
             }
             return 1;
         }
+
+        function updateUVFormatWarning(w, h, selectedUVFormat) {
+            let warningEl = document.getElementById('f-uv-format-warning');
+            const formatSelect = document.getElementById('f-uv-format');
+            const isUvActive = document.getElementById('f-uv-active') ? document.getElementById('f-uv-active').checked : false;
+
+            const factor = getUVSheetFactor(w, h, selectedUVFormat);
+            const isInvalid = isUvActive && (factor === -1);
+
+            if (!warningEl) {
+                const uvContainer = document.getElementById('row-finish-uv');
+                if (uvContainer) {
+                    warningEl = document.createElement('div');
+                    warningEl.id = 'f-uv-format-warning';
+                    warningEl.style.cssText = 'display:none; margin-top:10px; width:100%; grid-column:1/-1; padding:10px 14px; background:#fee2e2; border:2px solid #ef4444; border-radius:6px; color:#991b1b; font-weight:bold; font-size:0.85rem; text-align:center; box-shadow:0 2px 4px rgba(239,68,68,0.2);';
+                    uvContainer.appendChild(warningEl);
+                }
+            }
+
+            if (formatSelect) {
+                if (isInvalid) {
+                    formatSelect.style.border = '2px solid #dc2626';
+                    formatSelect.style.backgroundColor = '#fef2f2';
+                    formatSelect.style.color = '#991b1b';
+                    formatSelect.style.fontWeight = 'bold';
+                } else {
+                    formatSelect.style.border = '';
+                    formatSelect.style.backgroundColor = '';
+                    formatSelect.style.color = '';
+                    formatSelect.style.fontWeight = '';
+                }
+            }
+
+            if (warningEl) {
+                if (isInvalid) {
+                    warningEl.style.display = 'block';
+                    warningEl.innerHTML = '⚠️ <strong>POLA NI ZA LAKIRATI:</strong> Tiskovna pola (B2 / 70x50) ne gre lakirati na format 70x33!';
+                } else {
+                    warningEl.style.display = 'none';
+                }
+            }
+        }
+
         function updateUVLakPrice() {
             const typeSelect = document.getElementById('f-uv-type');
             if (!typeSelect) return;
             const type = typeSelect.value;
             const formatSelect = document.getElementById('f-uv-format').value;
+            const w = g_lastSheetW || 700;
+            const h = g_lastSheetH || 500;
+            updateUVFormatWarning(w, h, formatSelect);
             if (type === 'manual') {
                 return;
             }
@@ -3537,6 +3583,7 @@
                 let uvFormat = document.getElementById('f-uv-format') ? document.getElementById('f-uv-format').value : 'auto';
                 let currentSheetW = g_lastSheetW || 700;
                 let currentSheetH = g_lastSheetH || 500;
+                updateUVFormatWarning(currentSheetW, currentSheetH, uvFormat);
                 let uvCutFactor = getUVSheetFactor(currentSheetW, currentSheetH, uvFormat);
                 if (uvCutFactor !== -1) {
                     let uvSheetsNet = sheetsNeeded * uvCutFactor;
@@ -3804,7 +3851,7 @@
                 let uCost = 0;
                 let breakdownText = "";
                 if (uvCutFactor === -1) {
-                    breakdownText = `Pola ni za lakirati, ker je napačen format!`;
+                    breakdownText = `⛔ POLA NI ZA LAKIRATI, KER JE NAPAČEN FORMAT!`;
                     uCost = 0;
                 } else {
                     let uvSheetsNet = sheetsNeeded * uvCutFactor;
@@ -6727,7 +6774,7 @@
                 let uvTypeText = uvTypeSelect ? uvTypeSelect.options[uvTypeSelect.selectedIndex].text : '';
                 let uvFormat = document.getElementById('f-uv-format') ? document.getElementById('f-uv-format').value : 'auto';
                 let uvCutFactor = getUVSheetFactor(sheetW || g_lastSheetW || 700, sheetH || g_lastSheetH || 500, uvFormat);
-                let uvDisplayInfo = (uvCutFactor === -1) ? `${uvTypeText} (${uvSidesText}) - <span style="color:red; font-weight:bold;">Pola ni za lakirati, ker je napačen format!</span>` : `${uvTypeText} (${uvSidesText})`;
+                let uvDisplayInfo = (uvCutFactor === -1) ? `<span style="background:#fee2e2; color:#dc2626; border:1px solid #ef4444; padding:3px 8px; border-radius:4px; font-weight:bold; display:inline-block;">⚠️ POLA NI ZA LAKIRATI (NAPAČEN FORMAT)</span>` : `${uvTypeText} (${uvSidesText})`;
                 finishingRowsHtml += `
                     <tr>
                         <td style="width: 15%;">UV lak (tuja):</td>
