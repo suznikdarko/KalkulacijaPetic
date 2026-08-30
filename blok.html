@@ -1224,6 +1224,20 @@
                         </label>
                     </div>
                     <div id="paper-options" style="background: rgba(0,0,0,0.02); padding: 0.8rem; border-radius: 8px;">
+                        <div style="margin-bottom: 0.8rem; padding: 0.6rem 0.8rem; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                            <div style="font-size: 0.85rem; color: #93c5fd; display: flex; align-items: center; gap: 0.4rem;">
+                                <span>📦 <strong>Zaloga (Simon):</strong></span>
+                                <span id="stock-count-badge" style="background: #1e293b; color: #f87171; padding: 0.15rem 0.5rem; border-radius: 12px; font-weight: bold; font-size: 0.75rem; border: 1px solid #ef4444;">Ni naloženo</span>
+                            </div>
+                            <div style="display: flex; gap: 0.4rem;">
+                                <button type="button" onclick="loadStockFile()" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                                    📂 Naloži zalogaSimon.json
+                                </button>
+                                <button type="button" onclick="openStockSearchModal('leaves')" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                                    🔍 Išči po zalogi
+                                </button>
+                            </div>
+                        </div>
                         <div class="form-group">
                             <label>Cena papirja</label>
                             <div class="input-group">
@@ -1237,10 +1251,13 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="calc-leaves-material">Material listi</label>
+                            <label for="calc-leaves-material" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <span>Material listi</span>
+                                <button type="button" onclick="openStockSearchModal('leaves')" style="padding: 1px 6px; font-size: 0.72rem; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔍 Išči po zalogi</button>
+                            </label>
                             <input id="calc-leaves-material"
-                                oninput="if(typeof extractGrammage === 'function') extractGrammage(this, 'calc-paper-weight'); calculate()"
-                                placeholder="" style="width: 100%;" type="text" />
+                                oninput="if(typeof extractGrammage === 'function') extractGrammage(this, 'calc-paper-weight'); onMaterialStockInput(this, 'leaves'); calculate()"
+                                placeholder="npr. 250g mat ali offset 80g" style="width: 100%;" type="text" autocomplete="off" />
                         </div>
                         <div class="form-group">
                             <label>Šifra materiala</label>
@@ -1277,10 +1294,13 @@
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label>Material ovitek/podkarton</label>
+                                <label style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                    <span>Material ovitek/podkarton</span>
+                                    <button type="button" onclick="openStockSearchModal('cover')" style="padding: 1px 6px; font-size: 0.72rem; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔍 Išči po zalogi</button>
+                                </label>
                                 <input id="calc-cover-desc" onchange="calculate()"
-                                    oninput="extractGrammage(this, 'calc-cardboard-weight'); calculate()" placeholder=""
-                                    style="width: 100%;" type="text" />
+                                    oninput="if(typeof extractGrammage === 'function') extractGrammage(this, 'calc-cardboard-weight'); onMaterialStockInput(this, 'cover'); calculate()" placeholder="npr. Karton 300g ali 250g mat"
+                                    style="width: 100%;" type="text" autocomplete="off" />
                             </div>
                             <div class="form-group">
                                 <label>Šifra materiala (ovitek/podkarton)</label>
@@ -7686,6 +7706,303 @@
         </div>
     </div>
     <!-- MODALNO OKNO ZA KOŠARICO -->
+    <!-- MODALNO OKNO ZA PREVERJANJE ZALOGE SIMON -->
+    <div id="modal-stock-search" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:999999; backdrop-filter:blur(4px); justify-content:center; align-items:center;">
+        <div style="background:#0f172a; border:1px solid #3b82f6; border-radius:12px; width:90%; max-width:850px; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 20px 50px rgba(0,0,0,0.8); overflow:hidden;">
+            <div style="padding:1rem 1.2rem; background:#1e293b; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; color:#60a5fa; font-size:1.1rem; display:flex; align-items:center; gap:0.5rem;">📦 Preverjanje zaloge (Simon)</h3>
+                <button type="button" onclick="closeStockSearchModal()" style="background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer; font-weight:bold;">&times;</button>
+            </div>
+            <div style="padding:1rem; background:#0f172a; display:flex; gap:0.5rem; align-items:center;">
+                <input type="text" id="stock-search-input" oninput="renderStockSearchResults()" placeholder="🔍 Vpišite naziv ali šifro (npr. 250g mat, offset 80g...)" style="flex:1; padding:0.6rem 1rem; border-radius:8px; background:#1e293b; color:white; border:1px solid #3b82f6; font-size:0.95rem;" />
+                <button type="button" onclick="loadStockFile()" style="padding:0.6rem 1rem; background:#3b82f6; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; white-space:nowrap; font-size:0.85rem;">📂 Naloži zalogaSimon.json</button>
+            </div>
+            <div id="stock-search-results-container" style="flex:1; overflow-y:auto; padding:0 1rem 1rem 1rem;"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- LOGIKA ZA PREVERJANJE ZALOGE SIMON ---
+        let stockDataList = [];
+        let activeMaterialTarget = 'leaves';
+
+        function initStockData() {
+            try {
+                const saved = localStorage.getItem('zaloga_simon_data');
+                if (saved) {
+                    stockDataList = JSON.parse(saved);
+                    updateStockCountBadge();
+                }
+            } catch (e) { console.error("Napaka pri nalaganju shranjene zaloge:", e); }
+        }
+
+        function updateStockCountBadge() {
+            const badge = document.getElementById('stock-count-badge');
+            if (!badge) return;
+            if (stockDataList && stockDataList.length > 0) {
+                badge.innerText = `📦 Naloženo: ${stockDataList.length.toLocaleString('de-DE')} artiklov`;
+                badge.style.color = '#34d399';
+                badge.style.borderColor = '#10b981';
+            } else {
+                badge.innerText = `Ni naloženo (klikni Naloži)`;
+                badge.style.color = '#f87171';
+                badge.style.borderColor = '#ef4444';
+            }
+        }
+
+        async function loadStockFile() {
+            if (typeof window.showOpenFilePicker === 'function') {
+                try {
+                    const [fileHandle] = await window.showOpenFilePicker({
+                        types: [{
+                            description: 'Zaloga JSON (zalogaSimon.json)',
+                            accept: { 'application/json': ['.json'] }
+                        }],
+                        multiple: false
+                    });
+                    const file = await fileHandle.getFile();
+                    const text = await file.text();
+                    parseAndSaveStock(text);
+                } catch (e) {
+                    if (e.name !== 'AbortError') alert("Napaka pri izbiri datoteke: " + e.message);
+                }
+            } else {
+                let fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.json';
+                fileInput.onchange = e => {
+                    let file = e.target.files[0];
+                    let reader = new FileReader();
+                    reader.onload = event => parseAndSaveStock(event.target.result);
+                    reader.readAsText(file);
+                };
+                fileInput.click();
+            }
+        }
+
+        function parseAndSaveStock(content) {
+            try {
+                let data = JSON.parse(content);
+                if (Array.isArray(data)) {
+                    stockDataList = data;
+                    localStorage.setItem('zaloga_simon_data', JSON.stringify(data));
+                    updateStockCountBadge();
+                    alert(`Uspešno naložena zaloga: ${data.length.toLocaleString('de-DE')} artiklov!`);
+                    renderStockSearchResults();
+                } else {
+                    alert("Datoteka mora vsebovati JSON seznam artiklov (polje objektov).");
+                }
+            } catch (e) {
+                alert("Napaka pri branju JSON zaloge: " + e.message);
+            }
+        }
+
+        function searchStock(queryStr) {
+            if (!stockDataList || stockDataList.length === 0) return [];
+            if (!queryStr || queryStr.trim().length === 0) return stockDataList.slice(0, 50);
+            
+            const tokens = queryStr.toLowerCase().trim().split(/\s+/);
+            return stockDataList.filter(item => {
+                const title = (item['naziv'] || item['opis'] || item['material'] || item['Naziv'] || '').toString().toLowerCase();
+                const code = (item['šifra materiala'] || item['sifra'] || item['šifra'] || item['Šifra materiala'] || '').toString().toLowerCase();
+                const fullStr = title + ' ' + code;
+                return tokens.every(t => fullStr.includes(t));
+            });
+        }
+
+        function onMaterialStockInput(inputEl, targetComp) {
+            activeMaterialTarget = targetComp;
+            const val = inputEl.value;
+            if (!val || val.length < 2) {
+                hideStockPopup();
+                return;
+            }
+            if (!stockDataList || stockDataList.length === 0) return;
+            const results = searchStock(val);
+            showStockPopup(inputEl, results);
+        }
+
+        function showStockPopup(inputEl, results) {
+            let popup = document.getElementById('stock-autocomplete-popup');
+            if (!popup) {
+                popup = document.createElement('div');
+                popup.id = 'stock-autocomplete-popup';
+                document.body.appendChild(popup);
+            }
+            if (results.length === 0) {
+                popup.style.display = 'none';
+                return;
+            }
+            const rect = inputEl.getBoundingClientRect();
+            popup.style.position = 'fixed';
+            popup.style.top = (rect.bottom + 2) + 'px';
+            popup.style.left = rect.left + 'px';
+            popup.style.width = rect.width + 'px';
+            popup.style.zIndex = '999999';
+            popup.style.background = '#0f172a';
+            popup.style.border = '1px solid #3b82f6';
+            popup.style.borderRadius = '8px';
+            popup.style.boxShadow = '0 10px 30px rgba(0,0,0,0.6)';
+            popup.style.maxHeight = '250px';
+            popup.style.overflowY = 'auto';
+            popup.style.display = 'block';
+
+            let html = '';
+            results.slice(0, 20).forEach(item => {
+                const title = item['naziv'] || item['opis'] || item['material'] || item['Naziv'] || 'Neznan material';
+                const code = item['šifra materiala'] || item['sifra'] || item['šifra'] || item['Šifra materiala'] || '';
+                const qty = item['zaloga'] !== undefined ? item['zaloga'] : (item['Zaloga'] !== undefined ? item['Zaloga'] : 0);
+                const qtyNum = parseFloat(qty) || 0;
+                const qtyColor = qtyNum > 0 ? '#34d399' : '#f87171';
+                const formatStr = item['format'] || (item['širina'] && item['višina'] ? `${item['širina']}x${item['višina']}` : '');
+
+                html += `
+                    <div onclick="selectStockItem('${escapeJsStr(title)}', '${escapeJsStr(code)}', '${escapeJsStr(formatStr)}')"
+                         style="padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #e2e8f0;"
+                         onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='transparent'">
+                        <div>
+                            <strong style="color: #60a5fa;">${escapeHtml(title)}</strong>
+                            ${code ? `<span style="font-size: 0.75rem; color: #94a3b8; margin-left: 6px;">[Šifra: ${escapeHtml(code)}]</span>` : ''}
+                            ${formatStr ? `<span style="font-size: 0.75rem; color: #fbbf24; margin-left: 6px;">(${escapeHtml(formatStr)})</span>` : ''}
+                        </div>
+                        <div style="font-weight: bold; color: ${qtyColor}; font-size: 0.8rem; white-space: nowrap; margin-left: 10px;">
+                            📦 ${qtyNum.toLocaleString('de-DE')} pol
+                        </div>
+                    </div>
+                `;
+            });
+            popup.innerHTML = html;
+        }
+
+        function hideStockPopup() {
+            const popup = document.getElementById('stock-autocomplete-popup');
+            if (popup) popup.style.display = 'none';
+        }
+
+        function selectStockItem(title, code, formatStr) {
+            hideStockPopup();
+            if (activeMaterialTarget === 'leaves') {
+                const matInput = document.getElementById('calc-leaves-material');
+                if (matInput) matInput.value = title;
+                const codeInput = document.getElementById('calc-material-code');
+                if (codeInput && code) codeInput.value = code;
+                if (typeof extractGrammage === 'function' && matInput) extractGrammage(matInput, 'calc-paper-weight');
+            } else {
+                const coverInput = document.getElementById('calc-cover-desc');
+                if (coverInput) coverInput.value = title;
+                const codeInput = document.getElementById('calc-cover-material-code');
+                if (codeInput && code) codeInput.value = code;
+                if (typeof extractGrammage === 'function' && coverInput) extractGrammage(coverInput, 'calc-cardboard-weight');
+            }
+            if (typeof calculate === 'function') calculate();
+            closeStockSearchModal();
+        }
+
+        function openStockSearchModal(targetComp) {
+            activeMaterialTarget = targetComp || 'leaves';
+            const modal = document.getElementById('modal-stock-search');
+            if (modal) {
+                modal.style.display = 'flex';
+                const input = document.getElementById('stock-search-input');
+                if (input) {
+                    const currentVal = targetComp === 'leaves' ? (document.getElementById('calc-leaves-material')?.value || '') : (document.getElementById('calc-cover-desc')?.value || '');
+                    input.value = currentVal;
+                    input.focus();
+                }
+                renderStockSearchResults();
+            }
+        }
+
+        function closeStockSearchModal() {
+            const modal = document.getElementById('modal-stock-search');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function renderStockSearchResults() {
+            const query = document.getElementById('stock-search-input')?.value || '';
+            const container = document.getElementById('stock-search-results-container');
+            if (!container) return;
+            
+            if (!stockDataList || stockDataList.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2.5rem 1rem; color: #94a3b8;">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📦</div>
+                        <div style="font-weight: bold; font-size: 1.1rem; color: #e2e8f0; margin-bottom: 0.4rem;">Zaloga Simon še ni naložena</div>
+                        <div style="font-size: 0.85rem; max-width: 450px; margin: 0 auto 1.2rem auto;">Naložite datoteko <code>zalogaSimon.json</code> z vašega računalnika ali mreže. Shranila se bo v vašem brskalniku.</div>
+                        <button type="button" onclick="loadStockFile()" style="padding: 0.6rem 1.2rem; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);">
+                            📂 Izberi datoteko zalogaSimon.json
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            const results = searchStock(query);
+            if (results.length === 0) {
+                container.innerHTML = `<div style="text-align: center; padding: 2rem; color: #f87171;">Ni materiala v zalogi, ki bi ustrezal iskanju "${escapeHtml(query)}".</div>`;
+                return;
+            }
+            
+            let html = `<div style="margin-bottom: 0.6rem; font-size: 0.8rem; color: #94a3b8;">Najdeno: <strong style="color:#38bdf8;">${results.length.toLocaleString('de-DE')}</strong> artiklov (prikazano do 100)</div>`;
+            html += `<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: #e2e8f0;">
+                <thead>
+                    <tr style="background: #1e293b; color: #94a3b8; text-align: left;">
+                        <th style="padding: 10px 8px;">Šifra</th>
+                        <th style="padding: 10px 8px;">Naziv materiala</th>
+                        <th style="padding: 10px 8px;">Format</th>
+                        <th style="padding: 10px 8px; text-align: right;">Zaloga (pol)</th>
+                        <th style="padding: 10px 8px; text-align: center;">Akcija</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+                
+            results.slice(0, 100).forEach(item => {
+                const title = item['naziv'] || item['opis'] || item['material'] || item['Naziv'] || 'Neznan material';
+                const code = item['šifra materiala'] || item['sifra'] || item['šifra'] || item['Šifra materiala'] || '-';
+                const qty = item['zaloga'] !== undefined ? item['zaloga'] : (item['Zaloga'] !== undefined ? item['Zaloga'] : 0);
+                const qtyNum = parseFloat(qty) || 0;
+                const qtyColor = qtyNum > 0 ? '#34d399' : '#f87171';
+                const formatStr = item['format'] || (item['širina'] && item['višina'] ? `${item['širina']}x${item['višina']}` : '-');
+                
+                html += `
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='transparent'">
+                        <td style="padding: 8px; font-family: monospace; color: #38bdf8; font-weight: bold;">${escapeHtml(code)}</td>
+                        <td style="padding: 8px; font-weight: bold; color: #f8fafc;">${escapeHtml(title)}</td>
+                        <td style="padding: 8px; color: #fbbf24;">${escapeHtml(formatStr)}</td>
+                        <td style="padding: 8px; text-align: right; font-weight: bold; color: ${qtyColor}; font-size: 0.9rem;">📦 ${qtyNum.toLocaleString('de-DE')}</td>
+                        <td style="padding: 8px; text-align: center;">
+                            <button type="button" onclick="selectStockItem('${escapeJsStr(title)}', '${escapeJsStr(code)}', '${escapeJsStr(formatStr)}')" style="padding: 4px 12px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.78rem; font-weight: bold; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);">
+                                ✔ Izberi
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+
+        function escapeJsStr(str) {
+            if (!str) return '';
+            return str.toString().replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, '\\"');
+        }
+
+        document.addEventListener('click', function(e) {
+            const popup = document.getElementById('stock-autocomplete-popup');
+            if (popup && !popup.contains(e.target) && e.target.id !== 'calc-leaves-material' && e.target.id !== 'calc-cover-desc') {
+                hideStockPopup();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', initStockData);
+        initStockData();
+    </script>
 </body>
 
 </html>
