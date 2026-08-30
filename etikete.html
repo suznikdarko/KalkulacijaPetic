@@ -6144,20 +6144,16 @@ return `
         function getCombinedSearchQuery(targetComp) {
             let desc = '';
             let gram = '';
-            let code = '';
             
             if (targetComp === 'leaves') {
                 desc = document.getElementById('calc-leaves-material')?.value || '';
                 gram = document.getElementById('calc-paper-weight')?.value || '';
-                code = document.getElementById('calc-material-code')?.value || '';
             } else if (targetComp === 'cover') {
                 desc = document.getElementById('calc-cover-desc')?.value || '';
                 gram = document.getElementById('calc-cardboard-weight')?.value || '';
-                code = document.getElementById('calc-cover-material-code')?.value || '';
             } else {
                 desc = document.getElementById('calc-paper-type')?.value || document.getElementById('calc-material-desc')?.value || document.getElementById('calc-leaves-material')?.value || '';
                 gram = document.getElementById('calc-paper-weight')?.value || '';
-                code = document.getElementById('calc-material-code')?.value || '';
             }
             
             let parts = [];
@@ -6168,15 +6164,26 @@ return `
                     parts.push(gStr.toLowerCase().endsWith('g') ? gStr : gStr + 'g');
                 }
             }
-            if (code && code.trim() && !desc.includes(code.trim())) {
-                parts.push(code.trim());
-            }
             
             return parts.join(' ');
         }
 
         function onMaterialStockInput(inputEl, targetComp) {
             activeMaterialTarget = targetComp || 'paper';
+            
+            let codeInput = null;
+            if (activeMaterialTarget === 'leaves') {
+                codeInput = document.getElementById('calc-material-code');
+            } else if (activeMaterialTarget === 'cover') {
+                codeInput = document.getElementById('calc-cover-material-code');
+            } else {
+                codeInput = document.getElementById('calc-material-code') || document.getElementById('materialCode');
+            }
+            
+            if (inputEl && inputEl.id !== 'calc-material-code' && inputEl.id !== 'calc-cover-material-code' && codeInput) {
+                codeInput.value = '';
+            }
+            
             const combinedQuery = getCombinedSearchQuery(activeMaterialTarget);
             const val = combinedQuery || (inputEl ? inputEl.value : '');
             const targetInput = (inputEl && inputEl.id !== 'calc-paper-weight' && inputEl.id !== 'calc-cardboard-weight') 
