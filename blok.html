@@ -706,6 +706,32 @@
                     <label>Stavkov na poli</label>
                     <input id="items-per-sheet" oninput="calculate()" placeholder="Avto" type="number" value="" />
                 </div>
+
+                <div style="width: 100%; display: flex; gap: 1rem; align-items: center; background: rgba(59, 130, 246, 0.08); padding: 8px 12px; border-radius: 8px; border: 1px dashed rgba(59, 130, 246, 0.3); margin-top: 5px;">
+                    <label style="display: flex; align-items: center; gap: 0.4rem; font-weight: bold; color: #60a5fa; cursor: pointer; white-space: nowrap; margin: 0;">
+                        <input type="checkbox" id="calc-ncr-active" onchange="updateNcrLeaves(); calculate();" style="width: auto; height: auto;" />
+                        Garniture / Seti (NCR)
+                    </label>
+                    <div id="ncr-controls" style="display: none; gap: 1rem; align-items: center; flex: 1; flex-wrap: wrap;">
+                        <div style="display: flex; gap: 0.4rem; align-items: center;">
+                            <label style="font-size: 0.75rem; margin: 0; white-space: nowrap;">Št. listov v setu:</label>
+                            <select id="calc-ncr-parts" onchange="updateNcrLeaves(); calculate();" style="padding: 0.2rem 0.4rem; font-size: 0.85rem; border-radius: 6px;">
+                                <option value="2">2-delni (2 listi: CB + CF)</option>
+                                <option value="3" selected>3-delni (3 listi: CB + CFB + CF)</option>
+                                <option value="4">4-delni (4 listi: CB + 2x CFB + CF)</option>
+                                <option value="5">5-delni (5 listov: CB + 3x CFB + CF)</option>
+                                <option value="6">6-delni (6 listov: CB + 4x CFB + CF)</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 0.4rem; align-items: center;">
+                            <label style="font-size: 0.75rem; margin: 0; white-space: nowrap;">Št. setov v bloku:</label>
+                            <input type="number" id="calc-ncr-sets-per-block" placeholder="50" value="" oninput="updateNcrLeaves(); calculate();" style="padding: 0.2rem 0.5rem; font-size: 0.85rem; width: 80px; border-radius: 6px;" />
+                        </div>
+                        <div style="font-size: 0.8rem; color: #38bdf8; font-weight: 600; margin-left: auto;">
+                            <span id="ncr-info-badge"></span>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="header-group"
                 style="grid-column: span 6; display: flex; gap: 1rem; flex-wrap: wrap; background: rgba(244, 63, 94, 0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(244, 63, 94, 0.2);">
@@ -1588,6 +1614,42 @@
                                         value="10.00" />
                                 </div>
                             </div>
+                            <!-- Zbiranje garnitur (NCR) -->
+                            <div class="finish-item" id="row-finish-zbiranje-ncr">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input id="f-zbiranje-ncr-active" onchange="toggleFinishRow('zbiranje-ncr')"
+                                        type="checkbox" />
+                                    Zbiranje garnitur (NCR)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Priprava (€)</small></label>
+                                    <input id="f-zbiranje-ncr-prep" onchange="calculatePrice()" type="number"
+                                        value="15.00" />
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena/1000 setov (€)</small></label>
+                                    <input id="f-zbiranje-ncr-per1000" onchange="calculatePrice()" type="number"
+                                        value="12.00" />
+                                </div>
+                            </div>
+                            <!-- Ločevalno lepljenje (Deserta) -->
+                            <div class="finish-item" id="row-finish-deserta">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input id="f-deserta-active" onchange="toggleFinishRow('deserta')"
+                                        type="checkbox" />
+                                    Ločevalno lepljenje (Deserta)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Priprava (€)</small></label>
+                                    <input id="f-deserta-prep" onchange="calculatePrice()" type="number"
+                                        value="10.00" />
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena/1000 setov (€)</small></label>
+                                    <input id="f-deserta-per1000" onchange="calculatePrice()" type="number"
+                                        value="8.00" />
+                                </div>
+                            </div>
                             <!-- Lepljenje blokov -->
                             <div class="finish-item" id="row-finish-lepljenjeblokov">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
@@ -2307,6 +2369,22 @@
                 if (el) el.value = val;
             }
 
+            function updateNcrLeaves() {
+                const isNcr = document.getElementById('calc-ncr-active')?.checked || false;
+                const controls = document.getElementById('ncr-controls');
+                if (controls) controls.style.display = isNcr ? 'flex' : 'none';
+
+                if (isNcr) {
+                    const parts = parseInt(document.getElementById('calc-ncr-parts')?.value || 2);
+                    const sets = parseFloat(document.getElementById('calc-ncr-sets-per-block')?.value || 0);
+                    if (sets > 0) {
+                        const totalLeavesInBlock = Math.round(sets * parts);
+                        const leavesInput = document.getElementById('calc-leaves');
+                        if (leavesInput) leavesInput.value = totalLeavesInBlock;
+                    }
+                }
+            }
+
             function calculate(isManual = false) {
                 if (!window.g_loadingProject) {
                     g_editedQuoteHTML = '';
@@ -2440,6 +2518,22 @@
 
                     const itemW = w + (2 * b);
                     const itemH = h + (2 * b);
+
+                    const isNcr = document.getElementById('calc-ncr-active')?.checked || false;
+                    const ncrParts = parseInt(gV('calc-ncr-parts')) || 2;
+                    const ncrSetsPerBlock = parseFloat(gV('calc-ncr-sets-per-block')) || 0;
+                    if (isNcr && ncrSetsPerBlock > 0) {
+                        const totalSets = q * ncrSetsPerBlock;
+                        const totalLeaves = totalSets * ncrParts;
+                        const badge = document.getElementById('ncr-info-badge');
+                        if (badge) {
+                            badge.innerText = `Skupaj setov: ${totalSets.toLocaleString('de-DE')} | Skupaj listov: ${totalLeaves.toLocaleString('de-DE')}`;
+                        }
+                    } else {
+                        const badge = document.getElementById('ncr-info-badge');
+                        if (badge) badge.innerText = '';
+                    }
+
                     const leavesPerBlock = parseFloat(gV('calc-leaves')) || 1;
                     const finalCountLeaves = targetCount > 0 ? targetCount : bestLayout.count;
                     window.bestLayoutLeaves = bestLayout;
@@ -3626,6 +3720,32 @@
                         let znCost = znPrep + znWork;
                         totalFinishCost += znCost;
                         finishItems.push({ name: 'Znašanje', cost: znCost, breakdown: `Priprava: ${formatPrice(znPrep)} | Delo: ${formatPrice(znWork)}` });
+                    }
+
+                    // Zbiranje garnitur (NCR)
+                    if (document.getElementById('f-zbiranje-ncr-active') && document.getElementById('f-zbiranje-ncr-active').checked) {
+                        let znNcrPrep = parseFloat(document.getElementById('f-zbiranje-ncr-prep')?.value) || 0;
+                        let znNcrPer1000 = parseFloat(document.getElementById('f-zbiranje-ncr-per1000')?.value) || 0;
+                        let isNcrActive = document.getElementById('calc-ncr-active')?.checked || false;
+                        let ncrSetsBlock = parseFloat(gV('calc-ncr-sets-per-block')) || 0;
+                        let setsCount = (isNcrActive && ncrSetsBlock > 0) ? (q * ncrSetsBlock) : (q * (parseFloat(gV('calc-leaves')) || 1));
+                        let znNcrWork = (setsCount / 1000) * znNcrPer1000;
+                        let znNcrCost = znNcrPrep + znNcrWork;
+                        totalFinishCost += znNcrCost;
+                        finishItems.push({ name: 'Zbiranje garnitur (NCR)', cost: znNcrCost, breakdown: `Priprava: ${formatPrice(znNcrPrep)} | Delo: ${formatQty(setsCount)} setov @ ${formatPrice(znNcrPer1000)}/1k` });
+                    }
+
+                    // Ločevalno lepljenje (Deserta)
+                    if (document.getElementById('f-deserta-active') && document.getElementById('f-deserta-active').checked) {
+                        let desPrep = parseFloat(document.getElementById('f-deserta-prep')?.value) || 0;
+                        let desPer1000 = parseFloat(document.getElementById('f-deserta-per1000')?.value) || 0;
+                        let isNcrActive = document.getElementById('calc-ncr-active')?.checked || false;
+                        let ncrSetsBlock = parseFloat(gV('calc-ncr-sets-per-block')) || 0;
+                        let setsCount = (isNcrActive && ncrSetsBlock > 0) ? (q * ncrSetsBlock) : (q * (parseFloat(gV('calc-leaves')) || 1));
+                        let desWork = (setsCount / 1000) * desPer1000;
+                        let desCost = desPrep + desWork;
+                        totalFinishCost += desCost;
+                        finishItems.push({ name: 'Ločevalno lepljenje (Deserta)', cost: desCost, breakdown: `Priprava: ${formatPrice(desPrep)} | Delo: ${formatQty(setsCount)} setov @ ${formatPrice(desPer1000)}/1k` });
                     }
 
                     // Numeracija
@@ -5442,6 +5562,9 @@
                             sourceH: gv('calc-source-h'),
                             sourceYield: gv('calc-source-yield'),
                             leaves: gv('calc-leaves'),
+                            ncrActive: gc('calc-ncr-active'),
+                            ncrParts: gv('calc-ncr-parts'),
+                            ncrSetsPerBlock: gv('calc-ncr-sets-per-block'),
                             coverW: gv('calc-cover-w'),
                             coverH: gv('calc-cover-h'),
                             coverBleed: gv('calc-cover-bleed'),
@@ -5807,6 +5930,10 @@
                 setV('calc-source-h', inp.sourceH);
                 setV('calc-source-yield', inp.sourceYield);
                 setV('calc-leaves', inp.leaves);
+                if (document.getElementById('calc-ncr-active')) document.getElementById('calc-ncr-active').checked = inp.ncrActive || false;
+                setV('calc-ncr-parts', inp.ncrParts || "3");
+                setV('calc-ncr-sets-per-block', inp.ncrSetsPerBlock || "");
+                if (typeof updateNcrLeaves === 'function') updateNcrLeaves();
 
                 // Cover tech fields
                 setV('calc-cover-w', inp.coverW);
@@ -5863,6 +5990,18 @@
                         setV('f-znasanje-prep', f.znasanje.prep);
                         setV('f-znasanje-per1000', f.znasanje.per1000);
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('znasanje');
+                    }
+                    if (f.zbiranjeNcr) {
+                        setV('f-zbiranje-ncr-active', f.zbiranjeNcr.active, true);
+                        setV('f-zbiranje-ncr-prep', f.zbiranjeNcr.prep);
+                        setV('f-zbiranje-ncr-per1000', f.zbiranjeNcr.per1000);
+                        if (typeof toggleFinishRow === 'function') toggleFinishRow('zbiranje-ncr');
+                    }
+                    if (f.deserta) {
+                        setV('f-deserta-active', f.deserta.active, true);
+                        setV('f-deserta-prep', f.deserta.prep);
+                        setV('f-deserta-per1000', f.deserta.per1000);
+                        if (typeof toggleFinishRow === 'function') toggleFinishRow('deserta');
                     }
                     if (f.lepljenjeblokov) {
                         setV('f-lepljenjeblokov-active', f.lepljenjeblokov.active, true);
