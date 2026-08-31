@@ -8293,9 +8293,7 @@
 
                             <td style="width: 32%; vertical-align: top;">
 
-                                <div style="color: #8c8f91; font-size: 22px; font-weight: 300; font-style: italic; line-height: 0.9;">tiskarna</div>
-
-                                <div style="color: #f99c26; font-size: 40px; font-weight: 900; font-style: italic; line-height: 0.7; padding-left: 20px;">petrič</div>
+                                <table cellpadding="0" cellspacing="0" style="border: none; margin: 0; padding: 0; font-family: Arial, sans-serif; border-collapse: collapse;"><tr><td style="color: #8c8f91; font-size: 20px; font-style: italic; font-weight: normal; margin: 0; padding: 0; line-height: 1.1; border: none;">tiskarna</td></tr><tr><td style="color: #f99c26; font-size: 36px; font-style: italic; font-weight: bold; margin: 0; padding: 0; padding-left: 15px; line-height: 1.1; border: none;">petrič</td></tr></table>
 
                             </td>
 
@@ -8345,23 +8343,7 @@
 
             
 
-            if (isWord) {
-
-                contentToRender = contentToRender.replace(
-
-                    /<div[^>]*style="[^"]*color:\s*(#8c8f91|#475569);[^"]*"[^>]*>\s*tiskarna\s*<\/div>\s*<div[^>]*style="[^"]*color:\s*#f99c26;[^"]*"[^>]*>\s*petrič\s*<\/div>/gi,
-
-                    `<table cellpadding="0" cellspacing="0" style="border: none; margin: 0; padding: 0; font-family: Arial, sans-serif;">
-
-                        <tr><td style="color: $1; font-size: 20px; font-style: italic; font-weight: normal; margin: 0; padding: 0; line-height: 1.1;">tiskarna</td></tr>
-
-                        <tr><td style="color: #f99c26; font-size: 36px; font-style: italic; font-weight: bold; margin: 0; padding: 0; padding-left: 15px; line-height: 1.1;">petrič</td></tr>
-
-                     </table>`
-
-                );
-
-            }
+            
 
 const editedHTMLVar = isAT ? 'g_editedQuoteATHTML' : 'g_editedQuoteHTML';
 
