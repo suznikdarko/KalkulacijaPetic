@@ -922,7 +922,7 @@
 
             '4/4': { passes: 2, wasteImpressions: 640 }, // 2x odpadna makulatura za 4/4 brez obračanja
 
-            '4/OB': { passes: 2, wasteImpressions: 320 },
+            '4/OB': { passes: 2, wasteImpressions: 380 },
 
             '8/0': { passes: 1, wasteImpressions: 450 }
 
@@ -2612,11 +2612,11 @@
 
                     "4/OB": [
 
-                        { q: 1000, waste: 270, s150: 4200, s250: 4200, s350: 3600 },
+                        { q: 1000, waste: 380, s150: 4200, s250: 4200, s350: 3600 },
 
-                        { q: 5000, waste: 270, s150: 6600, s250: 6600, s350: 5400 },
+                        { q: 5000, waste: 380, s150: 6600, s250: 6600, s350: 5400 },
 
-                        { q: 10000, waste: 270, s150: 6900, s250: 6900, s350: 5700 },
+                        { q: 10000, waste: 380, s150: 6900, s250: 6900, s350: 5700 },
 
                         { q: 50000, waste: 540, s150: 7140, s250: 7140, s350: 6000 },
 
@@ -2798,73 +2798,73 @@
 
                     "4/OB": [
 
-                        { q: 1000, waste: 540, s150: 3580, s250: 3300, s350: 3250 },
+                        { q: 1000, waste: 380, s150: 3580, s250: 3300, s350: 3250 },
 
-                        { q: 5000, waste: 540, s150: 4400, s250: 4400, s350: 4400 },
+                        { q: 5000, waste: 380, s150: 4400, s250: 4400, s350: 4400 },
 
-                        { q: 10000, waste: 540, s150: 5050, s250: 6000, s350: 5450 },
+                        { q: 10000, waste: 380, s150: 5050, s250: 6000, s350: 5450 },
 
-                        { q: 50000, waste: 540, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 50000, waste: 380, s150: 6800, s250: 6300, s350: 5700 },
 
-                        { q: 100000, waste: 540, s150: 6800, s250: 6600, s350: 6060 },
+                        { q: 100000, waste: 380, s150: 6800, s250: 6600, s350: 6060 },
 
-                        { q: 300000, waste: 750, s150: 7140, s250: 6600, s350: 6060 },
+                        { q: 300000, waste: 450, s150: 7140, s250: 6600, s350: 6060 },
 
-                        { q: 500000, waste: 1250, s150: 7140, s250: 6600, s350: 6060 }
+                        { q: 500000, waste: 750, s150: 7140, s250: 6600, s350: 6060 }
 
                     ],
 
                     "4/OB + mutacija 1x": [
 
-                        { q: 1000, waste: 940, s150: 4000, s250: 3800, s350: 3600 },
+                        { q: 1000, waste: 780, s150: 4000, s250: 3800, s350: 3600 },
 
-                        { q: 5000, waste: 940, s150: 5500, s250: 5100, s350: 4700 },
+                        { q: 5000, waste: 780, s150: 5500, s250: 5100, s350: 4700 },
 
-                        { q: 10000, waste: 940, s150: 6450, s250: 6000, s350: 5450 },
+                        { q: 10000, waste: 780, s150: 6450, s250: 6000, s350: 5450 },
 
-                        { q: 50000, waste: 940, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 50000, waste: 780, s150: 6800, s250: 6300, s350: 5700 },
 
-                        { q: 100000, waste: 940, s150: 6800, s250: 6600, s350: 6050 },
+                        { q: 100000, waste: 780, s150: 6800, s250: 6600, s350: 6050 },
 
-                        { q: 300000, waste: 1150, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 300000, waste: 850, s150: 7140, s250: 6600, s350: 6050 },
 
-                        { q: 500000, waste: 1650, s150: 7140, s250: 6600, s350: 6050 }
+                        { q: 500000, waste: 1150, s150: 7140, s250: 6600, s350: 6050 }
 
                     ],
 
                     "4/OB + mutacija 2x": [
 
-                        { q: 1000, waste: 1340, s150: 4100, s250: 3800, s350: 3600 },
+                        { q: 1000, waste: 1180, s150: 4100, s250: 3800, s350: 3600 },
 
-                        { q: 5000, waste: 1340, s150: 4800, s250: 5100, s350: 4700 },
+                        { q: 5000, waste: 1180, s150: 4800, s250: 5100, s350: 4700 },
 
-                        { q: 10000, waste: 1340, s150: 6200, s250: 6000, s350: 5450 },
+                        { q: 10000, waste: 1180, s150: 6200, s250: 6000, s350: 5450 },
 
-                        { q: 50000, waste: 1340, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 50000, waste: 1180, s150: 6800, s250: 6300, s350: 5700 },
 
-                        { q: 100000, waste: 1340, s150: 6800, s250: 6600, s350: 6050 },
+                        { q: 100000, waste: 1180, s150: 6800, s250: 6600, s350: 6050 },
 
-                        { q: 300000, waste: 1550, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 300000, waste: 1250, s150: 7140, s250: 6600, s350: 6050 },
 
-                        { q: 500000, waste: 2050, s150: 7140, s250: 6600, s350: 6050 }
+                        { q: 500000, waste: 1550, s150: 7140, s250: 6600, s350: 6050 }
 
                     ],
 
                     "4/OB + mutacija 3x": [
 
-                        { q: 1000, waste: 1740, s150: 4100, s250: 3800, s350: 3600 },
+                        { q: 1000, waste: 1580, s150: 4100, s250: 3800, s350: 3600 },
 
-                        { q: 5000, waste: 1740, s150: 4800, s250: 5100, s350: 4700 },
+                        { q: 5000, waste: 1580, s150: 4800, s250: 5100, s350: 4700 },
 
-                        { q: 10000, waste: 1740, s150: 6200, s250: 6000, s350: 5450 },
+                        { q: 10000, waste: 1580, s150: 6200, s250: 6000, s350: 5450 },
 
-                        { q: 50000, waste: 1740, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 50000, waste: 1580, s150: 6800, s250: 6300, s350: 5700 },
 
-                        { q: 100000, waste: 1740, s150: 6800, s250: 6600, s350: 6050 },
+                        { q: 100000, waste: 1580, s150: 6800, s250: 6600, s350: 6050 },
 
-                        { q: 300000, waste: 1950, s150: 7140, s250: 6600, s350: 6050 },
+                        { q: 300000, waste: 1650, s150: 7140, s250: 6600, s350: 6050 },
 
-                        { q: 500000, waste: 2450, s150: 7140, s250: 6600, s350: 6050 }
+                        { q: 500000, waste: 2150, s150: 7140, s250: 6600, s350: 6050 }
 
                     ],
 
@@ -3588,7 +3588,17 @@
 
                 const rte = parseFloat(document.getElementById('f-extra-rate').value) || 20;
 
-                totalFinishCost += (qty / spd) * rte;
+                let workQty = qty;
+
+                if (document.getElementById('f-extra-qty')) {
+
+                    let customQty = parseInt(document.getElementById('f-extra-qty').value) || 0;
+
+                    if (customQty > 0) workQty = customQty;
+
+                }
+
+                totalFinishCost += (workQty / spd) * rte;
 
             }
 
@@ -3652,7 +3662,21 @@
 
                 let digCutFactor = (maxSheetDim > 460 || mType === 'S8') ? 2 : 1;
 
-                let pCost = (sheetsNeeded * digCutFactor * pMultiplier) * (parseFloat(document.getElementById('f-personalization-price').value) || 0);
+                let targetSheets = sheetsNeeded;
+
+                if (document.getElementById('f-personalization-qty')) {
+
+                    let pCustomQty = parseInt(document.getElementById('f-personalization-qty').value) || 0;
+
+                    if (pCustomQty > 0 && itemsPerSheet > 0) {
+
+                        targetSheets = Math.ceil(pCustomQty / itemsPerSheet);
+
+                    }
+
+                }
+
+                let pCost = (targetSheets * digCutFactor * pMultiplier) * (parseFloat(document.getElementById('f-personalization-price').value) || 0);
 
                 
 
@@ -4002,13 +4026,27 @@
 
                 const rte = parseFloat(document.getElementById('f-extra-rate').value) || 20;
 
-                const hrs = qty / spd;
+                let workQty = qty;
+
+                if (document.getElementById('f-extra-qty')) {
+
+                    let customQty = parseInt(document.getElementById('f-extra-qty').value) || 0;
+
+                    if (customQty > 0) workQty = customQty;
+
+                }
+
+                const hrs = workQty / spd;
 
                 let eMan = hrs * rte;
 
+                let isPartial = (document.getElementById('f-extra-qty') && parseInt(document.getElementById('f-extra-qty').value) > 0);
+
+                let qtyNote = isPartial ? ` (${workQty.toLocaleString('de-DE')} kos)` : '';
+
                 details.finish.items.push({
 
-                    name: `Ročno delo (Norma: ${spd} kos/h)`,
+                    name: `Ročno delo${qtyNote} (Norma: ${spd} kos/h)`,
 
                     cost: eMan,
 
@@ -4136,7 +4174,23 @@
 
                 let pMultiplier = isBothSides ? 2 : 1;
 
-                let pDigitalSheets = sheetsNeeded * digCutFactor;
+                let targetSheets = sheetsNeeded;
+
+                let pCustomQty = 0;
+
+                if (document.getElementById('f-personalization-qty')) {
+
+                    pCustomQty = parseInt(document.getElementById('f-personalization-qty').value) || 0;
+
+                    if (pCustomQty > 0 && itemsPerSheet > 0) {
+
+                        targetSheets = Math.ceil(pCustomQty / itemsPerSheet);
+
+                    }
+
+                }
+
+                let pDigitalSheets = targetSheets * digCutFactor;
 
                 let pTotalImpressions = pDigitalSheets * pMultiplier;
 
@@ -4146,7 +4200,9 @@
 
                 let sidesText = isBothSides ? ' (1/1 obojestransko)' : ` (${persSidesText})`;
 
-                let breakdownText = `Delo: ${pTotalImpressions} odtisov${sidesText} na ${pDigitalSheets} pol po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
+                let partialNote = (pCustomQty > 0) ? ` [delno: ${pCustomQty.toLocaleString('de-DE')} kos]` : '';
+
+                let breakdownText = `Delo${partialNote}: ${pTotalImpressions} odtisov${sidesText} na ${pDigitalSheets} pol po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
 
                 let extraCost = 0;
 
@@ -6309,6 +6365,7 @@
                             spiraljenje: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
 
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
+                            extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate'), qty: gv('f-extra-qty') },
 
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
 
@@ -6318,7 +6375,7 @@
 
                             uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
 
-                            personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price') },
+                            personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price'), qty: gv('f-personalization-qty') },
 
                             lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
 
@@ -6548,13 +6605,13 @@
 
                             spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
 
-                            extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
+                            extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate'), qty: gv('f-extra-qty') },
 
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
 
                             uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000') },
 
-                            personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price') },
+                            personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price'), qty: gv('f-personalization-qty') },
 
                             lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
 
@@ -7006,7 +7063,7 @@
 
                                  <button onclick="exportSingleProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #3b82f6; cursor: pointer; padding: 4px; font-size: 0.9rem;" title="Izvozi">=</button>
 
-                                 <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 1rem;" title="Briši">'</button>
+                                 <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 1rem;" title="Briši"> '</button>
 
                             </div>
 
@@ -7476,6 +7533,8 @@
 
                         if (ex.rate !== undefined) setV('f-extra-rate', ex.rate);
 
+                        if (ex.qty !== undefined) setV('f-extra-qty', ex.qty);
+
                         if (ex.manual !== undefined && document.getElementById('f-extra-speed')) setV('f-extra-speed', ex.manual);
 
                         toggleFinishRow('extra');
@@ -7537,6 +7596,8 @@
                         if (pers.sides !== undefined) setV('f-personalization-sides', pers.sides);
 
                         if (pers.price !== undefined) setV('f-personalization-price', pers.price);
+
+                        if (pers.qty !== undefined) setV('f-personalization-qty', pers.qty);
 
                         toggleFinishRow('personalization');
 
@@ -7784,7 +7845,7 @@
 
                             spiraljenje: { active: document.getElementById('f-spiral-active').checked, price: document.getElementById('f-spiral-price').value },
 
-                            extra: { active: document.getElementById('f-extra-active').checked, speed: document.getElementById('f-extra-speed').value, rate: document.getElementById('f-extra-rate').value },
+                            extra: { active: document.getElementById('f-extra-active').checked, speed: document.getElementById('f-extra-speed').value, rate: document.getElementById('f-extra-rate').value, qty: document.getElementById('f-extra-qty') ? document.getElementById('f-extra-qty').value : '' },
 
                             tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
 
@@ -7794,7 +7855,7 @@
 
                             uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value },
 
-                            personalization: { active: document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false, price: document.getElementById('f-personalization-price') ? document.getElementById('f-personalization-price').value : 0.03 },
+                            personalization: { active: document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false, price: document.getElementById('f-personalization-price') ? document.getElementById('f-personalization-price').value : 0.03, qty: document.getElementById('f-personalization-qty') ? document.getElementById('f-personalization-qty').value : '' },
 
                             lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type') ? document.getElementById('f-lam-type').value : '', sides: document.getElementById('f-lam-sides') ? document.getElementById('f-lam-sides').value : 1, per1000: document.getElementById('f-lam-per1000') ? document.getElementById('f-lam-per1000').value : 0, prep: document.getElementById('f-lam-prep') ? document.getElementById('f-lam-prep').value : 0 },
 
@@ -9442,17 +9503,29 @@ const editedHTMLVar = isAT ? 'g_editedQuoteATHTML' : 'g_editedQuoteHTML';
 
                 let extraSpeed = parseFloat(document.getElementById('f-extra-speed').value) || 1;
 
-                let extraHours = roundUpTime(q / extraSpeed);
+                let workQty = q;
+
+                if (document.getElementById('f-extra-qty')) {
+
+                    let customQty = parseInt(document.getElementById('f-extra-qty').value) || 0;
+
+                    if (customQty > 0) workQty = customQty;
+
+                }
+
+                let extraHours = roundUpTime(workQty / extraSpeed);
+
+                let qtyNote = (document.getElementById('f-extra-qty') && parseInt(document.getElementById('f-extra-qty').value) > 0) ? ` (${workQty.toLocaleString('de-DE')} kos)` : '';
 
                 finishingRowsHtml += `
 
                     <tr>
 
-                        <td style="width: 15%;">Ročno delo:</td>
+                        <td style="width: 15%;">Ročno delo${qtyNote}:</td>
 
                         <td style="width: 35%;"></td>
 
-                        <td style="width: 50%; text-align: right;" class="bold"><span class="bold">delo:</span> ${extraHours.toFixed(1)} h</td>
+                        <td style="width: 50%; text-align: right;" class="bold"><span class="bold">delo:</span> ${extraHours.toFixed(1).replace('.', ',')} h</td>
 
                     </tr>`;
 
@@ -9500,11 +9573,43 @@ const editedHTMLVar = isAT ? 'g_editedQuoteATHTML' : 'g_editedQuoteHTML';
 
                 let digCutFactor = (maxSheetDim > 460 || (d && d.print && d.print.mType === 'S8')) ? 2 : 1;
 
-                let digSheets = calcRes.sheetsNeeded * digCutFactor;
+                let targetSheets = calcRes.sheetsNeeded;
 
-                let digFormatDetail = (digCutFactor === 2) ? ' 44,8 x 31,8 cm' : '';
+                let pCustomQty = 0;
 
-                let persQtyStr = `${persSidesText} ${digSheets.toLocaleString('de-DE')} pol${digFormatDetail}`;
+                if (document.getElementById('f-personalization-qty')) {
+
+                    pCustomQty = parseInt(document.getElementById('f-personalization-qty').value) || 0;
+
+                    let itemsPerSheet = calcRes.itemsPerSheet || 1;
+
+                    if (pCustomQty > 0 && itemsPerSheet > 0) {
+
+                        targetSheets = Math.ceil(pCustomQty / itemsPerSheet);
+
+                    }
+
+                }
+
+                let digSheets = targetSheets * digCutFactor;
+
+                let cutW = sheetW >= sheetH ? Math.round(sheetW / 2) : sheetW;
+
+                let cutH = sheetW >= sheetH ? sheetH : Math.round(sheetH / 2);
+
+                let maxD = Math.min(Math.max(cutW, cutH), 478);
+
+                let minD = Math.min(Math.min(cutW, cutH), 318);
+
+                let halfStr = (maxD > 0 && minD > 0) ? `${maxD} x ${minD} mm` : '478 x 318 mm';
+
+                let currentSheetStr = (sheetW > 0 && sheetH > 0) ? `${Math.min(Math.max(sheetW, sheetH), 478)} x ${Math.min(Math.min(sheetW, sheetH), 318)} mm` : '';
+
+                let digFormatDetail = (digCutFactor === 2) ? ` ${halfStr}` : (currentSheetStr ? ` ${currentSheetStr}` : '');
+
+                let partialNote = (pCustomQty > 0) ? ` (delno: ${pCustomQty.toLocaleString('de-DE')} kos)` : '';
+
+                let persQtyStr = `${persSidesText} ${digSheets.toLocaleString('de-DE')} pol${digFormatDetail}${partialNote}`;
 
                 finishingRowsHtml += `
 
