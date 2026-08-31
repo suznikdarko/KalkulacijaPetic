@@ -1328,8 +1328,15 @@
                             <input id="calc-plates-num-leaves" onchange="calculatePrice()" type="number" value="0" />
                         </div>
                         <div class="form-group">
-                            <label>Dodatek (pol)</label>
-                            <input id="calc-paper-waste-leaves" onchange="calculatePrice()" type="number" value="320" />
+                            <label>Dodatek (pol) <small>(Prazno = Boss avto)</small></label>
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <div style="flex:1;">
+                                    <input id="calc-paper-waste-leaves-manual" onchange="calculatePrice()" type="number" value="" placeholder="Avto" />
+                                </div>
+                                <div style="flex:1;">
+                                    <input id="calc-paper-waste-leaves" value="320" readonly style="background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.4); color:#fbbf24; font-weight:bold; cursor:default;" title="Samodejno izračunano" />
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div id="machine-inputs-group-leaves">
@@ -1397,8 +1404,15 @@
                             <input id="calc-plates-num-cover" onchange="calculatePrice()" type="number" value="0" />
                         </div>
                         <div class="form-group">
-                            <label>Dodatek (pol)</label>
-                            <input id="calc-paper-waste-cover" onchange="calculatePrice()" type="number" value="320" />
+                            <label>Dodatek (pol) <small>(Prazno = Boss avto)</small></label>
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <div style="flex:1;">
+                                    <input id="calc-paper-waste-cover-manual" onchange="calculatePrice()" type="number" value="" placeholder="Avto" />
+                                </div>
+                                <div style="flex:1;">
+                                    <input id="calc-paper-waste-cover" value="320" readonly style="background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.4); color:#fbbf24; font-weight:bold; cursor:default;" title="Samodejno izračunano" />
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div id="machine-inputs-group-cover">
@@ -3426,7 +3440,12 @@
                     let mTypeL = document.getElementById('calc-machine-type-leaves')?.value || 'S4';
                     let pwL = parseFloat(document.getElementById('calc-paper-weight')?.value) || 80;
                     let bossL = getBossLogic(frontL, backL, isObratL, isSVL, totalItemsForm, mutPlatesL, mTypeL, pwL);
-                    if (bossL) {
+                    let manualWasteL = parseFloat(document.getElementById('calc-paper-waste-leaves-manual')?.value);
+                    if (!isNaN(manualWasteL) && manualWasteL >= 0) {
+                        wasteL = manualWasteL;
+                        let wInputL = document.getElementById('calc-paper-waste-leaves');
+                        if (wInputL) wInputL.value = wasteL;
+                    } else if (bossL) {
                         wasteL = bossL.waste;
                         let wInputL = document.getElementById('calc-paper-waste-leaves');
                         if (wInputL) wInputL.value = wasteL;
@@ -3443,7 +3462,12 @@
                     let mTypeC = document.getElementById('calc-machine-type-cover')?.value || 'S4';
                     let pwC = parseFloat(document.getElementById('calc-cardboard-weight')?.value) || 250;
                     let bossC = getBossLogic(frontC, backC, isObratC, false, totalItemsForm, mutPlatesC, mTypeC, pwC);
-                    if (bossC) {
+                    let manualWasteC = parseFloat(document.getElementById('calc-paper-waste-cover-manual')?.value);
+                    if (!isNaN(manualWasteC) && manualWasteC >= 0) {
+                        wasteC = manualWasteC;
+                        let wInputC = document.getElementById('calc-paper-waste-cover');
+                        if (wInputC) wInputC.value = wasteC;
+                    } else if (bossC) {
                         wasteC = bossC.waste;
                         let wInputC = document.getElementById('calc-paper-waste-cover');
                         if (wInputC) wInputC.value = wasteC;
@@ -5644,6 +5668,7 @@
                             prepPriceL: gv('calc-prep-price-leaves'),
                             changePriceL: gv('calc-change-price-leaves'),
                             wasteL: gv('calc-paper-waste-leaves'),
+                            wasteManualL: gv('calc-paper-waste-leaves-manual'),
                             colorWashesLeaves: gv('calc-color-washes-leaves'),
                             washPriceLeaves: gv('calc-wash-price-leaves'),
                             mTypeC: gv('calc-machine-type-cover'),
@@ -5659,6 +5684,7 @@
                             prepPriceC: gv('calc-prep-price-cover'),
                             changePriceC: gv('calc-change-price-cover'),
                             wasteC: gv('calc-paper-waste-cover'),
+                            wasteManualC: gv('calc-paper-waste-cover-manual'),
                             colorWashesCover: gv('calc-color-washes-cover'),
                             washPriceCover: gv('calc-wash-price-cover'),
                             printAllowanceL: gv('calc-print-allowance-leaves'),
@@ -5932,6 +5958,7 @@
                 setV('calc-plates-price-leaves', inp.platesPriceL !== undefined ? inp.platesPriceL : inp.platesPrice);
                 setV('calc-prep-price-leaves', inp.prepPriceL !== undefined ? inp.prepPriceL : (inp.prepPrice || 25.00));
                 setV('calc-change-price-leaves', inp.changePriceL !== undefined ? inp.changePriceL : (inp.changePrice || 10.00));
+                setV('calc-paper-waste-leaves-manual', inp.wasteManualL !== undefined ? inp.wasteManualL : (proj.wasteManualL !== undefined ? proj.wasteManualL : ''));
                 setV('calc-paper-waste-leaves', inp.wasteL !== undefined ? inp.wasteL : (inp.pWaste !== undefined ? inp.pWaste : inp.waste));
                 setV('calc-print-allowance-leaves', inp.printAllowanceL);
                 setV('calc-color-washes-leaves', inp.colorWashesLeaves !== undefined ? inp.colorWashesLeaves : (inp.colorWashes || 0));
@@ -5950,6 +5977,7 @@
                 setV('calc-plates-price-cover', inp.platesPriceC !== undefined ? inp.platesPriceC : inp.platesPrice);
                 setV('calc-prep-price-cover', inp.prepPriceC !== undefined ? inp.prepPriceC : (inp.prepPrice || 25.00));
                 setV('calc-change-price-cover', inp.changePriceC !== undefined ? inp.changePriceC : (inp.changePrice || 10.00));
+                setV('calc-paper-waste-cover-manual', inp.wasteManualC !== undefined ? inp.wasteManualC : (proj.wasteManualC !== undefined ? proj.wasteManualC : ''));
                 setV('calc-paper-waste-cover', inp.wasteC !== undefined ? inp.wasteC : inp.waste);
                 setV('calc-print-allowance-cover', inp.printAllowanceC);
 
@@ -6232,6 +6260,7 @@
                             prepPriceL: gv('calc-prep-price-leaves'),
                             changePriceL: gv('calc-change-price-leaves'),
                             wasteL: gv('calc-paper-waste-leaves'),
+                            wasteManualL: gv('calc-paper-waste-leaves-manual'),
                             colorWashesLeaves: gv('calc-color-washes-leaves'),
                             washPriceLeaves: gv('calc-wash-price-leaves'),
                             mTypeC: gv('calc-machine-type-cover'),
@@ -6247,6 +6276,7 @@
                             prepPriceC: gv('calc-prep-price-cover'),
                             changePriceC: gv('calc-change-price-cover'),
                             wasteC: gv('calc-paper-waste-cover'),
+                            wasteManualC: gv('calc-paper-waste-cover-manual'),
                             colorWashesCover: gv('calc-color-washes-cover'),
                             washPriceCover: gv('calc-wash-price-cover'),
                             printAllowanceL: gv('calc-print-allowance-leaves'),

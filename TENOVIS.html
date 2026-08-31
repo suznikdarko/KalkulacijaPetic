@@ -2022,9 +2022,16 @@
 
                     <div class="form-group">
 
-                        <label>Odpadna makulatura (št. pol) - <small>Samodejno izračunano</small></label>
+                        <label>Odpadna makulatura (št. pol) <small>(Prazno = Boss avto)</small></label>
 
-                        <input type="number" id="calc-paper-waste" value="320" onchange="calculatePrice()">
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <div style="flex:1;">
+                                <input type="number" id="calc-paper-waste-manual" value="" placeholder="Avto" onchange="calculatePrice()">
+                            </div>
+                            <div style="flex:1;">
+                                <input type="number" id="calc-paper-waste" value="320" readonly style="background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.4); color:#fbbf24; font-weight:bold; cursor:default;" title="Samodejno izračunano glede na barve in obračanje">
+                            </div>
+                        </div>
 
                     </div>
 
@@ -5084,13 +5091,21 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
 
 
-            // Samodejno posodobi makulaturo glede na izbran barvni način
+            const manualWaste = parseFloat(document.getElementById('calc-paper-waste-manual')?.value);
 
-            const colorMode = front + '/' + (isObrat ? 'OB' : back);
+            if (!isNaN(manualWaste) && manualWaste >= 0) {
 
-            const rule = prepRules[colorMode] || { passes: 1, wasteImpressions: (front + back) * 150 };
+                document.getElementById('calc-paper-waste').value = manualWaste;
 
-            document.getElementById('calc-paper-waste').value = rule.wasteImpressions;
+            } else {
+
+                const colorMode = front + '/' + (isObrat ? 'OB' : back);
+
+                const rule = prepRules[colorMode] || { passes: 1, wasteImpressions: (front + back) * 150 };
+
+                document.getElementById('calc-paper-waste').value = rule.wasteImpressions;
+
+            }
 
 
 
@@ -8082,6 +8097,8 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
                         pWaste: gv('calc-paper-waste'),
 
+                        wasteManual: gv('calc-paper-waste-manual'),
+
                         platesPrice: gv('calc-plates-price'),
 
                         prepPrice: gv('calc-prep-price'),
@@ -8323,6 +8340,8 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                         pType: gv('calc-paper-type'),
 
                         pWaste: gv('calc-paper-waste'),
+
+                        wasteManual: gv('calc-paper-waste-manual'),
 
                         platesPrice: gv('calc-plates-price'),
 
@@ -9264,6 +9283,9 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
             document.getElementById('calc-paper-waste').value = inp.pWaste;
 
+            var wManualT = (inp.wasteManual !== undefined) ? inp.wasteManual : ((proj.wasteManual !== undefined) ? proj.wasteManual : '');
+            if (document.getElementById('calc-paper-waste-manual')) document.getElementById('calc-paper-waste-manual').value = wManualT;
+
             document.getElementById('calc-plates-price').value = inp.platesPrice;
 
             document.getElementById('calc-prep-price').value = inp.prepPrice;
@@ -9585,6 +9607,8 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                         pType: document.getElementById('calc-paper-type').value,
 
                         pWaste: document.getElementById('calc-paper-waste').value,
+
+                        wasteManual: document.getElementById('calc-paper-waste-manual') ? document.getElementById('calc-paper-waste-manual').value : '',
 
                         platesPrice: document.getElementById('calc-plates-price').value,
 
