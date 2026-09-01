@@ -10342,61 +10342,23 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
 
 
-                        function saveQuoteToDisk() {
-
-                            try {
-
-                                var area = document.querySelector('.editable-area');
-
-                                var content = area ? area.innerHTML : document.body.innerHTML;
-
-                                var fileName = (document.title || 'ponudba').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_');
-
-                                if (!fileName || fileName === '_') fileName = "ponudba";
-
-                                if (!fileName.endsWith('.doc')) fileName += ".doc";
-
-
-
-                                if (window.opener && !window.opener.closed && typeof window.opener.downloadWordDoc === 'function') {
-
-                                    window.opener.downloadWordDoc(fileName, content);
-
-                                    return;
-
-                                }
-
-
-
-                                var bom = String.fromCharCode(0xFEFF);
-
-                                var htmlContent = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + fileName + "</title><style>body { font-family: Arial, sans-serif; font-size: 11pt; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + content + "</body></html>";
-
-                                var base64 = btoa(unescape(encodeURIComponent(bom + htmlContent)));
-
-                                var dataUri = 'data:application/msword;base64,' + base64;
-
-
-
-                                var a = document.createElement('a');
-
-                                a.href = dataUri;
-
-                                a.download = fileName;
-
-                                document.body.appendChild(a);
-
-                                a.click();
-
-                                setTimeout(function() { if (a.parentNode) a.parentNode.removeChild(a); }, 300);
-
-                            } catch (err) {
-
-                                alert("Napaka pri shranjevanju: " + err.message);
-
-                            }
-
-                        }
+                        function downloadWordDoc(filename, htmlContent) {
+            try {
+                let name = filename || 'dokument';
+                if (!name.endsWith('.doc')) name += '.doc';
+                let fullHtml = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + name + "</title><style>body { font-family: Arial, sans-serif; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + htmlContent + "</body></html>";
+                let base64 = btoa(unescape(encodeURIComponent('\ufeff' + fullHtml)));
+                let dataUri = 'data:application/msword;base64,' + base64;
+                let a = document.createElement('a');
+                a.href = dataUri;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 300);
+            } catch (e) {
+                alert("Napaka pri prenosu Word datoteke: " + e.message);
+            }
+        }
 
                     <\/script>
 
