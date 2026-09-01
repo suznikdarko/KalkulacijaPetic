@@ -3165,6 +3165,21 @@
                 let baseName = parts.length > 0 ? parts.join('_').replace(/\s+/g, '_') : name.replace(/\s+/g, '_');
                 const suggestedFileName = baseName + '.kuverta.json';
 
+                if (typeof g_projectsDirHandle !== 'undefined' && g_projectsDirHandle) {
+                    try {
+                        const fileHandle = await g_projectsDirHandle.getFileHandle(suggestedFileName, { create: true });
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(jsonStr);
+                        await writable.close();
+                        if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                        if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                        alert("✓ Shranjeno v povezano mapo: [" + g_projectsDirHandle.name + "]\nDatoteka: " + suggestedFileName);
+                        return;
+                    } catch (dirErr) {
+                        console.log("Direct folder handle write error:", dirErr);
+                    }
+                }
+
                 if (window.showSaveFilePicker) {
                     try {
                         const handle = await window.showSaveFilePicker({
@@ -3331,7 +3346,7 @@
 
         async function autoConnectFolder() {
             try {
-                const handle = await getHandleFromIndexedDB('kuverte_dir_handle');
+                const handle = await getHandleFromIndexedDB('kalkulacije_shared_dir_handle');
                 if (handle) {
                     const status = await handle.queryPermission({ mode: 'readwrite' });
                     if (status === 'granted') {
@@ -3345,7 +3360,7 @@
         async function syncWithFolder() {
             try {
                 g_projectsDirHandle = await window.showDirectoryPicker();
-                await setHandleInIndexedDB(g_projectsDirHandle, 'kuverte_dir_handle');
+                await setHandleInIndexedDB(g_projectsDirHandle, 'kalkulacije_shared_dir_handle');
                 await refreshDiskProjects();
                 renderSavedProjects();
                 alert("Mapa uspešno povezana in shranjena!");

@@ -8663,37 +8663,25 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
 
         async function syncWithFolder(forceNew = false) {
-
             try {
-
                 if (!forceNew) {
-
-                    const storedHandle = await loadDirHandle();
-
-                    if (storedHandle) {
-
-                        if (await verifyPermission(storedHandle)) {
-
-                            g_projectsDirHandle = storedHandle;
-
-                            await refreshDiskProjects();
-
-                            renderSavedProjects();
-
-                            return;
-
+                    try {
+                        const storedHandle = await loadDirHandle();
+                        if (storedHandle) {
+                            let status = await storedHandle.queryPermission({ mode: 'readwrite' });
+                            if (status === 'granted') {
+                                g_projectsDirHandle = storedHandle;
+                                await refreshDiskProjects();
+                                renderSavedProjects();
+                                alert("✓ Mapa [" + g_projectsDirHandle.name + "] že povezana!");
+                                return;
+                            }
                         }
-
-                    }
-
+                    } catch (permErr) { console.log("Stored handle perm check:", permErr); }
                 }
-
                 g_projectsDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-
                 await saveDirHandle(g_projectsDirHandle);
-
                 await refreshDiskProjects();
-
                 renderSavedProjects();
 
                 alert("Mapa uspešno povezana in shranjena!");
