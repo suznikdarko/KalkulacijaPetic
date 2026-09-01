@@ -1272,6 +1272,7 @@
                                     <option value="5">5 zgibov</option>
                                 </select>
                                 <script>
+        var g_lastSaveHandle = null;
                                     function updateZgibanjeDefaults() {
                                         let folds = parseInt(document.getElementById('f-zgibanje-folds').value) || 1;
                                         let speedInput = document.getElementById('f-zgibanje-speed');
@@ -1583,6 +1584,7 @@
     </div>
     </div>
     <script>
+        var g_lastSaveHandle = null;
         function extractGrammage(sourceEl, targetId) {
             if (!sourceEl._grammageBlurBound) {
                 sourceEl.addEventListener('blur', function () {
@@ -5308,12 +5310,28 @@
 
                 let tParts = [s_ponudba, customer, izdelek, s_naklada, cColors].filter(Boolean);
                 const suggestedName = (tParts.length > 0 ? tParts.join('_') : name).replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.json';
+
+                if (typeof g_projectsDirHandle !== 'undefined' && g_projectsDirHandle) {
+                    try {
+                        const fileHandle = await g_projectsDirHandle.getFileHandle(suggestedName, { create: true });
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(jsonStr);
+                        await writable.close();
+                        if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                        if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                        alert("✓ Shranjeno v povezano mapo: [" + (g_projectsDirHandle ? g_projectsDirHandle.name : "omrežna mapa") + "]\nDatoteka: " + suggestedName);
+                        return;
+                    } catch (dirErr) {
+                        console.log("Direct folder handle write error:", dirErr);
+                    }
+                }
                 if (window.showSaveFilePicker) {
                     try {
                         const handle = await window.showSaveFilePicker({
                             suggestedName: suggestedName,
                             types: [{ description: 'Pola JSON', accept: { 'application/json': ['.json'] } }],
                         });
+                        g_lastSaveHandle = handle;
                         const writable = await handle.createWritable();
                         await writable.write(jsonStr);
                         await writable.close();
@@ -5567,7 +5585,11 @@
                 }
                 listContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem; line-height:1.4;">' + msg + '</div>';
             } else {
-                listContent.innerHTML = html;
+                
+            if (g_projectsDirHandle) {
+                html = '<div style="padding: 8px 12px; background: rgba(16, 185, 129, 0.15); border-bottom: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.8rem; font-weight: bold; color: #10b981; display: flex; justify-content: space-between; align-items: center;"><span>📁 Povezana mapa: [' + g_projectsDirHandle.name + ']</span><button onclick="syncWithFolder()" style="background:#10b981; color:white; border:none; padding:2px 8px; border-radius:4px; font-size:0.7rem; cursor:pointer;" title="Spremeni ali zamenjaj povezano mapo na disku">Spremeni mapo</button></div>' + html;
+            }
+            listContent.innerHTML = html;
             }
         }
         function setHandleInIndexedDB(handle, key) {
@@ -6017,12 +6039,28 @@
 
                 let tParts = [s_ponudba, customer, izdelek, s_naklada, cColors].filter(Boolean);
                 const suggestedName = (tParts.length > 0 ? tParts.join('_') : name).replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.json';
+
+                if (typeof g_projectsDirHandle !== 'undefined' && g_projectsDirHandle) {
+                    try {
+                        const fileHandle = await g_projectsDirHandle.getFileHandle(suggestedName, { create: true });
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(jsonStr);
+                        await writable.close();
+                        if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                        if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                        alert("✓ Shranjeno v povezano mapo: [" + (g_projectsDirHandle ? g_projectsDirHandle.name : "omrežna mapa") + "]\nDatoteka: " + suggestedName);
+                        return;
+                    } catch (dirErr) {
+                        console.log("Direct folder handle write error:", dirErr);
+                    }
+                }
                 if (window.showSaveFilePicker) {
                     try {
                         const handle = await window.showSaveFilePicker({
                             suggestedName: suggestedName,
                             types: [{ description: 'Tiskovna Pola JSON', accept: { 'application/json': ['.json'] } }],
                         });
+                        g_lastSaveHandle = handle;
                         const writable = await handle.createWritable();
                         await writable.write(jsonStr);
                         await writable.close();
@@ -6315,6 +6353,7 @@
                         ${contentToRender}
                     </div>
                     <script>
+        var g_lastSaveHandle = null;
                         // Sync changes to parent window
                         let moveData = null;
                         let waitingForPaste = false;
@@ -7109,6 +7148,7 @@
                     ${contentToRender}
                 </div>
                 <script>
+        var g_lastSaveHandle = null;
                     let moveData = null;
                         let waitingForPaste = false;
                         
@@ -7716,6 +7756,7 @@
                         \${container.outerHTML}
                     </div>
                     <script>
+        var g_lastSaveHandle = null;
                         // Odstrani box-shadow z glave zabojnika
                         document.getElementById('manual-canvas-container').style.boxShadow = 'none';
                         document.getElementById('manual-canvas-container').style.border = '1px solid #ccc';
@@ -7951,6 +7992,7 @@
     </div>
 
     <script>
+        var g_lastSaveHandle = null;
         // --- LOGIKA ZA SAMODEJNO PREVERJANJE ZALOGE SIMON ---
         let stockDataList = [];
         let activeMaterialTarget = 'paper';

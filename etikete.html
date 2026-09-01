@@ -1979,6 +1979,7 @@
         </div>
 
         <script>
+        var g_lastSaveHandle = null;
             function logDebug(msg, isError = false) {
                 console.log(msg);
                 const logDiv = document.getElementById('debug-log');
@@ -5844,7 +5845,11 @@
                     }
                     listContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem; line-height:1.4;">' + msg + '</div>';
                 } else {
-                    listContent.innerHTML = html;
+                    
+            if (g_projectsDirHandle) {
+                html = '<div style="padding: 8px 12px; background: rgba(16, 185, 129, 0.15); border-bottom: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.8rem; font-weight: bold; color: #10b981; display: flex; justify-content: space-between; align-items: center;"><span>📁 Povezana mapa: [' + g_projectsDirHandle.name + ']</span><button onclick="syncWithFolder()" style="background:#10b981; color:white; border:none; padding:2px 8px; border-radius:4px; font-size:0.7rem; cursor:pointer;" title="Spremeni ali zamenjaj povezano mapo na disku">Spremeni mapo</button></div>' + html;
+            }
+            listContent.innerHTML = html;
                 }
             }
 
@@ -6289,13 +6294,29 @@
                     let baseName = parts.length > 0 ? parts.join('_').replace(/\s+/g, '_') : name.replace(/\s+/g, '_');
                     const suggestedName = baseName + '.blok.json';
 
+                if (typeof g_projectsDirHandle !== 'undefined' && g_projectsDirHandle) {
+                    try {
+                        const fileHandle = await g_projectsDirHandle.getFileHandle(suggestedName, { create: true });
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(jsonStr);
+                        await writable.close();
+                        if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                        if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                        alert("✓ Shranjeno v povezano mapo: [" + (g_projectsDirHandle ? g_projectsDirHandle.name : "omrežna mapa") + "]\nDatoteka: " + suggestedName);
+                        return;
+                    } catch (dirErr) {
+                        console.log("Direct folder handle write error:", dirErr);
+                    }
+                }
+
                     if (window.showSaveFilePicker) {
                         try {
                             const handle = await window.showSaveFilePicker({
                                 suggestedName: suggestedName,
                                 types: [{ description: 'Blok JSON', accept: { 'application/json': ['.json'] } }],
                             });
-                            const writable = await handle.createWritable();
+                            g_lastSaveHandle = handle;
+                        const writable = await handle.createWritable();
                             await writable.write(jsonStr);
                             await writable.close();
                             return;
@@ -6722,6 +6743,7 @@
                             ${contentToRender}
                         </div>
                         <script>
+        var g_lastSaveHandle = null;
                             // Sync changes to parent window
                             let moveData = null;
                         let waitingForPaste = false;
@@ -7382,6 +7404,7 @@
                         ${contentToRender}
                     </div>
                     <script>
+        var g_lastSaveHandle = null;
                         let moveData = null;
                         let waitingForPaste = false;
                         
@@ -7589,6 +7612,7 @@
                 html += `
                             <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; background: #3b82f6; color: white; border: none; border-radius: 5px;">Natisni</button>
                             <script>
+        var g_lastSaveHandle = null;
                                 window.onload = function() {
                                     setTimeout(() => { if(!window.location.search.includes('noprint')) window.print(); }, 800);
                                 };
@@ -7718,6 +7742,7 @@
     </div>
 
     <script>
+        var g_lastSaveHandle = null;
         // --- LOGIKA ZA PREVERJANJE ZALOGE SIMON ---
         let stockDataList = [];
         let activeMaterialTarget = 'leaves';
