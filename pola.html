@@ -1594,6 +1594,46 @@
         </div>
     </div>
     </div>
+
+    <!-- FIKSNA NOGA NA DNU STRANI Z GUMBI ZA PONUDBO, PONUDBO AT, DN IN KOŠARICO -->
+    <div class="sticky-footer">
+        <div class="sticky-price-item">
+            <div class="sticky-price-label">Naklada</div>
+            <div class="sticky-price-value" id="sticky-qty" style="color: #60a5fa;">-</div>
+        </div>
+        <div class="sticky-price-item">
+            <div class="sticky-price-label">Na kos</div>
+            <div class="sticky-price-value" id="sticky-price-per-item" style="color: #34d399;">0.0000 €</div>
+        </div>
+        <div class="sticky-price-item">
+            <div class="sticky-price-label">Skupaj</div>
+            <div class="sticky-price-value" id="sticky-price-total" style="color: #10b981;">0.00 €</div>
+        </div>
+        <div style="display:flex; gap:0.5rem; flex-wrap: wrap; align-items: center;">
+            <button class="calculate-btn" onclick="addToBasket()"
+                style="margin: 0; width: auto; background: #f59e0b; padding: 0.6rem 1.4rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);"
+                title="Dodaj trenutno kalkulacijo v košarico za zbirno ponudbo z več pozicijami">
+                🛒 DODAJ V KOŠARICO
+            </button>
+            <button class="calculate-btn" onclick="printQuote()" id="btn-open-quote"
+                style="margin: 0; width: auto; background: #3b82f6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);"
+                title="Odpri/Natisni ponudbo">
+                📄 PONUDBA <span class="basket-count-badge"
+                    style="background: white; color: #3b82f6; padding: 2px 6px; border-radius: 10px; font-size: 0.75rem; margin-left: 5px; display: none;">0</span>
+            </button>
+            <button class="calculate-btn" onclick="printQuoteAT()" id="btn-open-quote-at"
+                style="margin: 0; width: auto; background: #ef4444; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);"
+                title="Odpri/Natisni ponudbo v nemščini (AT)">
+                📄 PONUDBA (AT)
+            </button>
+            <button class="calculate-btn" onclick="printWorkOrder()" id="btn-print-dn"
+                style="margin: 0; width: auto; background: #8b5cf6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);"
+                title="Odpri/Natisni delovni nalog (DN)">
+                📋 DELOVNI NALOG (DN)
+            </button>
+        </div>
+    </div>
+
     <script>
         var g_lastSaveHandle = null;
         function extractGrammage(sourceEl, targetId) {
@@ -1951,6 +1991,12 @@
         }
         function renderBasket() {
             try {
+                const badges = document.querySelectorAll('.basket-count-badge');
+                const count = (quoteBasket && quoteBasket.length) ? quoteBasket.length : 0;
+                badges.forEach(b => {
+                    b.innerText = count;
+                    b.style.display = count > 0 ? 'inline-block' : 'none';
+                });
                 const container = document.getElementById('basket-items-list');
                 const basketContainer = document.getElementById('basket-container');
                 if (!container || !basketContainer) return;
@@ -6111,6 +6157,47 @@
             return formattedParts.join(' + ');
         }
         // --- TISKANJE PONUDBE ---
+        function printQuote() {
+            try {
+                const html = getQuoteHTML(false, '', false, false);
+                const printWin = window.open('', '_blank', 'width=950,height=900');
+                if (!printWin) {
+                    alert("Pojavno okno je bilo blokirano.");
+                    return;
+                }
+                printWin.document.write(html);
+                printWin.document.close();
+                setTimeout(() => { printWin.focus(); }, 200);
+            } catch (e) { alert("Napaka pri pripravi ponudbe: " + e.message); }
+        }
+
+        function printQuoteAT() {
+            try {
+                const html = getQuoteHTML(false, '', false, true);
+                const printWin = window.open('', '_blank', 'width=950,height=900');
+                if (!printWin) {
+                    alert("Pojavno okno je bilo blokirano.");
+                    return;
+                }
+                printWin.document.write(html);
+                printWin.document.close();
+                setTimeout(() => { printWin.focus(); }, 200);
+            } catch (e) { alert("Napaka pri pripravi ponudbe (AT): " + e.message); }
+        }
+
+        function printWorkOrder() {
+            try {
+                const html = getWorkOrderHTML();
+                const printWin = window.open('', '_blank', 'width=950,height=900');
+                if (!printWin) {
+                    alert("Pojavno okno je bilo blokirano.");
+                    return;
+                }
+                printWin.document.write(html);
+                printWin.document.close();
+                setTimeout(() => { printWin.focus(); }, 200);
+            } catch (e) { alert("Napaka pri pripravi naloga: " + e.message); }
+        }
         function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT = false) {
             const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
             const date = new Date().toLocaleDateString('sl-SI');
