@@ -5368,6 +5368,25 @@
                 let tParts = [s_ponudba, customer, izdelek, s_naklada, cColors].filter(Boolean);
                 const suggestedName = (tParts.length > 0 ? tParts.join('_') : name).replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.json';
 
+                try {
+                    const srvRes = await fetch('http://127.0.0.1:8095', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
+                    });
+                    if (srvRes.ok) {
+                        const srvData = await srvRes.json();
+                        if (srvData.status === 'success') {
+                            if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                            if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                            alert("✓ Shranjeno v srečko-server (ponudbe test):\nDatoteka: " + suggestedName);
+                            return;
+                        }
+                    }
+                } catch (srvErr) {
+                    console.log("Srečko-server save error:", srvErr);
+                }
+
                 if (typeof g_projectsDirHandle !== 'undefined' && g_projectsDirHandle) {
                     try {
                         const fileHandle = await g_projectsDirHandle.getFileHandle(suggestedName, { create: true });
@@ -5710,21 +5729,42 @@
             }
         }
         // Pomožna funkcija za izvoz enega projekta iz arhiva
-        function exportSingleProject(id) {
+        async function exportSingleProject(id) {
             let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
             arhiv = arhiv.filter(proj => isPolaProject(proj));
             let proj = arhiv.find(p => p.id === id);
             if (!proj) return;
             const jsonStr = JSON.stringify(proj, null, 2);
-            const blob = new Blob([jsonStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
             let tParts = [];
             if (proj.inputs && proj.inputs.quote_num) tParts.push(proj.inputs.quote_num);
             if (proj.customer) tParts.push(proj.customer);
             if (proj.name) tParts.push(proj.name);
-            a.download = 'pon._' + tParts.join('_').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.json';
+            const suggestedName = 'pon._' + tParts.join('_').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.json';
+
+            try {
+                const srvRes = await fetch('http://127.0.0.1:8095', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
+                });
+                if (srvRes.ok) {
+                    const srvData = await srvRes.json();
+                    if (srvData.status === 'success') {
+                        if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                        if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                        alert("✓ Shranjeno v srečko-server (ponudbe test):\nDatoteka: " + suggestedName);
+                        return;
+                    }
+                }
+            } catch (srvErr) {
+                console.log("Srečko-server save error:", srvErr);
+            }
+
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = suggestedName;
             document.body.appendChild(a);
             a.click();
             setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
@@ -5743,24 +5783,24 @@
                 g_editedQuoteHTML = proj.editedQuoteHTML || '';
                 g_editedQuoteATHTML = proj.editedQuoteATHTML || '';
                 g_editedWorkOrderHTML = proj.editedWorkOrderHTML || '';
-                setV('calc-order-type', proj.orderType || '');
                 const inp = proj.inputs || {};
-                setV('calc-customer', proj.customer || '');
-                setV('calc-cust-address', proj.custAddress || '');
-                setV('calc-delivery-address', proj.deliveryAddress || '');
-                setV('calc-cust-email', proj.custEmail || '');
-                setV('calc-mut-type', proj.mutType || '');
-                setV('calc-mut-qty', proj.mutQty || 1);
-                setV('calc-mut-plates', proj.mutPlates || 0);
+                setV('calc-order-type', proj.orderType || inp.orderType || '');
+                setV('calc-customer', proj.customer || inp.customer || '');
+                setV('calc-cust-address', proj.custAddress || inp.custAddress || '');
+                setV('calc-delivery-address', proj.deliveryAddress || inp.deliveryAddress || '');
+                setV('calc-cust-email', proj.custEmail || inp.custEmail || '');
+                setV('calc-mut-type', proj.mutType || inp.mutType || '');
+                setV('calc-mut-qty', proj.mutQty || inp.mutQty || 1);
+                setV('calc-mut-plates', proj.mutPlates || inp.mutPlates || 0);
                 setV('calc-mut-breakdown', proj.mutBreakdown || inp.mutBreakdown || '');
                 setV('calc-mut-dodatek', proj.mutDodatek || inp.mutDodatek || '');
-                setV('calc-cust-id', proj.custId || '');
-                setV('calc-quote-number', proj.quoteNum || '');
-                setV('calc-customer-code', proj.customerCode || '');
-                setV('calc-product-code', proj.productCode || '');
-                setV('calc-prepared-by', proj.preparedBy || '');
-                setV('calc-material-code', proj.materialCode || '');
-                setV('calc-notes', proj.notes || '');
+                setV('calc-cust-id', proj.custId || inp.custId || '');
+                setV('calc-quote-number', proj.quoteNum || inp.quoteNum || inp.quote_num || '');
+                setV('calc-customer-code', proj.customerCode || inp.customerCode || '');
+                setV('calc-product-code', proj.productCode || inp.productCode || '');
+                setV('calc-prepared-by', proj.preparedBy || inp.preparedBy || '');
+                setV('calc-material-code', proj.materialCode || inp.materialCode || '');
+                setV('calc-notes', proj.notes || inp.notes || '');
                 setV('calc-dn-number', proj.dnNum || inp.dnNum || '');
                 setV('calc-dn-old', proj.dnOld || inp.dnOld || '');
                 setV('calc-dn-deadline', proj.deadline || inp.deadline || '');
@@ -6004,16 +6044,52 @@
                         }
                     } catch (e) { }
                 }
+                function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+                function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
                 const data = {
                     name: name,
                     _source: 'tiskovna-pola-kalkulator',
-                    customer: document.getElementById('calc-customer').value,
-                    materialCode: document.getElementById('calc-material-code').value,
+                    customer: gv('calc-customer'),
+                    custAddress: gv('calc-cust-address'),
+                    deliveryAddress: gv('calc-delivery-address'),
+                    custEmail: gv('calc-cust-email'),
+                    custId: gv('calc-cust-id'),
+                    quoteNum: gv('calc-quote-number'),
+                    dnNum: gv('calc-dn-number'),
+                    dnOld: gv('calc-dn-old'),
+                    deadline: gv('calc-dn-deadline'),
+                    packaging: gv('calc-dn-packaging'),
+                    givenSheets: gv('calc-given-sheets'),
+                    customerCode: gv('calc-customer-code'),
+                    productCode: gv('calc-product-code'),
+                    preparedBy: gv('calc-prepared-by'),
+                    materialCode: gv('calc-material-code'),
+                    notes: gv('calc-notes'),
+                    mutType: gv('calc-mut-type'),
+                    mutQty: gv('calc-mut-qty'),
+                    mutPlates: gv('calc-mut-plates'),
+                    mutBreakdown: gv('calc-mut-breakdown'),
+                    mutDodatek: gv('calc-mut-dodatek'),
+                    orderType: gv('calc-order-type'),
+                    isUrgent: gc('calc-dn-urgent'),
                     timestamp: Date.now(),
                     editedQuoteHTML: g_editedQuoteHTML,
                     editedQuoteATHTML: g_editedQuoteATHTML,
                     editedWorkOrderHTML: g_editedWorkOrderHTML,
                     inputs: {
+                        quote_num: gv('calc-quote-number'),
+                        quoteNum: gv('calc-quote-number'),
+                        customerCode: gv('calc-customer-code'),
+                        productCode: gv('calc-product-code'),
+                        preparedBy: gv('calc-prepared-by'),
+                        customer: gv('calc-customer'),
+                        custAddress: gv('calc-cust-address'),
+                        deliveryAddress: gv('calc-delivery-address'),
+                        custEmail: gv('calc-cust-email'),
+                        custId: gv('calc-cust-id'),
+                        notes: gv('calc-notes'),
+                        orderType: gv('calc-order-type'),
+                        isUrgent: gc('calc-dn-urgent'),
                         orderedSheets: document.getElementById('calc-ordered-sheets') ? document.getElementById('calc-ordered-sheets').value : '',
                         machine_format: document.getElementById('machine-format').value,
                         sourcePreset: document.getElementById('calc-source-presets').value,
@@ -6100,6 +6176,25 @@
 
                 let tParts = [s_ponudba, customer, izdelek, s_naklada, cColors].filter(Boolean);
                 const suggestedName = (tParts.length > 0 ? tParts.join('_') : name).replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.json';
+
+                try {
+                    const srvRes = await fetch('http://127.0.0.1:8095', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
+                    });
+                    if (srvRes.ok) {
+                        const srvData = await srvRes.json();
+                        if (srvData.status === 'success') {
+                            if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                            if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                            alert("✓ Shranjeno v srečko-server (ponudbe test):\nDatoteka: " + suggestedName);
+                            return;
+                        }
+                    }
+                } catch (srvErr) {
+                    console.log("Srečko-server save error:", srvErr);
+                }
 
                 if (typeof g_projectsDirHandle !== 'undefined' && g_projectsDirHandle) {
                     try {
