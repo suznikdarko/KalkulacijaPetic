@@ -1208,6 +1208,19 @@
             const custEmail = document.getElementById('calc-cust-email') ? document.getElementById('calc-cust-email').value : '';
             const deliveryAddress = document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '';
 
+            const _qNum = document.getElementById('calc-quote-number').value || '';
+            const _cust = document.getElementById('calc-customer').value || '';
+            const _envSel = document.getElementById('envelope-preset');
+            const _env = _envSel && _envSel.selectedIndex >= 0 ? _envSel.options[_envSel.selectedIndex].text : '';
+            const _cF = document.getElementById('calc-colors-front').value || '0';
+            const _cB = document.getElementById('calc-colors-back').value || '0';
+            const _qty = (document.getElementById('calc-quantities').value || '').split(',')[0].trim() || '0';
+            let safeQNum = _qNum.replace(/[^a-zA-Z0-9_\-]/g, '');
+            let safeCust = _cust.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-čšžČŠŽ]/g, '');
+            let safeEnv = _env.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-čšžČŠŽ]/g, '');
+            let exportFileName = `pon.${safeQNum}_${safeCust}_${safeEnv}_b${_cF}-${_cB}_${_qty}.doc`;
+            if (isAT) exportFileName = `Angebot_${safeQNum}_${safeCust}_${safeEnv}_b${_cF}-${_cB}_${_qty}.doc`;
+
             let itemsToRender = [];
 
             if (quoteBasket.length > 0) {
@@ -1495,7 +1508,7 @@ if (isWord) {
                             const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
                             const footer = "</body></html>";
                             const sourceHTML = header + content + footer;
-                            const fileName = isAT ? 'Angebot.doc' : 'Ponudba.doc';
+                            const fileName = '${exportFileName}';
 
                             try {
                                 const srvRes = await fetch('http://127.0.0.1:8095', {
@@ -2047,8 +2060,17 @@ if (isWord) {
         async function exportQuoteWord() {
             try {
                 const htmlContent = getQuoteHTML(true);
-                const projectName = document.getElementById('calc-project-name').value || 'Ponudba';
-                const fileName = "Ponudba_" + projectName.replace(/\s+/g, '_') + ".doc";
+                const _qNum = document.getElementById('calc-quote-number').value || '';
+                const _cust = document.getElementById('calc-customer').value || '';
+                const _envSel = document.getElementById('envelope-preset');
+                const _env = _envSel && _envSel.selectedIndex >= 0 ? _envSel.options[_envSel.selectedIndex].text : '';
+                const _cF = document.getElementById('calc-colors-front').value || '0';
+                const _cB = document.getElementById('calc-colors-back').value || '0';
+                const _qty = (document.getElementById('calc-quantities').value || '').split(',')[0].trim() || '0';
+                let safeQNum = _qNum.replace(/[^a-zA-Z0-9_\-]/g, '');
+                let safeCust = _cust.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-čšžČŠŽ]/g, '');
+                let safeEnv = _env.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-čšžČŠŽ]/g, '');
+                const fileName = `pon.${safeQNum}_${safeCust}_${safeEnv}_b${_cF}-${_cB}_${_qty}.doc`;
                 
                 try {
                     const srvRes = await fetch('http://127.0.0.1:8095', {
