@@ -529,6 +529,11 @@
                         style="width: auto; background: #64748b; border: none; border-radius: 8px; color: white; cursor: pointer; padding: 0 10px; font-size: 0.8rem; font-weight: bold;">
                         MOJI PROJEKTI ▼
                     </button>
+                    <button onclick="saveCurrentProject(this)"
+                        style="width: auto; background: #6366f1; border: none; border-radius: 8px; color: white; cursor: pointer; padding: 0 12px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);"
+                        title="Shrani projekt v arhiv in v mapo na disku">
+                        💾 SHRANI PROJEKT
+                    </button>
                     <!-- DROPDOWN ZA PROJEKTE -->
                     <div id="projects-dropdown-list"
                         style="display: none; position: absolute; top: 100%; right: 0; width: 320px; background: #1e293b; border: 2px solid #64748b; border-radius: 12px; max-height: 400px; overflow: hidden; z-index: 2000; margin-top: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); flex-direction: column;">
@@ -2043,7 +2048,7 @@
                 📄 PONUDBA</button>
             <button class="calculate-btn" onclick="printQuoteAT()"
                 style="margin: 0; width: auto; background: #ef4444; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.4rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);" title="Pripravi in natisni ponudbo v nemščini (AT)">
-                📄 PONUDBA (DE)</button>
+                📄 PONUDBA (AT)</button>
             <button class="calculate-btn" onclick="printProductionOrder()"
                 style="margin: 0; width: auto; background: #8b5cf6; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.4rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);" title="Pripravi in natisni delovni nalog">
                 🛠️ D. NALOG</button>
@@ -6448,7 +6453,94 @@ window.addEventListener('error', function (e) {
                 }
             } catch (e) { logDebug("Napaka pri povezovanju dogodkov: " + e.message, true); }
 
-            function saveCurrentProject(btn = null) {
+            
+            
+            function buildSuggestedFilename(ext = 'json') {
+                function gv(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+                
+                // 1. Številka ponudbe (pon.1234)
+                const quoteNum = gv('calc-quote-number').replace(/[/\\?%*:|"<> \t]/g, '-');
+                let s_ponudba = quoteNum ? ('pon.' + quoteNum) : 'pon';
+                
+                // 2. Stranka
+                const customer = gv('calc-customer');
+                
+                // 3. Izdelek
+                const product = gv('calc-project-name') || 'blok';
+                
+                // 4. Št. barv (b40, b44...)
+                const cFront = gv('calc-color-front-leaves') || gv('calc-color-front') || '0';
+                const cBack = gv('calc-color-back-leaves') || gv('calc-color-back') || '0';
+                const cColors = (cFront === '0' && cBack === '0') ? '' : ('b' + cFront + cBack);
+                
+                // 5. Št. listov v bloku (npr. 50l)
+                const leavesVal = gv('calc-leaves').replace(/[^0-9]/g, '');
+                const s_leaves = leavesVal ? (leavesVal + 'l') : '';
+                
+                // 6. Naročena količina (nakl.500)
+                const qtyVal = gv('quantity').replace(/\s+/g, '').replace(/,/g, '-');
+                const s_qty = qtyVal ? ('nakl.' + qtyVal) : '';
+                
+                let tParts = [s_ponudba, customer, product, cColors, s_leaves, s_qty].filter(Boolean);
+                let baseName = tParts.join('_').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_');
+                
+                if (!ext.startsWith('.')) ext = '.' + ext;
+                return baseName + ext;
+            }
+
+
+async function downloadWordDoc(filename, htmlContent) {
+                try {
+                    let wordName = filename;
+                    if (!wordName || wordName === 'dokument.doc' || wordName === 'ponudba.doc' || wordName === 'ponudba') {
+                        wordName = buildSuggestedFilename('.doc');
+                    }
+                    if (!wordName.endsWith('.doc')) wordName += '.doc';
+                    wordName = wordName.replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_');
+                    
+                    let fullHtml = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + wordName + "</title><style>body { font-family: Arial, sans-serif; font-size: 11pt; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + htmlContent + "</body></html>";
+                    
+                    // 1. Poskusi shraniti na server Srecko (PONUDBE 2026)
+                    let serverSaved = false;
+                    try {
+                        const srvRes = await fetch('http://127.0.0.1:8095', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ type: 'word', filename: wordName, content: fullHtml })
+                        });
+                        if (srvRes.ok) {
+                            const srvData = await srvRes.json();
+                            if (srvData.status === 'success') {
+                                serverSaved = true;
+                                const fullPath = srvData.path || ("\\\\server-2012\\Srecko\\NALOGI\\A PONUDBE\\PONUDBE 2026\\" + wordName);
+                                if (typeof logDebug === 'function') logDebug("✅ Word shranjen na server Srečko (PONUDBE 2026): " + fullPath);
+                                alert("📄 Ponudba (Word) shranjena v server Srečko (PONUDBE 2026):\n\nLokacija: " + fullPath + "\nDatoteka: " + wordName);
+                            }
+                        }
+                    } catch (srvErr) {
+                        console.log("Server save error:", srvErr);
+                    }
+
+                    // 2. Lokalni prenos v brskalniku
+                    var bom = String.fromCharCode(0xFEFF);
+                    var blob = new Blob([bom + fullHtml], { type: 'application/msword;charset=utf-8' });
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = wordName;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); URL.revokeObjectURL(url); }, 300);
+                    
+                    if (!serverSaved) {
+                        alert("📄 Ponudba prenesena lokalno: " + wordName + "\n(Strežnik Srečko 8095 ni bil dosegljiv za samodejno shranjevanje v PONUDBE 2026)");
+                    }
+                } catch (e) {
+                    alert("Napaka pri shranjevanju Word ponudbe: " + e.message);
+                }
+            }
+
+async function saveCurrentProject(btn = null) {
                 try {
                     function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
                     function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
@@ -6614,6 +6706,29 @@ window.addEventListener('error', function (e) {
                             btn.style.background = "#10b981";
                         }, 2000);
                     }
+
+                    // SERVER SAVE (http://127.0.0.1:8095) -> \\server-2012\Srecko\PONUDBE TEST
+                    const jsonStr = JSON.stringify(data, null, 2);
+                    const suggestedName = typeof buildSuggestedFilename === 'function' ? buildSuggestedFilename('.json') : ((name || 'projekt').replace(/[/\\?%*:|"<> \t]/g, '_') + '.json');
+                    
+                    try {
+                        const srvRes = await fetch('http://127.0.0.1:8095', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
+                        });
+                        if (srvRes.ok) {
+                            const srvData = await srvRes.json();
+                            if (srvData.status === 'success') {
+                                if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                                if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                                const fullPath = srvData.path || ("\\\\server-2012\\Srecko\\PONUDBE TEST\\" + suggestedName);
+                                alert("💾 Projekt (JSON) shranjen v srečko-server (ponudbe test):\n\nLokacija: " + fullPath + "\nDatoteka: " + suggestedName);
+                            }
+                        }
+                    } catch (srvErr) {
+                        console.log("Srečko-server save error:", srvErr);
+                    }
                 } catch (err) { console.error("saveCurrentProject error:", err); }
             }
 
@@ -6644,17 +6759,43 @@ window.addEventListener('error', function (e) {
                 }
             }
 
-            function exportSingleProject(id) {
+            async function exportSingleProject(id) {
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
                 let proj = arhiv.find(p => p.id == id);
                 if (!proj) return;
 
                 const jsonStr = JSON.stringify(proj, null, 2);
+                let tParts = [];
+                if (proj.quoteNum) tParts.push('pon.' + proj.quoteNum.replace(/[/\\?%*:|"<> \t]/g, '-'));
+                if (proj.customer) tParts.push(proj.customer);
+                if (proj.name) tParts.push(proj.name);
+                const suggestedName = (tParts.length > 0 ? tParts.join('_') : (proj.name || 'projekt')).replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.json';
+
+                // Poskusi shraniti na server Srecko (PONUDBE TEST)
+                try {
+                    const srvRes = await fetch('http://127.0.0.1:8095', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
+                    });
+                    if (srvRes.ok) {
+                        const srvData = await srvRes.json();
+                        if (srvData.status === 'success') {
+                            if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                            if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                            alert("💾 Projekt (JSON) shranjen na server Srečko (PONUDBE TEST):\nDatoteka: " + suggestedName);
+                            return;
+                        }
+                    }
+                } catch (srvErr) {
+                    console.log("Server save error:", srvErr);
+                }
+
                 const blob = new Blob([jsonStr], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = proj.name.replace(/\s+/g, '_') + '.blok.json';
+                a.download = suggestedName;
                 document.body.appendChild(a);
                 a.click();
                 setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
@@ -7257,9 +7398,27 @@ window.addEventListener('error', function (e) {
                     let s_izdelek = (name || '').trim();
                     let s_naklada = (gv('quantity') || '').replace(/\s+/g, '').replace(/,/g, '-');
 
-                    let parts = [s_ponudba, s_stranka, s_izdelek, s_naklada].filter(Boolean);
-                    let baseName = parts.length > 0 ? parts.join('_').replace(/\s+/g, '_') : name.replace(/\s+/g, '_');
-                    const suggestedName = baseName + '.blok.json';
+                    const suggestedName = typeof buildSuggestedFilename === 'function' ? buildSuggestedFilename('.json') : (((s_ponudba || s_stranka || s_izdelek) ? [s_ponudba, s_stranka, s_izdelek, s_naklada].filter(Boolean).join('_') : name) + '.json');
+
+                    try {
+                        const srvRes = await fetch('http://127.0.0.1:8095', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
+                        });
+                        if (srvRes.ok) {
+                            const srvData = await srvRes.json();
+                            if (srvData.status === 'success') {
+                                if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                                if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                                const fullPath = srvData.path || ("\\\\server-2012\\Srecko\\PONUDBE TEST\\" + suggestedName);
+                                alert("💾 Projekt (JSON) shranjen v srečko-server (ponudbe test):\n\nLokacija: " + fullPath + "\nDatoteka: " + suggestedName);
+                                return;
+                            }
+                        }
+                    } catch (srvErr) {
+                        console.log("Srečko-server save error:", srvErr);
+                    }
 
                 if (typeof g_projectsDirHandle !== 'undefined' && g_projectsDirHandle) {
                     try {
