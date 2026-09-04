@@ -906,7 +906,7 @@
                         <div style="flex: 1.5; min-width: min-content;">
                             <label>Število barv (Lice / Hrbet)</label>
                             <div style="display: flex; gap: 0.2rem;">
-                                <select id="calc-color-front-leaves" onchange="updateWasteAndPrice('leaves')">
+                                <select id="calc-color-front-leaves" onchange="updateWasteAndPrice('leaves', true)">
                                     <option disabled="" selected="" value="">Izberite...</option>
                                     <option value="0">0 barv</option>
                                     <option value="1">1 barva</option>
@@ -916,7 +916,7 @@
                                     <option value="5">5 barv</option>
                                     <option value="6">6 barv</option>
                                 </select>
-                                <select id="calc-color-back-leaves" onchange="updateWasteAndPrice('leaves')">
+                                <select id="calc-color-back-leaves" onchange="updateWasteAndPrice('leaves', true)">
                                     <option disabled="" selected="" value="">Izberite...</option>
                                     <option value="0">0 (Brez)</option>
                                     <option value="1">1 barva</option>
@@ -969,7 +969,7 @@
                         <div style="flex: 1.5; min-width: min-content;">
                             <label>Število barv (Lice / Hrbet)</label>
                             <div style="display: flex; gap: 0.2rem;">
-                                <select id="calc-color-front-cover" onchange="updateWasteAndPrice('cover')">
+                                <select id="calc-color-front-cover" onchange="updateWasteAndPrice('cover', true)">
                                     <option disabled="" selected="" value="">Izberite...</option>
                                     <option value="0">0 barv</option>
                                     <option value="1">1 barva</option>
@@ -979,7 +979,7 @@
                                     <option value="5">5 barv</option>
                                     <option value="6">6 barv</option>
                                 </select>
-                                <select id="calc-color-back-cover" onchange="updateWasteAndPrice('cover')">
+                                <select id="calc-color-back-cover" onchange="updateWasteAndPrice('cover', true)">
                                     <option disabled="" selected="" value="">Izberite...</option>
                                     <option value="0">0 (Brez)</option>
                                     <option value="1">1 barva</option>
@@ -4057,7 +4057,7 @@ window.addEventListener('error', function (e) {
                 calculate();
             }
 
-            function updateWasteAndPrice(comp = 'leaves') {
+            function updateWasteAndPrice(comp = 'leaves', colorsChanged = false) {
                 let mType = gV('calc-machine-type-' + comp);
                 let profile = machineProfiles[mType];
                 if (!profile) return;
@@ -4139,8 +4139,10 @@ window.addEventListener('error', function (e) {
                     }
                 }
 
-                // Vedno izračunaj in nastavi število plošč
-                setV('calc-plates-num-' + comp, cFrontVal + (isOB ? 0 : cBackVal));
+                // Nastavi število plošč samo ob spremembi barv ali če je polje prazno
+                if (colorsChanged || gV('calc-plates-num-' + comp) === '') {
+                    setV('calc-plates-num-' + comp, cFrontVal + (isOB ? 0 : cBackVal));
+                }
 
                 if (cFront !== "" && cBack !== "") {
                     let key = cFront + '/' + (isOB ? 'OB' : cBack);
@@ -5410,12 +5412,22 @@ window.addEventListener('error', function (e) {
             }
 
             function calculateForSingleQty(q) {
-                // Ta funkcija simulira izračun za eno specifično naklado (brez spreminjanja UI, kjer je možno)
-                // Vrne objekt z rezultati
-                const sheetsNeededL = parseInt(document.getElementById('res-sheets-needed').innerText) || 0;
-                const sheetsNeededC = parseInt(document.getElementById('header-cover-sheets-val').innerText) || 0;
+                const qtyStr = document.getElementById('quantity')?.value || "0";
+                const qList = qtyStr.split(',').map(s => {
+                    let clean = s.trim().replace(/\./g, '').replace(',', '.');
+                    return parseFloat(clean);
+                }).filter(n => !isNaN(n) && n > 0);
+                
+                const baseQ = qList.length > 0 ? qList[0] : (q || 1);
 
-                let sizeText = document.getElementById('res-size').innerText;
+                let baseSheetsL = parseInt((document.getElementById('res-sheets-needed')?.innerText || '0').replace(/\./g, '')) || 0;
+                let baseSheetsC = parseInt((document.getElementById('header-cover-sheets-val')?.innerText || '0').replace(/\./g, '')) || 0;
+
+                const ratio = (baseQ > 0) ? (q / baseQ) : 1;
+                let sheetsNeededL = Math.ceil(baseSheetsL * ratio);
+                let sheetsNeededC = Math.ceil(baseSheetsC * ratio);
+
+                let sizeText = document.getElementById('res-size')?.innerText || "";
                 let sizeStr = sizeText.split('x');
                 let drawW = 0, drawH = 0;
                 if (sizeStr.length === 2) {
@@ -5423,9 +5435,15 @@ window.addEventListener('error', function (e) {
                     drawH = parseFloat(sizeStr[1]);
                 }
 
-                // calculatePrice v blok.html trenutno še vedno piše v DOM, 
-                // vendar smo ga popravili, da vrne objekt.
-                return calculatePrice(sheetsNeededL, sheetsNeededC, q, drawW, drawH);
+                let sizeTextC = document.getElementById('res-size-cover-val')?.textContent || "";
+                let drawWC = 0, drawHC = 0;
+                if (sizeTextC && sizeTextC.includes('x')) {
+                    let cStr = sizeTextC.split('x');
+                    drawWC = parseFloat(cStr[0]);
+                    drawHC = parseFloat(cStr[1]);
+                }
+
+                return calculatePrice(sheetsNeededL, sheetsNeededC, q, drawW, drawH, drawWC, drawHC);
             }
 
             function addToBasket() {
@@ -7569,24 +7587,34 @@ async function saveCurrentProject(btn = null) {
 
                 let itemsToRender = [];
 
-                if (quoteBasket.length > 0) {
+                if (false && quoteBasket.length > 0) {
                     itemsToRender = quoteBasket;
                 } else {
                     const projectName = document.getElementById('calc-project-name').value || 'Bloki';
                     const productCode = document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : '/';
                     const materialCode = document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '/';
 
-                    let formatLeaves = `${document.getElementById('width').value}x${document.getElementById('height').value}`;
-                    let formatCover = `${document.getElementById('calc-cover-w').value}x${document.getElementById('calc-cover-h').value}`;
+                    let wVal = (document.getElementById('width') ? document.getElementById('width').value : '').trim();
+                    let hVal = (document.getElementById('height') ? document.getElementById('height').value : '').trim();
+                    let formatLeaves = (wVal && hVal) ? `${wVal} x ${hVal} mm` : '/';
 
-                    let leaves = document.getElementById('calc-leaves').value || '/';
-                    let extentText = `${leaves} listov`;
+                    let cwVal = (document.getElementById('calc-cover-w') ? document.getElementById('calc-cover-w').value : '').trim();
+                    let chVal = (document.getElementById('calc-cover-h') ? document.getElementById('calc-cover-h').value : '').trim();
+                    let formatCover = (cwVal && chVal && cwVal !== '0' && chVal !== '0') ? `${cwVal} x ${chVal} mm` : 'Brez ovitka';
 
-                    let paperLeaves = document.getElementById('calc-leaves-material').value || '/';
-                    let paperCover = document.getElementById('calc-cover-desc').value || '/';
+                    let leavesCount = (document.getElementById('calc-leaves') ? document.getElementById('calc-leaves').value : '').trim();
+                    let extentText = leavesCount ? `${leavesCount} listov` : '/';
 
-                    let tiskLeaves = (document.getElementById('calc-color-front-leaves').value || '0') + "/" + (document.getElementById('calc-color-back-leaves').value || '0');
-                    let tiskCover = (document.getElementById('calc-color-front-cover').value || '0') + "/" + (document.getElementById('calc-color-back-cover').value || '0');
+                    let paperLeaves = (document.getElementById('calc-leaves-material') ? document.getElementById('calc-leaves-material').value : '').trim() || '/';
+                    let paperCover = (document.getElementById('calc-cover-desc') ? document.getElementById('calc-cover-desc').value : '').trim() || 'Brez ovitka';
+
+                    let frontL = document.getElementById('calc-color-front-leaves') ? document.getElementById('calc-color-front-leaves').value : '0';
+                    let backL = document.getElementById('calc-color-back-leaves') ? document.getElementById('calc-color-back-leaves').value : '0';
+                    let tiskLeaves = (frontL === '0' && backL === '0') ? 'Brez tiska' : `${frontL}/${backL}`;
+
+                    let frontC = document.getElementById('calc-color-front-cover') ? document.getElementById('calc-color-front-cover').value : '0';
+                    let backC = document.getElementById('calc-color-back-cover') ? document.getElementById('calc-color-back-cover').value : '0';
+                    let tiskCover = (frontC === '0' && backC === '0') ? 'Brez tiska' : `${frontC}/${backC}`;
 
                     let finishing = getFinishingDesc();
 
