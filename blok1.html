@@ -6491,11 +6491,10 @@ window.addEventListener('error', function (e) {
 
 async function downloadWordDoc(filename, htmlContent) {
                 try {
-                    let wordName = filename;
-                    if (!wordName || wordName === 'dokument.doc' || wordName === 'ponudba.doc' || wordName === 'ponudba') {
-                        wordName = buildSuggestedFilename('.doc');
+                    let wordName = typeof buildSuggestedFilename === 'function' ? buildSuggestedFilename('.doc') : filename;
+                    if (!wordName || !wordName.endsWith('.doc')) {
+                        wordName = (wordName || 'ponudba').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.doc';
                     }
-                    if (!wordName.endsWith('.doc')) wordName += '.doc';
                     wordName = wordName.replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_');
                     
                     let fullHtml = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + wordName + "</title><style>body { font-family: Arial, sans-serif; font-size: 11pt; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + htmlContent + "</body></html>";
@@ -7944,18 +7943,32 @@ async function saveCurrentProject(btn = null) {
                             });
 
                             function saveQuoteToDisk() {
-                                const htmlContent = "<!DOCTYPE html>\\n" + document.documentElement.outerHTML;
-                                const blob = new Blob([htmlContent], {type: "text/html;charset=utf-8"});
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement("a");
-                                a.href = url;
-                                let fileName = document.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                                if (!fileName) fileName = "ponudba";
-                                a.download = fileName + ".html";
-                                document.body.appendChild(a);
-                                a.click();
-                                document.body.removeChild(a);
-                                URL.revokeObjectURL(url);
+                                try {
+                                    var area = document.querySelector('.editable-area');
+                                    var content = area ? area.innerHTML : document.body.innerHTML;
+                                    var fileName = (document.title || 'ponudba').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_');
+                                    if (!fileName || fileName === '_') fileName = "ponudba";
+                                    if (!fileName.endsWith('.doc')) fileName += ".doc";
+
+                                    if (window.opener && !window.opener.closed && typeof window.opener.downloadWordDoc === 'function') {
+                                        window.opener.downloadWordDoc(fileName, content);
+                                        return;
+                                    }
+
+                                    var bom = String.fromCharCode(0xFEFF);
+                                    var htmlContent = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + fileName + "</title><style>body { font-family: Arial, sans-serif; font-size: 11pt; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + content + "</body></html>";
+                                    var base64 = btoa(unescape(encodeURIComponent(bom + htmlContent)));
+                                    var dataUri = 'data:application/msword;base64,' + base64;
+
+                                    var a = document.createElement('a');
+                                    a.href = dataUri;
+                                    a.download = fileName;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    setTimeout(function() { if (a.parentNode) a.parentNode.removeChild(a); }, 300);
+                                } catch (err) {
+                                    alert("Napaka pri shranjevanju Word ponudbe: " + err.message);
+                                }
                             }
                         <` + `/script>
                     `;
