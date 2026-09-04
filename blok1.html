@@ -3200,7 +3200,7 @@ window.addEventListener('error', function (e) {
                 }
             });
 
-            function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceOrientation = 'auto', isDigital = false) {
+            function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceOrientation = 'auto', isDigital = false, isObrat = false) {
                 let count1 = 0, count2 = 0, count3 = 0, count4 = 0;
                 let cols1 = 0, rows1 = 0, cols2 = 0, rows2 = 0;
                 let cols3 = 0, rows3 = 0, cols4 = 0, rows4 = 0;
@@ -3212,14 +3212,32 @@ window.addEventListener('error', function (e) {
                         let printH = Math.min(sheetH, isDigital ? 470 : sheetH);
                         cols1 = Math.max(0, Math.floor(printW / itemW));
                         rows1 = Math.max(0, Math.floor(printH / itemH));
-                        count1 = cols1 * rows1;
+                        if (isObrat) {
+                            let maxC = Math.floor(cols1 / 2) * 2;
+                            let maxR = Math.floor(rows1 / 2) * 2;
+                            let cCount = maxC * rows1;
+                            let rCount = cols1 * maxR;
+                            if (cCount >= rCount) { cols1 = maxC; count1 = cCount; }
+                            else { rows1 = maxR; count1 = rCount; }
+                        } else {
+                            count1 = cols1 * rows1;
+                        }
                     }
                     if (forceOrientation === 'auto' || forceOrientation === 'portrait') {
                         let printW = Math.min(sheetW - gripper, isDigital ? 310 : sheetW - gripper);
                         let printH = Math.min(sheetH, isDigital ? 470 : sheetH);
                         cols2 = Math.max(0, Math.floor(printW / itemH));
                         rows2 = Math.max(0, Math.floor(printH / itemW));
-                        count2 = cols2 * rows2;
+                        if (isObrat) {
+                            let maxC = Math.floor(cols2 / 2) * 2;
+                            let maxR = Math.floor(rows2 / 2) * 2;
+                            let cCount = maxC * rows2;
+                            let rCount = cols2 * maxR;
+                            if (cCount >= rCount) { cols2 = maxC; count2 = cCount; }
+                            else { rows2 = maxR; count2 = rCount; }
+                        } else {
+                            count2 = cols2 * rows2;
+                        }
                     }
                 }
 
@@ -3230,14 +3248,32 @@ window.addEventListener('error', function (e) {
                         let printH = Math.min(sheetH - gripper, isDigital ? 310 : sheetH - gripper);
                         cols3 = Math.max(0, Math.floor(printW / itemW));
                         rows3 = Math.max(0, Math.floor(printH / itemH));
-                        count3 = cols3 * rows3;
+                        if (isObrat) {
+                            let maxC = Math.floor(cols3 / 2) * 2;
+                            let maxR = Math.floor(rows3 / 2) * 2;
+                            let cCount = maxC * rows3;
+                            let rCount = cols3 * maxR;
+                            if (cCount >= rCount) { cols3 = maxC; count3 = cCount; }
+                            else { rows3 = maxR; count3 = rCount; }
+                        } else {
+                            count3 = cols3 * rows3;
+                        }
                     }
                     if (forceOrientation === 'auto' || forceOrientation === 'portrait') {
                         let printW = Math.min(sheetW, isDigital ? 470 : sheetW);
                         let printH = Math.min(sheetH - gripper, isDigital ? 310 : sheetH - gripper);
                         cols4 = Math.max(0, Math.floor(printW / itemH));
                         rows4 = Math.max(0, Math.floor(printH / itemW));
-                        count4 = cols4 * rows4;
+                        if (isObrat) {
+                            let maxC = Math.floor(cols4 / 2) * 2;
+                            let maxR = Math.floor(rows4 / 2) * 2;
+                            let cCount = maxC * rows4;
+                            let rCount = cols4 * maxR;
+                            if (cCount >= rCount) { cols4 = maxC; count4 = cCount; }
+                            else { rows4 = maxR; count4 = rCount; }
+                        } else {
+                            count4 = cols4 * rows4;
+                        }
                     }
                 }
 
@@ -3372,8 +3408,9 @@ window.addEventListener('error', function (e) {
                         let familyMatches = isSheetFamilyMatching(rawFamily, sheet.family, mTypeL, sheet.name);
                         if (!fitsSource || !familyMatches) return;
 
-                        let layout1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode, mTypeL === 'digital');
-                        let layout2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode, mTypeL === 'digital');
+                        let isObratL = document.getElementById('calc-is-obrat-leaves')?.checked || false;
+                        let layout1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode, mTypeL === 'digital', isObratL);
+                        let layout2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode, mTypeL === 'digital', isObratL);
 
                         let bestForThisSheet = null;
                         let mode = 'L';
@@ -3414,31 +3451,11 @@ window.addEventListener('error', function (e) {
                         }
                     };
 
-                    let isLeavesUnprinted = (gV('calc-color-front-leaves') === "0" && gV('calc-color-back-leaves') === "0");
-
-                    if (isLeavesUnprinted) {
-                        let l1 = optimizeLayout(sw, sh, itemW, itemH, g, fMode);
-                        let l2 = optimizeLayout(sh, sw, itemW, itemH, g, fMode);
-
-                        let bL = null, bM = 'L';
-                        if (l1 && l2) {
-                            if (l1.count >= l2.count) { bL = l1; bM = 'L'; }
-                            else { bL = l2; bM = 'P'; }
-                        } else if (l1) { bL = l1; bM = 'L'; }
-                        else if (l2) { bL = l2; bM = 'P'; }
-
-                        if (bL) {
-                            bestScore = Number.MAX_SAFE_INTEGER;
-                            bestSheet = { name: sw + "x" + sh + " (Osnovni)", w: sw, h: sh, mode: bM };
-                            bestLayout = bL;
-                        }
+                    if (mFormat === 'auto') {
+                        sheets.forEach(checkSheet);
                     } else {
-                        if (mFormat === 'auto') {
-                            sheets.forEach(checkSheet);
-                        } else {
-                            let s = sheets.find(s => s.name === mFormat);
-                            if (s) checkSheet(s);
-                        }
+                        let s = sheets.find(s => s.name === mFormat);
+                        if (s) checkSheet(s);
                     }
                 }
 
@@ -3569,8 +3586,9 @@ window.addEventListener('error', function (e) {
                         let familyMatches = isSheetFamilyMatching(rawFamilyC, sheet.family, mTypeC, sheet.name);
                         if (!fitsSource || !familyMatches) return;
 
-                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital');
-                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital');
+                        let isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
+                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital', isObratC);
+                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital', isObratC);
 
                         let bL = null, bM = 'L';
                         if (l1 && l2) {
@@ -3609,30 +3627,10 @@ window.addEventListener('error', function (e) {
                         }
                     };
 
-                    let isCoverUnprinted = (gV('calc-color-front-cover') === "0" && gV('calc-color-back-cover') === "0");
-
-                    if (isCoverUnprinted) {
-                        let l1 = optimizeLayout(swc, shc, cItemW, cItemH, cg, fModeCover);
-                        let l2 = optimizeLayout(shc, swc, cItemW, cItemH, cg, fModeCover);
-
-                        let bL = null, bM = 'L';
-                        if (l1 && l2) {
-                            if (l1.count >= l2.count) { bL = l1; bM = 'L'; }
-                            else { bL = l2; bM = 'P'; }
-                        } else if (l1) { bL = l1; bM = 'L'; }
-                        else if (l2) { bL = l2; bM = 'P'; }
-
-                        if (bL) {
-                            cBestScore = Number.MAX_SAFE_INTEGER;
-                            cBestSheet = { name: swc + "x" + shc + " (Osnovni)", w: swc, h: shc, mode: bM };
-                            cBestLayout = bL;
-                        }
-                    } else {
-                        if (mFormatCover === 'auto') sheets.forEach(checkCoverSheet);
-                        else {
-                            let s = sheets.find(s => s.name === mFormatCover);
-                            if (s) checkCoverSheet(s);
-                        }
+                    if (mFormatCover === 'auto') sheets.forEach(checkCoverSheet);
+                    else {
+                        let s = sheets.find(s => s.name === mFormatCover);
+                        if (s) checkCoverSheet(s);
                     }
 
                     if (cBestSheet && cBestLayout) {
@@ -5903,10 +5901,12 @@ window.addEventListener('error', function (e) {
                 ctx.restore();
 
                 // Dimenzijske črte pole
+                ctx.save();
                 ctx.font = 'bold 12px Inter';
                 ctx.fillStyle = '#64748b';
-                ctx.textAlign = 'center';
-                ctx.fillText(sheetW + ' mm', canvas.width / 2, 25);
+                ctx.textAlign = 'right';
+                ctx.fillText(sheetW + ' mm', canvas.width - 15, 25);
+                ctx.restore();
                 ctx.save();
                 ctx.translate(canvas.width - 25, canvas.height / 2);
                 ctx.rotate(Math.PI / 2);
