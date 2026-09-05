@@ -1082,7 +1082,7 @@ window.addEventListener('error', function (e) {
                 }
             });
 
-            function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceOrientation = 'auto', isDigital = false) {
+            function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceOrientation = 'auto', isDigital = false, isObrat = false) {
                 let count1 = 0, count2 = 0, count3 = 0, count4 = 0;
                 let cols1 = 0, rows1 = 0, cols2 = 0, rows2 = 0;
                 let cols3 = 0, rows3 = 0, cols4 = 0, rows4 = 0;
@@ -1094,14 +1094,32 @@ window.addEventListener('error', function (e) {
                         let printH = Math.min(sheetH, isDigital ? 470 : sheetH);
                         cols1 = Math.max(0, Math.floor(printW / itemW));
                         rows1 = Math.max(0, Math.floor(printH / itemH));
-                        count1 = cols1 * rows1;
+                        if (isObrat) {
+                            let maxC = Math.floor(cols1 / 2) * 2;
+                            let maxR = Math.floor(rows1 / 2) * 2;
+                            let cCount = maxC * rows1;
+                            let rCount = cols1 * maxR;
+                            if (cCount >= rCount) { cols1 = maxC; count1 = cCount; }
+                            else { rows1 = maxR; count1 = rCount; }
+                        } else {
+                            count1 = cols1 * rows1;
+                        }
                     }
                     if (forceOrientation === 'auto' || forceOrientation === 'portrait') {
                         let printW = Math.min(sheetW - gripper, isDigital ? 310 : sheetW - gripper);
                         let printH = Math.min(sheetH, isDigital ? 470 : sheetH);
                         cols2 = Math.max(0, Math.floor(printW / itemH));
                         rows2 = Math.max(0, Math.floor(printH / itemW));
-                        count2 = cols2 * rows2;
+                        if (isObrat) {
+                            let maxC = Math.floor(cols2 / 2) * 2;
+                            let maxR = Math.floor(rows2 / 2) * 2;
+                            let cCount = maxC * rows2;
+                            let rCount = cols2 * maxR;
+                            if (cCount >= rCount) { cols2 = maxC; count2 = cCount; }
+                            else { rows2 = maxR; count2 = rCount; }
+                        } else {
+                            count2 = cols2 * rows2;
+                        }
                     }
                 }
 
@@ -1112,14 +1130,32 @@ window.addEventListener('error', function (e) {
                         let printH = Math.min(sheetH - gripper, isDigital ? 310 : sheetH - gripper);
                         cols3 = Math.max(0, Math.floor(printW / itemW));
                         rows3 = Math.max(0, Math.floor(printH / itemH));
-                        count3 = cols3 * rows3;
+                        if (isObrat) {
+                            let maxC = Math.floor(cols3 / 2) * 2;
+                            let maxR = Math.floor(rows3 / 2) * 2;
+                            let cCount = maxC * rows3;
+                            let rCount = cols3 * maxR;
+                            if (cCount >= rCount) { cols3 = maxC; count3 = cCount; }
+                            else { rows3 = maxR; count3 = rCount; }
+                        } else {
+                            count3 = cols3 * rows3;
+                        }
                     }
                     if (forceOrientation === 'auto' || forceOrientation === 'portrait') {
                         let printW = Math.min(sheetW, isDigital ? 470 : sheetW);
                         let printH = Math.min(sheetH - gripper, isDigital ? 310 : sheetH - gripper);
                         cols4 = Math.max(0, Math.floor(printW / itemH));
                         rows4 = Math.max(0, Math.floor(printH / itemW));
-                        count4 = cols4 * rows4;
+                        if (isObrat) {
+                            let maxC = Math.floor(cols4 / 2) * 2;
+                            let maxR = Math.floor(rows4 / 2) * 2;
+                            let cCount = maxC * rows4;
+                            let rCount = cols4 * maxR;
+                            if (cCount >= rCount) { cols4 = maxC; count4 = cCount; }
+                            else { rows4 = maxR; count4 = rCount; }
+                        } else {
+                            count4 = cols4 * rows4;
+                        }
                     }
                 }
 
@@ -1254,8 +1290,9 @@ window.addEventListener('error', function (e) {
                         let familyMatches = isSheetFamilyMatching(rawFamily, sheet.family, mTypeL, sheet.name);
                         if (!fitsSource || !familyMatches) return;
 
-                        let layout1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode, mTypeL === 'digital');
-                        let layout2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode, mTypeL === 'digital');
+                        let isObratL = document.getElementById('calc-is-obrat-leaves')?.checked || false;
+                        let layout1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode, mTypeL === 'digital', isObratL);
+                        let layout2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode, mTypeL === 'digital', isObratL);
 
                         let bestForThisSheet = null;
                         let mode = 'L';
@@ -1296,31 +1333,11 @@ window.addEventListener('error', function (e) {
                         }
                     };
 
-                    let isLeavesUnprinted = (gV('calc-color-front-leaves') === "0" && gV('calc-color-back-leaves') === "0");
-
-                    if (isLeavesUnprinted) {
-                        let l1 = optimizeLayout(sw, sh, itemW, itemH, g, fMode);
-                        let l2 = optimizeLayout(sh, sw, itemW, itemH, g, fMode);
-
-                        let bL = null, bM = 'L';
-                        if (l1 && l2) {
-                            if (l1.count >= l2.count) { bL = l1; bM = 'L'; }
-                            else { bL = l2; bM = 'P'; }
-                        } else if (l1) { bL = l1; bM = 'L'; }
-                        else if (l2) { bL = l2; bM = 'P'; }
-
-                        if (bL) {
-                            bestScore = Number.MAX_SAFE_INTEGER;
-                            bestSheet = { name: sw + "x" + sh + " (Osnovni)", w: sw, h: sh, mode: bM };
-                            bestLayout = bL;
-                        }
+                    if (mFormat === 'auto') {
+                        sheets.forEach(checkSheet);
                     } else {
-                        if (mFormat === 'auto') {
-                            sheets.forEach(checkSheet);
-                        } else {
-                            let s = sheets.find(s => s.name === mFormat);
-                            if (s) checkSheet(s);
-                        }
+                        let s = sheets.find(s => s.name === mFormat);
+                        if (s) checkSheet(s);
                     }
                 }
 
@@ -1451,8 +1468,9 @@ window.addEventListener('error', function (e) {
                         let familyMatches = isSheetFamilyMatching(rawFamilyC, sheet.family, mTypeC, sheet.name);
                         if (!fitsSource || !familyMatches) return;
 
-                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital');
-                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital');
+                        let isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
+                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital', isObratC);
+                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital', isObratC);
 
                         let bL = null, bM = 'L';
                         if (l1 && l2) {
@@ -1491,30 +1509,10 @@ window.addEventListener('error', function (e) {
                         }
                     };
 
-                    let isCoverUnprinted = (gV('calc-color-front-cover') === "0" && gV('calc-color-back-cover') === "0");
-
-                    if (isCoverUnprinted) {
-                        let l1 = optimizeLayout(swc, shc, cItemW, cItemH, cg, fModeCover);
-                        let l2 = optimizeLayout(shc, swc, cItemW, cItemH, cg, fModeCover);
-
-                        let bL = null, bM = 'L';
-                        if (l1 && l2) {
-                            if (l1.count >= l2.count) { bL = l1; bM = 'L'; }
-                            else { bL = l2; bM = 'P'; }
-                        } else if (l1) { bL = l1; bM = 'L'; }
-                        else if (l2) { bL = l2; bM = 'P'; }
-
-                        if (bL) {
-                            cBestScore = Number.MAX_SAFE_INTEGER;
-                            cBestSheet = { name: swc + "x" + shc + " (Osnovni)", w: swc, h: shc, mode: bM };
-                            cBestLayout = bL;
-                        }
-                    } else {
-                        if (mFormatCover === 'auto') sheets.forEach(checkCoverSheet);
-                        else {
-                            let s = sheets.find(s => s.name === mFormatCover);
-                            if (s) checkCoverSheet(s);
-                        }
+                    if (mFormatCover === 'auto') sheets.forEach(checkCoverSheet);
+                    else {
+                        let s = sheets.find(s => s.name === mFormatCover);
+                        if (s) checkCoverSheet(s);
                     }
 
                     if (cBestSheet && cBestLayout) {
@@ -1580,11 +1578,105 @@ window.addEventListener('error', function (e) {
                     }
                     if (document.getElementById('canvas-cover')) document.getElementById('canvas-cover').style.display = 'none';
                     setT('res-count-cover', '-');
-                    setT('res-usage-cover', '-%');
+setT('res-usage-cover', '-%');
                 }
 
-                // VEDNO izvedi kalkulacijo cen za vnesene elemente (liste in/ali ovitek)
-                calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH, cDrawW, cDrawH);
+                // VEDNO izvedi kalkulacijo cen za vse vnesene naklade (liste in/ali ovitek)
+                const qtyStrMain = gV('quantity') || "";
+                const qListMain = qtyStrMain.split(',').map(s => parseFloat(s.trim().replace(/\./g, '').replace(',', '.'))).filter(n => !isNaN(n) && n > 0);
+                const targetQList = qListMain.length > 0 ? qListMain : [totalItemsForm || 1000];
+
+                let calcResults = [];
+                targetQList.forEach((qItem, idx) => {
+                    let skipDOM = (idx > 0);
+                    let r = calculatePrice(sheetsNeededLeaves, sheetsNeededCover, qItem, drawW, drawH, cDrawW, cDrawH, skipDOM);
+                    if (r) calcResults.push(r);
+                });
+
+                // Posodobi lepljivo vrstico in vse glavne stat kartice za eno ali več naklad
+                const sQty = document.getElementById('sticky-qty');
+                const sTotal = document.getElementById('sticky-price-total');
+                const sPerItem = document.getElementById('sticky-price-per-item');
+                const s1000 = document.getElementById('sticky-price-1000');
+
+                if (calcResults.length > 1) {
+                    let qStr = calcResults.map(r => formatQty(r.quantity)).join(' / ');
+                    let totalStr = calcResults.map(r => formatPrice(r.totalPrice, 2)).join(' / ');
+                    let perItemStr = calcResults.map(r => formatPrice(r.perItem, 3)).join(' / ');
+                    let p1000Str = calcResults.map(r => formatPrice(r.perItem * 1000, 2)).join(' / ');
+
+                    let paperStr = calcResults.map(r => formatPrice(r.paperCost, 2)).join(' / ');
+                    let leavesStr = calcResults.map(r => formatPrice(r.leavesCost || 0, 2)).join(' / ');
+                    let coverStr = calcResults.map(r => formatPrice(r.coverCost || 0, 2)).join(' / ');
+                    let finishStr = calcResults.map(r => formatPrice(r.finishCost, 2)).join(' / ');
+
+                    // Spodnja lepljiva vrstica (sticky footer)
+                    if (sQty) sQty.innerText = qStr;
+                    if (sTotal) sTotal.innerText = totalStr;
+                    if (sPerItem) sPerItem.innerText = perItemStr;
+                    if (s1000) s1000.innerText = p1000Str;
+
+                    // Glavni stat kartici zgoraj in spodaj na strani (Skupaj brez DDV, Cena na kos, Cena za 1000 kos)
+                    document.querySelectorAll('#res-price-total').forEach(el => {
+                        el.innerText = totalStr;
+                        el.style.fontSize = calcResults.length > 2 ? '1.3rem' : '1.6rem';
+                    });
+                    document.querySelectorAll('#res-price-per-item').forEach(el => {
+                        el.innerText = perItemStr;
+                    });
+                    if (document.getElementById('res-price-1000-stat')) {
+                        document.getElementById('res-price-1000-stat').innerText = p1000Str;
+                    }
+
+                    // Posodobi še posamezne stroške v zbirni kartici in nogi
+                    if (document.getElementById('res-price-paper')) document.getElementById('res-price-paper').innerText = paperStr;
+                    if (document.getElementById('res-price-leaves')) document.getElementById('res-price-leaves').innerText = leavesStr;
+                    if (document.getElementById('res-price-cover')) document.getElementById('res-price-cover').innerText = coverStr;
+                    if (document.getElementById('res-price-finish')) document.getElementById('res-price-finish').innerText = finishStr;
+
+                    if (document.getElementById('sticky-spec-paper')) document.getElementById('sticky-spec-paper').innerText = paperStr;
+                    if (document.getElementById('sticky-spec-leaves')) document.getElementById('sticky-spec-leaves').innerText = leavesStr;
+                    if (document.getElementById('sticky-spec-cover')) document.getElementById('sticky-spec-cover').innerText = coverStr;
+                    if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = finishStr;
+
+                } else if (calcResults.length === 1) {
+                    let r = calcResults[0];
+                    if (sQty) sQty.innerText = formatQty(r.quantity);
+                    if (sTotal) sTotal.innerText = formatPrice(r.totalPrice, 2);
+                    if (sPerItem) sPerItem.innerText = formatPrice(r.perItem, 3);
+                    if (s1000) s1000.innerText = formatPrice(r.perItem * 1000, 2);
+                }
+
+                // Prikaži tabelo za več naklad v specifikaciji
+                const specContent = document.getElementById('detailed-spec-content');
+                if (specContent && calcResults.length > 1) {
+                    let multiHTML = `
+                        <div style="padding: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; margin-bottom: 12px;">
+                            <div style="font-weight: bold; color: #34d399; margin-bottom: 8px; font-size: 1.05rem;">📊 Izračun cen po nakladah:</div>
+                            <table style="width: 100%; border-collapse: collapse; text-align: right; color: #cbd5e1; font-size: 0.95rem;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.2); color: #94a3b8;">
+                                        <th style="text-align: left; padding: 6px;">Naklada</th>
+                                        <th style="padding: 6px;">Cena za kos</th>
+                                        <th style="padding: 6px;">Na 1.000 kos</th>
+                                        <th style="padding: 6px; color: #34d399;">Skupaj (brez DDV)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${calcResults.map(r => `
+                                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                            <td style="text-align: left; padding: 6px; font-weight: bold; color: #60a5fa;">${formatQty(r.quantity)} kos</td>
+                                            <td style="padding: 6px;">${formatPrice(r.perItem, 3)}</td>
+                                            <td style="padding: 6px; color: #fbbf24;">${formatPrice(r.perItem * 1000, 2)}</td>
+                                            <td style="padding: 6px; font-weight: bold; color: #34d399;">${formatPrice(r.totalPrice, 2)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    specContent.innerHTML = multiHTML + specContent.innerHTML;
+                }
 
                 setTimeout(() => {
                     if (typeof updateWasteAndPrice === 'function') updateWasteAndPrice('leaves');
@@ -1939,7 +2031,7 @@ window.addEventListener('error', function (e) {
                 calculate();
             }
 
-            function updateWasteAndPrice(comp = 'leaves') {
+            function updateWasteAndPrice(comp = 'leaves', colorsChanged = false) {
                 let mType = gV('calc-machine-type-' + comp);
                 let profile = machineProfiles[mType];
                 if (!profile) return;
@@ -2021,8 +2113,10 @@ window.addEventListener('error', function (e) {
                     }
                 }
 
-                // Vedno izračunaj in nastavi število plošč
-                setV('calc-plates-num-' + comp, cFrontVal + (isOB ? 0 : cBackVal));
+                // Nastavi število plošč samo ob spremembi barv ali če je polje prazno
+                if (colorsChanged || gV('calc-plates-num-' + comp) === '') {
+                    setV('calc-plates-num-' + comp, cFrontVal + (isOB ? 0 : cBackVal));
+                }
 
                 if (cFront !== "" && cBack !== "") {
                     let key = cFront + '/' + (isOB ? 'OB' : cBack);
@@ -2117,7 +2211,11 @@ window.addEventListener('error', function (e) {
                 return { speed: s, waste: w };
             }
 
-            function calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH, drawWC, drawHC) {
+            function calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH, cDrawW, cDrawH, skipDOMUpdate = false) {
+                var drawWC = cDrawW || 0;
+                var drawHC = cDrawH || 0;
+                cDrawW = drawWC;
+                cDrawH = drawHC;
                 try {
                     if (sheetsNeededLeaves === undefined) {
                         let txt = document.getElementById('res-sheets-needed') ? document.getElementById('res-sheets-needed').innerText : "0";
@@ -2841,32 +2939,34 @@ window.addEventListener('error', function (e) {
                     let perItemFinal = totalItemsForm > 0 ? (totalPrice / totalItemsForm) : 0;
                     let price1000 = perItemFinal * 1000;
 
-                    document.querySelectorAll('#res-price-total').forEach(el => el.innerText = totalPrice.toFixed(2) + ' €');
-                    document.querySelectorAll('#res-price-per-item').forEach(el => el.innerText = perItemFinal.toFixed(3) + ' €');
-                    if (document.getElementById('res-price-1000-stat')) {
-                        document.getElementById('res-price-1000-stat').innerText = price1000.toFixed(2) + " €";
-                    }
+                    if (!skipDOMUpdate) {
+                        document.querySelectorAll('#res-price-total').forEach(el => el.innerText = totalPrice.toFixed(2) + ' €');
+                        document.querySelectorAll('#res-price-per-item').forEach(el => el.innerText = perItemFinal.toFixed(3) + ' €');
+                        if (document.getElementById('res-price-1000-stat')) {
+                            document.getElementById('res-price-1000-stat').innerText = price1000.toFixed(2) + " €";
+                        }
 
-                    // Posodobitev lepljive vrstice na dnu
-                    var sQty = document.getElementById('sticky-qty');
-                    var sTotal = document.getElementById('sticky-price-total');
-                    var sPerItem = document.getElementById('sticky-price-per-item');
-                    var s1000 = document.getElementById('sticky-price-1000');
+                        // Posodobitev lepljive vrstice na dnu
+                        var sQty = document.getElementById('sticky-qty');
+                        var sTotal = document.getElementById('sticky-price-total');
+                        var sPerItem = document.getElementById('sticky-price-per-item');
+                        var s1000 = document.getElementById('sticky-price-1000');
 
-                    if (sQty) sQty.innerText = totalItemsForm;
-                    if (sTotal) sTotal.innerText = totalPrice.toFixed(2) + " €";
-                    if (sPerItem) sPerItem.innerText = perItemFinal.toFixed(3) + " €";
-                    if (s1000) s1000.innerText = price1000.toFixed(2) + " €";
+                        if (sQty) sQty.innerText = totalItemsForm;
+                        if (sTotal) sTotal.innerText = totalPrice.toFixed(2) + " €";
+                        if (sPerItem) sPerItem.innerText = perItemFinal.toFixed(3) + " €";
+                        if (s1000) s1000.innerText = price1000.toFixed(2) + " €";
 
-                    // Specifikacija v nogi
-                    if (document.getElementById('sticky-spec-paper')) document.getElementById('sticky-spec-paper').innerText = paperCost.toFixed(2) + " €";
-                    if (document.getElementById('sticky-spec-leaves')) {
-                        document.getElementById('sticky-spec-leaves').innerText = (totalPrepCostL + totalPrintCostL).toFixed(2) + " €";
+                        // Specifikacija v nogi
+                        if (document.getElementById('sticky-spec-paper')) document.getElementById('sticky-spec-paper').innerText = paperCost.toFixed(2) + " €";
+                        if (document.getElementById('sticky-spec-leaves')) {
+                            document.getElementById('sticky-spec-leaves').innerText = (totalPrepCostL + totalPrintCostL).toFixed(2) + " €";
+                        }
+                        if (document.getElementById('sticky-spec-cover')) {
+                            document.getElementById('sticky-spec-cover').innerText = (totalPrepCostC + totalPrintCostC).toFixed(2) + " €";
+                        }
+                        if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = totalFinishCost.toFixed(2) + " €";
                     }
-                    if (document.getElementById('sticky-spec-cover')) {
-                        document.getElementById('sticky-spec-cover').innerText = (totalPrepCostC + totalPrintCostC).toFixed(2) + " €";
-                    }
-                    if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = totalFinishCost.toFixed(2) + " €";
 
                     // GENERIRANJE PODROBNE SPECIFIKACIJE
 
@@ -2957,12 +3057,16 @@ window.addEventListener('error', function (e) {
                         total: totalPrice
                     };
 
-                    renderDetailedSpec(details);
+                    if (!skipDOMUpdate) {
+                        renderDetailedSpec(details);
+                    }
 
                     return {
                         totalPrice: totalPrice,
                         perItem: perItemFinal,
                         paperCost: paperCost,
+                        leavesCost: (totalPrepCostL + totalPrintCostL),
+                        coverCost: (totalPrepCostC + totalPrintCostC),
                         prepCost: totalPrepCost,
                         printCost: totalPrintCost,
                         finishCost: totalFinishCost,
@@ -3292,12 +3396,22 @@ window.addEventListener('error', function (e) {
             }
 
             function calculateForSingleQty(q) {
-                // Ta funkcija simulira izračun za eno specifično naklado (brez spreminjanja UI, kjer je možno)
-                // Vrne objekt z rezultati
-                const sheetsNeededL = parseInt(document.getElementById('res-sheets-needed').innerText) || 0;
-                const sheetsNeededC = parseInt(document.getElementById('header-cover-sheets-val').innerText) || 0;
+                const qtyStr = document.getElementById('quantity')?.value || "0";
+                const qList = qtyStr.split(',').map(s => {
+                    let clean = s.trim().replace(/\./g, '').replace(',', '.');
+                    return parseFloat(clean);
+                }).filter(n => !isNaN(n) && n > 0);
+                
+                const baseQ = qList.length > 0 ? qList[0] : (q || 1);
 
-                let sizeText = document.getElementById('res-size').innerText;
+                let baseSheetsL = parseInt((document.getElementById('res-sheets-needed')?.innerText || '0').replace(/\./g, '')) || 0;
+                let baseSheetsC = parseInt((document.getElementById('header-cover-sheets-val')?.innerText || '0').replace(/\./g, '')) || 0;
+
+                const ratio = (baseQ > 0) ? (q / baseQ) : 1;
+                let sheetsNeededL = Math.ceil(baseSheetsL * ratio);
+                let sheetsNeededC = Math.ceil(baseSheetsC * ratio);
+
+                let sizeText = document.getElementById('res-size')?.innerText || "";
                 let sizeStr = sizeText.split('x');
                 let drawW = 0, drawH = 0;
                 if (sizeStr.length === 2) {
@@ -3305,9 +3419,15 @@ window.addEventListener('error', function (e) {
                     drawH = parseFloat(sizeStr[1]);
                 }
 
-                // calculatePrice v blok.html trenutno še vedno piše v DOM, 
-                // vendar smo ga popravili, da vrne objekt.
-                return calculatePrice(sheetsNeededL, sheetsNeededC, q, drawW, drawH);
+                let sizeTextC = document.getElementById('res-size-cover-val')?.textContent || "";
+                let drawWC = 0, drawHC = 0;
+                if (sizeTextC && sizeTextC.includes('x')) {
+                    let cStr = sizeTextC.split('x');
+                    drawWC = parseFloat(cStr[0]);
+                    drawHC = parseFloat(cStr[1]);
+                }
+
+                return calculatePrice(sheetsNeededL, sheetsNeededC, q, drawW, drawH, drawWC, drawHC);
             }
 
             function addToBasket() {
@@ -3767,10 +3887,12 @@ window.addEventListener('error', function (e) {
                 ctx.restore();
 
                 // Dimenzijske črte pole
+                ctx.save();
                 ctx.font = 'bold 12px Inter';
                 ctx.fillStyle = '#64748b';
-                ctx.textAlign = 'center';
-                ctx.fillText(sheetW + ' mm', canvas.width / 2, 25);
+                ctx.textAlign = 'right';
+                ctx.fillText(sheetW + ' mm', canvas.width - 15, 25);
+                ctx.restore();
                 ctx.save();
                 ctx.translate(canvas.width - 25, canvas.height / 2);
                 ctx.rotate(Math.PI / 2);
@@ -5451,24 +5573,34 @@ async function saveCurrentProject(btn = null) {
 
                 let itemsToRender = [];
 
-                if (quoteBasket.length > 0) {
+                if (false && quoteBasket.length > 0) {
                     itemsToRender = quoteBasket;
                 } else {
                     const projectName = document.getElementById('calc-project-name').value || 'Bloki';
                     const productCode = document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : '/';
                     const materialCode = document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '/';
 
-                    let formatLeaves = `${document.getElementById('width').value}x${document.getElementById('height').value}`;
-                    let formatCover = `${document.getElementById('calc-cover-w').value}x${document.getElementById('calc-cover-h').value}`;
+                    let wVal = (document.getElementById('width') ? document.getElementById('width').value : '').trim();
+                    let hVal = (document.getElementById('height') ? document.getElementById('height').value : '').trim();
+                    let formatLeaves = (wVal && hVal) ? `${wVal} x ${hVal} mm` : '/';
 
-                    let leaves = document.getElementById('calc-leaves').value || '/';
-                    let extentText = `${leaves} listov`;
+                    let cwVal = (document.getElementById('calc-cover-w') ? document.getElementById('calc-cover-w').value : '').trim();
+                    let chVal = (document.getElementById('calc-cover-h') ? document.getElementById('calc-cover-h').value : '').trim();
+                    let formatCover = (cwVal && chVal && cwVal !== '0' && chVal !== '0') ? `${cwVal} x ${chVal} mm` : 'Brez ovitka';
 
-                    let paperLeaves = document.getElementById('calc-leaves-material').value || '/';
-                    let paperCover = document.getElementById('calc-cover-desc').value || '/';
+                    let leavesCount = (document.getElementById('calc-leaves') ? document.getElementById('calc-leaves').value : '').trim();
+                    let extentText = leavesCount ? `${leavesCount} listov` : '/';
 
-                    let tiskLeaves = (document.getElementById('calc-color-front-leaves').value || '0') + "/" + (document.getElementById('calc-color-back-leaves').value || '0');
-                    let tiskCover = (document.getElementById('calc-color-front-cover').value || '0') + "/" + (document.getElementById('calc-color-back-cover').value || '0');
+                    let paperLeaves = (document.getElementById('calc-leaves-material') ? document.getElementById('calc-leaves-material').value : '').trim() || '/';
+                    let paperCover = (document.getElementById('calc-cover-desc') ? document.getElementById('calc-cover-desc').value : '').trim() || 'Brez ovitka';
+
+                    let frontL = document.getElementById('calc-color-front-leaves') ? document.getElementById('calc-color-front-leaves').value : '0';
+                    let backL = document.getElementById('calc-color-back-leaves') ? document.getElementById('calc-color-back-leaves').value : '0';
+                    let tiskLeaves = (frontL === '0' && backL === '0') ? 'Brez tiska' : `${frontL}/${backL}`;
+
+                    let frontC = document.getElementById('calc-color-front-cover') ? document.getElementById('calc-color-front-cover').value : '0';
+                    let backC = document.getElementById('calc-color-back-cover') ? document.getElementById('calc-color-back-cover').value : '0';
+                    let tiskCover = (frontC === '0' && backC === '0') ? 'Brez tiska' : `${frontC}/${backC}`;
 
                     let finishing = getFinishingDesc();
 

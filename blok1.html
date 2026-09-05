@@ -771,7 +771,7 @@
                 </div>
                 <div style="flex: 2.2; min-width: min-content;">
                     <label>št. ovitkov</label>
-                    <input id="calc-cover-qty" onchange="calculate()" type="number" value="" />
+                    <input id="calc-cover-qty" oninput="calculate()" placeholder="loči z vejico" type="text" value="" />
                     <div style="font-size: 0.8rem; color: #f43f5e; margin-top: 0.32rem; font-weight: 600;">
                         Število pol (neto): <span id="header-cover-sheets-val" style="color: #f8fafc;">0</span>
                     </div>
@@ -3362,8 +3362,8 @@ window.addEventListener('error', function (e) {
                 const h = parseFloat(gV('height').replace(',', '.')) || 0;
                 const b = parseFloat(gV('bleed').replace(',', '.')) || 0;
                 const g = parseFloat(gV('gripper').replace(',', '.')) || 0;
-                const qtyStr = gV('quantity') || "";
-                const qList = qtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, '').replace(',', '.'))).filter(n => !isNaN(n) && n >= 0);
+                const qtyStr = gV('quantity') || gV('calc-cover-qty') || "";
+                const qList = qtyStr.split(/[,/;]+/).map(s => parseFloat(s.trim().replace(/\./g, '').replace(',', '.'))).filter(n => !isNaN(n) && n >= 0);
                 const q = qList.length > 0 ? qList[0] : 0;
 
                 const mFormat = gV('machine-format');
@@ -3635,7 +3635,9 @@ window.addEventListener('error', function (e) {
 
                     if (cBestSheet && cBestLayout) {
                         if (document.getElementById('empty-state-cover')) document.getElementById('empty-state-cover').style.display = 'none';
-                        let cQtyTotal = parseFloat(gV('calc-cover-qty')) || 0;
+                        const cQtyStr = gV('calc-cover-qty') || gV('quantity') || "";
+                        const cQtyList = cQtyStr.split(/[,/;]+/).map(s => parseFloat(s.trim().replace(/\./g, '').replace(',', '.'))).filter(n => !isNaN(n) && n > 0);
+                        let cQtyTotal = cQtyList.length > 0 ? cQtyList[0] : 0;
                         const finalCountCover = targetCountCover > 0 ? targetCountCover : cBestLayout.count;
                         window.bestLayoutCover = cBestLayout;
 
@@ -3699,8 +3701,111 @@ window.addEventListener('error', function (e) {
                     setT('res-usage-cover', '-%');
                 }
 
-                // VEDNO izvedi kalkulacijo cen za vnesene elemente (liste in/ali ovitek)
-                calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH, cDrawW, cDrawH);
+                // VEDNO izvedi kalkulacijo cen za vse vnesene naklade (liste in/ali ovitek)
+                const qtyStrMain = gV('quantity') || gV('calc-cover-qty') || "";
+                const qListMain = qtyStrMain.split(/[,/;]+/).map(s => parseFloat(s.trim().replace(/\./g, '').replace(',', '.'))).filter(n => !isNaN(n) && n > 0);
+                const targetQList = qListMain.length > 0 ? qListMain : [totalItemsForm || 1000];
+
+                let baseQ = targetQList[0] || 1;
+                let calcResults = [];
+                targetQList.forEach((qItem, idx) => {
+                    let skipDOM = (idx > 0);
+                    let ratio = baseQ > 0 ? (qItem / baseQ) : 1;
+                    let curSheetsLeaves = Math.ceil(sheetsNeededLeaves * ratio);
+                    let curSheetsCover = Math.ceil(sheetsNeededCover * ratio);
+                    let r = calculatePrice(curSheetsLeaves, curSheetsCover, qItem, drawW, drawH, cDrawW, cDrawH, skipDOM);
+                    if (r) calcResults.push(r);
+                });
+
+                // Posodobi lepljivo vrstico in vse glavne stat kartice za eno ali več naklad
+                const sQty = document.getElementById('sticky-qty');
+                const sTotal = document.getElementById('sticky-price-total');
+                const sPerItem = document.getElementById('sticky-price-per-item');
+                const s1000 = document.getElementById('sticky-price-1000');
+
+                if (calcResults.length > 1) {
+                    let qStrHTML = calcResults.map(r => formatQty(r.quantity)).join('<br>');
+                    let totalStrHTML = calcResults.map(r => formatPrice(r.totalPrice, 2)).join('<br>');
+                    let perItemStrHTML = calcResults.map(r => formatPrice(r.perItem, 3)).join('<br>');
+                    let p1000StrHTML = calcResults.map(r => formatPrice(r.perItem * 1000, 2)).join('<br>');
+
+                    let paperStrHTML = calcResults.map(r => formatPrice(r.paperCost, 2)).join('<br>');
+                    let prepStrHTML = calcResults.map(r => formatPrice(r.prepCost || 0, 2)).join('<br>');
+                    let printStrHTML = calcResults.map(r => formatPrice(r.printCost || 0, 2)).join('<br>');
+                    let finishStrHTML = calcResults.map(r => formatPrice(r.finishCost, 2)).join('<br>');
+                    let leavesStrHTML = calcResults.map(r => formatPrice(r.leavesCost || 0, 2)).join('<br>');
+                    let coverStrHTML = calcResults.map(r => formatPrice(r.coverCost || 0, 2)).join('<br>');
+
+                    // Spodnja lepljiva vrstica (sticky footer) - ena pod drugo
+                    if (sQty) { sQty.innerHTML = qStrHTML; sQty.style.lineHeight = '1.25'; }
+                    if (sTotal) { sTotal.innerHTML = totalStrHTML; sTotal.style.lineHeight = '1.25'; }
+                    if (sPerItem) { sPerItem.innerHTML = perItemStrHTML; sPerItem.style.lineHeight = '1.25'; }
+                    if (s1000) { s1000.innerHTML = p1000StrHTML; s1000.style.lineHeight = '1.25'; }
+
+                    // Glavni stat kartici zgoraj in spodaj na strani (Skupaj brez DDV, Cena na kos, Cena za 1000 kos)
+                    document.querySelectorAll('#res-price-total').forEach(el => {
+                        el.innerHTML = totalStrHTML;
+                        el.style.fontSize = calcResults.length > 2 ? '1.1rem' : '1.3rem';
+                        el.style.lineHeight = '1.25';
+                    });
+                    document.querySelectorAll('#res-price-per-item').forEach(el => {
+                        el.innerHTML = perItemStrHTML;
+                        el.style.lineHeight = '1.25';
+                    });
+                    if (document.getElementById('res-price-1000-stat')) {
+                        document.getElementById('res-price-1000-stat').innerHTML = p1000StrHTML;
+                        document.getElementById('res-price-1000-stat').style.lineHeight = '1.25';
+                    }
+
+                    // Posodobi še posamezne stroške v zbirni kartici in nogi
+                    if (document.getElementById('res-price-paper')) { document.getElementById('res-price-paper').innerHTML = paperStrHTML; document.getElementById('res-price-paper').style.lineHeight = '1.2'; }
+                    if (document.getElementById('res-price-leaves')) { document.getElementById('res-price-leaves').innerHTML = leavesStrHTML; document.getElementById('res-price-leaves').style.lineHeight = '1.2'; }
+                    if (document.getElementById('res-price-cover')) { document.getElementById('res-price-cover').innerHTML = coverStrHTML; document.getElementById('res-price-cover').style.lineHeight = '1.2'; }
+                    if (document.getElementById('res-price-finish')) { document.getElementById('res-price-finish').innerHTML = finishStrHTML; document.getElementById('res-price-finish').style.lineHeight = '1.2'; }
+
+                    if (document.getElementById('sticky-p-paper')) { document.getElementById('sticky-p-paper').innerHTML = paperStrHTML; document.getElementById('sticky-p-paper').style.lineHeight = '1.2'; }
+                    if (document.getElementById('sticky-p-prep')) { document.getElementById('sticky-p-prep').innerHTML = prepStrHTML; document.getElementById('sticky-p-prep').style.lineHeight = '1.2'; }
+                    if (document.getElementById('sticky-p-print')) { document.getElementById('sticky-p-print').innerHTML = printStrHTML; document.getElementById('sticky-p-print').style.lineHeight = '1.2'; }
+                    if (document.getElementById('sticky-p-finish')) { document.getElementById('sticky-p-finish').innerHTML = finishStrHTML; document.getElementById('sticky-p-finish').style.lineHeight = '1.2'; }
+
+                } else if (calcResults.length === 1) {
+                    let r = calcResults[0];
+                    if (sQty) sQty.innerText = formatQty(r.quantity);
+                    if (sTotal) sTotal.innerText = formatPrice(r.totalPrice, 2);
+                    if (sPerItem) sPerItem.innerText = formatPrice(r.perItem, 3);
+                    if (s1000) s1000.innerText = formatPrice(r.perItem * 1000, 2);
+                }
+
+                // Prikaži tabelo za več naklad v specifikaciji
+                const specContent = document.getElementById('detailed-spec-content');
+                if (specContent && calcResults.length > 1) {
+                    let multiHTML = `
+                        <div style="padding: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; margin-bottom: 12px;">
+                            <div style="font-weight: bold; color: #34d399; margin-bottom: 8px; font-size: 1.05rem;">📊 Izračun cen po nakladah:</div>
+                            <table style="width: 100%; border-collapse: collapse; text-align: right; color: #cbd5e1; font-size: 0.95rem;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.2); color: #94a3b8;">
+                                        <th style="text-align: left; padding: 6px;">Naklada</th>
+                                        <th style="padding: 6px;">Cena za kos</th>
+                                        <th style="padding: 6px;">Na 1.000 kos</th>
+                                        <th style="padding: 6px; color: #34d399;">Skupaj (brez DDV)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${calcResults.map(r => `
+                                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                            <td style="text-align: left; padding: 6px; font-weight: bold; color: #60a5fa;">${formatQty(r.quantity)} kos</td>
+                                            <td style="padding: 6px;">${formatPrice(r.perItem, 3)}</td>
+                                            <td style="padding: 6px; color: #fbbf24;">${formatPrice(r.perItem * 1000, 2)}</td>
+                                            <td style="padding: 6px; font-weight: bold; color: #34d399;">${formatPrice(r.totalPrice, 2)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    specContent.innerHTML = multiHTML + specContent.innerHTML;
+                }
 
                 setTimeout(() => {
                     if (typeof updateWasteAndPrice === 'function') updateWasteAndPrice('leaves');
@@ -4155,7 +4260,7 @@ window.addEventListener('error', function (e) {
                     setV('calc-machine-prep-time-' + comp, 0);
                 }
 
-                calculatePrice();
+                if (typeof calculate === 'function') calculate();
             }
 
             function getBossLogic(front, back, isObrat, isSV, qty, mutPlates, mType, grammage) {
@@ -4235,7 +4340,11 @@ window.addEventListener('error', function (e) {
                 return { speed: s, waste: w };
             }
 
-            function calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH, drawWC, drawHC) {
+            function calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH, cDrawW, cDrawH, skipDOMUpdate = false) {
+                var drawWC = cDrawW || 0;
+                var drawHC = cDrawH || 0;
+                cDrawW = drawWC;
+                cDrawH = drawHC;
                 try {
                     if (sheetsNeededLeaves === undefined) {
                         let txt = document.getElementById('res-sheets-needed') ? document.getElementById('res-sheets-needed').innerText : "0";
@@ -4946,45 +5055,41 @@ window.addEventListener('error', function (e) {
                     let totalMargin = subtotal * (marginPercent / 100);
                     let totalPrice = subtotal + totalMargin;
 
-                    // POSODOBITEV UI
-                    if (document.getElementById('res-price-paper')) document.getElementById('res-price-paper').innerText = paperCost.toFixed(2) + " €";
-                    if (document.getElementById('res-price-leaves')) {
-                        document.getElementById('res-price-leaves').innerText = (totalPrepCostL + totalPrintCostL).toFixed(2) + " €";
-                    }
-                    if (document.getElementById('res-price-cover')) {
-                        document.getElementById('res-price-cover').innerText = (totalPrepCostC + totalPrintCostC).toFixed(2) + " €";
-                    }
-                    if (document.getElementById('res-price-finish')) document.getElementById('res-price-finish').innerText = totalFinishCost.toFixed(2) + " €";
-
                     let perItemFinal = totalItemsForm > 0 ? (totalPrice / totalItemsForm) : 0;
                     let price1000 = perItemFinal * 1000;
 
-                    document.querySelectorAll('#res-price-total').forEach(el => el.innerText = totalPrice.toFixed(2) + ' €');
-                    document.querySelectorAll('#res-price-per-item').forEach(el => el.innerText = perItemFinal.toFixed(3) + ' €');
-                    if (document.getElementById('res-price-1000-stat')) {
-                        document.getElementById('res-price-1000-stat').innerText = price1000.toFixed(2) + " €";
-                    }
+                    if (!skipDOMUpdate) {
+                        if (document.getElementById('res-price-paper')) document.getElementById('res-price-paper').innerText = paperCost.toFixed(2) + " €";
+                        if (document.getElementById('res-price-leaves')) {
+                            document.getElementById('res-price-leaves').innerText = (totalPrepCostL + totalPrintCostL).toFixed(2) + " €";
+                        }
+                        if (document.getElementById('res-price-cover')) {
+                            document.getElementById('res-price-cover').innerText = (totalPrepCostC + totalPrintCostC).toFixed(2) + " €";
+                        }
+                        if (document.getElementById('res-price-finish')) document.getElementById('res-price-finish').innerText = totalFinishCost.toFixed(2) + " €";
+                        document.querySelectorAll('#res-price-total').forEach(el => el.innerText = totalPrice.toFixed(2) + ' €');
+                        document.querySelectorAll('#res-price-per-item').forEach(el => el.innerText = perItemFinal.toFixed(3) + ' €');
+                        if (document.getElementById('res-price-1000-stat')) {
+                            document.getElementById('res-price-1000-stat').innerText = price1000.toFixed(2) + " €";
+                        }
 
-                    // Posodobitev lepljive vrstice na dnu
-                    var sQty = document.getElementById('sticky-qty');
-                    var sTotal = document.getElementById('sticky-price-total');
-                    var sPerItem = document.getElementById('sticky-price-per-item');
-                    var s1000 = document.getElementById('sticky-price-1000');
+                        // Posodobitev lepljive vrstice na dnu
+                        var sQty = document.getElementById('sticky-qty');
+                        var sTotal = document.getElementById('sticky-price-total');
+                        var sPerItem = document.getElementById('sticky-price-per-item');
+                        var s1000 = document.getElementById('sticky-price-1000');
 
-                    if (sQty) sQty.innerText = totalItemsForm;
-                    if (sTotal) sTotal.innerText = totalPrice.toFixed(2) + " €";
-                    if (sPerItem) sPerItem.innerText = perItemFinal.toFixed(3) + " €";
-                    if (s1000) s1000.innerText = price1000.toFixed(2) + " €";
+                        if (sQty) sQty.innerText = totalItemsForm;
+                        if (sTotal) sTotal.innerText = totalPrice.toFixed(2) + " €";
+                        if (sPerItem) sPerItem.innerText = perItemFinal.toFixed(3) + " €";
+                        if (s1000) s1000.innerText = price1000.toFixed(2) + " €";
 
-                    // Specifikacija v nogi
-                    if (document.getElementById('sticky-spec-paper')) document.getElementById('sticky-spec-paper').innerText = paperCost.toFixed(2) + " €";
-                    if (document.getElementById('sticky-spec-leaves')) {
-                        document.getElementById('sticky-spec-leaves').innerText = (totalPrepCostL + totalPrintCostL).toFixed(2) + " €";
+                        // Specifikacija v nogi
+                        if (document.getElementById('sticky-p-paper')) document.getElementById('sticky-p-paper').innerText = paperCost.toFixed(2) + " €";
+                        if (document.getElementById('sticky-p-prep')) document.getElementById('sticky-p-prep').innerText = totalPrepCost.toFixed(2) + " €";
+                        if (document.getElementById('sticky-p-print')) document.getElementById('sticky-p-print').innerText = totalPrintCost.toFixed(2) + " €";
+                        if (document.getElementById('sticky-p-finish')) document.getElementById('sticky-p-finish').innerText = totalFinishCost.toFixed(2) + " €";
                     }
-                    if (document.getElementById('sticky-spec-cover')) {
-                        document.getElementById('sticky-spec-cover').innerText = (totalPrepCostC + totalPrintCostC).toFixed(2) + " €";
-                    }
-                    if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = totalFinishCost.toFixed(2) + " €";
 
                     // GENERIRANJE PODROBNE SPECIFIKACIJE
 
@@ -5075,12 +5180,16 @@ window.addEventListener('error', function (e) {
                         total: totalPrice
                     };
 
-                    renderDetailedSpec(details);
+                    if (!skipDOMUpdate) {
+                        renderDetailedSpec(details);
+                    }
 
                     return {
                         totalPrice: totalPrice,
                         perItem: perItemFinal,
                         paperCost: paperCost,
+                        leavesCost: (totalPrepCostL + totalPrintCostL),
+                        coverCost: (totalPrepCostC + totalPrintCostC),
                         prepCost: totalPrepCost,
                         printCost: totalPrintCost,
                         finishCost: totalFinishCost,
@@ -5409,9 +5518,9 @@ window.addEventListener('error', function (e) {
                 calculatePrice();
             }
 
-            function calculateForSingleQty(q) {
+            function calculateForSingleQty(q, skipDOMUpdate = true) {
                 const qtyStr = document.getElementById('quantity')?.value || "0";
-                const qList = qtyStr.split(',').map(s => {
+                const qList = qtyStr.split(/[,/;]+/).map(s => {
                     let clean = s.trim().replace(/\./g, '').replace(',', '.');
                     return parseFloat(clean);
                 }).filter(n => !isNaN(n) && n > 0);
@@ -5441,7 +5550,7 @@ window.addEventListener('error', function (e) {
                     drawHC = parseFloat(cStr[1]);
                 }
 
-                return calculatePrice(sheetsNeededL, sheetsNeededC, q, drawW, drawH, drawWC, drawHC);
+                return calculatePrice(sheetsNeededL, sheetsNeededC, q, drawW, drawH, drawWC, drawHC, skipDOMUpdate);
             }
 
             function addToBasket() {
@@ -7833,8 +7942,9 @@ async function saveCurrentProject(btn = null) {
                 let contentToRender = (isAT && typeof g_editedQuoteATHTML !== 'undefined' && g_editedQuoteATHTML) ? g_editedQuoteATHTML :
                     (!isAT && typeof g_editedQuoteHTML !== 'undefined' && g_editedQuoteHTML) ? g_editedQuoteHTML : defaultContent;
 
-                
                 const editedHTMLVar = isAT ? 'g_editedQuoteATHTML' : 'g_editedQuoteHTML';
+
+                setTimeout(() => { if (typeof calculate === 'function') calculate(); }, 10);
 
                 return `
                     ${htmlHeader}
