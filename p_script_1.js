@@ -3448,7 +3448,7 @@
 
                 if (isColor) {
 
-                    perSheetCost = isDoubleSided ? 0.30 : 0.15;
+                    perSheetCost = isDoubleSided ? 0.60 : 0.30;
 
                 } else {
 
