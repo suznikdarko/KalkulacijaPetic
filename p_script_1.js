@@ -888,7 +888,9 @@
 
             { name: "A4", w: 295, h: 208 },
 
-            { name: "Digital (480x320)", w: 480, h: 320 }
+            { name: "Digital (480x320)", w: 480, h: 320 },
+
+            { name: "Digital (448x318)", w: 448, h: 318 }
 
         ];
 
