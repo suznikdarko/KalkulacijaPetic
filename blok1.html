@@ -3190,7 +3190,6 @@ window.addEventListener('error', function (e) {
                 dCard.appendChild(dLabel);
                 container.appendChild(dCard);
             }
-            setInterval(updateCustomDocsPreview, 1000);
 
             // Osveževanje košarice med zavihki
             window.addEventListener('storage', (e) => {
@@ -3352,12 +3351,18 @@ window.addEventListener('error', function (e) {
                 }
             }
 
+            let g_calcAnimationFrame = null;
+
             function calculate(isManual = false) {
-                if (!window.g_loadingProject) {
-                    g_editedQuoteHTML = '';
-                    g_editedQuoteATHTML = '';
-                    g_editedWorkOrderHTML = '';
+                if (g_calcAnimationFrame) {
+                    cancelAnimationFrame(g_calcAnimationFrame);
                 }
+                g_calcAnimationFrame = requestAnimationFrame(() => {
+                    calculateDirect(isManual);
+                });
+            }
+
+            function calculateDirect(isManual = false) {
                 const w = parseFloat(gV('width').replace(',', '.')) || 0;
                 const h = parseFloat(gV('height').replace(',', '.')) || 0;
                 const b = parseFloat(gV('bleed').replace(',', '.')) || 0;
@@ -4031,8 +4036,10 @@ window.addEventListener('error', function (e) {
                 const availableH = 120;
                 const scale = Math.min(availableW / sW, availableH / sH);
 
-                canvas.width = sW * scale + 2 * padding;
-                canvas.height = sH * scale + 2 * padding;
+                const targetW = Math.round(sW * scale + 2 * padding);
+                const targetH = Math.round(sH * scale + 2 * padding);
+                if (canvas.width !== targetW) canvas.width = targetW;
+                if (canvas.height !== targetH) canvas.height = targetH;
 
                 // Ozadje (Vir materiala)
                 ctx.fillStyle = 'rgba(255,255,255,0.05)';
@@ -5747,8 +5754,10 @@ window.addEventListener('error', function (e) {
                 const maxCanvasH = 400;
                 const scale = Math.min(maxCanvasW / sheetW, maxCanvasH / sheetH) * 0.95;
 
-                canvas.width = sheetW * scale;
-                canvas.height = sheetH * scale;
+                const targetW = Math.round(sheetW * scale);
+                const targetH = Math.round(sheetH * scale);
+                if (canvas.width !== targetW) canvas.width = targetW;
+                if (canvas.height !== targetH) canvas.height = targetH;
 
                 // Ozadje
                 ctx.fillStyle = '#ffffff';
@@ -7961,8 +7970,6 @@ async function saveCurrentProject(btn = null) {
                     (!isAT && typeof g_editedQuoteHTML !== 'undefined' && g_editedQuoteHTML) ? g_editedQuoteHTML : defaultContent;
 
                 const editedHTMLVar = isAT ? 'g_editedQuoteATHTML' : 'g_editedQuoteHTML';
-
-                setTimeout(() => { if (typeof calculate === 'function') calculate(); }, 10);
 
                 return `
                     ${htmlHeader}
