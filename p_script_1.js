@@ -1220,13 +1220,13 @@
 
                     if (isB2Sheet) {
 
-                        let halfW = cutAxis === 'W' ? 318 : 448;
+                        let halfW = cutAxis === 'W' ? 318 : 478;
 
-                        let halfH = cutAxis === 'W' ? 448 : 318;
+                        let halfH = cutAxis === 'W' ? 478 : 318;
 
-                        let halfUsableW = cfg.edge === 'W' ? halfW - gripper : halfW;
+                        let halfUsableW = halfW;
 
-                        let halfUsableH = cfg.edge === 'H' ? halfH - gripper : halfH;
+                        let halfUsableH = halfH;
 
                         let halfCols = Math.floor(halfUsableW / cfg.iw);
 
