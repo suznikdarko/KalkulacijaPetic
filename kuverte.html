@@ -1174,7 +1174,11 @@
                     return {
                         qty: q,
                         pricePerUnit: res.pricePerItem,
-                        priceTotal: res.finalTotal
+                        perItem: res.pricePerItem,
+                        pricePerItem: res.pricePerItem,
+                        priceTotal: res.finalTotal,
+                        total: res.finalTotal,
+                        finalTotal: res.finalTotal
                     };
                 })
             };
@@ -1231,7 +1235,10 @@
                                 ${item.type} | ${item.spec.format} | ${item.spec.colors} ${item.spec.finishing ? ' | ' + item.spec.finishing : ''}
                             </div>
 <div style="display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;">
-                                ${item.quantities.map(q => `<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${formatQty(q.qty)}: ${formatPrice(q.priceTotal)}</span>`).join('')}
+                                ${item.quantities.map(q => {
+                                    const pTot = q.priceTotal !== undefined ? q.priceTotal : (q.total !== undefined ? q.total : (q.finalTotal !== undefined ? q.finalTotal : 0));
+                                    return `<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${formatQty(q.qty)}: ${formatPrice(pTot)}</span>`;
+                                }).join('')}
                             </div>
                         </div>
                         <button onclick="removeFromBasket(${item.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.2rem; padding: 5px;" title="Odstrani">✕</button>
@@ -1316,13 +1323,17 @@
                         </table>
                         <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000;">
                             <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">${isAT ? 'Auflage' : 'Naklada'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">${isAT ? 'Preis/ Stk.' : 'Cena/Kom.'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">${isAT ? 'Gesamt Preis:' : 'Cena skupno:'}</th></tr>
-                            ${(item.quantities && Array.isArray(item.quantities)) ? item.quantities.map(q => `
+                            ${(item.quantities && Array.isArray(item.quantities)) ? item.quantities.map(q => {
+                                const pUnit = q.pricePerUnit !== undefined ? q.pricePerUnit : (q.perItem !== undefined ? q.perItem : (q.pricePerItem !== undefined ? q.pricePerItem : 0));
+                                const pTot = q.priceTotal !== undefined ? q.priceTotal : (q.total !== undefined ? q.total : (q.finalTotal !== undefined ? q.finalTotal : 0));
+                                return `
                                 <tr>
                                     <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} ${isAT ? 'Stk.' : 'kos'}</td>
-                                    <td style="padding: 4px;">${formatPrice(q.pricePerUnit, 3)}</td>
-                                    <td style="font-weight: bold; text-align: right; padding: 4px;">${formatPrice(q.priceTotal, 2)}</td>
+                                    <td style="padding: 4px;">${formatPrice(pUnit, 3)}</td>
+                                    <td style="font-weight: bold; text-align: right; padding: 4px;">${formatPrice(pTot, 2)}</td>
                                 </tr>
-                            `).join('') : `<tr><td colspan="3" style="padding:4px; color:red;">${isAT ? 'Fehlende Preisdaten' : 'Manjkajoči podatki o ceni'}</td></tr>`}
+                                `;
+                            }).join('') : `<tr><td colspan="3" style="padding:4px; color:red;">${isAT ? 'Fehlende Preisdaten' : 'Manjkajoči podatki o ceni'}</td></tr>`}
                         </table>
                     </div>
                 `;
