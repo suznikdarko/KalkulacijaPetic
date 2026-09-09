@@ -1,15 +1,17 @@
-﻿with open(r'c:\DARKO\KalkulacijaPetric\kuverte.html', 'r', encoding='utf-8') as f:
+with open(r'c:\DARKO\KalkulacijaPetric\kuverte.html', 'r', encoding='utf-8') as f:
     html_lines = f.readlines()
 
 # Find where <script> starts
 script_idx = -1
 for i, l in enumerate(html_lines):
-    if '<script>' in l and 'g_editedQuoteHTML' in html_lines[i+2]:
-        script_idx = i
-        break
+    if '<script>' in l:
+        chunk = "".join(html_lines[i:i+15])
+        if 'g_editedQuoteHTML' in chunk:
+            script_idx = i
+            break
 
 if script_idx == -1:
-    script_idx = 918  # line 919 is index 918
+    raise RuntimeError("Could not find main <script> tag in kuverte.html!")
 
 base_html = "".join(html_lines[:script_idx+1])
 

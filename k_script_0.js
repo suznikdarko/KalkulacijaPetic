@@ -1154,49 +1154,85 @@ if (isWord) {
         }
 
         function calculateForSingleQty(q) {
-            const qo = parseFloat(document.getElementById('calc-qty-ordered').value) || 0;
-            const mPrice = parseFloat(document.getElementById('calc-material-price').value) || 0;
-            const cFront = parseFloat(document.getElementById('calc-colors-front').value) || 0;
-            const cBack = parseFloat(document.getElementById('calc-colors-back').value) || 0;
-            const mRate = parseFloat(document.getElementById('calc-machine-rate').value) || 120;
-            const mSpeed = parseFloat(document.getElementById('calc-machine-speed').value) || 10000;
-            const platePrice = parseFloat(document.getElementById('calc-plate-price').value) || 0;
-            const plateCount = parseInt(document.getElementById('calc-plate-count').value) || 0;
-            const prepPrice = parseFloat(document.getElementById('calc-prep-price').value) || 0;
-            const changePrice = parseFloat(document.getElementById('calc-change-price').value) || 0;
-            const colorChangeCount = parseInt(document.getElementById('calc-color-change-count').value) || 0;
-            const changePriceBase = parseFloat(document.getElementById('calc-color-change-price').value) || 0;
-            const persCount = parseFloat(document.getElementById('calc-personalization').value) || 0;
-            const manualWork = parseFloat(document.getElementById('calc-manual-work').value) || 0;
-            const margin = parseFloat(document.getElementById('calc-margin').value) || 0;
-            const usePers = document.getElementById('calc-use-personalization').checked;
-            const useManual = document.getElementById('calc-use-manual-work').checked;
-            const commercialCost = parseFloat(document.getElementById('calc-commercial').value) || 0;
+            function parseVal(id, def = 0) {
+                const el = document.getElementById(id);
+                if (!el) return def;
+                const v = el.value !== undefined ? el.value : el.innerText;
+                if (v == null || v.toString().trim() === '') return def;
+                const cleaned = v.toString().trim().replace(',', '.');
+                const val = parseFloat(cleaned);
+                return isNaN(val) ? def : val;
+            }
+
+            const qo = parseVal('calc-qty-ordered', 0);
+            const mPrice = parseVal('calc-material-price', 0);
+            const cFront = parseVal('calc-colors-front', 0);
+            const cBack = parseVal('calc-colors-back', 0);
+            const mRate = parseVal('calc-machine-rate', 120);
+            let mSpeed = parseVal('calc-machine-speed', 10000);
+            const autoSpeed = document.getElementById('calc-auto-speed') ? document.getElementById('calc-auto-speed').checked : false;
+            if (autoSpeed) {
+                if (q <= 100) mSpeed = 1600;
+                else if (q <= 500) mSpeed = 1600 + (q - 100) * (2100 - 1600) / (500 - 100);
+                else if (q <= 1000) mSpeed = 2100 + (q - 500) * (2500 - 2100) / (1000 - 500);
+                else if (q <= 2000) mSpeed = 2500 + (q - 1000) * (3300 - 2500) / (2000 - 1000);
+                else mSpeed = 3300;
+                mSpeed = Math.round(mSpeed);
+            }
+            
+            const qStrEl = document.getElementById('calc-quantities');
+            const qStr = qStrEl ? qStrEl.value.trim() : '';
+            const qList = qStr.split(',').map(s => parseFloat(s.trim().replace(',', '.'))).filter(n => !isNaN(n) && n > 0);
+            if (qList.length > 0 && q === qList[0]) {
+                const speedInput = document.getElementById('calc-machine-speed');
+                if (speedInput && autoSpeed) {
+                    speedInput.value = mSpeed;
+                }
+            }
+
+            const platePrice = parseVal('calc-plate-price', 0);
+            const plateCount = parseVal('calc-plate-count', 0);
+            const prepPrice = parseVal('calc-prep-price', 0);
+            const changePrice = parseVal('calc-change-price', 0);
+            const colorChangeCount = parseVal('calc-color-change-count', 0);
+            const changePriceBase = parseVal('calc-color-change-price', 0);
+            const persCount = parseVal('calc-personalization', 0);
+            const manualWork = parseVal('calc-manual-work', 0);
+            const margin = parseVal('calc-margin', 0);
+            const usePers = document.getElementById('calc-use-personalization') ? document.getElementById('calc-use-personalization').checked : false;
+            const useManual = document.getElementById('calc-use-manual-work') ? document.getElementById('calc-use-manual-work').checked : false;
+            const commercialCost = parseVal('calc-commercial', 0);
 
             // Dodatek (makulatura)
-            const manualWaste = parseFloat(document.getElementById('calc-waste-manual').value);
+            const manualWasteEl = document.getElementById('calc-waste-manual');
+            const manualWaste = manualWasteEl && manualWasteEl.value.trim() !== '' ? parseFloat(manualWasteEl.value.replace(',', '.')) : NaN;
             let waste = 320;
             if (!isNaN(manualWaste)) {
                 waste = manualWaste;
             } else {
-                const isObr = document.getElementById('calc-is-obrat').checked;
+                const isObrEl = document.getElementById('calc-is-obrat');
+                const isObr = isObrEl ? isObrEl.checked : false;
                 if (cFront === 4 && cBack === 4) {
                     waste = isObr ? 320 : 640;
                 } else {
                     waste = 320;
                 }
             }
-            document.getElementById('calc-waste').value = waste;
+            const wasteInput = document.getElementById('calc-waste');
+            if (wasteInput) {
+                wasteInput.value = waste;
+            }
 
             let deliveryCost = 0;
             if (document.getElementById('f-delivery-active') && document.getElementById('f-delivery-active').checked) {
-                deliveryCost += (parseFloat(document.getElementById('f-post-count').value) || 0) * (parseFloat(document.getElementById('f-post-price-per').value) || 0);
+                deliveryCost += parseVal('f-post-count', 0) * parseVal('f-post-price-per', 0);
             }
             if (document.getElementById('f-del-fixed-active') && document.getElementById('f-del-fixed-active').checked) {
-                deliveryCost += parseFloat(document.getElementById('f-del-fixed-price').value) || 0;
+                deliveryCost += parseVal('f-del-fixed-price', 0);
             }
 
-            const overrideTotal = document.getElementById('calc-override-total') ? parseFloat(document.getElementById('calc-override-total').value) : NaN;
+            const overrideTotalEl = document.getElementById('calc-override-total');
+            const overrideTotal = overrideTotalEl && overrideTotalEl.value.trim() !== '' ? parseFloat(overrideTotalEl.value.replace(',', '.')) : NaN;
             let totalQ = q + qo + waste;
             if (!isNaN(overrideTotal) && overrideTotal > 0) {
                 totalQ = overrideTotal;
@@ -1555,22 +1591,22 @@ if (isWord) {
             ctx.stroke();
 
             // Risanje oken, če obstajajo
-            // Standardno okno pri Amerikanki je 90x45, odmik z leve/desne 20mm in od spodaj 20mm
-            if (envType === 'Amerikanka_LO') {
-                const winW = 90 * scale;
-                const winH = 45 * scale;
-                const winX = x + (20 * scale);
-                const winY = y + hScaled - (20 * scale) - winH;
+            // LO (Levo okno) ali DO (Desno okno)
+            if (envType.endsWith('_LO')) {
+                const winW = Math.min(90, wText * 0.4) * scale;
+                const winH = Math.min(45, hText * 0.3) * scale;
+                const winX = x + Math.min(20 * scale, wScaled * 0.1);
+                const winY = y + hScaled - Math.min(20 * scale, hScaled * 0.1) - winH;
 
                 ctx.fillStyle = 'rgba(59, 130, 246, 0.15)'; // Prosojno modro okence
                 ctx.fillRect(winX, winY, winW, winH);
                 ctx.strokeStyle = '#60a5fa';
                 ctx.strokeRect(winX, winY, winW, winH);
-            } else if (envType === 'Amerikanka_DO') {
-                const winW = 90 * scale;
-                const winH = 45 * scale;
-                const winX = x + wScaled - (20 * scale) - winW;
-                const winY = y + hScaled - (20 * scale) - winH;
+            } else if (envType.endsWith('_DO')) {
+                const winW = Math.min(90, wText * 0.4) * scale;
+                const winH = Math.min(45, hText * 0.3) * scale;
+                const winX = x + wScaled - Math.min(20 * scale, wScaled * 0.1) - winW;
+                const winY = y + hScaled - Math.min(20 * scale, hScaled * 0.1) - winH;
 
                 ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
                 ctx.fillRect(winX, winY, winW, winH);
@@ -2394,13 +2430,7 @@ if (isWord) {
             updateCustomerDatalist();
         }
 
-        function updatePlates() {
-            const cF = parseInt(document.getElementById('calc-colors-front').value) || 0;
-            const cB = parseInt(document.getElementById('calc-colors-back').value) || 0;
-            const total = cF + cB;
-            document.getElementById('calc-plate-count').value = total;
-            calculate();
-        }
+
 
         window.onload = function () {
             updateCustomerDatalist();
