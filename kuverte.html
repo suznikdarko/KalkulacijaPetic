@@ -1251,19 +1251,6 @@
             const custEmail = document.getElementById('calc-cust-email') ? document.getElementById('calc-cust-email').value : '';
             const deliveryAddress = document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '';
 
-            const _qNum = document.getElementById('calc-quote-number').value || '';
-            const _cust = document.getElementById('calc-customer').value || '';
-            const _envSel = document.getElementById('envelope-preset');
-            const _env = _envSel && _envSel.selectedIndex >= 0 ? _envSel.options[_envSel.selectedIndex].text : '';
-            const _cF = document.getElementById('calc-colors-front').value || '0';
-            const _cB = document.getElementById('calc-colors-back').value || '0';
-            const _qty = (document.getElementById('calc-quantities').value || '').split(',')[0].trim() || '0';
-            let safeQNum = _qNum.replace(/[^a-zA-Z0-9_\-]/g, '');
-            let safeCust = _cust.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-čšžČŠŽ]/g, '');
-            let safeEnv = _env.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-čšžČŠŽ]/g, '');
-            let exportFileName = `pon.${safeQNum}_${safeCust}_${safeEnv}_b${_cF}-${_cB}_${_qty}.doc`;
-            if (isAT) exportFileName = `Angebot_${safeQNum}_${safeCust}_${safeEnv}_b${_cF}-${_cB}_${_qty}.doc`;
-
             let itemsToRender = [];
 
             if (quoteBasket.length > 0) {
@@ -1546,33 +1533,16 @@ if (isWord) {
                             window.addEventListener('beforeunload', sync);
                         }
 
-                        async function exportQuoteWord(isAT) {
+                        function exportQuoteWord(isAT) {
                             const content = document.querySelector('.editable-area').innerHTML;
                             const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
                             const footer = "</body></html>";
                             const sourceHTML = header + content + footer;
-                            const fileName = '${exportFileName}';
-
-                            try {
-                                const srvRes = await fetch('http://127.0.0.1:8095', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ filename: fileName, content: sourceHTML, type: 'word' })
-                                });
-                                if (srvRes.ok) {
-                                    const srvData = await srvRes.json();
-                                    alert(srvData.message || 'Uspešno shranjeno na strežnik!');
-                                    return;
-                                }
-                            } catch (err) {
-                                console.log('Server save failed, falling back to local download', err);
-                            }
-
                             const blob = new Blob(['\\ufeff', sourceHTML], { type: 'application/msword' });
                             const url = URL.createObjectURL(blob);
                             const link = document.createElement('a');
                             link.href = url;
-                            link.download = fileName;
+                            link.download = isAT ? 'Angebot.doc' : 'Ponudba.doc';
                             link.click();
                             URL.revokeObjectURL(url);
                         }
@@ -1674,7 +1644,7 @@ if (isWord) {
             const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, ''))).filter(n => !isNaN(n) && n > 0);
             const q = qList[0] || 1000;
 
-            const qo = parseFloat((document.getElementById('calc-qty-ordered') ? document.getElementById('calc-qty-ordered').value : '')) || 0;
+            const qo = parseFloat(document.getElementById('calc-qty-ordered').value) || 0;
             const oqVal = qo || q;
 
             let calcRes = calculateForSingleQty(q);
@@ -2100,41 +2070,15 @@ if (isWord) {
             }
         }
 
-        async function exportQuoteWord() {
+        function exportQuoteWord() {
             try {
                 const htmlContent = getQuoteHTML(true);
-                const _qNum = document.getElementById('calc-quote-number').value || '';
-                const _cust = document.getElementById('calc-customer').value || '';
-                const _envSel = document.getElementById('envelope-preset');
-                const _env = _envSel && _envSel.selectedIndex >= 0 ? _envSel.options[_envSel.selectedIndex].text : '';
-                const _cF = document.getElementById('calc-colors-front').value || '0';
-                const _cB = document.getElementById('calc-colors-back').value || '0';
-                const _qty = (document.getElementById('calc-quantities').value || '').split(',')[0].trim() || '0';
-                let safeQNum = _qNum.replace(/[^a-zA-Z0-9_\-]/g, '');
-                let safeCust = _cust.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-čšžČŠŽ]/g, '');
-                let safeEnv = _env.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-čšžČŠŽ]/g, '');
-                const fileName = `pon.${safeQNum}_${safeCust}_${safeEnv}_b${_cF}-${_cB}_${_qty}.doc`;
-                
-                try {
-                    const srvRes = await fetch('http://127.0.0.1:8095', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ filename: fileName, content: htmlContent, type: 'word' })
-                    });
-                    if (srvRes.ok) {
-                        const srvData = await srvRes.json();
-                        alert(srvData.message || 'Uspešno shranjeno na strežnik!');
-                        return;
-                    }
-                } catch (err) {
-                    console.log('Server save failed, falling back to local download', err);
-                }
-
                 const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
+                const projectName = document.getElementById('calc-project-name').value || 'Ponudba';
                 link.href = url;
-                link.download = fileName;
+                link.download = "Ponudba_" + projectName.replace(/\s+/g, '_') + ".doc";
                 document.body.appendChild(link);
                 link.click();
                 setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(url); }, 100);
@@ -2414,65 +2358,15 @@ if (isWord) {
         }
 
         const envelopePresets = {
-            // Kuverte
             'Amerikanka_LO': { w: 230, h: 110 },
-            'Amerikanka_BO': { w: 230, h: 110 },
             'Amerikanka_DO': { w: 230, h: 110 },
-            'C6_LO': { w: 162, h: 114 },
-            'C6_BO': { w: 162, h: 114 },
-            'C6_DO': { w: 162, h: 114 },
-            'B6_LO': { w: 176, h: 125 },
-            'B6_BO': { w: 176, h: 125 },
-            'B6_DO': { w: 176, h: 125 },
-            'C65_LO': { w: 229, h: 114 },
-            'C65_BO': { w: 229, h: 114 },
-            'C65_DO': { w: 229, h: 114 },
-            'C5_LO': { w: 229, h: 162 },
-            'C5_BO': { w: 229, h: 162 },
-            'C5_DO': { w: 229, h: 162 },
-            'B5_LO': { w: 250, h: 176 },
-            'B5_BO': { w: 250, h: 176 },
-            'B5_DO': { w: 250, h: 176 },
-            'C4_LO': { w: 324, h: 229 },
-            'C4_BO': { w: 324, h: 229 },
-            'C4_DO': { w: 324, h: 229 },
-            'B4_LO': { w: 353, h: 250 },
-            'B4_BO': { w: 353, h: 250 },
-            'B4_DO': { w: 353, h: 250 },
-
-            // Vrečke
-            'Vrecka_C6_LO': { w: 120, h: 162 },
-            'Vrecka_C6_BO': { w: 120, h: 162 },
-            'Vrecka_C6_DO': { w: 120, h: 162 },
-            'Vrecka_B6_LO': { w: 125, h: 176 },
-            'Vrecka_B6_BO': { w: 125, h: 176 },
-            'Vrecka_B6_DO': { w: 125, h: 176 },
-            'Vrecka_C5_LO': { w: 162, h: 229 },
-            'Vrecka_C5_BO': { w: 162, h: 229 },
-            'Vrecka_C5_DO': { w: 162, h: 229 },
-            'Vrecka_B5_LO': { w: 176, h: 250 },
-            'Vrecka_B5_BO': { w: 176, h: 250 },
-            'Vrecka_B5_DO': { w: 176, h: 250 },
-            'Vrecka_C4_LO': { w: 229, h: 324 },
-            'Vrecka_C4_BO': { w: 229, h: 324 },
-            'Vrecka_C4_DO': { w: 229, h: 324 },
-            'Vrecka_B4_LO': { w: 250, h: 353 },
-            'Vrecka_B4_BO': { w: 250, h: 353 },
-            'Vrecka_B4_DO': { w: 250, h: 353 },
-            'Vrecka_E4_LO': { w: 280, h: 400 },
-            'Vrecka_E4_BO': { w: 280, h: 400 },
-            'Vrecka_E4_DO': { w: 280, h: 400 },
-            'Vrecka_400_LO': { w: 300, h: 400 },
-            'Vrecka_400_BO': { w: 300, h: 400 },
-            'Vrecka_400_DO': { w: 300, h: 400 },
-
-            // Stare/Legacy podpore
-            'C6': { w: 162, h: 114 },
-            'DL': { w: 220, h: 110 },
-            'C5': { w: 229, h: 162 },
-            'C4': { w: 324, h: 229 },
-            'B5': { w: 250, h: 176 },
-            'B4': { w: 353, h: 250 }
+            'Amerikanka_BO': { w: 230, h: 110 },
+            'C6': { w: 230, h: 162 },
+            'DL': { w: 220, h: 220 },
+            'C5': { w: 324, h: 229 },
+            'C4': { w: 458, h: 324 },
+            'B5': { w: 353, h: 250 },
+            'B4': { w: 500, h: 353 }
         };
 
         function applyEnvelopePreset() {
@@ -2519,7 +2413,25 @@ if (isWord) {
             if (qList.length === 0) return;
             const q = qList[0];
 
-
+            // Samodejna prilagoditev hitrosti
+            const speedInput = document.getElementById('calc-machine-speed');
+            const autoSpeed = document.getElementById('calc-auto-speed').checked;
+            if (speedInput && autoSpeed) {
+                if (q <= 100) {
+                    speedInput.value = 1600;
+                } else if (q <= 500) {
+                    let interpolatedSpeed = 1600 + (q - 100) * (2100 - 1600) / (500 - 100);
+                    speedInput.value = Math.round(interpolatedSpeed);
+                } else if (q <= 1000) {
+                    let interpolatedSpeed = 2100 + (q - 500) * (2500 - 2100) / (1000 - 500);
+                    speedInput.value = Math.round(interpolatedSpeed);
+                } else if (q <= 2000) {
+                    let interpolatedSpeed = 2500 + (q - 1000) * (3300 - 2500) / (2000 - 1000);
+                    speedInput.value = Math.round(interpolatedSpeed);
+                } else {
+                    speedInput.value = 3300;
+                }
+            }
 
             let layout = optimizeLayout(sheetB3.w, sheetB3.h, w, h, gripper);
             if (!layout) {
@@ -3014,7 +2926,7 @@ if (isWord) {
                     item_h: document.getElementById('height').value,
                     envelopePreset: document.getElementById('envelope-preset').value,
                     quantities: document.getElementById('calc-quantities').value,
-                    qtyOrdered: (document.getElementById('calc-qty-ordered') ? document.getElementById('calc-qty-ordered').value : ''),
+                    qtyOrdered: document.getElementById('calc-qty-ordered').value,
                     mPrice: document.getElementById('calc-material-price').value,
                     packaging: document.getElementById('calc-packaging').value,
                     margin: document.getElementById('calc-margin').value,
@@ -3080,7 +2992,7 @@ if (isWord) {
                         item_h: document.getElementById('height').value,
                         envelopePreset: document.getElementById('envelope-preset').value,
                         quantities: document.getElementById('calc-quantities').value,
-                        qtyOrdered: (document.getElementById('calc-qty-ordered') ? document.getElementById('calc-qty-ordered').value : ''),
+                        qtyOrdered: document.getElementById('calc-qty-ordered').value,
                         mPrice: document.getElementById('calc-material-price').value,
                         packaging: document.getElementById('calc-packaging').value,
                         margin: document.getElementById('calc-margin').value,
@@ -3285,8 +3197,7 @@ if (isWord) {
             g_diskProjects = [];
             try {
                 for await (const entry of g_projectsDirHandle.values()) {
-                    // FILTER ONLY KUVERTE PROJECTS
-                    if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.kuverte.json')) {
+                    if (entry.kind === 'file' && entry.name.endsWith('.json')) {
                         g_diskProjects.push(entry);
                     }
                 }
@@ -3392,9 +3303,7 @@ if (isWord) {
             const searchInput = document.getElementById('project-search-input');
             const filter = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
-            let arhivRaw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-            // Filter only kuverte projects (or those without source for compatibility)
-            let arhiv = arhivRaw.filter(p => !p._source || p._source === 'kuverte');
+            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
 
             arhiv.sort((a, b) => b.id - a.id);
             let filtered = filter ? arhiv.filter(proj => {
@@ -3607,18 +3516,7 @@ if (isWord) {
                     }
                 };
 
-                let quote = gv('calc-quote-number');
-                if (quote) quote = 'pon.' + quote.replace(/[\/\\]/g, '-').trim();
-                const cust = gv('calc-customer').trim();
-                let qty = gv('calc-quantities').replace(/\s+/g, '').replace(/,/g, '-');
-                if (qty) qty = 'nakl.' + qty;
-                const colF = gv('calc-colors-front') || '0';
-                const colB = gv('calc-colors-back') || '0';
-                const colors = (colF === '0' && colB === '0') ? '' : 'b' + colF + colB;
-                
-                const parts = [quote, cust, name, qty, colors].filter(p => p && p.trim() !== '');
-                let rawName = parts.join('_');
-                const fileName = rawName.replace(/[^a-z0-9\u0100-\u017F_-]/gi, '_').replace(/_+/g, '_') + '.kuverte.json';
+                const fileName = name.replace(/[^a-z0-9Ā-ſ]/gi, '_') + '.kuverte.json';
                 
                 try {
                     const res = await fetch('http://127.0.0.1:8095', {
@@ -3672,58 +3570,13 @@ if (isWord) {
         // define exportToFile for the old button if any
         window.exportToFile = saveProjectToFile;
 
-        // --- LOGIKA ZA SAMODEJNO PREVERJANJE ZALOGE SIMON ---
-        let stockDataList = [];
-        let activeMaterialTarget = 'paper';
-
-        function initStockData() {
-            try {
-                const saved = localStorage.getItem('zaloga_simon_data');
-                if (saved) {
-                    stockDataList = JSON.parse(saved);
-                    updateStockCountBadge();
-                } else {
-                    fetch('zalogaSimon.json')
-                        .then(res => {
-                            if (!res.ok) throw new Error('HTTP status ' + res.status);
-                            return res.text();
-                        })
-                        .then(text => {
-                            if (text && text.trim().startsWith('[')) {
-                                const data = JSON.parse(text);
-                                if (Array.isArray(data) && data.length > 0) {
-                                    stockDataList = data;
-                                    localStorage.setItem('zaloga_simon_data', JSON.stringify(data));
-                                    updateStockCountBadge();
-                                }
-                            }
-                        })
-                        .catch(e => console.log('Ne morem samodejno naložiti zalogaSimon.json:', e));
-                }
-            } catch (e) { console.error("Napaka pri nalaganju shranjene zaloge:", e); }
-        }
-
-        function updateStockCountBadge() {
-            const badge = document.getElementById('stock-count-badge');
-            if (!badge) return;
-            if (stockDataList && stockDataList.length > 0) {
-                badge.innerText = `📦 Naloženo: ${stockDataList.length.toLocaleString('de-DE')} artiklov`;
-                badge.style.color = '#34d399';
-                badge.style.borderColor = '#10b981';
-            } else {
-                badge.innerText = `Ni naloženo (klikni Naloži)`;
-                badge.style.color = '#f87171';
-                badge.style.borderColor = '#ef4444';
-            }
-        }
-
         async function loadStockFile() {
             if (typeof window.showOpenFilePicker === 'function') {
                 try {
                     const [fileHandle] = await window.showOpenFilePicker({
                         types: [{
                             description: 'Zaloga (JSON ali Excel .xlsx)',
-                            accept: { 
+                            accept: {
                                 'application/json': ['.json'],
                                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
                             }
@@ -3782,7 +3635,7 @@ if (isWord) {
                     return;
                 }
                 const wb = XLSX.read(new Uint8Array(buffer), { type: 'array' });
-                
+
                 const prispeloMap = {};
                 if (wb.Sheets['PRISPELO']) {
                     const rowsP = XLSX.utils.sheet_to_json(wb.Sheets['PRISPELO'], { header: 1 });
@@ -3795,7 +3648,7 @@ if (isWord) {
                         }
                     }
                 }
-                
+
                 const odpisMap = {};
                 if (wb.Sheets['ODPIS']) {
                     const rowsO = XLSX.utils.sheet_to_json(wb.Sheets['ODPIS'], { header: 1 });
@@ -3808,7 +3661,7 @@ if (isWord) {
                         }
                     }
                 }
-                
+
                 const stockData = [];
                 if (wb.Sheets['TRENUTNA ZALOGA']) {
                     const rowsZ = XLSX.utils.sheet_to_json(wb.Sheets['TRENUTNA ZALOGA'], { header: 1 });
@@ -3825,7 +3678,7 @@ if (isWord) {
                             const oVal = odpisMap[sif] || 0;
                             const zalogaVal = zacetna + pVal - oVal;
                             const formatStr = (sirina && visina) ? `${sirina}x${visina}` : '';
-                            
+
                             stockData.push({
                                 'šifra materiala': sif,
                                 'sifra': sif,
@@ -3842,7 +3695,7 @@ if (isWord) {
                         }
                     }
                 }
-                
+
                 if (stockData.length > 0) {
                     stockDataList = stockData;
                     localStorage.setItem('zaloga_simon_data', JSON.stringify(stockData));
@@ -3883,7 +3736,7 @@ if (isWord) {
             if (!queryStr || queryStr.trim().length === 0) {
                 return [...stockDataList].sort((a, b) => (parseFloat(b.zaloga || b.Zaloga) || 0) - (parseFloat(a.zaloga || a.Zaloga) || 0)).slice(0, 50);
             }
-            
+
             let cleanQuery = queryStr.toLowerCase().trim()
                 .replace(/(\d+)\s*[x\*]\s*(\d+)/gi, '$1x$2')
                 .replace(/(\d+)\s*g\b/gi, '$1g');
@@ -3896,7 +3749,7 @@ if (isWord) {
                 if (match) {
                     const d1 = parseInt(match[1], 10);
                     const d2 = parseInt(match[2], 10);
-                    return [ `${d1}x${d2}`, `${d2}x${d1}` ];
+                    return [`${d1}x${d2}`, `${d2}x${d1}`];
                 }
                 return null;
             };
@@ -3909,7 +3762,7 @@ if (isWord) {
                 const w = item['širina'] ? String(item['širina']) : '';
                 const h = item['višina'] ? String(item['višina']) : '';
 
-                const itemDims = extractDims(fmtStr) || (w && h ? [ `${w}x${h}`, `${h}x${w}` ] : []);
+                const itemDims = extractDims(fmtStr) || (w && h ? [`${w}x${h}`, `${h}x${w}`] : []);
                 const fullStrNorm = `${title} ${code} ${gramVal}g ${fmtStr}`.replace(/(\d+)\s*g\b/g, '$1g');
 
                 return rawTokens.every(token => {
@@ -3957,7 +3810,7 @@ if (isWord) {
         function getCombinedSearchQuery(targetComp) {
             let desc = '';
             let gram = '';
-            
+
             if (targetComp === 'leaves') {
                 desc = document.getElementById('calc-leaves-material')?.value || '';
                 gram = document.getElementById('calc-paper-weight')?.value || '';
@@ -3968,7 +3821,7 @@ if (isWord) {
                 desc = document.getElementById('calc-paper-type')?.value || document.getElementById('calc-material-desc')?.value || document.getElementById('calc-leaves-material')?.value || '';
                 gram = document.getElementById('calc-paper-weight')?.value || '';
             }
-            
+
             let parts = [];
             if (desc && desc.trim()) parts.push(desc.trim());
             if (gram && gram.trim()) {
@@ -3977,13 +3830,13 @@ if (isWord) {
                     parts.push(gStr.toLowerCase().endsWith('g') ? gStr : gStr + 'g');
                 }
             }
-            
+
             return parts.join(' ');
         }
 
         function onMaterialStockInput(inputEl, targetComp) {
             activeMaterialTarget = targetComp || 'paper';
-            
+
             let codeInput = null;
             if (activeMaterialTarget === 'leaves') {
                 codeInput = document.getElementById('calc-material-code');
@@ -3992,15 +3845,15 @@ if (isWord) {
             } else {
                 codeInput = document.getElementById('calc-material-code') || document.getElementById('materialCode');
             }
-            
+
             if (inputEl && inputEl.id !== 'calc-material-code' && inputEl.id !== 'calc-cover-material-code' && codeInput) {
                 codeInput.value = '';
             }
-            
+
             const combinedQuery = getCombinedSearchQuery(activeMaterialTarget);
             const val = combinedQuery || (inputEl ? inputEl.value : '');
-            const targetInput = (inputEl && inputEl.id !== 'calc-paper-weight' && inputEl.id !== 'calc-cardboard-weight') 
-                ? inputEl 
+            const targetInput = (inputEl && inputEl.id !== 'calc-paper-weight' && inputEl.id !== 'calc-cardboard-weight')
+                ? inputEl
                 : (document.getElementById('calc-paper-type') || document.getElementById('calc-material-desc') || document.getElementById('calc-leaves-material') || document.getElementById('calc-cover-desc') || inputEl);
 
             if (!val || val.trim().length < 1) {
@@ -4038,7 +3891,7 @@ if (isWord) {
                 badge.style.gap = '6px';
                 parent.appendChild(badge);
             }
-            
+
             if (qty !== undefined && qty !== null && qty !== '') {
                 const qNum = parseFloat(qty) || 0;
                 if (qNum > 0) {
@@ -4099,7 +3952,7 @@ if (isWord) {
                 popup = document.createElement('div');
                 popup.id = 'stock-autocomplete-popup';
                 document.body.appendChild(popup);
-                
+
                 document.addEventListener('click', (e) => {
                     if (!popup.contains(e.target) && !e.target.hasAttribute('oninput')) {
                         hideStockPopup();
@@ -4180,11 +4033,11 @@ if (isWord) {
 
         function selectStockItem(title, code, gram, formatStr, qty) {
             hideStockPopup();
-            
+
             let descInput = null;
             let codeInput = null;
             let weightInput = null;
-            
+
             if (activeMaterialTarget === 'leaves') {
                 descInput = document.getElementById('calc-leaves-material');
                 codeInput = document.getElementById('calc-material-code');
@@ -4198,15 +4051,15 @@ if (isWord) {
                 codeInput = document.getElementById('calc-material-code') || document.getElementById('materialCode');
                 weightInput = document.getElementById('calc-paper-weight');
             }
-            
+
             if (descInput) descInput.value = title;
             if (codeInput && code) codeInput.value = code;
             if (weightInput && gram) weightInput.value = gram;
-            
+
             if (descInput && typeof extractGrammage === 'function' && weightInput) {
                 extractGrammage(descInput, weightInput.id);
             }
-            
+
             // PRIKAZ STANJA ZALOGE BREZ SAMODEJNEGA PRERAČUNAVANJA CEN/KALKULACIJE
             updateMaterialStockStatusBadge(descInput || codeInput, title, qty);
             closeStockSearchModal();
@@ -4236,7 +4089,7 @@ if (isWord) {
             const query = document.getElementById('stock-search-input')?.value || '';
             const container = document.getElementById('stock-search-results-container');
             if (!container) return;
-            
+
             if (!stockDataList || stockDataList.length === 0) {
                 container.innerHTML = `
                     <div style="text-align: center; padding: 2.5rem 1rem; color: #94a3b8;">
@@ -4250,13 +4103,13 @@ if (isWord) {
                 `;
                 return;
             }
-            
+
             const results = searchStock(query);
             if (results.length === 0) {
                 container.innerHTML = `<div style="text-align: center; padding: 2rem; color: #f87171;">Ni materiala v zalogi, ki bi ustrezal iskanju "${escapeHtml(query)}".</div>`;
                 return;
             }
-            
+
             let html = `<div style="margin-bottom: 0.6rem; font-size: 0.8rem; color: #94a3b8;">Najdeno: <strong style="color:#38bdf8;">${results.length.toLocaleString('de-DE')}</strong> artiklov (prikazano do 100)</div>`;
             html += `<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: #e2e8f0;">
                 <thead>
@@ -4269,7 +4122,7 @@ if (isWord) {
                     </tr>
                 </thead>
                 <tbody>`;
-                
+
             results.slice(0, 100).forEach(item => {
                 const title = item['naziv'] || item['opis'] || item['material'] || item['Naziv'] || 'Neznan material';
                 const code = item['šifra materiala'] || item['sifra'] || item['šifra'] || item['Šifra materiala'] || '-';
@@ -4278,7 +4131,7 @@ if (isWord) {
                 const qtyNum = parseFloat(qty) || 0;
                 const qtyColor = qtyNum > 0 ? '#34d399' : '#f87171';
                 const formatStr = item['format'] || (item['širina'] && item['višina'] ? `${item['širina']}x${item['višina']}` : '-');
-                
+
                 const safeTitle = escapeJsStr(title);
                 const safeCode = escapeJsStr(code === '-' ? '' : code);
                 const safeGram = escapeJsStr(gram ? String(gram) : '');
@@ -4296,7 +4149,7 @@ if (isWord) {
                     </tr>
                 `;
             });
-            
+
             html += `</tbody></table>`;
             container.innerHTML = html;
         }

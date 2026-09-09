@@ -18,10 +18,10 @@ base_html = "".join(html_lines[:script_idx+1])
 with open(r'c:\DARKO\KalkulacijaPetric\k_script_0.js', 'r', encoding='utf-8') as f:
     js_content = f.read()
 
-# Get stock logic from pola.html
+# Get stock logic from pola.html (JS only)
 with open(r'c:\DARKO\KalkulacijaPetric\pola.html', 'r', encoding='utf-8') as f:
     pola_lines = f.readlines()
-stock_logic = "".join(pola_lines[8247:8880])
+stock_logic = "".join(pola_lines[8332:8920])
 # Clean it up slightly if it has </script> at the end
 stock_logic = stock_logic.replace("</script>\n</body>\n", "")
 
