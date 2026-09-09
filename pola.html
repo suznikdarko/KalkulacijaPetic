@@ -2175,6 +2175,17 @@
             
             let partMax = Math.max(cutW, cutH);
             let partMin = Math.min(cutW, cutH);
+            let isTrimmed = false;
+
+            // Obrezovanje traku na max digitalno dolžino 480 mm (npr. s 498 mm ali 500 mm na 480 mm)
+            if (partMax > 480 && partMax <= 510) {
+                partMax = 480;
+                isTrimmed = true;
+            }
+            if (partMin > 320 && partMin <= 335) {
+                partMin = 320;
+                isTrimmed = true;
+            }
             
             // Maximum digital format for personalization is 480x320 mm
             let fitsDigital = (partMax <= 480 && partMin <= 320) || (partMax === 0 || partMin === 0);
@@ -2189,6 +2200,7 @@
                 partMin: partMin,
                 fitsDigital: fitsDigital,
                 partStr: partStr,
+                isTrimmed: isTrimmed,
                 userSplit: userSplit
             };
         }
@@ -3815,7 +3827,7 @@
 
                 let extraCost = 0;
                 if (digCutFactor > 1) {
-                    let cutsPerSheet = (digCutFactor === 3) ? 2 : 1;
+                    let cutsPerSheet = (digCutFactor === 3 ? 2 : 1) + (splitInfo.isTrimmed ? 1 : 0);
                     let razrezSheets = totalSheetsNeeded * cutsPerSheet;
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
@@ -4115,12 +4127,13 @@
                 let sidesText = isBothSides ? ' (1/1 obojestransko)' : ` (${persSidesText})`;
 
                 let limitWarnStr = splitInfo.fitsDigital ? '' : ' ⚠️ PRESEGA DIGITAL (max 480x320)';
-                let persFormatInfo = (digCutFactor > 1) ? ` (razrez -> ${digCutFactor}x ${splitInfo.partStr}${limitWarnStr})` : (splitInfo.partStr ? ` (format ${splitInfo.partStr}${limitWarnStr})` : '');
+                let actionName = splitInfo.isTrimmed ? 'Razrez in obrez' : 'Razrez';
+                let persFormatInfo = (digCutFactor > 1) ? ` (${actionName.toLowerCase()} -> ${digCutFactor}x ${splitInfo.partStr}${limitWarnStr})` : (splitInfo.partStr ? ` (format ${splitInfo.partStr}${limitWarnStr})` : '');
                 let partialNote = (pCustomQty > 0) ? ` [delno: ${pCustomQty.toLocaleString('de-DE')} kos]` : '';
                 let breakdownText = `Delo${partialNote}: ${pTotalImpressions.toLocaleString('de-DE')} odtisov${sidesText} na ${pDigitalSheets.toLocaleString('de-DE')} pol za personalizacijo${persFormatInfo} po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
                 let extraCost = 0;
                 if (digCutFactor > 1) {
-                    let cutsPerSheet = (digCutFactor === 3) ? 2 : 1;
+                    let cutsPerSheet = (digCutFactor === 3 ? 2 : 1) + (splitInfo.isTrimmed ? 1 : 0);
                     let razrezSheets = totalSheetsNeeded * cutsPerSheet;
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
@@ -4128,9 +4141,9 @@
                     autoCutSpeed = Math.round(autoCutSpeed);
                     let razrezCost = (razrezSheets / autoCutSpeed) * 30.00;
                     extraCost += razrezCost;
-                    breakdownText += ` | Razrez -> ${digCutFactor}x (${splitInfo.partStr}): ${formatPrice(razrezCost)}`;
+                    breakdownText += ` | ${actionName} -> ${digCutFactor}x (${splitInfo.partStr}): ${formatPrice(razrezCost)}`;
                 }
-                let nameSuffix = (digCutFactor > 1) ? ` (Razrez -> ${digCutFactor}x ${splitInfo.partStr}${limitWarnStr})` : (splitInfo.partStr ? ` (Format ${splitInfo.partStr}${limitWarnStr})` : '');
+                let nameSuffix = (digCutFactor > 1) ? ` (${actionName} -> ${digCutFactor}x ${splitInfo.partStr}${limitWarnStr})` : (splitInfo.partStr ? ` (Format ${splitInfo.partStr}${limitWarnStr})` : '');
                 if (isBothSides) nameSuffix = ' (Obojestransko)' + ((digCutFactor > 1) ? ` -> ${digCutFactor}x ${splitInfo.partStr}` : ` (${splitInfo.partStr})`);
                 details.finish.items.push({
                     name: 'Personalizacija' + nameSuffix + sidesText,
@@ -4799,7 +4812,8 @@
                 ctx.save();
                 let fitsDigital = splitInfo.fitsDigital;
                 let limitWarn = fitsDigital ? '' : ' ⚠️ PRESEGA DIGITAL';
-                let badgeText = `✂ RAZREZ ZA PERSONALIZACIJO (${digCutFactor}x ${splitInfo.partStr})${limitWarn}`;
+                let actionTitle = splitInfo.isTrimmed ? 'RAZREZ IN OBREZ' : 'RAZREZ';
+                let badgeText = `✂ ${actionTitle} ZA PERSONALIZACIJO (${digCutFactor}x ${splitInfo.partStr})${limitWarn}`;
 
                 let cutPositions = [];
                 if (digCutFactor === 2) {
