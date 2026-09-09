@@ -1453,6 +1453,16 @@
                                     </select>
                                 </div>
                                 <div class="form-group" style="margin:0; flex:1;">
+                                    <label><small>Delitev pole</small></label>
+                                    <select id="f-personalization-split" onchange="calculatePrice()"
+                                        style="padding:0.2rem; font-size:0.75rem; width:100%;">
+                                        <option value="auto" selected>Avtomatsko</option>
+                                        <option value="2">Na 2 dela (polovici)</option>
+                                        <option value="3">Na 3 dele (tretjine)</option>
+                                        <option value="1">Brez (1 pola)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin:0; flex:1;">
                                     <label><small>Cena na polo (€)</small></label>
                                     <input type="number" id="f-personalization-price" value="0.03" step="0.01"
                                         onchange="calculatePrice()" style="padding:0.2rem; font-size:0.75rem; width:100%;">
@@ -2109,6 +2119,65 @@
             }
             return 'OTHER';
         }
+        function getPersonalizationSplitInfo(sheetW, sheetH, itemsPerSheet, mType) {
+            sheetW = parseFloat(sheetW) || 0;
+            sheetH = parseFloat(sheetH) || 0;
+            itemsPerSheet = parseInt(itemsPerSheet) || 1;
+            
+            let splitSelect = document.getElementById('f-personalization-split');
+            let userSplit = splitSelect ? splitSelect.value : 'auto';
+            
+            let isB2Sheet = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698);
+            let maxSheetDim = Math.max(sheetW, sheetH);
+            let isLargeSheet = (isB2Sheet || maxSheetDim >= 500 || mType === 'S8');
+            
+            let digCutFactor = 1;
+            if (isLargeSheet) {
+                if (userSplit === '1') {
+                    digCutFactor = 1;
+                } else if (userSplit === '2') {
+                    digCutFactor = 2;
+                } else if (userSplit === '3') {
+                    digCutFactor = 3;
+                } else { // 'auto'
+                    if (itemsPerSheet % 3 === 0 && itemsPerSheet % 2 !== 0) {
+                        digCutFactor = 3;
+                    } else {
+                        digCutFactor = 2;
+                    }
+                }
+            }
+            
+            let cutW = sheetW;
+            let cutH = sheetH;
+            
+            if (digCutFactor === 2) {
+                if (sheetW >= sheetH) cutW = Math.round(sheetW / 2);
+                else cutH = Math.round(sheetH / 2);
+            } else if (digCutFactor === 3) {
+                if (sheetW >= sheetH) cutW = Math.round(sheetW / 3);
+                else cutH = Math.round(sheetH / 3);
+            }
+            
+            let partMax = Math.max(cutW, cutH);
+            let partMin = Math.min(cutW, cutH);
+            
+            // Maximum digital format for personalization is 480x320 mm
+            let fitsDigital = (partMax <= 480 && partMin <= 320) || (partMax === 0 || partMin === 0);
+            let partStr = (partMax > 0 && partMin > 0) ? `${partMax}x${partMin} mm` : '480x320 mm';
+            
+            return {
+                digCutFactor: digCutFactor,
+                isLargeSheet: isLargeSheet,
+                cutW: cutW,
+                cutH: cutH,
+                partMax: partMax,
+                partMin: partMin,
+                fitsDigital: fitsDigital,
+                partStr: partStr,
+                userSplit: userSplit
+            };
+        }
         function isSheetCompatibleWithPers(s) {
             if (!s) return true;
             const minDim = Math.min(s.w, s.h);
@@ -2295,11 +2364,14 @@
         function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceMode) {
             const isObrat = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
             const isPers = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+            const splitSelect = document.getElementById('f-personalization-split');
+            const userSplit = splitSelect ? splitSelect.value : 'auto';
+
             let isB2Sheet = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698);
             let maxSheetDim = Math.max(sheetW, sheetH);
             let mType = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
-            let cutFactor = (isPers && (isB2Sheet || maxSheetDim >= 600 || mType === 'S8')) ? 2 : 1;
-            let cutAxis = sheetW >= sheetH ? 'W' : 'H';
+            let isLargeSheet = (isPers && (isB2Sheet || maxSheetDim >= 500 || mType === 'S8'));
+
             let best = null;
             const baseConfigs = [
                 { iw: itemW, ih: itemH, rot: false, edge: 'H' },
@@ -2318,26 +2390,63 @@
                     }
                 }
                 if (usableW <= 0 || usableH <= 0) return;
-                let cols = Math.floor(usableW / cfg.iw);
-                let rows = Math.floor(usableH / cfg.ih);
-                if (cutFactor === 2) {
-                    if (isB2Sheet) {
-                        let halfW = cutAxis === 'W' ? 318 : 478;
-                        let halfH = cutAxis === 'W' ? 478 : 318;
-                        let halfUsableW = halfW;
-                        let halfUsableH = halfH;
-                        let halfCols = Math.floor(halfUsableW / cfg.iw);
-                        let halfRows = Math.floor(halfUsableH / cfg.ih);
-                        cols = cutAxis === 'W' ? halfCols * 2 : halfCols;
-                        rows = cutAxis === 'H' ? halfRows * 2 : halfRows;
-                    } else {
-                        if (cutAxis === 'W') {
-                            cols = Math.floor(cols / 2) * 2;
+                let colsRaw = Math.floor(usableW / cfg.iw);
+                let rowsRaw = Math.floor(usableH / cfg.ih);
+                if (colsRaw <= 0 || rowsRaw <= 0) return;
+
+                function evalCut(factor) {
+                    let c = colsRaw;
+                    let r = rowsRaw;
+                    let cutAxis = sheetW >= sheetH ? 'W' : 'H';
+                    if (factor === 2) {
+                        if (isB2Sheet) {
+                            let halfW = cutAxis === 'W' ? 318 : 478;
+                            let halfH = cutAxis === 'W' ? 478 : 318;
+                            let halfCols = Math.floor(halfW / cfg.iw);
+                            let halfRows = Math.floor(halfH / cfg.ih);
+                            c = cutAxis === 'W' ? halfCols * 2 : halfCols;
+                            r = cutAxis === 'H' ? halfRows * 2 : halfRows;
                         } else {
-                            rows = Math.floor(rows / 2) * 2;
+                            let optionW = Math.floor(colsRaw / 2) * 2;
+                            let countW = optionW * rowsRaw;
+                            let optionH = Math.floor(rowsRaw / 2) * 2;
+                            let countH = colsRaw * optionH;
+                            if (countW >= countH) { c = optionW; r = rowsRaw; }
+                            else { c = colsRaw; r = optionH; }
+                        }
+                    } else if (factor === 3) {
+                        let optionW = Math.floor(colsRaw / 3) * 3;
+                        let countW = optionW * rowsRaw;
+                        let optionH = Math.floor(rowsRaw / 3) * 3;
+                        let countH = colsRaw * optionH;
+                        if (countW >= countH) { c = optionW; r = rowsRaw; }
+                        else { c = colsRaw; r = optionH; }
+                    }
+                    return { cols: c, rows: r, count: c * r, factor: factor };
+                }
+
+                let chosen = { cols: colsRaw, rows: rowsRaw, count: colsRaw * rowsRaw, factor: 1 };
+                if (isLargeSheet) {
+                    if (userSplit === '1') {
+                        chosen = evalCut(1);
+                    } else if (userSplit === '2') {
+                        chosen = evalCut(2);
+                    } else if (userSplit === '3') {
+                        chosen = evalCut(3);
+                    } else { // 'auto'
+                        let eval3 = evalCut(3);
+                        let eval2 = evalCut(2);
+                        if (eval3.count > eval2.count && eval3.count > 0) {
+                            chosen = eval3;
+                        } else {
+                            chosen = eval2;
                         }
                     }
                 }
+
+                let cols = chosen.cols;
+                let rows = chosen.rows;
+
                 let isPlacedLandscape = cfg.iw >= cfg.ih;
                 if (forceMode === 'landscape' && !isPlacedLandscape) return;
                 if (forceMode === 'portrait' && isPlacedLandscape && cfg.iw !== cfg.ih) return;
@@ -2362,7 +2471,8 @@
                         itemH: cfg.ih,
                         rot: cfg.rot,
                         gripEdge: cfg.edge,
-                        isMixed: isMixed
+                        isMixed: isMixed,
+                        digCutFactor: chosen.factor
                     };
                 }
             });
@@ -3678,10 +3788,8 @@
                 let pMultiplier = (persSidesVal === '1/1' || persSidesVal === '2') ? 2 : 1;
                 let currentSheetW = g_lastSheetW || 0;
                 let currentSheetH = g_lastSheetH || 0;
-                let isB2Sheet = (currentSheetW === 698 && currentSheetH === 498) || (currentSheetW === 498 && currentSheetH === 698);
-                let maxSheetDim = Math.max(currentSheetW, currentSheetH);
-                let isLargeSheetForPers = (isB2Sheet || maxSheetDim >= 500 || mType === 'S8');
-                let digCutFactor = isLargeSheetForPers ? 2 : 1;
+                let splitInfo = getPersonalizationSplitInfo(currentSheetW, currentSheetH, itemsPerSheet, mType);
+                let digCutFactor = splitInfo.digCutFactor;
                 let targetSheets = sheetsNeeded;
                 if (document.getElementById('f-personalization-qty')) {
                     let pCustomQty = parseInt(document.getElementById('f-personalization-qty').value) || 0;
@@ -3692,8 +3800,9 @@
                 let pCost = (targetSheets * digCutFactor * pMultiplier) * (parseFloat(document.getElementById('f-personalization-price').value.replace(',', '.')) || 0);
                 
                 let extraCost = 0;
-                if (isLargeSheetForPers) {
-                    let razrezSheets = totalSheetsNeeded * 2;
+                if (digCutFactor > 1) {
+                    let cutsPerSheet = (digCutFactor === 3) ? 2 : 1;
+                    let razrezSheets = totalSheetsNeeded * cutsPerSheet;
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
                     else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
@@ -3974,10 +4083,8 @@
                 let isBothSides = (persSidesText === '1/1');
                 let currentSheetW = g_lastSheetW || 0;
                 let currentSheetH = g_lastSheetH || 0;
-                let isB2Sheet = (currentSheetW === 698 && currentSheetH === 498) || (currentSheetW === 498 && currentSheetH === 698);
-                let maxSheetDim = Math.max(currentSheetW, currentSheetH);
-                let isLargeSheetForPers = (isB2Sheet || maxSheetDim >= 500 || mType === 'S8');
-                let digCutFactor = isLargeSheetForPers ? 2 : 1;
+                let splitInfo = getPersonalizationSplitInfo(currentSheetW, currentSheetH, itemsPerSheet, mType);
+                let digCutFactor = splitInfo.digCutFactor;
                 let pMultiplier = isBothSides ? 2 : 1;
                 let targetSheets = sheetsNeeded;
                 let pCustomQty = 0;
@@ -3993,29 +4100,24 @@
                 let pCost = pTotalImpressions * pPrice;
                 let sidesText = isBothSides ? ' (1/1 obojestransko)' : ` (${persSidesText})`;
                 
-                let cutW = currentSheetW >= currentSheetH ? Math.round(currentSheetW / 2) : currentSheetW;
-                let cutH = currentSheetW >= currentSheetH ? currentSheetH : Math.round(currentSheetH / 2);
-                let maxD = Math.min(Math.max(cutW, cutH), 478);
-                let minD = Math.min(Math.min(cutW, cutH), 318);
-                let halfStr = (maxD > 0 && minD > 0) ? `${maxD}x${minD} mm` : '478x318 mm';
-                let currentSheetStr = (currentSheetW > 0 && currentSheetH > 0) ? `${Math.min(Math.max(currentSheetW, currentSheetH), 478)}x${Math.min(Math.min(currentSheetW, currentSheetH), 318)} mm` : '478x318 mm';
-                
-                let persFormatInfo = isLargeSheetForPers ? ` (razrez -> 2x ${halfStr})` : (currentSheetStr ? ` (format ${currentSheetStr})` : '');
+                let limitWarnStr = splitInfo.fitsDigital ? '' : ' ⚠️ PRESEGA DIGITAL (max 480x320)';
+                let persFormatInfo = (digCutFactor > 1) ? ` (razrez -> ${digCutFactor}x ${splitInfo.partStr}${limitWarnStr})` : (splitInfo.partStr ? ` (format ${splitInfo.partStr}${limitWarnStr})` : '');
                 let partialNote = (pCustomQty > 0) ? ` [delno: ${pCustomQty.toLocaleString('de-DE')} kos]` : '';
                 let breakdownText = `Delo${partialNote}: ${pTotalImpressions.toLocaleString('de-DE')} odtisov${sidesText} na ${pDigitalSheets.toLocaleString('de-DE')} pol za personalizacijo${persFormatInfo} po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
                 let extraCost = 0;
-                if (isLargeSheetForPers) {
-                    let razrezSheets = totalSheetsNeeded * 2;
+                if (digCutFactor > 1) {
+                    let cutsPerSheet = (digCutFactor === 3) ? 2 : 1;
+                    let razrezSheets = totalSheetsNeeded * cutsPerSheet;
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
                     else if (paperWeight > 150) autoCutSpeed = 7400 - ((paperWeight - 150) / 150) * (7400 - 4100);
                     autoCutSpeed = Math.round(autoCutSpeed);
                     let razrezCost = (razrezSheets / autoCutSpeed) * 30.00;
                     extraCost += razrezCost;
-                    breakdownText += ` | Razrez -> 2x (${halfStr}): ${formatPrice(razrezCost)}`;
+                    breakdownText += ` | Razrez -> ${digCutFactor}x (${splitInfo.partStr}): ${formatPrice(razrezCost)}`;
                 }
-                let nameSuffix = isLargeSheetForPers ? ` (Razrez -> 2x ${halfStr})` : (currentSheetStr ? ` (Format ${currentSheetStr})` : '');
-                if (isBothSides) nameSuffix = ' (Obojestransko)' + (isLargeSheetForPers ? ` -> 2x ${halfStr}` : (currentSheetStr ? ` (${currentSheetStr})` : ''));
+                let nameSuffix = (digCutFactor > 1) ? ` (Razrez -> ${digCutFactor}x ${splitInfo.partStr}${limitWarnStr})` : (splitInfo.partStr ? ` (Format ${splitInfo.partStr}${limitWarnStr})` : '');
+                if (isBothSides) nameSuffix = ' (Obojestransko)' + ((digCutFactor > 1) ? ` -> ${digCutFactor}x ${splitInfo.partStr}` : ` (${splitInfo.partStr})`);
                 details.finish.items.push({
                     name: 'Personalizacija' + nameSuffix + sidesText,
                     cost: pCost + extraCost,
@@ -4672,53 +4774,53 @@
                 ctx.fillText(`⚠️ OPOZORILO: ${targetCount} kosov ni mogoče simetrično razporediti na to polo!`, canvas.width / 2, 15);
             }
 
-            // Nariši linijo razreza po sredini za personalizacijo (če je vklopljena personalizacija)
+            // Nariši linije razreza za personalizacijo (če je vklopljena personalizacija)
             const isPersActive = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
             const currentMType = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
-            let isB2ForPers = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698) || Math.max(sheetW, sheetH) >= 500 || currentMType === 'S8';
-            if (isPersActive && isB2ForPers) {
+            let itemsCount = layout ? layout.count : 1;
+            let splitInfo = getPersonalizationSplitInfo(sheetW, sheetH, itemsCount, currentMType);
+            let digCutFactor = splitInfo.digCutFactor;
+            
+            if (isPersActive && splitInfo.isLargeSheet && digCutFactor > 1) {
                 ctx.save();
-                // Preveri ali postavitev kosov na polovici pole ustreza max digitalnemu formatu 478x318 mm
-                let halfW_items = (gridW / 2);
-                let halfH_items = gridH;
-                if (sheetH > sheetW) {
-                    halfW_items = gridW;
-                    halfH_items = (gridH / 2);
+                let fitsDigital = splitInfo.fitsDigital;
+                let limitWarn = fitsDigital ? '' : ' ⚠️ PRESEGA DIGITAL';
+                let badgeText = `✂ RAZREZ ZA PERSONALIZACIJO (${digCutFactor}x ${splitInfo.partStr})${limitWarn}`;
+
+                let cutPositions = [];
+                if (digCutFactor === 2) {
+                    cutPositions = [0.5];
+                } else if (digCutFactor === 3) {
+                    cutPositions = [1 / 3, 2 / 3];
                 }
-                let fitsDigital = (halfW_items <= 478 && halfH_items <= 318) || (halfW_items <= 318 && halfH_items <= 478);
 
                 if (sheetW >= sheetH) {
-                    // Vertikalni rez po sredini (X = sheetW / 2)
-                    const cutX = (sheetW / 2) * scale;
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-                    ctx.lineWidth = 6;
-                    ctx.beginPath();
-                    ctx.moveTo(cutX, 0);
-                    ctx.lineTo(cutX, canvas.height);
-                    ctx.stroke();
+                    // Vertikalni rezi
+                    cutPositions.forEach(ratio => {
+                        const cutX = (sheetW * ratio) * scale;
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                        ctx.lineWidth = 6;
+                        ctx.beginPath();
+                        ctx.moveTo(cutX, 0);
+                        ctx.lineTo(cutX, canvas.height);
+                        ctx.stroke();
 
-                    ctx.strokeStyle = '#dc2626';
-                    ctx.lineWidth = 2.5;
-                    ctx.setLineDash([8, 4]);
-                    ctx.beginPath();
-                    ctx.moveTo(cutX, 0);
-                    ctx.lineTo(cutX, canvas.height);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
+                        ctx.strokeStyle = '#dc2626';
+                        ctx.lineWidth = 2.5;
+                        ctx.setLineDash([8, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(cutX, 0);
+                        ctx.lineTo(cutX, canvas.height);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    });
 
-                    let cutW = sheetW >= sheetH ? Math.round(sheetW / 2) : sheetW;
-                    let cutH = sheetW >= sheetH ? sheetH : Math.round(sheetH / 2);
-                    let maxD = Math.min(Math.max(cutW, cutH), 478);
-                    let minD = Math.min(Math.min(cutW, cutH), 318);
-                    let halfStr = `${maxD}x${minD} mm`;
-                    const badgeText = fitsDigital
-                        ? `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfStr})`
-                        : `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfStr}) ⚠️ PRESEGA DIGITAL`;
+                    const midX = (sheetW * 0.5) * scale;
                     ctx.font = 'bold 11px Inter, sans-serif';
                     const textMetrics = ctx.measureText(badgeText);
                     const bw = textMetrics.width + 20;
                     const bh = 24;
-                    const bx = cutX - bw / 2;
+                    const bx = midX - bw / 2;
                     const by = (canvas.height - bh) / 2;
 
                     ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
@@ -4732,40 +4834,35 @@
                     ctx.fillStyle = '#ffffff';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(badgeText, cutX, by + bh / 2 + 1);
+                    ctx.fillText(badgeText, midX, by + bh / 2 + 1);
                 } else {
-                    // Horizontalni rez po sredini (Y = sheetH / 2)
-                    const cutY = (sheetH / 2) * scale;
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-                    ctx.lineWidth = 6;
-                    ctx.beginPath();
-                    ctx.moveTo(0, cutY);
-                    ctx.lineTo(canvas.width, cutY);
-                    ctx.stroke();
+                    // Horizontalni rezi
+                    cutPositions.forEach(ratio => {
+                        const cutY = (sheetH * ratio) * scale;
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                        ctx.lineWidth = 6;
+                        ctx.beginPath();
+                        ctx.moveTo(0, cutY);
+                        ctx.lineTo(canvas.width, cutY);
+                        ctx.stroke();
 
-                    ctx.strokeStyle = '#dc2626';
-                    ctx.lineWidth = 2.5;
-                    ctx.setLineDash([8, 4]);
-                    ctx.beginPath();
-                    ctx.moveTo(0, cutY);
-                    ctx.lineTo(canvas.width, cutY);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
+                        ctx.strokeStyle = '#dc2626';
+                        ctx.lineWidth = 2.5;
+                        ctx.setLineDash([8, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(0, cutY);
+                        ctx.lineTo(canvas.width, cutY);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    });
 
-                    let cutW = sheetW >= sheetH ? Math.round(sheetW / 2) : sheetW;
-                    let cutH = sheetW >= sheetH ? sheetH : Math.round(sheetH / 2);
-                    let maxD = Math.min(Math.max(cutW, cutH), 478);
-                    let minD = Math.min(Math.min(cutW, cutH), 318);
-                    let halfStr = `${maxD}x${minD} mm`;
-                    const badgeText = fitsDigital
-                        ? `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfStr})`
-                        : `✂ RAZREZ ZA PERSONALIZACIJO (2x ${halfStr}) ⚠️ PRESEGA DIGITAL`;
+                    const midY = (sheetH * 0.5) * scale;
                     ctx.font = 'bold 11px Inter, sans-serif';
                     const textMetrics = ctx.measureText(badgeText);
                     const bw = textMetrics.width + 20;
                     const bh = 24;
                     const bx = (canvas.width - bw) / 2;
-                    const by = cutY - bh / 2;
+                    const by = midY - bh / 2;
 
                     ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
                     ctx.shadowColor = 'rgba(0,0,0,0.4)';
@@ -4778,7 +4875,7 @@
                     ctx.fillStyle = '#ffffff';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(badgeText, canvas.width / 2, cutY + 1);
+                    ctx.fillText(badgeText, canvas.width / 2, midY + 1);
                 }
                 ctx.restore();
             }
