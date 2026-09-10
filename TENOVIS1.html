@@ -6560,191 +6560,157 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
 
         function drawSourceCanvas(sw, sh, mw, mh) {
-
             const canvas = document.getElementById('canvas-source');
-
             if (!canvas) return;
-
             const ctx = canvas.getContext('2d');
 
+            if (!sw || !sh || !mw || !mh) return;
 
+            // 1. Daljša stranica je VEDNO spodaj (vodoravno)
+            const drawnW = Math.max(sw, sh);
+            const drawnH = Math.min(sw, sh);
 
-            // Calculate best fit (source yield)
+            // Oznake dimenzij: spodaj je vedno daljša stranica, ob strani krajša
+            const bottomLabel = `${drawnW} mm`;
+            const sideLabel = `${drawnH} mm`;
 
+            // 2. Izračun izkoristka in razporeditve polo v poli
             const y1 = Math.floor(sw / mw) * Math.floor(sh / mh);
-
             const y2 = Math.floor(sw / mh) * Math.floor(sh / mw);
-
             const useRotated = y2 > y1;
 
-            const cols = useRotated ? Math.floor(sw / mh) : Math.floor(sw / mw);
-
-            const rows = useRotated ? Math.floor(sh / mw) : Math.floor(sh / mh);
-
-            const itemW = useRotated ? mh : mw;
-
-            const itemH = useRotated ? mw : mh;
-
-
-
-            const maxW = 400;
-
-            const maxH = 250;
-
-            const scale = Math.min(maxW / sw, maxH / sh);
-
-
-
-            canvas.width = sw * scale;
-
-            canvas.height = sh * scale;
-
-
-
-            // Background
-
-            ctx.fillStyle = '#1e293b';
-
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.strokeStyle = '#475569';
-
-            ctx.lineWidth = 2;
-
-            ctx.strokeRect(0, 0, canvas.width, canvas.height);
-
-
-
-            // Draw machine pulses inside
-
-            ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
-
-            ctx.strokeStyle = '#3b82f6';
-
-            ctx.lineWidth = 1;
-
-
-
-            const startX = (sw - cols * itemW) / 2;
-
-            const startY = (sh - rows * itemH) / 2;
-
-
-
-            for (let r = 0; r < rows; r++) {
-
-                for (let c = 0; c < cols; c++) {
-
-                    ctx.fillRect((startX + c * itemW) * scale, (startY + r * itemH) * scale, itemW * scale, itemH * scale);
-
-                    ctx.strokeRect((startX + c * itemW) * scale, (startY + r * itemH) * scale, itemW * scale, itemH * scale);
-
-                }
-
+            let cols, rows, itemW, itemH;
+            if (sw >= sh) {
+                cols = useRotated ? Math.floor(sw / mh) : Math.floor(sw / mw);
+                rows = useRotated ? Math.floor(sh / mw) : Math.floor(sh / mh);
+                itemW = useRotated ? mh : mw;
+                itemH = useRotated ? mw : mh;
+            } else {
+                cols = useRotated ? Math.floor(sh / mw) : Math.floor(sh / mh);
+                rows = useRotated ? Math.floor(sw / mh) : Math.floor(sw / mw);
+                itemW = useRotated ? mw : mh;
+                itemH = useRotated ? mh : mw;
             }
 
+            const maxW = 400;
+            const maxH = 250;
+            const scale = Math.min(maxW / drawnW, maxH / drawnH);
 
+            canvas.width = drawnW * scale;
+            canvas.height = drawnH * scale;
 
-            // Labels
+            // Ozadje osnovne pole
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
 
+            // Izris tiskovnih pol na osnovni poli
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 1;
+
+            const startX = (drawnW - cols * itemW) / 2;
+            const startY = (drawnH - rows * itemH) / 2;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    ctx.fillRect((startX + c * itemW) * scale, (startY + r * itemH) * scale, itemW * scale, itemH * scale);
+                    ctx.strokeRect((startX + c * itemW) * scale, (startY + r * itemH) * scale, itemW * scale, itemH * scale);
+                }
+            }
+
+            // Oznake dimenzij
             ctx.fillStyle = '#94a3b8';
-
-            ctx.font = '10px Inter';
-
-            ctx.fillText(`${sw} mm`, canvas.width / 2 - 15, canvas.height - 5);
+            ctx.font = 'bold 11px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(bottomLabel, canvas.width / 2, canvas.height - 6);
 
             ctx.save();
-
-            ctx.translate(10, canvas.height / 2 + 15);
-
+            ctx.translate(14, canvas.height / 2);
             ctx.rotate(-Math.PI / 2);
-
-            ctx.fillText(`${sh} mm`, 0, 0);
-
+            ctx.textAlign = 'center';
+            ctx.fillText(sideLabel, 0, 0);
             ctx.restore();
 
+            // 3. SMER VLAKEN (SMER TEKA PAPIRJA):
+            // Pri dimenzijah sw x sh tečejo vlakna v smeri druge dimenzije (sh).
+            // Če vpišemo 700x1000 (sw < sh): daljša stranica (1000mm) je vodoravno -> vlakna tečejo VODORAVNO (spodaj)
+            // Če vpišemo 1000x700 (sw >= sh): krajša stranica (700mm) je navpično -> vlakna tečejo NAVPIČNO (ob strani)
+            const isGrainHorizontal = (sw < sh);
 
-
-            // Grain direction indicator (always in direction of height 'sh')
-
+            ctx.save();
             ctx.strokeStyle = '#ef4444';
-
-            ctx.setLineDash([8, 4]);
-
+            ctx.fillStyle = '#ef4444';
             ctx.lineWidth = 2;
 
-            const grainX = canvas.width - 15;
+            if (isGrainHorizontal) {
+                // Vodoravna črta smeri vlaken (spodaj)
+                const grainY = canvas.height - 22;
+                ctx.setLineDash([8, 4]);
+                ctx.beginPath();
+                ctx.moveTo(35, grainY);
+                ctx.lineTo(canvas.width - 35, grainY);
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-            ctx.beginPath();
+                // Puščici levo in desno
+                ctx.beginPath();
+                ctx.moveTo(20, grainY);
+                ctx.lineTo(35, grainY - 4);
+                ctx.lineTo(35, grainY + 4);
+                ctx.fill();
 
-            ctx.moveTo(grainX, 20);
+                ctx.beginPath();
+                ctx.moveTo(canvas.width - 20, grainY);
+                ctx.lineTo(canvas.width - 35, grainY - 4);
+                ctx.lineTo(canvas.width - 35, grainY + 4);
+                ctx.fill();
 
-            ctx.lineTo(grainX, canvas.height - 20);
+                // Oznaka SMER VLAKEN
+                ctx.save();
+                ctx.font = 'bold 9px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText('SMER VLAKEN', canvas.width / 2, grainY - 3);
+                ctx.restore();
+            } else {
+                // Navpična črta smeri vlaken (desno ob strani)
+                const grainX = canvas.width - 18;
+                ctx.setLineDash([8, 4]);
+                ctx.beginPath();
+                ctx.moveTo(grainX, 35);
+                ctx.lineTo(grainX, canvas.height - 35);
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-            ctx.stroke();
+                // Puščici zgoraj in spodaj
+                ctx.beginPath();
+                ctx.moveTo(grainX, 20);
+                ctx.lineTo(grainX - 4, 35);
+                ctx.lineTo(grainX + 4, 35);
+                ctx.fill();
 
-            ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.moveTo(grainX, canvas.height - 20);
+                ctx.lineTo(grainX - 4, canvas.height - 35);
+                ctx.lineTo(grainX + 4, canvas.height - 35);
+                ctx.fill();
 
-
-
-            // Arrowheads for grain direction
-
-            ctx.fillStyle = '#ef4444';
-
-            // Top arrow
-
-            ctx.beginPath();
-
-            ctx.moveTo(grainX, 10);
-
-            ctx.lineTo(grainX - 4, 20);
-
-            ctx.lineTo(grainX + 4, 20);
-
-            ctx.fill();
-
-            // Bottom arrow
-
-            ctx.beginPath();
-
-            ctx.moveTo(grainX, canvas.height - 10);
-
-            ctx.lineTo(grainX - 4, canvas.height - 20);
-
-            ctx.lineTo(grainX + 4, canvas.height - 20);
-
-            ctx.fill();
-
-
-
-            // Label for grain direction
-
-            ctx.save();
-
-            ctx.translate(grainX - 5, canvas.height / 3);
-
-            ctx.rotate(-Math.PI / 2);
-
-            ctx.textAlign = 'center';
-
-            ctx.font = 'bold 9px Inter';
-
-            ctx.fillText('SMER VLAKEN', 0, 0);
+                // Oznaka SMER VLAKEN
+                ctx.save();
+                ctx.translate(grainX - 5, canvas.height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.font = 'bold 9px Inter, sans-serif';
+                ctx.fillText('SMER VLAKEN', 0, 0);
+                ctx.restore();
+            }
 
             ctx.restore();
-
-
-
-            // Yield label
-
-            ctx.fillStyle = '#34d399';
-
-            ctx.font = 'bold 12px Inter';
-
-            ctx.fillText(`Izkoristek: ${cols * rows}x`, 10, 20);
-
         }
-
 
 
         function drawMachineCanvas(sheetW, sheetH, layout, gripper, origW, origH, bleed, isOverride = false, currentCount = 0, blockGap = 0) {

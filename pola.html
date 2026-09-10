@@ -4275,134 +4275,156 @@
             const canvas = document.getElementById('canvas-source');
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
-            // Calculate best fit (source yield)
+
+            if (!sw || !sh || !mw || !mh) return;
+
+            // 1. Daljša stranica je VEDNO spodaj (vodoravno)
+            const drawnW = Math.max(sw, sh);
+            const drawnH = Math.min(sw, sh);
+
+            // Oznake dimenzij: spodaj je vedno daljša stranica, ob strani krajša
+            const bottomLabel = `${drawnW} mm`;
+            const sideLabel = `${drawnH} mm`;
+
+            // 2. Izračun izkoristka in razporeditve polo v poli
             const y1 = Math.floor(sw / mw) * Math.floor(sh / mh);
             const y2 = Math.floor(sw / mh) * Math.floor(sh / mw);
             const useRotated = y2 > y1;
-            let cols = useRotated ? Math.floor(sw / mh) : Math.floor(sw / mw);
-            let rows = useRotated ? Math.floor(sh / mw) : Math.floor(sh / mh);
-            let itemW = useRotated ? mh : mw;
-            let itemH = useRotated ? mw : mh;
-            // Always draw with the wider side at the bottom (landscape)
-            const isDrawingRotated = sw < sh;
-            let drawW = sw;
-            let drawH = sh;
-            let grainDirection = 'vertical';
-            if (isDrawingRotated) {
-                drawW = sh;
-                drawH = sw;
-                // Swap rows/cols and item dimensions to rotate layout
-                const tempCols = cols;
-                cols = rows;
-                rows = tempCols;
-                const tempItemW = itemW;
-                itemW = itemH;
-                itemH = tempItemW;
-                // Grain is along sh (horizontal). Flipped: vertical.
-                grainDirection = 'vertical';
+
+            let cols, rows, itemW, itemH;
+            if (sw >= sh) {
+                cols = useRotated ? Math.floor(sw / mh) : Math.floor(sw / mw);
+                rows = useRotated ? Math.floor(sh / mw) : Math.floor(sh / mh);
+                itemW = useRotated ? mh : mw;
+                itemH = useRotated ? mw : mh;
             } else {
-                // Already sw >= sh. Grain is along sh (vertical). Flipped: horizontal.
-                grainDirection = 'horizontal';
+                cols = useRotated ? Math.floor(sh / mw) : Math.floor(sh / mh);
+                rows = useRotated ? Math.floor(sw / mh) : Math.floor(sw / mw);
+                itemW = useRotated ? mw : mh;
+                itemH = useRotated ? mh : mw;
             }
+
             const maxW = 400;
             const maxH = 250;
-            const scale = Math.min(maxW / drawW, maxH / drawH);
-            canvas.width = drawW * scale;
-            canvas.height = drawH * scale;
-            // Background
+            const scale = Math.min(maxW / drawnW, maxH / drawnH);
+
+            canvas.width = drawnW * scale;
+            canvas.height = drawnH * scale;
+
+            // Ozadje osnovne pole
             ctx.fillStyle = '#1e293b';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.strokeStyle = '#475569';
             ctx.lineWidth = 2;
             ctx.strokeRect(0, 0, canvas.width, canvas.height);
-            // Draw machine pulses inside
+
+            // Izris tiskovnih pol na osnovni poli
             ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
             ctx.strokeStyle = '#3b82f6';
             ctx.lineWidth = 1;
-            const startX = (drawW - cols * itemW) / 2;
-            const startY = (drawH - rows * itemH) / 2;
+
+            const startX = (drawnW - cols * itemW) / 2;
+            const startY = (drawnH - rows * itemH) / 2;
+
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
                     ctx.fillRect((startX + c * itemW) * scale, (startY + r * itemH) * scale, itemW * scale, itemH * scale);
                     ctx.strokeRect((startX + c * itemW) * scale, (startY + r * itemH) * scale, itemW * scale, itemH * scale);
                 }
             }
-            // Labels
+
+            // Oznake dimenzij
             ctx.fillStyle = '#94a3b8';
-            ctx.font = '10px Inter';
-            ctx.fillText(`${drawW} mm`, canvas.width / 2 - 15, canvas.height - 5);
+            ctx.font = 'bold 11px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(bottomLabel, canvas.width / 2, canvas.height - 6);
+
             ctx.save();
-            ctx.translate(10, canvas.height / 2 + 15);
+            ctx.translate(14, canvas.height / 2);
             ctx.rotate(-Math.PI / 2);
-            ctx.fillText(`${drawH} mm`, 0, 0);
+            ctx.textAlign = 'center';
+            ctx.fillText(sideLabel, 0, 0);
             ctx.restore();
-            // Grain direction indicator
+
+            // 3. SMER VLAKEN (SMER TEKA PAPIRJA):
+            // Pri dimenzijah sw x sh tečejo vlakna v smeri druge dimenzije (sh).
+            // Če vpišemo 700x1000 (sw < sh): daljša stranica (1000mm) je vodoravno -> vlakna tečejo VODORAVNO (spodaj)
+            // Če vpišemo 1000x700 (sw >= sh): krajša stranica (700mm) je navpično -> vlakna tečejo NAVPIČNO (ob strani)
+            const isGrainHorizontal = (sw < sh);
+
+            ctx.save();
             ctx.strokeStyle = '#ef4444';
-            ctx.setLineDash([8, 4]);
+            ctx.fillStyle = '#ef4444';
             ctx.lineWidth = 2;
-            if (grainDirection === 'vertical') {
-                const grainX = canvas.width - 15;
+
+            if (isGrainHorizontal) {
+                // Vodoravna črta smeri vlaken (spodaj)
+                const grainY = canvas.height - 22;
+                ctx.setLineDash([8, 4]);
                 ctx.beginPath();
-                ctx.moveTo(grainX, 20);
-                ctx.lineTo(grainX, canvas.height - 20);
+                ctx.moveTo(35, grainY);
+                ctx.lineTo(canvas.width - 35, grainY);
                 ctx.stroke();
                 ctx.setLineDash([]);
-                // Arrowheads
-                ctx.fillStyle = '#ef4444';
-                // Top arrow
-                ctx.beginPath();
-                ctx.moveTo(grainX, 10);
-                ctx.lineTo(grainX - 4, 20);
-                ctx.lineTo(grainX + 4, 20);
-                ctx.fill();
-                // Bottom arrow
-                ctx.beginPath();
-                ctx.moveTo(grainX, canvas.height - 10);
-                ctx.lineTo(grainX - 4, canvas.height - 20);
-                ctx.lineTo(grainX + 4, canvas.height - 20);
-                ctx.fill();
-                // Label
-                ctx.save();
-                ctx.translate(grainX - 5, canvas.height / 3);
-                ctx.rotate(-Math.PI / 2);
-                ctx.textAlign = 'center';
-                ctx.font = 'bold 9px Inter';
-                ctx.fillText('SMER VLAKEN', 0, 0);
-                ctx.restore();
-            } else {
-                const grainY = canvas.height - 15;
+
+                // Puščici levo in desno
                 ctx.beginPath();
                 ctx.moveTo(20, grainY);
-                ctx.lineTo(canvas.width - 20, grainY);
+                ctx.lineTo(35, grainY - 4);
+                ctx.lineTo(35, grainY + 4);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(canvas.width - 20, grainY);
+                ctx.lineTo(canvas.width - 35, grainY - 4);
+                ctx.lineTo(canvas.width - 35, grainY + 4);
+                ctx.fill();
+
+                // Oznaka SMER VLAKEN
+                ctx.save();
+                ctx.font = 'bold 9px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText('SMER VLAKEN', canvas.width / 2, grainY - 3);
+                ctx.restore();
+            } else {
+                // Navpična črta smeri vlaken (desno ob strani)
+                const grainX = canvas.width - 18;
+                ctx.setLineDash([8, 4]);
+                ctx.beginPath();
+                ctx.moveTo(grainX, 35);
+                ctx.lineTo(grainX, canvas.height - 35);
                 ctx.stroke();
                 ctx.setLineDash([]);
-                // Arrowheads
-                ctx.fillStyle = '#ef4444';
-                // Left arrow
+
+                // Puščici zgoraj in spodaj
                 ctx.beginPath();
-                ctx.moveTo(10, grainY);
-                ctx.lineTo(20, grainY - 4);
-                ctx.lineTo(20, grainY + 4);
+                ctx.moveTo(grainX, 20);
+                ctx.lineTo(grainX - 4, 35);
+                ctx.lineTo(grainX + 4, 35);
                 ctx.fill();
-                // Right arrow
+
                 ctx.beginPath();
-                ctx.moveTo(canvas.width - 10, grainY);
-                ctx.lineTo(canvas.width - 20, grainY - 4);
-                ctx.lineTo(canvas.width - 20, grainY + 4);
+                ctx.moveTo(grainX, canvas.height - 20);
+                ctx.lineTo(grainX - 4, canvas.height - 35);
+                ctx.lineTo(grainX + 4, canvas.height - 35);
                 ctx.fill();
-                // Label
+
+                // Oznaka SMER VLAKEN
                 ctx.save();
-                ctx.translate(canvas.width / 2, grainY - 5);
+                ctx.translate(grainX - 5, canvas.height / 2);
+                ctx.rotate(-Math.PI / 2);
                 ctx.textAlign = 'center';
-                ctx.font = 'bold 9px Inter';
+                ctx.textBaseline = 'bottom';
+                ctx.font = 'bold 9px Inter, sans-serif';
                 ctx.fillText('SMER VLAKEN', 0, 0);
                 ctx.restore();
             }
-            // Yield label
-            ctx.fillStyle = '#34d399';
-            ctx.font = 'bold 12px Inter';
-            ctx.fillText(`Izkoristek: ${cols * rows}x`, 10, 20);
+
+            ctx.restore();
         }
+
+
         function drawMachineCanvas(sheetW, sheetH, layout, gripper, origW, origH, bleed, isOverride = false, currentCount = 0) {
             // Če je prijemalec na 'W' robu (levo), vizualno zarotiramo polo za 90 stopinj, da bo prijemalec vedno v nogi.
             let _layout = { ...layout };
