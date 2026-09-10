@@ -6823,7 +6823,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
             ctx.font = '11px Inter';
 
-            ctx.fillText(`${sheetW} mm`, canvas.width / 2 - 20, canvas.height - 10);
+            ctx.fillText(`${sheetW} mm`, canvas.width / 2, (layout && layout.gripEdge === 'H') ? (canvas.height - (gripper * scale) - 6) : (canvas.height - 6));
 
             ctx.save();
 
@@ -7262,17 +7262,18 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                 let drawCols = isRotated ? gRows : gCols;
                 let drawRows = isRotated ? gCols : gRows;
 
+                let stepX = (actW * sc) / drawCols;
+                let stepY = (actH * sc) / drawRows;
+
                 if (drawCols > 1 || drawRows > 1) {
                     ctx.save();
                     ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
                     ctx.setLineDash([2, 2]);
                     ctx.beginPath();
-                    let stepX = (actW * sc) / drawCols;
                     for (let c = 1; c < drawCols; c++) {
                         ctx.moveTo(x + c * stepX, y);
                         ctx.lineTo(x + c * stepX, y + actH * sc);
                     }
-                    let stepY = (actH * sc) / drawRows;
                     for (let r = 1; r < drawRows; r++) {
                         ctx.moveTo(x, y + r * stepY);
                         ctx.lineTo(x + actW * sc, y + r * stepY);
@@ -7289,13 +7290,21 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                 ctx.strokeRect(x + (b * sc), y + (b * sc), blockInnerW * sc, blockInnerH * sc);
                 ctx.setLineDash([]);
 
+                // Oznaka dimenzije za VSAKO zloženko / element v bloku posebej
                 ctx.fillStyle = '#1e3a8a';
-                ctx.font = 'bold 9px Arial';
+                ctx.font = 'bold 11px Arial, sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 const dimLabel = `${Math.round(singleInnerW)}x${Math.round(singleInnerH)}`;
-                if (actW * sc > 30 && actH * sc > 15) {
-                    ctx.fillText(dimLabel, x + (actW * sc) / 2, y + (actH * sc) / 2);
+
+                if (stepX > 20 && stepY > 10) {
+                    for (let r = 0; r < drawRows; r++) {
+                        for (let c = 0; c < drawCols; c++) {
+                            const cellCenterX = x + c * stepX + stepX / 2;
+                            const cellCenterY = y + r * stepY + stepY / 2;
+                            ctx.fillText(dimLabel, cellCenterX, cellCenterY);
+                        }
+                    }
                 }
             }
 
