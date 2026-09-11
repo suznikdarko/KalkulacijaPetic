@@ -8260,7 +8260,25 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
 
-                arhiv.push(data);
+                let existingIdx = -1;
+                let qNum = data.quoteNum ? data.quoteNum.trim() : '';
+                if (qNum !== '') {
+                    existingIdx = arhiv.findIndex(p => p.quoteNum && p.quoteNum.trim() === qNum);
+                }
+                if (existingIdx === -1 && window.g_currentLoadedId) {
+                    existingIdx = arhiv.findIndex(p => p.id === window.g_currentLoadedId);
+                }
+                if (existingIdx === -1 && name) {
+                    existingIdx = arhiv.findIndex(p => p.name === name && p.customer === data.customer);
+                }
+
+                if (existingIdx !== -1) {
+                    data.id = arhiv[existingIdx].id;
+                    arhiv[existingIdx] = data;
+                } else {
+                    arhiv.push(data);
+                }
+                window.g_currentLoadedId = data.id;
 
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
 
@@ -8544,13 +8562,44 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
                 if (typeof g_projectsDirHandle !== 'undefined' && g_projectsDirHandle) {
                     try {
+                        let cleanQuote = (gv('calc-quote-number') || '').replace(/[\/\\]/g, '-').trim();
+                        let oldFilesToDelete = [];
+
+                        for await (const entry of g_projectsDirHandle.values()) {
+                            if (entry.kind === 'file' && entry.name.endsWith('.json')) {
+                                let isMatch = false;
+                                if (window.g_currentLoadedFileName && entry.name === window.g_currentLoadedFileName) {
+                                    isMatch = true;
+                                } else if (cleanQuote && cleanQuote.length > 0) {
+                                    let eName = entry.name;
+                                    if (eName.startsWith(cleanQuote + '_') || eName.startsWith(cleanQuote + '.') || eName.startsWith(cleanQuote + '-') || eName === cleanQuote + '.json' || eName === cleanQuote + '.pola.json') {
+                                        isMatch = true;
+                                    }
+                                }
+                                if (isMatch && entry.name !== suggestedName) {
+                                    oldFilesToDelete.push(entry.name);
+                                }
+                            }
+                        }
+
+                        for (let oldFile of oldFilesToDelete) {
+                            try {
+                                await g_projectsDirHandle.removeEntry(oldFile);
+                            } catch (delErr) {
+                                console.log("Error removing old file version:", oldFile, delErr);
+                            }
+                        }
+
                         const fileHandle = await g_projectsDirHandle.getFileHandle(suggestedName, { create: true });
                         const writable = await fileHandle.createWritable();
                         await writable.write(jsonStr);
                         await writable.close();
+
+                        window.g_currentLoadedFileName = suggestedName;
+
                         if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
                         if (typeof renderSavedProjects === 'function') renderSavedProjects();
-                        alert("✓ Shranjeno v povezano mapo: [" + (g_projectsDirHandle ? g_projectsDirHandle.name : "omrežna mapa") + "]\nDatoteka: " + suggestedName);
+                        alert("✓ Shranjeno (prepisano) v povezano mapo: [" + (g_projectsDirHandle ? g_projectsDirHandle.name : "omrežna mapa") + "]\nDatoteka: " + suggestedName);
                         return;
                     } catch (dirErr) {
                         console.log("Direct folder handle write error:", dirErr);
@@ -8719,32 +8768,18 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
 
         async function autoConnectFolder() {
-
-            const handle = await loadDirHandle();
-
-            if (handle) {
-
-                try {
-
-                    const status = await handle.queryPermission({ mode: 'readwrite' });
-
+            try {
+                const handle = await loadDirHandle();
+                if (handle) {
+                    g_projectsDirHandle = handle;
+                    let status = await handle.queryPermission({ mode: 'readwrite' });
                     if (status === 'granted') {
-
-                        g_projectsDirHandle = handle;
-
                         await refreshDiskProjects();
-
-                        renderSavedProjects();
-
                     }
-
-                } catch (e) { }
-
-            }
-
+                    renderSavedProjects();
+                }
+            } catch (e) { console.error("autoConnectFolder error:", e); }
         }
-
-
 
         async function syncWithFolder(forceNew = false) {
             try {
@@ -8752,12 +8787,15 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     try {
                         const storedHandle = await loadDirHandle();
                         if (storedHandle) {
+                            g_projectsDirHandle = storedHandle;
                             let status = await storedHandle.queryPermission({ mode: 'readwrite' });
+                            if (status !== 'granted') {
+                                status = await storedHandle.requestPermission({ mode: 'readwrite' });
+                            }
                             if (status === 'granted') {
-                                g_projectsDirHandle = storedHandle;
                                 await refreshDiskProjects();
                                 renderSavedProjects();
-                                alert("✓ Mapa [" + g_projectsDirHandle.name + "] že povezana!");
+                                alert("✓ Mapa [" + g_projectsDirHandle.name + "] uspešno povezana!");
                                 return;
                             }
                         }
@@ -8768,14 +8806,11 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                 await refreshDiskProjects();
                 renderSavedProjects();
 
-                alert("Mapa uspešno povezana in shranjena!");
+                alert("Mapa [" + g_projectsDirHandle.name + "] uspešno povezana in shranjena!");
 
             } catch (err) {
-
                 if (err.name !== 'AbortError') alert("Napaka: " + err.message);
-
             }
-
         }
 
 
@@ -8944,6 +8979,9 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
                 const data = JSON.parse(content);
 
+                window.g_currentLoadedFileName = fileName;
+                if (data.id) window.g_currentLoadedId = data.id;
+
                 loadProjectData(data);
 
                 alert("Datoteka '" + fileName + "' naložena!");
@@ -8967,6 +9005,9 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                 try {
 
                     const data = JSON.parse(e.target.result);
+
+                    window.g_currentLoadedFileName = file.name;
+                    if (data.id) window.g_currentLoadedId = data.id;
 
                     loadProjectData(data);
 
@@ -9175,55 +9216,37 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
 
         async function toggleProjectsDropdown() {
-
             const list = document.getElementById('projects-dropdown-list');
-
             if (list.style.display === 'block') {
-
                 list.style.display = 'none';
-
             } else {
-
                 if (!g_projectsDirHandle) {
-
                     try {
-
-                        const handle = await getHandleFromIndexedDB('pola_dir_handle');
-
+                        const handle = await loadDirHandle();
                         if (handle) {
-
-                            if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') {
-
-                                g_projectsDirHandle = handle;
-
-                            } else if ((await handle.requestPermission({ mode: 'readwrite' })) === 'granted') {
-
-                                g_projectsDirHandle = handle;
-
-                            }
-
+                            g_projectsDirHandle = handle;
                         }
-
                     } catch (e) { console.error("IndexedDB error:", e); }
-
                 }
 
-
-
-                if (g_projectsDirHandle) await refreshDiskProjects();
+                if (g_projectsDirHandle) {
+                    try {
+                        let status = await g_projectsDirHandle.queryPermission({ mode: 'readwrite' });
+                        if (status !== 'granted') {
+                            status = await g_projectsDirHandle.requestPermission({ mode: 'readwrite' });
+                        }
+                        if (status === 'granted') {
+                            await refreshDiskProjects();
+                        }
+                    } catch (e) { console.error("Permission check error:", e); }
+                }
 
                 renderSavedProjects();
-
                 list.style.display = 'block';
 
-                // Zapri customer dropdown če je odprt
-
                 const clist = document.getElementById('cust-dropdown-list');
-
                 if (clist) clist.style.display = 'none';
-
             }
-
         }
 
 
@@ -12248,6 +12271,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
         document.addEventListener('DOMContentLoaded', () => {
             initStockData();
+            autoConnectFolder();
         });
     </script>
 
