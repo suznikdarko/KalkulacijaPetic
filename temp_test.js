@@ -3376,7 +3376,8 @@ setT('res-usage-cover', '-%');
                     'rubl': { '50x35': 0.480, '70x33': 0.590, '70x50': 0.640 },
                     'blescice': { '50x35': 0.340, '70x33': 0.435, '70x50': 0.479 },
                     'rubl_sij': { '50x35': 0.413, '70x33': 0.558, '70x50': 0.629 },
-                    'rubl_mat': { '50x35': 0.454, '70x33': 0.603, '70x50': 0.677 }
+                    'rubl_mat': { '50x35': 0.454, '70x33': 0.603, '70x50': 0.677 },
+                    'pokritna_bela': { '50x35': 0.441, '70x33': 0.558, '70x50': 0.558 }
                 };
                 const pricePerSheet = uvLakTable[type] ? uvLakTable[type][format] : 0.025;
                 const pricePer1000 = pricePerSheet * 1000;
