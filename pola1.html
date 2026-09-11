@@ -1368,6 +1368,38 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- Dodatna dela -->
+                        <div class="finish-item" id="row-finish-dodatna-dela"
+                            style="display: grid !important; grid-template-columns: 140px 1fr 1fr !important; gap: 0.5rem; align-items: start; padding: 0.6rem 0.8rem; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; background: rgba(16, 185, 129, 0.05);">
+                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; cursor:pointer; margin-top: 0.4rem;">
+                                <input type="checkbox" id="f-dodatna-dela-active" onchange="toggleFinishRow('dodatna-dela')">
+                                Dodatna dela
+                            </label>
+                            <div style="grid-column: 2 / span 2; display: flex; flex-direction: column; gap: 0.4rem;">
+                                <div class="form-group" style="margin:0; width:100%;">
+                                    <label><small>Opis del</small></label>
+                                    <input type="text" id="f-dodatna-dela-desc" placeholder="Opis dodatnih del..."
+                                        onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                </div>
+                                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.5rem; width:100%;">
+                                    <div class="form-group" style="margin:0;">
+                                        <label><small>Število pol</small></label>
+                                        <input type="number" id="f-dodatna-dela-sheets" placeholder="0" min="0" step="1"
+                                            onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                    </div>
+                                    <div class="form-group" style="margin:0;">
+                                        <label><small>Število komadov</small></label>
+                                        <input type="number" id="f-dodatna-dela-kom" placeholder="0" min="0" step="1"
+                                            onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                    </div>
+                                    <div class="form-group" style="margin:0;">
+                                        <label><small>Cena polo/kom (€)</small></label>
+                                        <input type="number" id="f-dodatna-dela-price" value="0.00" step="0.001" min="0"
+                                            onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <!-- Razrez materiala - PREMAKNJENO NA VRH -->
                         <!-- UV tuja usluga -->
                         <div class="finish-item" id="row-finish-uv">
@@ -1957,6 +1989,10 @@
             if (isChecked('f-lepljenje-active')) list.push('Lepljenje');
             if (isChecked('f-spiral-active')) list.push('Špiraljenje / Vrvice');
             if (isChecked('f-extra-active')) list.push('Ročno delo');
+            if (isChecked('f-dodatna-dela-active')) {
+                const desc = document.getElementById('f-dodatna-dela-desc') ? document.getElementById('f-dodatna-dela-desc').value.trim() : '';
+                list.push(desc ? `Dodatna dela (${desc})` : 'Dodatna dela');
+            }
             if (isChecked('f-tool-active')) list.push('Orodje');
             if (isChecked('f-zasek-grafotehna-active')) list.push('Zasek-Grafotehna');
             if (isChecked('f-uv-active')) {
@@ -3840,6 +3876,12 @@
                 }
                 totalFinishCost += (workQty / spd) * rte;
             }
+            if (document.getElementById('f-dodatna-dela-active') && document.getElementById('f-dodatna-dela-active').checked) {
+                let dSheets = parseFloat((document.getElementById('f-dodatna-dela-sheets')?.value || '').replace(',', '.')) || 0;
+                let dKom = parseFloat((document.getElementById('f-dodatna-dela-kom')?.value || '').replace(',', '.')) || 0;
+                let dPrice = parseFloat((document.getElementById('f-dodatna-dela-price')?.value || '').replace(',', '.')) || 0;
+                totalFinishCost += (dSheets + dKom) * dPrice;
+            }
             if (document.getElementById('f-tool-active').checked) {
                 totalFinishCost += (parseFloat(document.getElementById('f-tool-cost').value.replace(',', '.')) || 0);
             }
@@ -4120,6 +4162,23 @@
                     name: `Ročno delo${qtyNote} (Norma: ${spd} kos/h)`,
                     cost: eMan,
                     breakdown: `Čas: ${hrs.toFixed(2)} h po ${formatPrice(rte)}/h = ${formatPrice(eMan)}`
+                });
+            }
+            if (document.getElementById('f-dodatna-dela-active') && document.getElementById('f-dodatna-dela-active').checked) {
+                let dDesc = document.getElementById('f-dodatna-dela-desc') ? document.getElementById('f-dodatna-dela-desc').value.trim() : '';
+                let dSheets = parseFloat((document.getElementById('f-dodatna-dela-sheets')?.value || '').replace(',', '.')) || 0;
+                let dKom = parseFloat((document.getElementById('f-dodatna-dela-kom')?.value || '').replace(',', '.')) || 0;
+                let dPrice = parseFloat((document.getElementById('f-dodatna-dela-price')?.value || '').replace(',', '.')) || 0;
+                let dCost = (dSheets + dKom) * dPrice;
+                let title = dDesc ? `Dodatna dela (${dDesc})` : 'Dodatna dela';
+                let parts = [];
+                if (dSheets > 0) parts.push(`${dSheets} pol`);
+                if (dKom > 0) parts.push(`${dKom} kom`);
+                let qtyStr = parts.length > 0 ? parts.join(', ') : '0 unit';
+                details.finish.items.push({
+                    name: title,
+                    cost: dCost,
+                    breakdown: `${qtyStr} x ${formatPrice(dPrice)}`
                 });
             }
             if (document.getElementById('f-tool-active').checked) {
@@ -5518,6 +5577,7 @@
                             spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
                             spiraljenje: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate'), qty: gv('f-extra-qty') },
+                            dodatnaDela: { active: gc('f-dodatna-dela-active'), desc: gv('f-dodatna-dela-desc'), sheets: gv('f-dodatna-dela-sheets'), kom: gv('f-dodatna-dela-kom'), price: gv('f-dodatna-dela-price') },
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
                             zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
                             zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
@@ -5646,6 +5706,7 @@
                             spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
                             spiraljenje: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
+                            dodatnaDela: { active: gc('f-dodatna-dela-active'), desc: gv('f-dodatna-dela-desc'), sheets: gv('f-dodatna-dela-sheets'), kom: gv('f-dodatna-dela-kom'), price: gv('f-dodatna-dela-price') },
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
                             zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
                             zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
@@ -6264,6 +6325,16 @@
                         toggleFinishRow('extra');
                     }
 
+                    const dd = f.dodatnaDela;
+                    if (dd) {
+                        setV('f-dodatna-dela-active', dd.active, true);
+                        if (dd.desc !== undefined) setV('f-dodatna-dela-desc', dd.desc);
+                        if (dd.sheets !== undefined) setV('f-dodatna-dela-sheets', dd.sheets);
+                        if (dd.kom !== undefined) setV('f-dodatna-dela-kom', dd.kom);
+                        if (dd.price !== undefined) setV('f-dodatna-dela-price', dd.price);
+                        toggleFinishRow('dodatna-dela');
+                    }
+
                     const tl = f.tool;
                     if (tl) {
                         setV('f-tool-active', tl.active, true);
@@ -6486,6 +6557,7 @@
                             spiral: { active: document.getElementById('f-spiral-active').checked, price: document.getElementById('f-spiral-price').value },
                             spiraljenje: { active: document.getElementById('f-spiral-active').checked, price: document.getElementById('f-spiral-price').value },
                             extra: { active: document.getElementById('f-extra-active').checked, speed: document.getElementById('f-extra-speed').value, rate: document.getElementById('f-extra-rate').value, qty: document.getElementById('f-extra-qty') ? document.getElementById('f-extra-qty').value : '' },
+                            dodatnaDela: { active: document.getElementById('f-dodatna-dela-active') ? document.getElementById('f-dodatna-dela-active').checked : false, desc: document.getElementById('f-dodatna-dela-desc') ? document.getElementById('f-dodatna-dela-desc').value : '', sheets: document.getElementById('f-dodatna-dela-sheets') ? document.getElementById('f-dodatna-dela-sheets').value : '', kom: document.getElementById('f-dodatna-dela-kom') ? document.getElementById('f-dodatna-dela-kom').value : '', price: document.getElementById('f-dodatna-dela-price') ? document.getElementById('f-dodatna-dela-price').value : 0 },
                             tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
                             zasekGrafotehna: { active: document.getElementById('f-zasek-grafotehna-active') ? document.getElementById('f-zasek-grafotehna-active').checked : false, price: document.getElementById('f-zasek-grafotehna-price') ? document.getElementById('f-zasek-grafotehna-price').value : 0.05 },
                             zasek: { active: document.getElementById('f-zasek-grafotehna-active') ? document.getElementById('f-zasek-grafotehna-active').checked : false, price: document.getElementById('f-zasek-grafotehna-price') ? document.getElementById('f-zasek-grafotehna-price').value : 0.05 },
@@ -7444,6 +7516,22 @@
                         <td style="width: 15%;">Ročno delo${qtyNote}:</td>
                         <td style="width: 35%;"></td>
                         <td style="width: 50%; text-align: right;" class="bold"><span class="bold">delo:</span> ${extraHours.toFixed(1).replace('.', ',')} h</td>
+                    </tr>`;
+            }
+            if (isChecked('f-dodatna-dela-active')) {
+                let dDesc = document.getElementById('f-dodatna-dela-desc') ? document.getElementById('f-dodatna-dela-desc').value.trim() : '';
+                let dSheets = parseFloat((document.getElementById('f-dodatna-dela-sheets')?.value || '').replace(',', '.')) || 0;
+                let dKom = parseFloat((document.getElementById('f-dodatna-dela-kom')?.value || '').replace(',', '.')) || 0;
+                let parts = [];
+                if (dSheets > 0) parts.push(`${dSheets.toLocaleString('de-DE')} pol`);
+                if (dKom > 0) parts.push(`${dKom.toLocaleString('de-DE')} kos`);
+                let infoStr = parts.length > 0 ? parts.join(', ') : '';
+                let labelText = dDesc ? `Dodatna dela (${dDesc}):` : 'Dodatna dela:';
+                finishingRowsHtml += `
+                    <tr>
+                        <td style="width: 15%;">${labelText}</td>
+                        <td style="width: 35%;" class="bold">${infoStr}</td>
+                        <td style="width: 50%; text-align: right;" class="bold">/</td>
                     </tr>`;
             }
             if (isChecked('f-zasek-grafotehna-active')) {
