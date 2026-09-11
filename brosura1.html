@@ -3623,9 +3623,12 @@
             <button class="calculate-btn" onclick="printQuoteAT()"
                 style="margin: 0; width: auto; background: #ef4444; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.4rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);" title="Pripravi in natisni ponudbo v nemščini (AT)">
                 📄 PONUDBA (AT)</button>
-            <button class="calculate-btn" onclick="printProductionOrder()"
+            <button class="calculate-btn" onclick="printWorkOrder()"
                 style="margin: 0; width: auto; background: #8b5cf6; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.4rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);" title="Pripravi in natisni delovni nalog">
                 🛠️ D. NALOG</button>
+            <button class="calculate-btn" onclick="printProductionOrder()"
+                style="margin: 0; width: auto; background: #818cf8; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.4rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(129, 140, 248, 0.4);" title="Pripravi in natisni montažni list">
+                📋 MONTAŽNI LIST</button>
             <button class="calculate-btn" onclick="addToBasket()"
                 style="margin: 0; width: auto; background: #f59e0b; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.2rem; font-size: 0.9rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);" title="Dodaj trenutno kalkulacijo v skupno košarico">
                 ➕ DODAJ</button>
@@ -11052,9 +11055,13 @@
 
 
 
-                if (isInternal && canvasImages) {
+                if (isInternal) {
 
-                    const item = itemsToRender[0];
+                    const item = itemsToRender[0] || {};
+
+                    const imgLeaves = (canvasImages && canvasImages.leaves) ? `<div class="schema-box"><img src="${canvasImages.leaves}"></div>` : '';
+
+                    const imgCover = (canvasImages && canvasImages.cover) ? `<div class="schema-box"><img src="${canvasImages.cover}"></div>` : '';
 
                     return `
 
@@ -11130,7 +11137,7 @@
 
                                 </div>
 
-                                ${canvasImages.leaves ? `<div class="schema-box"><img src="${canvasImages.leaves}"></div>` : ''}
+                                ${imgLeaves}
 
                             </div>
 
@@ -11152,7 +11159,7 @@
 
                                 </div>
 
-                                ${canvasImages.cover ? `<div class="schema-box"><img src="${canvasImages.cover}"></div>` : ''}
+                                ${imgCover}
 
                             </div>
 
@@ -11524,7 +11531,7 @@
             }
 
             
-            function printProductionOrder() {
+            function printWorkOrder() {
                 try {
                     const html = getWorkOrderHTML();
                     const printWin = window.open('', '_blank', 'width=950,height=900');
@@ -11536,6 +11543,29 @@
                     printWin.document.close();
                     setTimeout(() => { printWin.focus(); }, 200);
                 } catch (e) { alert("Napaka pri pripravi delovnega naloga: " + e.message); }
+            }
+
+            function printProductionOrder() {
+                try {
+                    const canvasL = document.getElementById('canvas-leaves');
+                    const canvasC = document.getElementById('canvas-cover');
+                    let canvasImages = {};
+                    if (canvasL && canvasL.style.display !== 'none') {
+                        canvasImages.leaves = canvasL.toDataURL('image/png');
+                    }
+                    if (canvasC && canvasC.style.display !== 'none') {
+                        canvasImages.cover = canvasC.toDataURL('image/png');
+                    }
+                    const html = getQuoteHTML(false, canvasImages, true);
+                    const printWin = window.open('', '_blank', 'width=900,height=900');
+                    if (!printWin) {
+                        alert("Prosimo omogočite pojavna okna (pop-ups) za ta zavihek.");
+                        return;
+                    }
+                    printWin.document.write(html);
+                    printWin.document.close();
+                    setTimeout(() => { printWin.focus(); }, 200);
+                } catch (e) { alert("Napaka pri pripravi montažnega lista: " + e.message); }
             }
 
             function getWorkOrderHTML() {
