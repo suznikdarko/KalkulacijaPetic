@@ -1940,7 +1940,7 @@
 
                         <div class="input-group" style="display: flex; gap: 0.5rem;">
 
-                            <select id="calc-color-front" onchange="updateWasteAndPrice()"
+                            <select id="calc-color-front" onchange="window.g_manualPlatesNumUserEdited = false; updateWasteAndPrice()"
 
                                 style="animation: 1.5s ease 0s infinite normal none running blinkRequired;">
 
@@ -1962,7 +1962,7 @@
 
                             </select>
 
-                            <select id="calc-color-back" onchange="updateWasteAndPrice()"
+                            <select id="calc-color-back" onchange="window.g_manualPlatesNumUserEdited = false; updateWasteAndPrice()"
 
                                 style="animation: 1.5s ease 0s infinite normal none running blinkRequired;">
 
@@ -1996,7 +1996,7 @@
 
                             style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; color: #34d399; margin: 0; font-weight: 600;">
 
-                            <input type="checkbox" id="calc-is-obrat" onchange="calculate()"
+                            <input type="checkbox" id="calc-is-obrat" onchange="window.g_manualPlatesNumUserEdited = false; calculate()"
 
                                 style="width: 20px; height: 20px; margin: 0; cursor: pointer;">
 
@@ -2041,7 +2041,11 @@
 
                         <label>Število plošč <small>(polno število)</small></label>
 
-                        <input type="number" id="calc-plates-num" value="4" onchange="calculatePrice()">
+                        <input type="number" id="calc-plates-num" value="4" min="0" step="1"
+
+                            oninput="window.g_manualPlatesNumUserEdited = true; calculatePrice()"
+
+                            onchange="window.g_manualPlatesNumUserEdited = true; calculatePrice()">
 
                     </div>
 
@@ -2079,7 +2083,7 @@
 
                         <label>Vrsta mutacije</label>
 
-                        <select id="calc-mut-type" onchange="updateMutationPlates(); calculatePrice()">
+                        <select id="calc-mut-type" onchange="window.g_manualPlatesNumUserEdited = false; updateMutationPlates(); updateWasteAndPrice(true); calculatePrice()">
 
                             <option value="">Brez mutacij</option>
 
@@ -2099,9 +2103,9 @@
 
                         <input type="number" id="calc-mut-qty" value="0" min="0" step="1"
 
-                            oninput="updateMutationPlates(); calculatePrice()"
+                            oninput="window.g_manualPlatesNumUserEdited = false; updateMutationPlates(); updateWasteAndPrice(true); calculatePrice()"
 
-                            onchange="updateMutationPlates(); calculatePrice()">
+                            onchange="window.g_manualPlatesNumUserEdited = false; updateMutationPlates(); updateWasteAndPrice(true); calculatePrice()">
 
                     </div>
 
@@ -2111,7 +2115,9 @@
 
                         <input type="number" id="calc-mut-plates" value="0" min="0" step="1"
 
-                            onchange="calculatePrice()">
+                            oninput="window.g_manualPlatesNumUserEdited = false; updateWasteAndPrice(false); calculatePrice()"
+
+                            onchange="window.g_manualPlatesNumUserEdited = false; updateWasteAndPrice(false); calculatePrice()">
 
                     </div>
 
@@ -5173,47 +5179,89 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
         function updateMutationPlates() {
 
-            const mutType = document.getElementById('calc-mut-type').value;
+            const mutTypeEl = document.getElementById('calc-mut-type');
+
+            const mutQtyEl = document.getElementById('calc-mut-qty');
+
+            const mutPlatesInput = document.getElementById('calc-mut-plates');
+
+            if (!mutTypeEl || !mutQtyEl || !mutPlatesInput) return;
+
+            let mutType = mutTypeEl.value;
 
             const front = parseInt(document.getElementById('calc-color-front').value) || 0;
 
             const back = parseInt(document.getElementById('calc-color-back').value) || 0;
 
-            const mutQty = parseInt(document.getElementById('calc-mut-qty').value) || 1;
-
-            const mutPlatesInput = document.getElementById('calc-mut-plates');
-
             const isObrat = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
 
+            let mutQty = parseInt(mutQtyEl.value);
 
+            if (isNaN(mutQty)) mutQty = 0;
 
-            if (mutPlatesInput) {
+            if (mutType !== "" && mutQty === 0) {
 
-                let plates = 0;
+                mutQty = 1;
 
-                if (mutType === "Mutacija po prvi strani (1/0)") {
+                mutQtyEl.value = 1;
 
-                    plates = front;
+            } else if (mutQty > 0 && mutType === "") {
 
-                } else if (mutType === "Mutacija po drugi strani (0/1)") {
+                if (front === 0 && back > 0) {
 
-                    plates = back;
+                    mutType = "Mutacija po drugi strani (0/1)";
 
-                } else if (mutType === "Mutacija obojestransko (1/1)") {
+                } else {
 
-                    plates = isObrat ? front : (front + back);
+                    mutType = "Mutacija po prvi strani (1/0)";
 
                 }
 
-                mutPlatesInput.value = plates * Math.max(1, mutQty);
+                mutTypeEl.value = mutType;
+
+            } else if (mutType === "") {
+
+                mutQty = 0;
+
+                mutQtyEl.value = 0;
 
             }
 
+            let plates = 0;
+
+            if (mutType === "Mutacija po prvi strani (1/0)") {
+
+                plates = front;
+
+            } else if (mutType === "Mutacija po drugi strani (0/1)") {
+
+                plates = back;
+
+            } else if (mutType === "Mutacija obojestransko (1/1)") {
+
+                plates = isObrat ? front : (front + back);
+
+            }
+
+            mutPlatesInput.value = plates * mutQty;
+
         }
 
-        function updateWasteAndPrice(needed, q, dw, dh) {
+        function updateWasteAndPrice(needed, q, dw, dh, recalcMutation = true) {
 
-            updateMutationPlates();
+            if (typeof needed === 'boolean') {
+
+                recalcMutation = needed;
+
+                needed = undefined;
+
+            }
+
+            if (recalcMutation !== false) {
+
+                updateMutationPlates();
+
+            }
 
             const mType = document.getElementById('calc-machine-type').value;
 
@@ -5245,9 +5293,15 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
             const mutPlates = parseInt(document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : 0) || 0;
 
-            const totalPlates = front + (isObrat ? 0 : back) + mutPlates;
 
-            document.getElementById('calc-plates-num').value = totalPlates;
+
+            if (!window.g_manualPlatesNumUserEdited) {
+
+                const totalPlates = front + (isObrat ? 0 : back) + mutPlates;
+
+                document.getElementById('calc-plates-num').value = totalPlates;
+
+            }
 
 
 
@@ -5629,9 +5683,31 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
                 let _mutPlates = parseInt(document.getElementById('calc-mut-plates').value) || 0;
 
+                let _mutQty = parseInt(document.getElementById('calc-mut-qty').value) || 0;
+
                 let _basicPlates = _front + (_isObrat ? 0 : _back);
 
-                let mutPlatesVal = (_basicPlates > 0) ? Math.ceil(_mutPlates / _basicPlates) : _mutPlates;
+                let mutPlatesVal = 0;
+
+                if (_mutQty > 0) {
+
+                    mutPlatesVal = _mutQty;
+
+                } else if (_mutPlates > 0) {
+
+                    let _mutType = document.getElementById('calc-mut-type') ? document.getElementById('calc-mut-type').value : "";
+
+                    let platesPerMut = (_mutType === "Mutacija po prvi strani (1/0)") ? _front :
+
+                                       (_mutType === "Mutacija po drugi strani (0/1)") ? _back :
+
+                                       (_mutType === "Mutacija obojestransko (1/1)") ? (_isObrat ? _front : (_front + _back)) :
+
+                                       (_front > 0 ? _front : (_basicPlates > 0 ? _basicPlates : 4));
+
+                    mutPlatesVal = (platesPerMut > 0) ? Math.ceil(_mutPlates / platesPerMut) : _mutPlates;
+
+                }
 
                 let mutSuffix = "";
 
@@ -8140,6 +8216,8 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
                     mutQty: gv('calc-mut-qty'),
 
+                    mutPlates: gv('calc-mut-plates'),
+
                     orderType: gv('calc-order-type'),
 
                     editedQuoteHTML: g_editedQuoteHTML,
@@ -8403,6 +8481,8 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     mutType: gv('calc-mut-type'),
 
                     mutQty: gv('calc-mut-qty'),
+
+                    mutPlates: gv('calc-mut-plates'),
 
                     editedQuoteHTML: g_editedQuoteHTML,
 
@@ -9317,15 +9397,21 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
             if (document.getElementById('calc-mut-type')) {
 
-                document.getElementById('calc-mut-type').value = proj.mutType || "";
+                const lType = proj.mutType || "";
+
+                document.getElementById('calc-mut-type').value = lType;
 
                 if (document.getElementById('calc-mut-qty')) {
 
-                    document.getElementById('calc-mut-qty').value = proj.mutQty || 1;
+                    document.getElementById('calc-mut-qty').value = proj.mutQty !== undefined ? proj.mutQty : (lType ? 1 : 0);
 
                 }
 
-                document.getElementById('calc-mut-plates').value = proj.mutPlates || 0;
+                if (document.getElementById('calc-mut-plates')) {
+
+                    document.getElementById('calc-mut-plates').value = proj.mutPlates !== undefined ? proj.mutPlates : 0;
+
+                }
 
             }
 
@@ -9685,6 +9771,12 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     materialCode: document.getElementById('calc-material-code').value,
 
                     tenovisOrder: document.getElementById('calc-tenovis-order') ? document.getElementById('calc-tenovis-order').value : '',
+
+                    mutType: document.getElementById('calc-mut-type') ? document.getElementById('calc-mut-type').value : '',
+
+                    mutQty: document.getElementById('calc-mut-qty') ? document.getElementById('calc-mut-qty').value : '',
+
+                    mutPlates: document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : '',
 
                     timestamp: Date.now(),
 
