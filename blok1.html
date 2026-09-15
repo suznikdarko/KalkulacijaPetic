@@ -1479,10 +1479,14 @@
                 <!-- 3b. Podrobna Specifikacija -->
                 <div class="calc-section" id="detailed-spec-container"
                     style="background: rgba(30, 41, 59, 0.3); border-color: var(--glass-border); min-height: 200px;">
-                    <h3
-                        style="color: #60a5fa; border-bottom: 1px solid rgba(96, 165, 250, 0.2); padding-bottom: 0.5rem; margin-bottom: 1rem;">
-                        📋 Tehnična Specifikacija &amp; Razčlenitev Stroškov
-                    </h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(96, 165, 250, 0.2); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                        <h3 style="color: #60a5fa; margin: 0; border: none; padding: 0;">
+                            📋 Tehnična Specifikacija &amp; Razčlenitev Stroškov
+                        </h3>
+                        <button onclick="printTechSpec()" class="calculate-btn" style="background: #0284c7; margin: 0; padding: 0.4rem 0.8rem; width: auto; font-size: 0.85rem; font-weight: bold;" title="Pripravi in natisni tehnično specifikacijo">
+                            🖨️ Natisni specifikacijo
+                        </button>
+                    </div>
                     <div id="detailed-spec-content">
                         <!-- Tukaj se dinamično generira vsebina iz renderDetailedSpec() -->
                         <div style="text-align: center; color: #94a3b8; padding: 2rem;">
@@ -2120,6 +2124,9 @@
             <button class="calculate-btn" onclick="printProductionOrder()"
                 style="margin: 0; width: auto; background: #818cf8; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.4rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(129, 140, 248, 0.4);" title="Pripravi in natisni montažni list">
                 📋 MONTAŽNI LIST</button>
+            <button class="calculate-btn" onclick="printTechSpec()"
+                style="margin: 0; width: auto; background: #0284c7; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.4rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);" title="Pripravi in natisni tehnično specifikacijo">
+                📊 SPECIFIKACIJA</button>
             <button class="calculate-btn" onclick="addToBasket()"
                 style="margin: 0; width: auto; background: #f59e0b; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.2rem; font-size: 0.9rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);" title="Dodaj trenutno kalkulacijo v skupno košarico">
                 ➕ DODAJ</button>
@@ -8323,6 +8330,269 @@ async function saveCurrentProject(btn = null) {
                     printWin.document.close();
                     setTimeout(() => { printWin.focus(); }, 200);
                 } catch (e) { alert("Napaka pri pripravi montažnega lista: " + e.message); }
+            }
+
+            function printTechSpec() {
+                try {
+                    const html = getTechSpecHTML();
+                    const printWin = window.open('', '_blank', 'width=950,height=900');
+                    if (!printWin) {
+                        alert("Pojavno okno je bilo blokirano.");
+                        return;
+                    }
+                    printWin.document.write(html);
+                    printWin.document.close();
+                    setTimeout(() => { printWin.focus(); }, 200);
+                } catch (e) { alert("Napaka pri pripravi tehnične specifikacije: " + e.message); }
+            }
+
+            function getTechSpecHTML() {
+                let customer = document.getElementById('calc-customer').value || "Ni vpisano";
+                let customerCode = document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "";
+                let custAddress = document.getElementById('calc-cust-address').value || "";
+                let custEmail = document.getElementById('calc-cust-email') ? document.getElementById('calc-cust-email').value : "";
+                let quoteNum = document.getElementById('calc-quote-number').value || "";
+                let product = document.getElementById('calc-project-name').value || "Ni vpisano";
+                let preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
+                let orderType = document.getElementById('calc-order-type') ? document.getElementById('calc-order-type').value : '';
+
+                const dateObj = new Date();
+                const slMonths = ["januar", "februar", "marec", "april", "maj", "junij", "julij", "avgust", "september", "oktober", "november", "december"];
+                let date = dateObj.getDate() + '. ' + slMonths[dateObj.getMonth()] + ' ' + dateObj.getFullYear();
+
+                const qtyStr = document.getElementById('quantity').value || '0';
+                const qtyArr = qtyStr.split(/[,/;]+/).map(x => parseFloat(x.trim().replace(/\./g, '').replace(',', '.'))).filter(x => !isNaN(x) && x > 0);
+                if (qtyArr.length === 0) qtyArr.push(1);
+
+                const safeFixed = (val, dec = 1) => {
+                    const n = parseFloat(val);
+                    return isNaN(n) ? "0" : n.toFixed(dec);
+                };
+
+                let specsHtml = '';
+
+                qtyArr.forEach((q) => {
+                    let calcRes = calculateForSingleQty(q, true);
+                    let d = calcRes ? calcRes.details : null;
+                    if (!d) return;
+
+                    let matHtml = `
+                        <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                            <div style="font-weight: bold; color: #2563eb; margin-bottom: 5px; font-size: 11pt;">1. Material (Papir)</div>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 10pt;" cellpadding="3">
+                                <tr>
+                                    <td>Tiskovne pole listov po razrezu:</td>
+                                    <td style="text-align: right; font-weight: bold;">${formatQty(d.paper.leaves.sheets)} pol</td>
+                                </tr>
+                                <tr>
+                                    <td>Nerazrezane pole (${d.paper.leaves.sourceW}×${d.paper.leaves.sourceH} mm → ${d.paper.leaves.yield}x razrez):</td>
+                                    <td style="text-align: right; font-weight: bold;">${formatQty(d.paper.leaves.parentSheets)} pol</td>
+                                </tr>
+                                ${d.paper.leaves.kg > 0 ? `<tr><td>Teža papirja listov:</td><td style="text-align: right;">${safeFixed(d.paper.leaves.kg)} kg</td></tr>` : ''}
+                                ${d.paper.cover.active ? `
+                                <tr><td colspan="2" style="border-top: 1px dashed #cbd5e1; padding-top: 5px; font-weight: bold; color: #2563eb;">Ovitek / Podkarton:</td></tr>
+                                <tr>
+                                    <td>Tiskovne pole ovitka po razrezu:</td>
+                                    <td style="text-align: right; font-weight: bold;">${formatQty(d.paper.cover.sheets)} pol</td>
+                                </tr>
+                                <tr>
+                                    <td>Nerazrezane pole (${d.paper.cover.sourceW}×${d.paper.cover.sourceH} mm → ${d.paper.cover.yield}x razrez):</td>
+                                    <td style="text-align: right; font-weight: bold;">${formatQty(d.paper.cover.parentSheets)} pol</td>
+                                </tr>
+                                ${d.paper.cover.kg > 0 ? `<tr><td>Teža papirja ovitka:</td><td style="text-align: right;">${safeFixed(d.paper.cover.kg)} kg</td></tr>` : ''}
+                                ` : ''}
+                                <tr style="border-top: 1px solid #cbd5e1; font-weight: bold; color: #1e3a8a;">
+                                    <td>Strošek materiala skupaj:</td>
+                                    <td style="text-align: right;">${formatPrice(d.paper.cost)}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    `;
+
+                    let printLHtml = d.leavesPrint.active ? `
+                        <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                            <div style="font-weight: bold; color: #7c3aed; margin-bottom: 5px; font-size: 11pt;">2. Priprava in Tisk (Listi)</div>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 10pt;" cellpadding="3">
+                                <tr><td>Število plošč:</td><td style="text-align: right;">${d.leavesPrint.plates} kos (${formatPrice(d.leavesPrint.platesCost)})</td></tr>
+                                <tr><td>Pavšalna priprava:</td><td style="text-align: right;">${formatPrice(d.leavesPrint.prepSetup)}</td></tr>
+                                ${d.leavesPrint.changes > 0 ? `<tr><td>Menjava plošč:</td><td style="text-align: right;">${formatPrice(d.leavesPrint.prepChanges)}</td></tr>` : ''}
+                                ${d.leavesPrint.washesNum > 0 ? `<tr><td>Pranje stroja:</td><td style="text-align: right;">${formatPrice(d.leavesPrint.washCost)}</td></tr>` : ''}
+                                <tr><td>Neto čas tiska (${(d.leavesPrint.printHours * 60).toFixed(0)} min):</td><td style="text-align: right;">${formatPrice(d.leavesPrint.printHours * d.leavesPrint.mRate)}</td></tr>
+                                <tr><td>Prijemalec (gripper):</td><td style="text-align: right; font-weight: bold;">${d.leavesPrint.gripper} mm</td></tr>
+                                <tr style="border-top: 1px solid #cbd5e1; font-weight: bold; color: #5b21b6;">
+                                    <td>Skupaj priprava + tisk listov:</td>
+                                    <td style="text-align: right;">${formatPrice(d.leavesPrint.cost)}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    ` : '';
+
+                    let printCHtml = d.coverPrint.active ? `
+                        <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                            <div style="font-weight: bold; color: #e11d48; margin-bottom: 5px; font-size: 11pt;">3. Priprava in Tisk (Ovitek)</div>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 10pt;" cellpadding="3">
+                                <tr><td>Število plošč:</td><td style="text-align: right;">${d.coverPrint.plates} kos (${formatPrice(d.coverPrint.platesCost)})</td></tr>
+                                <tr><td>Pavšalna priprava:</td><td style="text-align: right;">${formatPrice(d.coverPrint.prepSetup)}</td></tr>
+                                ${d.coverPrint.changes > 0 ? `<tr><td>Menjava plošč:</td><td style="text-align: right;">${formatPrice(d.coverPrint.prepChanges)}</td></tr>` : ''}
+                                ${d.coverPrint.washesNum > 0 ? `<tr><td>Pranje stroja:</td><td style="text-align: right;">${formatPrice(d.coverPrint.washCost)}</td></tr>` : ''}
+                                <tr><td>Neto čas tiska (${(d.coverPrint.printHours * 60).toFixed(0)} min):</td><td style="text-align: right;">${formatPrice(d.coverPrint.printHours * d.coverPrint.mRate)}</td></tr>
+                                <tr><td>Prijemalec (gripper):</td><td style="text-align: right; font-weight: bold;">${d.coverPrint.gripper} mm</td></tr>
+                                <tr style="border-top: 1px solid #cbd5e1; font-weight: bold; color: #9f1239;">
+                                    <td>Skupaj priprava + tisk ovitka:</td>
+                                    <td style="text-align: right;">${formatPrice(d.coverPrint.cost)}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    ` : '';
+
+                    let finishHtml = `
+                        <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                            <div style="font-weight: bold; color: #059669; margin-bottom: 5px; font-size: 11pt;">4. Dodelava in Storitve</div>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 10pt;" cellpadding="3">
+                                ${d.finish.items.map(item => `
+                                    <tr style="border-bottom: 1px dashed #e2e8f0;">
+                                        <td>
+                                            <strong>${item.name}</strong><br>
+                                            <span style="font-size: 8.5pt; color: #64748b;">${item.breakdown}</span>
+                                        </td>
+                                        <td style="text-align: right; font-weight: bold; vertical-align: top;">${formatPrice(item.cost)}</td>
+                                    </tr>
+                                `).join('')}
+                                <tr style="border-top: 1px solid #cbd5e1; font-weight: bold; color: #065f46;">
+                                    <td>Skupaj strošek dodelave:</td>
+                                    <td style="text-align: right;">${formatPrice(d.finish.cost)}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    `;
+
+                    let summaryHtml = `
+                        <div style="padding: 10px; background: #f1f5f9; border: 2px solid #059669; border-radius: 6px; margin-bottom: 15px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 11pt;" cellpadding="4">
+                                <tr>
+                                    <td style="font-weight: bold;">Skupaj proizvodni stroški:</td>
+                                    <td style="text-align: right; font-weight: bold; color: #0f172a;">${formatPrice(d.total)}</td>
+                                </tr>
+                                ${d.margin > 0 ? `
+                                <tr>
+                                    <td style="color: #475569;">RVC / Marža:</td>
+                                    <td style="text-align: right; color: #475569;">${formatPrice(d.margin)}</td>
+                                </tr>
+                                ` : ''}
+                                ${d.commercial > 0 ? `
+                                <tr>
+                                    <td style="color: #475569;">Komerciala / Admin:</td>
+                                    <td style="text-align: right; color: #475569;">${formatPrice(d.commercial)}</td>
+                                </tr>
+                                ` : ''}
+                                <tr style="border-top: 2px solid #059669; font-size: 12pt; font-weight: bold; color: #059669;">
+                                    <td>SKUPNA PRODAJNA CENA (brez DDV):</td>
+                                    <td style="text-align: right;">${formatPrice(calcRes.totalPrice)}</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size: 10pt; color: #475569;">Cena na kos:</td>
+                                    <td style="text-align: right; font-size: 10pt; font-weight: bold; color: #0284c7;">${formatPrice(calcRes.perItem, 4)} / kos</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size: 10pt; color: #475569;">Cena na 1.000 kos:</td>
+                                    <td style="text-align: right; font-size: 10pt; font-weight: bold; color: #d97706;">${formatPrice(calcRes.perItem * 1000, 2)} / 1.000 kos</td>
+                                </tr>
+                            </table>
+                        </div>
+                    `;
+
+                    specsHtml += `
+                        <div style="margin-top: 20px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px; background: #ffffff;">
+                            <h3 style="margin-top: 0; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 5px; font-size: 13pt;">
+                                Specifikacija za naklado: <span style="color: #0284c7;">${q.toLocaleString('sl-SI')} kos</span>
+                            </h3>
+                            ${matHtml}
+                            ${printLHtml}
+                            ${printCHtml}
+                            ${finishHtml}
+                            ${summaryHtml}
+                        </div>
+                    `;
+                });
+
+                return `
+                    <!DOCTYPE html>
+                    <html lang="sl">
+                    <head>
+                        <meta charset="utf-8">
+                        <title>Tehnična Specifikacija</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; font-size: 10pt; color: #000; margin: 0; padding: 15px; line-height: 1.2; }
+                            .info-table { border-collapse: collapse; margin-left: auto; margin-right: 0; }
+                            .info-table td { padding: 2px 0 2px 15px; text-align: right; }
+                            .info-table td:first-child { font-weight: normal; color: #555; }
+                            .info-table td:last-child { font-weight: bold; }
+                            h1 { font-size: 14pt; font-weight: bold; margin-top: 15px; margin-bottom: 10px; letter-spacing: 0.5px; border-bottom: 2px solid #f99c26; padding-bottom: 5px; color: #0f172a; }
+                            @media print { .no-print { display: none !important; } }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="no-print" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 15px; align-items: center; justify-content: start; margin-bottom: 15px;">
+                            <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">NATISNI SPECIFIKACIJO</button>
+                            <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">ZAPRI</button>
+                        </div>
+
+                        <!-- HEADER TISKARNA PETRIČ -->
+                        <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #f99c26; padding-bottom: 5px;" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="width: 32%; vertical-align: top;">
+                                    <table cellpadding="0" cellspacing="0" style="border: none; margin: 0; padding: 0; font-family: Arial, sans-serif; border-collapse: collapse;">
+                                        <tr><td style="color: #8c8f91; font-size: 20px; font-style: italic; font-weight: normal; margin: 0; padding: 0; line-height: 1.1; border: none;">tiskarna</td></tr>
+                                        <tr><td style="color: #f99c26; font-size: 36px; font-style: italic; font-weight: bold; margin: 0; padding: 0; padding-left: 15px; line-height: 1.1; border: none;">petrič</td></tr>
+                                    </table>
+                                </td>
+                                <td style="width: 25%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 9px; color: #8c8f91; font-style: italic;">
+                                    <strong>Tiskarna Petrič d.o.o.</strong><br>Tovarniška cesta 8<br>3210 Slovenske Konjice<br>ID za DDV: SI50694014
+                                </td>
+                                <td style="width: 20%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 9px; color: #8c8f91; font-style: italic;">
+                                    T: 03 757 25 56<br>F: 03 757 25 63<br>Mat. št.: 6889433
+                                </td>
+                                <td style="width: 23%; vertical-align: bottom; border-left: 2px solid #f99c26; padding-left: 15px; padding-bottom: 5px; font-size: 18px; font-weight: bold; color: #f99c26; font-style: italic;">
+                                    vse stiska
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- STRANKA & OSNOVNI PODATKI -->
+                        <table style="width: 100%; margin-bottom: 10px;" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="width: 50%; vertical-align: top;">
+                                    <div style="font-size: 9pt; color: #555; text-transform: uppercase; margin-bottom: 2px;">Stranka:</div>
+                                    <span style="font-size: 11pt;"><strong>${customer}</strong></span><br>
+                                    <div style="margin-top: 3px; line-height: 1.2; font-size: 9.5pt;">
+                                        ${custAddress ? custAddress.replace(/\n/g, '<br>') : ''}
+                                    </div>
+                                    ${custEmail ? '<div style="margin-top: 3px; color: #444; font-size: 9pt;">' + custEmail + '</div>' : ''}
+                                </td>
+                                <td style="width: 50%; vertical-align: top;" align="right">
+                                    <table class="info-table" cellpadding="0" cellspacing="0">
+                                        <tr><td>Datum:</td><td>${date}</td></tr>
+                                        <tr><td>Šifra stranke:</td><td>${customerCode || '/'}</td></tr>
+                                        <tr><td>Ponudba št.:</td><td>${quoteNum || '/'}</td></tr>
+                                        ${orderType ? `<tr><td>Tip naloga:</td><td style="color:#ef4444; font-weight:bold;">${orderType}</td></tr>` : ''}
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <h1>TEHNIČNA SPECIFIKACIJA &amp; RAZČLENITEV STROŠKOV</h1>
+                        <div style="margin-bottom: 10px; font-size: 10.5pt; font-weight: bold; color: #1e293b;">
+                            Projekt: <span style="color: #0284c7;">${product}</span>
+                        </div>
+
+                        ${specsHtml}
+
+                        <div style="margin-top: 25px; font-size: 9pt; font-style: italic; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+                            Specifikacijo pripravil: <strong>${preparedBy}</strong>
+                        </div>
+                    </body>
+                    </html>
+                `;
             }
 
             function getWorkOrderHTML() {
