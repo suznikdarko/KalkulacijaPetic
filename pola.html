@@ -1554,6 +1554,7 @@
                                         <option value="auto" selected>Avtomatsko</option>
                                         <option value="2">Na 2 dela (polovici)</option>
                                         <option value="3">Na 3 dele (tretjine)</option>
+                                        <option value="4">Na 4 dele (četrtine)</option>
                                         <option value="1">Brez (1 pola)</option>
                                     </select>
                                 </div>
@@ -2243,8 +2244,12 @@
                     digCutFactor = 2;
                 } else if (userSplit === '3') {
                     digCutFactor = 3;
+                } else if (userSplit === '4') {
+                    digCutFactor = 4;
                 } else { // 'auto'
-                    if (itemsPerSheet % 3 === 0 && itemsPerSheet % 2 !== 0) {
+                    if (itemsPerSheet % 4 === 0 && itemsPerSheet % 3 !== 0 && itemsPerSheet % 2 !== 0) {
+                        digCutFactor = 4;
+                    } else if (itemsPerSheet % 3 === 0 && itemsPerSheet % 2 !== 0) {
                         digCutFactor = 3;
                     } else {
                         digCutFactor = 2;
@@ -2261,6 +2266,9 @@
             } else if (digCutFactor === 3) {
                 if (sheetW >= sheetH) cutW = Math.round(sheetW / 3);
                 else cutH = Math.round(sheetH / 3);
+            } else if (digCutFactor === 4) {
+                cutW = Math.round(sheetW / 2);
+                cutH = Math.round(sheetH / 2);
             }
             
             let partMax = Math.max(cutW, cutH);
@@ -2537,6 +2545,20 @@
                         let countH = colsRaw * optionH;
                         if (countW >= countH) { c = optionW; r = rowsRaw; }
                         else { c = colsRaw; r = optionH; }
+                    } else if (factor === 4) {
+                        if (isB2Sheet) {
+                            let quarterW = 318;
+                            let quarterH = 238;
+                            let halfCols = Math.floor(quarterW / cfg.iw);
+                            let halfRows = Math.floor(quarterH / cfg.ih);
+                            c = halfCols * 2;
+                            r = halfRows * 2;
+                        } else {
+                            let optionW = Math.floor(colsRaw / 2) * 2;
+                            let optionH = Math.floor(rowsRaw / 2) * 2;
+                            c = optionW;
+                            r = optionH;
+                        }
                     }
                     return { cols: c, rows: r, count: c * r, factor: factor };
                 }
@@ -2549,10 +2571,15 @@
                         chosen = evalCut(2);
                     } else if (userSplit === '3') {
                         chosen = evalCut(3);
+                    } else if (userSplit === '4') {
+                        chosen = evalCut(4);
                     } else { // 'auto'
+                        let eval4 = evalCut(4);
                         let eval3 = evalCut(3);
                         let eval2 = evalCut(2);
-                        if (eval3.count > eval2.count && eval3.count > 0) {
+                        if (eval4.count > eval3.count && eval4.count > eval2.count && eval4.count > 0) {
+                            chosen = eval4;
+                        } else if (eval3.count > eval2.count && eval3.count > 0) {
                             chosen = eval3;
                         } else {
                             chosen = eval2;
@@ -3934,17 +3961,22 @@
                 let splitInfo = getPersonalizationSplitInfo(currentSheetW, currentSheetH, itemsPerSheet, mType);
                 let digCutFactor = splitInfo.digCutFactor;
                 let targetSheets = sheetsNeeded;
+                let pDigitalSheets = 0;
+                let pCustomQty = 0;
                 if (document.getElementById('f-personalization-qty')) {
-                    let pCustomQty = parseInt(document.getElementById('f-personalization-qty').value) || 0;
-                    if (pCustomQty > 0 && itemsPerSheet > 0) {
-                        targetSheets = Math.ceil(pCustomQty / itemsPerSheet);
-                    }
+                    pCustomQty = parseInt(document.getElementById('f-personalization-qty').value) || 0;
                 }
-                let pCost = (targetSheets * digCutFactor * pMultiplier) * (parseFloat(document.getElementById('f-personalization-price').value.replace(',', '.')) || 0);
+                if (pCustomQty > 0) {
+                    let itemsPerDigitalSheet = (itemsPerSheet > 0) ? (itemsPerSheet / digCutFactor) : 1;
+                    pDigitalSheets = Math.ceil(pCustomQty / itemsPerDigitalSheet);
+                } else {
+                    pDigitalSheets = targetSheets * digCutFactor;
+                }
+                let pCost = (pDigitalSheets * pMultiplier) * (parseFloat(document.getElementById('f-personalization-price').value.replace(',', '.')) || 0);
                 
                 let extraCost = 0;
                 if (digCutFactor > 1) {
-                    let cutsPerSheet = (digCutFactor === 3 ? 2 : 1) + (splitInfo.isTrimmed ? 1 : 0);
+                    let cutsPerSheet = (digCutFactor === 3 || digCutFactor === 4 ? 2 : 1) + (splitInfo.isTrimmed ? 1 : 0);
                     let razrezSheets = totalSheetsNeeded * cutsPerSheet;
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
@@ -4287,11 +4319,14 @@
                 let pCustomQty = 0;
                 if (document.getElementById('f-personalization-qty')) {
                     pCustomQty = parseInt(document.getElementById('f-personalization-qty').value) || 0;
-                    if (pCustomQty > 0 && itemsPerSheet > 0) {
-                        targetSheets = Math.ceil(pCustomQty / itemsPerSheet);
-                    }
                 }
-                let pDigitalSheets = targetSheets * digCutFactor;
+                let pDigitalSheets = 0;
+                if (pCustomQty > 0) {
+                    let itemsPerDigitalSheet = (itemsPerSheet > 0) ? (itemsPerSheet / digCutFactor) : 1;
+                    pDigitalSheets = Math.ceil(pCustomQty / itemsPerDigitalSheet);
+                } else {
+                    pDigitalSheets = targetSheets * digCutFactor;
+                }
                 let pTotalImpressions = pDigitalSheets * pMultiplier;
                 let pPrice = (parseFloat(document.getElementById('f-personalization-price').value.replace(',', '.')) || 0);
                 let pCost = pTotalImpressions * pPrice;
@@ -4304,7 +4339,7 @@
                 let breakdownText = `Delo${partialNote}: ${pTotalImpressions.toLocaleString('de-DE')} odtisov${sidesText} na ${pDigitalSheets.toLocaleString('de-DE')} pol za personalizacijo${persFormatInfo} po ${formatPrice(pPrice)}/odtis = ${formatPrice(pCost)}`;
                 let extraCost = 0;
                 if (digCutFactor > 1) {
-                    let cutsPerSheet = (digCutFactor === 3 ? 2 : 1) + (splitInfo.isTrimmed ? 1 : 0);
+                    let cutsPerSheet = (digCutFactor === 3 || digCutFactor === 4 ? 2 : 1) + (splitInfo.isTrimmed ? 1 : 0);
                     let razrezSheets = totalSheetsNeeded * cutsPerSheet;
                     let autoCutSpeed = 7400;
                     if (paperWeight >= 300) autoCutSpeed = 4100;
@@ -5060,14 +5095,73 @@
                 let actionTitle = splitInfo.isTrimmed ? 'RAZREZ IN OBREZ' : 'RAZREZ';
                 let badgeText = `✂ ${actionTitle} ZA PERSONALIZACIJO (${digCutFactor}x ${splitInfo.partStr})${limitWarn}`;
 
-                let cutPositions = [];
-                if (digCutFactor === 2) {
-                    cutPositions = [0.5];
-                } else if (digCutFactor === 3) {
-                    cutPositions = [1 / 3, 2 / 3];
-                }
+                if (digCutFactor === 4) {
+                    const cutX = (sheetW * 0.5) * scale;
+                    const cutY = (sheetH * 0.5) * scale;
 
-                if (sheetW >= sheetH) {
+                    // Vertikalni rez po sredini
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    ctx.moveTo(cutX, 0);
+                    ctx.lineTo(cutX, canvas.height);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = '#dc2626';
+                    ctx.lineWidth = 2.5;
+                    ctx.setLineDash([8, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(cutX, 0);
+                    ctx.lineTo(cutX, canvas.height);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Horizontalni rez po sredini
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    ctx.moveTo(0, cutY);
+                    ctx.lineTo(canvas.width, cutY);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = '#dc2626';
+                    ctx.lineWidth = 2.5;
+                    ctx.setLineDash([8, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(0, cutY);
+                    ctx.lineTo(canvas.width, cutY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Značka na sredini
+                    ctx.font = 'bold 11px Inter, sans-serif';
+                    const textMetrics = ctx.measureText(badgeText);
+                    const bw = textMetrics.width + 20;
+                    const bh = 24;
+                    const bx = cutX - bw / 2;
+                    const by = cutY - bh / 2;
+
+                    ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
+                    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                    ctx.shadowBlur = 6;
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 6); else ctx.rect(bx, by, bw, bh);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(badgeText, cutX, cutY + 1);
+                } else {
+                    let cutPositions = [];
+                    if (digCutFactor === 2) {
+                        cutPositions = [0.5];
+                    } else if (digCutFactor === 3) {
+                        cutPositions = [1 / 3, 2 / 3];
+                    }
+
+                    if (sheetW >= sheetH) {
                     // Vertikalni rezi
                     cutPositions.forEach(ratio => {
                         const cutX = (sheetW * ratio) * scale;
@@ -5149,6 +5243,7 @@
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText(badgeText, canvas.width / 2, midY + 1);
+                }
                 }
                 ctx.restore();
             }
@@ -5585,7 +5680,7 @@
                             zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
                             uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type'), format: gv('f-uv-format'), extraWaste: gv('f-uv-extra-waste') },
                             uv2: { active: gc('f-uv2-active'), prep: gv('f-uv2-prep'), per1000: gv('f-uv2-per1000'), sides: gv('f-uv2-sides'), type: gv('f-uv2-type'), format: gv('f-uv2-format'), extraWaste: gv('f-uv2-extra-waste') },
-                            personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price'), qty: gv('f-personalization-qty') },
+                            personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price'), qty: gv('f-personalization-qty'), split: gv('f-personalization-split') },
                             lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
                             delivery: { active: gc('f-delivery-active'), count: gv('f-post-count'), pricePer: gv('f-post-price-per') },
                             delFixed: { active: gc('f-del-fixed-active'), price: gv('f-del-fixed-price') },
@@ -5714,7 +5809,7 @@
                             zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
                             uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type') },
                             uv2: { active: gc('f-uv2-active'), prep: gv('f-uv2-prep'), per1000: gv('f-uv2-per1000'), sides: gv('f-uv2-sides'), type: gv('f-uv2-type') },
-                            personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price') },
+                            personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price'), qty: gv('f-personalization-qty'), split: gv('f-personalization-split') },
                             lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
                             delivery: { active: gc('f-delivery-active'), count: gv('f-post-count'), pricePer: gv('f-post-price-per') },
                             delFixed: { active: gc('f-del-fixed-active'), price: gv('f-del-fixed-price') },
@@ -6381,6 +6476,7 @@
                         if (pers.sides !== undefined) setV('f-personalization-sides', pers.sides);
                         if (pers.price !== undefined) setV('f-personalization-price', pers.price);
                         if (pers.qty !== undefined) setV('f-personalization-qty', pers.qty);
+                        if (pers.split !== undefined) setV('f-personalization-split', pers.split);
                         toggleFinishRow('personalization');
                     }
 
@@ -6565,7 +6661,7 @@
                             zasek: { active: document.getElementById('f-zasek-grafotehna-active') ? document.getElementById('f-zasek-grafotehna-active').checked : false, price: document.getElementById('f-zasek-grafotehna-price') ? document.getElementById('f-zasek-grafotehna-price').value : 0.05 },
                             uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value, sides: document.getElementById('f-uv-sides') ? document.getElementById('f-uv-sides').value : '1/0', type: document.getElementById('f-uv-type') ? document.getElementById('f-uv-type').value : 'manual' },
                             uv2: { active: document.getElementById('f-uv2-active') ? document.getElementById('f-uv2-active').checked : false, prep: document.getElementById('f-uv2-prep') ? document.getElementById('f-uv2-prep').value : 90, per1000: document.getElementById('f-uv2-per1000') ? document.getElementById('f-uv2-per1000').value : 25, sides: document.getElementById('f-uv2-sides') ? document.getElementById('f-uv2-sides').value : '1/0', type: document.getElementById('f-uv2-type') ? document.getElementById('f-uv2-type').value : 'manual' },
-                            personalization: { active: document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false, price: document.getElementById('f-personalization-price') ? document.getElementById('f-personalization-price').value : 0.03, qty: document.getElementById('f-personalization-qty') ? document.getElementById('f-personalization-qty').value : '' },
+                            personalization: { active: document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false, price: document.getElementById('f-personalization-price') ? document.getElementById('f-personalization-price').value : 0.03, qty: document.getElementById('f-personalization-qty') ? document.getElementById('f-personalization-qty').value : '', split: document.getElementById('f-personalization-split') ? document.getElementById('f-personalization-split').value : 'auto' },
                             lam: { active: document.getElementById('f-lam-active').checked, type: document.getElementById('f-lam-type') ? document.getElementById('f-lam-type').value : '', sides: document.getElementById('f-lam-sides') ? document.getElementById('f-lam-sides').value : 1, per1000: document.getElementById('f-lam-per1000') ? document.getElementById('f-lam-per1000').value : 0, prep: document.getElementById('f-lam-prep') ? document.getElementById('f-lam-prep').value : 0 },
                             delivery: { active: document.getElementById('f-delivery-active').checked, count: document.getElementById('f-post-count').value, pricePer: document.getElementById('f-post-price-per').value },
                             delFixed: { active: document.getElementById('f-del-fixed-active').checked, price: document.getElementById('f-del-fixed-price').value },
@@ -7577,28 +7673,25 @@
             if (isChecked('f-personalization-active')) {
                 let persSidesSelect = document.getElementById('f-personalization-sides');
                 let persSidesText = persSidesSelect ? persSidesSelect.value : '1/0';
-                let isB2Sheet = (sheetW === 698 && sheetH === 498) || (sheetW === 498 && sheetH === 698);
-                let maxSheetDim = Math.max(sheetW, sheetH);
-                let digCutFactor = (isB2Sheet || maxSheetDim >= 500 || (d && d.print && d.print.mType === 'S8')) ? 2 : 1;
+                let currentMType = (d && d.print && d.print.mType) ? d.print.mType : '';
+                let itemsCount = calcRes.itemsPerSheet || 1;
+                let splitInfo = getPersonalizationSplitInfo(sheetW, sheetH, itemsCount, currentMType);
+                let digCutFactor = splitInfo.digCutFactor;
                 let targetSheets = calcRes.sheetsNeeded;
                 let pCustomQty = 0;
                 if (document.getElementById('f-personalization-qty')) {
                     pCustomQty = parseInt(document.getElementById('f-personalization-qty').value) || 0;
-                    let itemsPerSheet = calcRes.itemsPerSheet || 1;
-                    if (pCustomQty > 0 && itemsPerSheet > 0) {
-                        targetSheets = Math.ceil(pCustomQty / itemsPerSheet);
-                    }
                 }
-                let digSheets = targetSheets * digCutFactor;
-                let cutW = sheetW >= sheetH ? Math.round(sheetW / 2) : sheetW;
-                let cutH = sheetW >= sheetH ? sheetH : Math.round(sheetH / 2);
-                let maxD = Math.min(Math.max(cutW, cutH), 478);
-                let minD = Math.min(Math.min(cutW, cutH), 318);
-                let halfStr = (maxD > 0 && minD > 0) ? `${maxD} x ${minD} mm` : '478 x 318 mm';
-                let currentSheetStr = (sheetW > 0 && sheetH > 0) ? `${Math.min(Math.max(sheetW, sheetH), 478)} x ${Math.min(Math.min(sheetW, sheetH), 318)} mm` : '';
-                let digFormatDetail = (digCutFactor === 2) ? ` ${halfStr}` : (currentSheetStr ? ` ${currentSheetStr}` : '');
+                let digSheets = 0;
+                if (pCustomQty > 0) {
+                    let itemsPerDigitalSheet = (itemsCount > 0) ? (itemsCount / digCutFactor) : 1;
+                    digSheets = Math.ceil(pCustomQty / itemsPerDigitalSheet);
+                } else {
+                    digSheets = targetSheets * digCutFactor;
+                }
+                let persFormatDetail = (digCutFactor > 1) ? ` (${splitInfo.partStr})` : (splitInfo.partStr ? ` (${splitInfo.partStr})` : '');
                 let partialNote = (pCustomQty > 0) ? ` (delno: ${pCustomQty.toLocaleString('de-DE')} kos)` : '';
-                let persQtyStr = `${persSidesText} ${digSheets.toLocaleString('de-DE')} pol${digFormatDetail}${partialNote}`;
+                let persQtyStr = `${persSidesText} ${digSheets.toLocaleString('de-DE')} pol${persFormatDetail}${partialNote}`;
                 finishingRowsHtml += `
                     <tr>
                         <td style="width: 15%;">Personalizacija:</td>
