@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PETRIČ.KALKULACIJE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-canvas: #07090e;
+            --bg-mesh: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.12) 0%, rgba(124, 58, 237, 0.05) 40%, rgba(7, 9, 14, 1) 80%);
+            --panel-bg: rgba(15, 23, 42, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --panel-border-top: rgba(255, 255, 255, 0.18);
+            --tab-bg: rgba(30, 41, 59, 0.4);
+            --tab-hover: rgba(51, 65, 85, 0.6);
+            --tab-active-bg: rgba(15, 23, 42, 0.95);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%);
+            --accent-solid: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.35);
+            --card-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 30px rgba(59, 130, 246, 0.1);
+            --radius-main: 24px;
+            --radius-tab: 16px;
+        }
+
+        body.light-mode {
+            --bg-canvas: #f1f5f9;
+            --bg-mesh: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.08) 0%, rgba(241, 245, 249, 1) 70%);
+            --panel-bg: rgba(255, 255, 255, 0.85);
+            --panel-border: rgba(203, 213, 225, 0.8);
+            --panel-border-top: rgba(255, 255, 255, 1);
+            --tab-bg: rgba(226, 232, 240, 0.6);
+            --tab-hover: rgba(203, 213, 225, 0.8);
+            --tab-active-bg: rgba(255, 255, 255, 0.95);
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --text-dim: #94a3b8;
+            --accent-gradient: linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #0284c7 100%);
+            --accent-solid: #2563eb;
+            --accent-glow: rgba(37, 99, 235, 0.2);
+            --card-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-canvas);
+            background-image: var(--bg-mesh);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 24px 36px;
+            overflow: hidden;
+            transition: background 0.4s ease, color 0.4s ease;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding: 0 8px;
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand-logo-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px var(--accent-glow);
+            color: #fff;
+        }
+
+        .brand-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            color: var(--text-main);
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .brand-title .gradient-text {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-pill {
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: 0.5px;
+            margin-left: 8px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .pill-btn {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 10px 18px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .pill-btn:hover {
+            border-color: var(--accent-solid);
+            color: var(--accent-solid);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--accent-glow);
+        }
+
+        .workspace-shell {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 1850px;
+            margin: 0 auto;
+            height: calc(100vh - 120px);
+        }
+
+        .tabs-navbar {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            padding: 0 16px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .tab-item {
+            background: var(--tab-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            border-bottom: none;
+            color: var(--text-muted);
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            padding: 14px 28px;
+            border-radius: var(--radius-tab) var(--radius-tab) 0 0;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        .tab-item:hover {
+            background: var(--tab-hover);
+            color: var(--text-main);
+            transform: translateY(-2px);
+        }
+
+        .tab-item.active {
+            background: var(--tab-active-bg);
+            color: var(--text-main);
+            border-color: var(--panel-border);
+            border-top-color: var(--panel-border-top);
+            border-bottom: 2px solid var(--tab-active-bg);
+            z-index: 12;
+            padding-top: 16px;
+            margin-bottom: -1px;
+            box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .tab-item.active::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--accent-gradient);
+            box-shadow: 0 2px 10px var(--accent-glow);
+        }
+
+        .tab-icon {
+            font-size: 16px;
+            opacity: 0.8;
+            transition: transform 0.2s;
+        }
+
+        .tab-item.active .tab-icon {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .window-container {
+            flex-grow: 1;
+            background: var(--panel-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--panel-border);
+            border-top-color: var(--panel-border-top);
+            border-radius: var(--radius-main);
+            box-shadow: var(--card-shadow);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            z-index: 5;
+        }
+
+        .window-accent-line {
+            height: 3px;
+            width: 100%;
+            background: var(--accent-gradient);
+            opacity: 0.8;
+        }
+
+        .viewport-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            flex-grow: 1;
+        }
+
+        .calc-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: none;
+            background: var(--panel-bg);
+            transition: opacity 0.3s ease;
+        }
+
+        .calc-frame.active {
+            display: block;
+            opacity: 1;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <div class="brand-container">
+            <div class="brand-logo-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+            </div>
+            <div class="brand-title">
+                PETRIČ<span class="gradient-text">.KALKULACIJE</span>
+            </div>
+            <div class="status-pill">
+                <span class="status-dot"></span>
+                SISTEM PRIPRAVLJEN
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <button class="pill-btn" onclick="toggleTheme()">
+                <span id="themeIcon">🌙</span>
+                <span id="themeText">Temni Način</span>
+            </button>
+            <button class="pill-btn" onclick="toggleFullscreen()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                </svg>
+                Celozaslonsko
+            </button>
+        </div>
+    </header>
+
+    <div class="workspace-shell">
+        <nav class="tabs-navbar" id="tabsNavbar">
+            <div class="tab-item active" onclick="switchTab('pola')">
+                <span class="tab-icon">📑</span>
+                <span>POLA</span>
+            </div>
+            <div class="tab-item" onclick="switchTab('blok')">
+                <span class="tab-icon">📋</span>
+                <span>BLOK</span>
+            </div>
+            <div class="tab-item" onclick="switchTab('brosura')">
+                <span class="tab-icon">📖</span>
+                <span>BROŠURA</span>
+            </div>
+            <div class="tab-item" onclick="switchTab('tenovis')">
+                <span class="tab-icon">⚡</span>
+                <span>TENOVIS</span>
+            </div>
+            <div class="tab-item" onclick="switchTab('kuverte')">
+                <span class="tab-icon">✉️</span>
+                <span>KUVERTE</span>
+            </div>
+            <div class="tab-item" onclick="switchTab('etikete')">
+                <span class="tab-icon">🏷️</span>
+                <span>ETIKETE</span>
+            </div>
+        </nav>
+
+        <div class="window-container">
+            <div class="window-accent-line"></div>
+            
+            <div class="viewport-container">
+                <iframe id="iframe_pola" class="calc-frame active" src="pola2.html"></iframe>
+                <iframe id="iframe_blok" class="calc-frame" src="blok2.html"></iframe>
+                <iframe id="iframe_brosura" class="calc-frame" src="brosura2.html"></iframe>
+                <iframe id="iframe_tenovis" class="calc-frame" src="TENOVIS2.html"></iframe>
+                <iframe id="iframe_kuverte" class="calc-frame" src="kuverte2.html"></iframe>
+                <iframe id="iframe_etikete" class="calc-frame" src="etikete2.html"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTabKey = 'pola';
+
+        function switchTab(tabKey) {
+            currentTabKey = tabKey;
+
+            const tabs = document.querySelectorAll('.tab-item');
+            tabs.forEach(tab => {
+                const text = tab.innerText.trim().toLowerCase();
+                if (
+                    (tabKey === 'pola' && text.includes('pola')) ||
+                    (tabKey === 'blok' && text.includes('blok')) ||
+                    (tabKey === 'brosura' && text.includes('brošura')) ||
+                    (tabKey === 'tenovis' && text.includes('tenovis')) ||
+                    (tabKey === 'kuverte' && text.includes('kuverte')) ||
+                    (tabKey === 'etikete' && text.includes('etikete'))
+                ) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            const frames = document.querySelectorAll('.calc-frame');
+            frames.forEach(frame => {
+                if (frame.id === 'iframe_' + tabKey) {
+                    frame.classList.add('active');
+                } else {
+                    frame.classList.remove('active');
+                }
+            });
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            document.getElementById('themeIcon').innerText = isLight ? '🌙' : '☀️';
+            document.getElementById('themeText').innerText = isLight ? 'Temni Način' : 'Svetli Način';
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => console.log(err));
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
