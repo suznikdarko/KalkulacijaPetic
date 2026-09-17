@@ -8404,12 +8404,39 @@
         }
 
         async function loadStockFile() {
-            if (typeof window.showOpenFilePicker === 'function') {
+            const processFile = async (file) => {
+                if (file.name.toLowerCase().endsWith('.xlsx')) {
+                    const buffer = await file.arrayBuffer();
+                    parseAndSaveExcelStock(buffer);
+                } else {
+                    const text = await file.text();
+                    if (text.startsWith('PK')) {
+                        const buffer = await file.arrayBuffer();
+                        parseAndSaveExcelStock(buffer);
+                    } else {
+                        parseAndSaveStock(text);
+                    }
+                }
+            };
+
+            const triggerFallbackInput = () => {
+                let fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.json,.xlsx';
+                fileInput.onchange = async e => {
+                    let file = e.target.files[0];
+                    if (file) await processFile(file);
+                };
+                fileInput.click();
+            };
+
+            const isInIframe = window.self !== window.top;
+            if (!isInIframe && typeof window.showOpenFilePicker === 'function') {
                 try {
                     const [fileHandle] = await window.showOpenFilePicker({
                         types: [{
                             description: 'Zaloga (JSON ali Excel .xlsx)',
-                            accept: {
+                            accept: { 
                                 'application/json': ['.json'],
                                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
                             }
@@ -8417,47 +8444,13 @@
                         multiple: false
                     });
                     const file = await fileHandle.getFile();
-                    if (file.name.toLowerCase().endsWith('.xlsx')) {
-                        const buffer = await file.arrayBuffer();
-                        parseAndSaveExcelStock(buffer);
-                    } else {
-                        const text = await file.text();
-                        if (text.startsWith('PK')) {
-                            const buffer = await file.arrayBuffer();
-                            parseAndSaveExcelStock(buffer);
-                        } else {
-                            parseAndSaveStock(text);
-                        }
-                    }
+                    await processFile(file);
                 } catch (e) {
-                    if (e.name !== 'AbortError') alert("Napaka pri izbiri datoteke: " + e.message);
+                    if (e.name === 'AbortError') return;
+                    triggerFallbackInput();
                 }
             } else {
-                let fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.accept = '.json,.xlsx';
-                fileInput.onchange = e => {
-                    let file = e.target.files[0];
-                    if (file.name.toLowerCase().endsWith('.xlsx')) {
-                        let reader = new FileReader();
-                        reader.onload = event => parseAndSaveExcelStock(event.target.result);
-                        reader.readAsArrayBuffer(file);
-                    } else {
-                        let reader = new FileReader();
-                        reader.onload = event => {
-                            const res = event.target.result;
-                            if (typeof res === 'string' && res.startsWith('PK')) {
-                                let r2 = new FileReader();
-                                r2.onload = ev2 => parseAndSaveExcelStock(ev2.target.result);
-                                r2.readAsArrayBuffer(file);
-                            } else {
-                                parseAndSaveStock(res);
-                            }
-                        };
-                        reader.readAsText(file);
-                    }
-                };
-                fileInput.click();
+                triggerFallbackInput();
             }
         }
 
@@ -9718,7 +9711,34 @@
         }
 
         async function loadStockFile() {
-            if (typeof window.showOpenFilePicker === 'function') {
+            const processFile = async (file) => {
+                if (file.name.toLowerCase().endsWith('.xlsx')) {
+                    const buffer = await file.arrayBuffer();
+                    parseAndSaveExcelStock(buffer);
+                } else {
+                    const text = await file.text();
+                    if (text.startsWith('PK')) {
+                        const buffer = await file.arrayBuffer();
+                        parseAndSaveExcelStock(buffer);
+                    } else {
+                        parseAndSaveStock(text);
+                    }
+                }
+            };
+
+            const triggerFallbackInput = () => {
+                let fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.json,.xlsx';
+                fileInput.onchange = async e => {
+                    let file = e.target.files[0];
+                    if (file) await processFile(file);
+                };
+                fileInput.click();
+            };
+
+            const isInIframe = window.self !== window.top;
+            if (!isInIframe && typeof window.showOpenFilePicker === 'function') {
                 try {
                     const [fileHandle] = await window.showOpenFilePicker({
                         types: [{
@@ -9731,47 +9751,13 @@
                         multiple: false
                     });
                     const file = await fileHandle.getFile();
-                    if (file.name.toLowerCase().endsWith('.xlsx')) {
-                        const buffer = await file.arrayBuffer();
-                        parseAndSaveExcelStock(buffer);
-                    } else {
-                        const text = await file.text();
-                        if (text.startsWith('PK')) {
-                            const buffer = await file.arrayBuffer();
-                            parseAndSaveExcelStock(buffer);
-                        } else {
-                            parseAndSaveStock(text);
-                        }
-                    }
+                    await processFile(file);
                 } catch (e) {
-                    if (e.name !== 'AbortError') alert("Napaka pri izbiri datoteke: " + e.message);
+                    if (e.name === 'AbortError') return;
+                    triggerFallbackInput();
                 }
             } else {
-                let fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.accept = '.json,.xlsx';
-                fileInput.onchange = e => {
-                    let file = e.target.files[0];
-                    if (file.name.toLowerCase().endsWith('.xlsx')) {
-                        let reader = new FileReader();
-                        reader.onload = event => parseAndSaveExcelStock(event.target.result);
-                        reader.readAsArrayBuffer(file);
-                    } else {
-                        let reader = new FileReader();
-                        reader.onload = event => {
-                            const res = event.target.result;
-                            if (typeof res === 'string' && res.startsWith('PK')) {
-                                let r2 = new FileReader();
-                                r2.onload = ev2 => parseAndSaveExcelStock(ev2.target.result);
-                                r2.readAsArrayBuffer(file);
-                            } else {
-                                parseAndSaveStock(res);
-                            }
-                        };
-                        reader.readAsText(file);
-                    }
-                };
-                fileInput.click();
+                triggerFallbackInput();
             }
         }
 

@@ -7435,28 +7435,32 @@
                     return;
                 }
 
-                let fileHandle;
-                if (typeof window.showOpenFilePicker !== 'function') {
-                    alert("Vaš brskalnik ne podpira avtomatskega shranjevanja datotek (priporočamo Chrome ali Edge).");
-                    return;
+                const isInIframe = window.self !== window.top;
+                let file;
+                if (!isInIframe && typeof window.showOpenFilePicker === 'function') {
+                    try {
+                        const [fileHandle] = await window.showOpenFilePicker({
+                            types: [{
+                                description: 'Zaloga JSON (zalogaSimon.json)',
+                                accept: { 'application/json': ['.json'] }
+                            }],
+                            multiple: false
+                        });
+                        file = await fileHandle.getFile();
+                    } catch (pickerErr) {
+                        if (pickerErr.name === 'AbortError') return;
+                    }
                 }
-
-                try {
-                    [fileHandle] = await window.showOpenFilePicker({
-                        types: [{
-                            description: 'Zaloga JSON (zalogaSimon.json)',
-                            accept: { 'application/json': ['.json'] }
-                        }],
-                        multiple: false
+                if (!file) {
+                    file = await new Promise((resolve) => {
+                        let input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = '.json';
+                        input.onchange = (e) => resolve(e.target.files[0]);
+                        input.click();
                     });
-                } catch (pickerErr) {
-                    // This happens if the user cancels the picker or if it's blocked by security
-                    if (pickerErr.name === 'AbortError') return;
-                    alert("Napaka pri odpiranju datoteke (morda nimate ustreznih pravic): " + pickerErr.message);
-                    return;
                 }
-
-                const file = await fileHandle.getFile();
+                if (!file) return;
                 const contents = await file.text();
                 let zaloga;
                 try {
@@ -9273,7 +9277,34 @@
         }
 
         async function loadStockFile() {
-            if (typeof window.showOpenFilePicker === 'function') {
+            const processFile = async (file) => {
+                if (file.name.toLowerCase().endsWith('.xlsx')) {
+                    const buffer = await file.arrayBuffer();
+                    parseAndSaveExcelStock(buffer);
+                } else {
+                    const text = await file.text();
+                    if (text.startsWith('PK')) {
+                        const buffer = await file.arrayBuffer();
+                        parseAndSaveExcelStock(buffer);
+                    } else {
+                        parseAndSaveStock(text);
+                    }
+                }
+            };
+
+            const triggerFallbackInput = () => {
+                let fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.json,.xlsx';
+                fileInput.onchange = async e => {
+                    let file = e.target.files[0];
+                    if (file) await processFile(file);
+                };
+                fileInput.click();
+            };
+
+            const isInIframe = window.self !== window.top;
+            if (!isInIframe && typeof window.showOpenFilePicker === 'function') {
                 try {
                     const [fileHandle] = await window.showOpenFilePicker({
                         types: [{
@@ -9286,47 +9317,13 @@
                         multiple: false
                     });
                     const file = await fileHandle.getFile();
-                    if (file.name.toLowerCase().endsWith('.xlsx')) {
-                        const buffer = await file.arrayBuffer();
-                        parseAndSaveExcelStock(buffer);
-                    } else {
-                        const text = await file.text();
-                        if (text.startsWith('PK')) {
-                            const buffer = await file.arrayBuffer();
-                            parseAndSaveExcelStock(buffer);
-                        } else {
-                            parseAndSaveStock(text);
-                        }
-                    }
+                    await processFile(file);
                 } catch (e) {
-                    if (e.name !== 'AbortError') alert("Napaka pri izbiri datoteke: " + e.message);
+                    if (e.name === 'AbortError') return;
+                    triggerFallbackInput();
                 }
             } else {
-                let fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.accept = '.json,.xlsx';
-                fileInput.onchange = e => {
-                    let file = e.target.files[0];
-                    if (file.name.toLowerCase().endsWith('.xlsx')) {
-                        let reader = new FileReader();
-                        reader.onload = event => parseAndSaveExcelStock(event.target.result);
-                        reader.readAsArrayBuffer(file);
-                    } else {
-                        let reader = new FileReader();
-                        reader.onload = event => {
-                            const res = event.target.result;
-                            if (typeof res === 'string' && res.startsWith('PK')) {
-                                let r2 = new FileReader();
-                                r2.onload = ev2 => parseAndSaveExcelStock(ev2.target.result);
-                                r2.readAsArrayBuffer(file);
-                            } else {
-                                parseAndSaveStock(res);
-                            }
-                        };
-                        reader.readAsText(file);
-                    }
-                };
-                fileInput.click();
+                triggerFallbackInput();
             }
         }
 
