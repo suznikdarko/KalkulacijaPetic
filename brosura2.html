@@ -3295,7 +3295,7 @@
                                 </label>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Tip laka</small></label>
-                                    <select id="f-uv-type" onchange="updateUVLakPrice(); calculatePrice()" style="padding:0.2rem; font-size:0.75rem; width: 100%;">
+                                    <select id="f-uv-type" onchange="updateUVLakPrice(); calculate()" style="padding:0.2rem; font-size:0.75rem; width: 100%;">
                                         <option value="manual" selected>Ročni vnos</option>
                                         <option value="sijajni">Odtis - Sijajni</option>
                                         <option value="mat">Odtis - Mat</option>
@@ -3319,7 +3319,7 @@
                                 <div></div>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Format</small></label>
-                                    <select id="f-uv-format" onchange="updateUVLakPrice(); calculatePrice()" style="padding:0.2rem; font-size:0.75rem; width: 100%;">
+                                    <select id="f-uv-format" onchange="updateUVLakPrice(); calculate()" style="padding:0.2rem; font-size:0.75rem; width: 100%;">
                                         <option value="auto" selected>Avto (Pola)</option>
                                         <option value="50x35">50 x 35</option>
                                         <option value="70x33">70 x 33</option>
@@ -3350,7 +3350,7 @@
                                 </label>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Tip laka</small></label>
-                                    <select id="f-uv2-type" onchange="updateUVLakPrice('2'); calculatePrice()" style="padding:0.2rem; font-size:0.75rem; width: 100%;">
+                                    <select id="f-uv2-type" onchange="updateUVLakPrice('2'); calculate()" style="padding:0.2rem; font-size:0.75rem; width: 100%;">
                                         <option value="manual" selected>Ročni vnos</option>
                                         <option value="sijajni">Odtis - Sijajni</option>
                                         <option value="mat">Odtis - Mat</option>
@@ -3374,7 +3374,7 @@
                                 <div></div>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Format</small></label>
-                                    <select id="f-uv2-format" onchange="updateUVLakPrice('2'); calculatePrice()" style="padding:0.2rem; font-size:0.75rem; width: 100%;">
+                                    <select id="f-uv2-format" onchange="updateUVLakPrice('2'); calculate()" style="padding:0.2rem; font-size:0.75rem; width: 100%;">
                                         <option value="auto" selected>Avto (Pola)</option>
                                         <option value="50x35">50 x 35</option>
                                         <option value="70x33">70 x 33</option>
@@ -4432,10 +4432,11 @@
 
 
                 let sheetsNeededLeaves = 0;
-
+                sheetsNeededCover = 0;
                 let drawW = 0;
-
                 let drawH = 0;
+                cDrawW = 0;
+                cDrawH = 0;
 
 
 
@@ -4986,7 +4987,7 @@
                         const cQtyList = cQtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, '').replace(',', '.'))).filter(n => !isNaN(n) && n >= 0);
                         let cQtyTotal = cQtyList.length > 0 ? cQtyList[0] : (q || 0);
 
-                        let sheetsNeededCover = Math.ceil(cQtyTotal / finalCountCover);
+                        sheetsNeededCover = Math.ceil(cQtyTotal / finalCountCover);
 
                         setT('res-sheets-cover-net', sheetsNeededCover + ' pol');
 
@@ -5008,9 +5009,9 @@
 
 
 
-                        let cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
+                        cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
 
-                        let cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
+                        cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
 
                         setT('res-size-cover-val', `${cDrawW}x${cDrawH}`);
 
@@ -5055,18 +5056,20 @@
                 // Posodobi skupni format pole in dimenzijo v spodnjih rezultatih (stats)
                 if (bestSheet && cBestSheet) {
                     setT('res-sheet', `${bestSheet.name} (V) / ${cBestSheet.name} (O)`);
-                    let cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
-                    let cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
+                    cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
+                    cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
                     setT('res-size', `${drawW}x${drawH} / ${cDrawW}x${cDrawH}`);
                 } else if (bestSheet) {
                     setT('res-sheet', bestSheet.name);
                     setT('res-size', `${drawW} x ${drawH}`);
                 } else if (cBestSheet) {
                     setT('res-sheet', cBestSheet.name);
-                    let cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
-                    let cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
+                    cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
+                    cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
                     setT('res-size', `${cDrawW} x ${cDrawH}`);
                 }
+
+                calculatePrice(sheetsNeededLeaves, sheetsNeededCover, q, drawW, drawH, cDrawW, cDrawH);
 
                 setTimeout(() => {
 
@@ -6224,13 +6227,13 @@
 
                     if (document.getElementById('quick-total-sheets-leaves')) {
 
-                        document.getElementById('quick-total-sheets-leaves').innerText = sheetsNeededLeaves.toLocaleString('de-DE');
+                        setT('quick-total-sheets-leaves', (sheetsNeededLeaves || 0).toLocaleString('de-DE'));
 
                     }
 
                     if (document.getElementById('quick-total-sheets-cover')) {
 
-                        document.getElementById('quick-total-sheets-cover').innerText = sheetsNeededCover.toLocaleString('de-DE');
+                        setT('quick-total-sheets-cover', (sheetsNeededCover || 0).toLocaleString('de-DE'));
 
                     }
 
@@ -7129,13 +7132,13 @@
 
                     // POSODOBITEV UI
 
-                    document.getElementById('res-price-paper').innerText = paperCost.toFixed(2) + " €";
+                    setT('res-price-paper', paperCost.toFixed(2) + " €");
 
-                    document.getElementById('res-price-prep').innerText = totalPrepCost.toFixed(2) + " €";
+                    setT('res-price-prep', totalPrepCost.toFixed(2) + " €");
 
-                    document.getElementById('res-price-print').innerText = totalPrintCost.toFixed(2) + " €";
+                    setT('res-price-print', totalPrintCost.toFixed(2) + " €");
 
-                    document.getElementById('res-price-finish').innerText = totalFinishCost.toFixed(2) + " €";
+                    setT('res-price-finish', totalFinishCost.toFixed(2) + " €");
 
                     let qItem = totalItemsForm > 0 ? totalItemsForm : 1;
                     if (document.getElementById('res-price-paper-per-item')) document.getElementById('res-price-paper-per-item').innerText = formatPrice(paperCost / qItem, 4) + ' / kos';
@@ -7155,14 +7158,14 @@
 
 
 
-                    document.getElementById('res-price-total').innerText = totalPrice.toFixed(2) + " €";
+                    setT('res-price-total', totalPrice.toFixed(2) + " €");
 
                     if (document.getElementById('res-price-per-item')) document.getElementById('res-price-per-item').innerText = formatPrice(perItemFinal, 4);
                     if (document.getElementById('res-price-per-item-top')) document.getElementById('res-price-per-item-top').innerText = formatPrice(perItemFinal, 3);
 
                     if (document.getElementById('res-price-1000-stat')) {
 
-                        document.getElementById('res-price-1000-stat').innerText = price1000.toFixed(2) + " €";
+                        setT('res-price-1000-stat', price1000.toFixed(2) + " €");
 
                     }
 
@@ -7972,21 +7975,32 @@
 
 
 
-                let sizeText = document.getElementById('res-size').innerText;
-                let sizeStr = sizeText.split('x');
-                let drawW = 0, drawH = 0;
-                if (sizeStr.length === 2) {
-                    drawW = parseFloat(sizeStr[0]);
-                    drawH = parseFloat(sizeStr[1]);
-                }
+                let sizeText = document.getElementById('res-size') ? document.getElementById('res-size').innerText : '';
+                let drawW = 0, drawH = 0, cDrawW = 0, cDrawH = 0;
 
-                let cDrawW = 0, cDrawH = 0;
-                let cSizeEl = document.getElementById('res-size-cover-val');
-                let cSizeText = cSizeEl ? cSizeEl.innerText : '';
-                let cSizeStr = cSizeText.split('x');
-                if (cSizeStr.length === 2) {
-                    cDrawW = parseFloat(cSizeStr[0]);
-                    cDrawH = parseFloat(cSizeStr[1]);
+                if (sizeText && sizeText.includes('x')) {
+                    let parts = sizeText.split('/');
+                    let mainDim = parts[0].trim().split('x');
+                    if (mainDim.length === 2) {
+                        drawW = parseFloat(mainDim[0]) || 0;
+                        drawH = parseFloat(mainDim[1]) || 0;
+                    }
+                    if (parts.length > 1) {
+                        let coverDim = parts[1].trim().split('x');
+                        if (coverDim.length === 2) {
+                            cDrawW = parseFloat(coverDim[0]) || 0;
+                            cDrawH = parseFloat(coverDim[1]) || 0;
+                        }
+                    }
+                }
+                if (!cDrawW) {
+                    let cSizeEl = document.getElementById('res-size-cover-val');
+                    let cSizeText = cSizeEl ? cSizeEl.innerText : '';
+                    let cSizeStr = cSizeText.split('x');
+                    if (cSizeStr.length === 2) {
+                        cDrawW = parseFloat(cSizeStr[0]) || 0;
+                        cDrawH = parseFloat(cSizeStr[1]) || 0;
+                    }
                 }
 
                 return calculatePrice(sheetsNeededL, sheetsNeededC, q, drawW, drawH, cDrawW, cDrawH);
