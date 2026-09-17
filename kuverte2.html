@@ -941,7 +941,7 @@
             <button class="calculate-btn" onclick="addToBasket()"
                 style="margin: 0; width: auto; background: #f59e0b; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);">
                 DODAJ V PONUDBO</button>
-            <button class="calculate-btn" onclick="exportToFile()"
+            <button class="calculate-btn" onclick="saveProjectToFile()"
                 style="margin: 0; width: auto; background: #6366f1; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
                 SHRANI</button>
             <button class="calculate-btn" onclick="printProductionOrder()"
@@ -3026,9 +3026,8 @@ if (isWord) {
                 };
                 fileInput.click();
             }
-        }
 
-        function parseAndSaveExcelStock(buffer) {
+function parseAndSaveExcelStock(buffer) {
             try {
                 if (typeof XLSX === 'undefined') {
                     alert("Za branje Excel (.xlsx) datotek je potreben spletni modul XLSX.\n\nProsimo izberite datoteko 'zalogaSimon.json'.");
@@ -4872,74 +4871,153 @@ function printQuote() {
             }
         }document.getElementById('calc-customer').addEventListener('input', function (e) { handleCustomerUpdate(e.target.value); });
 
-        function saveCurrentProject() {
-            let name = document.getElementById('calc-project-name').value.trim();
-            if (!name) { alert("Prosimo vnesite izdelek!"); return; }
+        async function saveProjectToFile() {
+            try {
+                function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+                function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
 
-            const data = {
-                id: Date.now(),
-                name: name,
-                date: new Date().toLocaleString('sl-SI'),
-                customer: document.getElementById('calc-customer').value,
-                custAddress: document.getElementById('calc-cust-address').value,
-                deliveryAddress: document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : "",
-                custEmail: document.getElementById('calc-cust-email').value,
-                quoteNum: document.getElementById('calc-quote-number').value,
-                customerCode: document.getElementById('calc-customer-code').value,
-                preparedBy: document.getElementById('calc-prepared-by').value,
-                materialCode: document.getElementById('calc-material-code').value,
-                notes: document.getElementById('calc-notes') ? document.getElementById('calc-notes').value : '',
-                editedQuoteHTML: window.g_editedQuoteHTML || '',
-                editedQuoteATHTML: window.g_editedQuoteATHTML || '',
-                editedWorkOrderHTML: window.g_editedWorkOrderHTML || '',
-                inputs: {
-                    item_w: document.getElementById('width').value,
-                    item_h: document.getElementById('height').value,
-                    envelopePreset: document.getElementById('envelope-preset').value,
-                    quantities: document.getElementById('calc-quantities').value,
-                    qtyOrdered: document.getElementById('calc-qty-ordered').value,
-                    mPrice: document.getElementById('calc-material-price').value,
-                    packaging: document.getElementById('calc-packaging').value,
-                    margin: document.getElementById('calc-margin').value,
-                    colorsFront: document.getElementById('calc-colors-front').value,
-                    colorsBack: document.getElementById('calc-colors-back').value,
-                    mRate: document.getElementById('calc-machine-rate').value,
-                    mSpeed: document.getElementById('calc-machine-speed').value,
-                    autoSpeed: document.getElementById('calc-auto-speed').checked,
-                    plateDod: document.getElementById('calc-plate-price').value,
-                    plateCount: document.getElementById('calc-plate-count').value,
-                    colorChangePrice: document.getElementById('calc-color-change-price').value,
-                    persCount: document.getElementById('calc-personalization').value,
-                    manualWork: document.getElementById('calc-manual-work').value,
-                    usePers: document.getElementById('calc-use-personalization').checked,
-                    useManual: document.getElementById('calc-use-manual-work').checked,
-                    waste: document.getElementById('calc-waste').value,
-                    commercial: document.getElementById('calc-commercial').value,
-                    deliveryActive: document.getElementById('f-delivery-active') ? document.getElementById('f-delivery-active').checked : false,
-                    postCount: document.getElementById('f-post-count') ? document.getElementById('f-post-count').value : '',
-                    postPricePer: document.getElementById('f-post-price-per') ? document.getElementById('f-post-price-per').value : '',
-                    delFixedActive: document.getElementById('f-del-fixed-active') ? document.getElementById('f-del-fixed-active').checked : false,
-                    delFixedPrice: document.getElementById('f-del-fixed-price') ? document.getElementById('f-del-fixed-price').value : '',
-                    minusPrice: document.getElementById('calc-minus-price') ? document.getElementById('calc-minus-price').checked : false
-                },
-                results: {
-                    total: document.getElementById('sticky-price-total-bottom').innerText,
-                    perItem: document.getElementById('sticky-price-per-item').innerText,
-                    sheets: document.getElementById('res-sheets-needed').innerText
+                let name = gv('calc-project-name').trim() || "Kuverta";
+                const projectId = (typeof currentLoadedProjectId !== 'undefined' && currentLoadedProjectId) ? currentLoadedProjectId : Date.now();
+
+                const data = {
+                    id: projectId,
+                    name: name,
+                    _source: 'darko-kuverte',
+                    date: new Date().toLocaleString('sl-SI'),
+                    customer: gv('calc-customer'),
+                    custAddress: gv('calc-cust-address'),
+                    deliveryAddress: gv('calc-delivery-address'),
+                    custEmail: gv('calc-cust-email'),
+                    quoteNum: gv('calc-quote-number'),
+                    customerCode: gv('calc-customer-code'),
+                    preparedBy: gv('calc-prepared-by'),
+                    materialCode: gv('calc-material-code'),
+                    notes: gv('calc-notes'),
+                    editedQuoteHTML: window.g_editedQuoteHTML || '',
+                    editedQuoteATHTML: window.g_editedQuoteATHTML || '',
+                    editedWorkOrderHTML: window.g_editedWorkOrderHTML || '',
+                    inputs: {
+                        item_w: gv('width'),
+                        item_h: gv('height'),
+                        envelopePreset: gv('envelope-preset'),
+                        quantities: gv('calc-quantities'),
+                        qtyOrdered: gv('calc-qty-ordered'),
+                        mPrice: gv('calc-material-price'),
+                        packaging: gv('calc-packaging'),
+                        margin: gv('calc-margin'),
+                        colorsFront: gv('calc-colors-front'),
+                        colorsBack: gv('calc-colors-back'),
+                        mRate: gv('calc-machine-rate'),
+                        mSpeed: gv('calc-machine-speed'),
+                        autoSpeed: gc('calc-auto-speed'),
+                        plateDod: gv('calc-plate-price'),
+                        plateCount: gv('calc-plate-count'),
+                        colorChangePrice: gv('calc-color-change-price'),
+                        persCount: gv('calc-personalization'),
+                        manualWork: gv('calc-manual-work'),
+                        usePers: gc('calc-use-personalization'),
+                        useManual: gc('calc-use-manual-work'),
+                        isObrat: gc('calc-is-obrat'),
+                        wasteManual: gv('calc-waste-manual'),
+                        commercial: gv('calc-commercial'),
+                        deliveryActive: gc('f-delivery-active'),
+                        postCount: gv('f-post-count'),
+                        postPricePer: gv('f-post-price-per'),
+                        delFixedActive: gc('f-del-fixed-active'),
+                        delFixedPrice: gv('f-del-fixed-price'),
+                        minusPrice: gc('calc-minus-price')
+                    }
+                };
+
+                const STORAGE_KEY_KUVERTE = 'kuverte_arhiv';
+                let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY_KUVERTE) || '[]');
+                arhiv = arhiv.filter(proj => isKuverteProject(proj));
+                if (typeof currentLoadedProjectId !== 'undefined' && currentLoadedProjectId) {
+                    arhiv = arhiv.filter(p => p.id !== currentLoadedProjectId);
                 }
-            };
+                arhiv.push(data);
+                localStorage.setItem(STORAGE_KEY_KUVERTE, JSON.stringify(arhiv));
+                if (typeof currentLoadedProjectId !== 'undefined') currentLoadedProjectId = projectId;
 
-            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-            arhiv.push(data);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
+                const jsonStr = JSON.stringify(data, null, 2);
+                const nakladaStr = gv('calc-quantities') || gv('calc-qty-ordered') || '';
+                let s_naklada = nakladaStr ? ('nakl.' + nakladaStr.replace(/\s+/g, '').replace(/,/g, '-')) : '';
+                const cFront = gv('calc-colors-front') || '0';
+                const cBack = gv('calc-colors-back') || '0';
+                const cColors = (cFront === '0' && cBack === '0') ? '' : `b${cFront}${cBack}`;
+                const quoteNum = (gv('calc-quote-number') || '').replace(/[\/\\]/g, '-').trim();
+                let s_ponudba = quoteNum ? 'pon.' + quoteNum : '';
+                const customer = gv('calc-customer').trim();
+                const izdelek = name ? name.trim() : '';
 
-            document.getElementById('calc-project-name').value = "";
-            renderSavedProjects();
-            updateCustomerDatalist();
-            alert("Projekt '" + name + "' je shranjen v arhiv!");
+                let tParts = [s_ponudba, customer, izdelek, s_naklada, cColors].filter(Boolean);
+                const suggestedName = (tParts.length > 0 ? tParts.join('_') : name).replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.json';
+
+                try {
+                    const srvRes = await fetch('http://127.0.0.1:8095', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
+                    });
+                    if (srvRes.ok) {
+                        const srvData = await srvRes.json();
+                        if (srvData.status === 'success') {
+                            if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                            if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                            alert("✓ Shranjeno v srečko-server (ponudbe test):\nDatoteka: " + suggestedName);
+                            return;
+                        }
+                    }
+                } catch (srvErr) {
+                    console.log("Srečko-server save error:", srvErr);
+                }
+
+                if (typeof g_projectsDirHandle !== 'undefined' && g_projectsDirHandle) {
+                    try {
+                        const fileHandle = await g_projectsDirHandle.getFileHandle(suggestedName, { create: true });
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(jsonStr);
+                        await writable.close();
+                        if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                        if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                        alert("✓ Shranjeno v povezano mapo: [" + (g_projectsDirHandle ? g_projectsDirHandle.name : "omrežna mapa") + "]\nDatoteka: " + suggestedName);
+                        return;
+                    } catch (dirErr) {
+                        console.log("Direct folder handle write error:", dirErr);
+                    }
+                }
+
+                if (window.showSaveFilePicker) {
+                    try {
+                        const handle = await window.showSaveFilePicker({
+                            suggestedName: suggestedName,
+                            types: [{ description: 'Kuverte JSON', accept: { 'application/json': ['.json'] } }],
+                        });
+                        const writable = await handle.createWritable();
+                        await writable.write(jsonStr);
+                        await writable.close();
+                        return;
+                    } catch (e) { if (e.name === 'AbortError') return; alert("Napaka pri shranjevanju: " + e.message); }
+                }
+
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = suggestedName;
+                document.body.appendChild(a); a.click();
+                setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
+
+            } catch (err) {
+                alert("Napaka pri shranjevanju: " + err.message);
+            }
         }
 
-        async function exportToFile() {
+        function saveCurrentProject(btn = null, silent = false) {
+            saveProjectToFile();
+        }
+
+        function exportToFile() {
             try {
                 let name = document.getElementById('calc-project-name').value.trim() || "Ponudba_Kuverte";
                 const data = {
@@ -5224,7 +5302,7 @@ function printQuote() {
             } catch (e) { }
         }
 
-        async function toggleProjectsDropdown() {
+        async async function toggleProjectsDropdown() {
             const list = document.getElementById('projects-dropdown-list');
             if (list.style.display === 'block') {
                 list.style.display = 'none';
@@ -5250,7 +5328,15 @@ function printQuote() {
             }
         }
 
-        function renderSavedProjects() {
+        function isKuverteProject(proj) {
+                if (!proj) return false;
+                if (proj._source) return proj._source === 'darko-kuverte' || proj._source === 'kuverte';
+                const inp = proj.inputs || {};
+                if (inp.envelopePreset || inp.quantities || inp.postCount) return true;
+                return false;
+            }
+
+            function renderSavedProjects() {
             function getSearchableText(obj) {
                 let text = "";
                 for (let key in obj) {
@@ -5275,6 +5361,7 @@ function printQuote() {
             const filter = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
             let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                arhiv = arhiv.filter(proj => isKuverteProject(proj));
 
             arhiv.sort((a, b) => b.id - a.id);
             let filtered = filter ? arhiv.filter(proj => {
@@ -5363,6 +5450,7 @@ function printQuote() {
 
         function loadProject(id) {
             let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                arhiv = arhiv.filter(proj => isKuverteProject(proj));
             let proj = arhiv.find(p => p.id === id);
             if (!proj) return;
             loadProjectData(proj);
@@ -5372,6 +5460,7 @@ function printQuote() {
         function deleteProject(id) {
             if (!confirm("Ali ste prepričani, da želite izbrisati ta projekt?")) return;
             let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                arhiv = arhiv.filter(proj => isKuverteProject(proj));
             arhiv = arhiv.filter(p => p.id !== id);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
             renderSavedProjects();
@@ -5590,9 +5679,8 @@ function printQuote() {
             } else {
                 triggerFallbackInput();
             }
-        }
 
-        function parseAndSaveExcelStock(buffer) {
+function parseAndSaveExcelStock(buffer) {
             try {
                 if (typeof XLSX === 'undefined') {
                     alert("Za branje Excel (.xlsx) datotek je potreben spletni modul XLSX.\n\nProsimo izberite datoteko 'zalogaSimon.json'.");

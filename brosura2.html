@@ -3690,7 +3690,7 @@
             <button class="calculate-btn" onclick="addToBasket()"
                 style="margin: 0; width: auto; background: #f59e0b; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.2rem; font-size: 0.9rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);" title="Dodaj trenutno kalkulacijo v skupno košarico">
                 ➕ DODAJ</button>
-            <button class="calculate-btn" onclick="saveCurrentProject(this)"
+            <button class="calculate-btn" onclick="saveProjectToFile()"
                 style="margin: 0; width: auto; background: #10b981; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.2rem; font-size: 0.9rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);" title="Shrani projekt v arhiv in na disk">
                 💾 SHRANI</button>
         </div>
@@ -8849,6 +8849,7 @@
             // --- KONSTANTE IN SHRANJEVANJE ---
 
             var STORAGE_KEY = 'darko_brosura_arhiv';
+            var currentLoadedProjectId = null;
 
             var g_projectsDirHandle = null;
 
@@ -9415,364 +9416,217 @@
 
 
 
-            function saveCurrentProject(btn = null, silent = false) {
+            async function saveProjectToFile() {
+            try {
+                function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+                function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
+
+                let name = gv('calc-project-name').trim() || "Brosura";
+                const projectId = (typeof currentLoadedProjectId !== 'undefined' && currentLoadedProjectId) ? currentLoadedProjectId : Date.now();
+
+                const data = {
+                    id: projectId,
+                    name: name,
+                    _source: 'darko-brosura',
+                    date: new Date().toLocaleString('sl-SI'),
+                    customer: gv('calc-customer'),
+                    custEmail: gv('calc-cust-email'),
+                    custAddress: gv('calc-cust-address'),
+                    deliveryAddress: gv('calc-delivery-address'),
+                    custId: gv('calc-cust-id'),
+                    quoteNum: gv('calc-quote-number'),
+                    customerCode: gv('calc-customer-code'),
+                    orderType: gv('calc-order-type'),
+                    inputs: {
+                        machine_format: gv('machine-format'),
+                        machine_format_cover: gv('machine-format-cover'),
+                        item_w: gv('width'),
+                        item_h: gv('height'),
+                        closedW: gv('closed-width'),
+                        closedH: gv('closed-height'),
+                        quantity: gv('quantity'),
+                        bleed: gv('bleed'),
+                        gripper: gv('gripper'),
+                        orientation: gv('item-orientation'),
+                        orientationCover: gv('item-orientation-cover'),
+                        itemsPerSheet: gv('items-per-sheet'),
+                        itemsPerSheetCover: gv('items-per-sheet-cover'),
+                        sourceW: gv('calc-source-w'),
+                        sourceH: gv('calc-source-h'),
+                        sourceYield: gv('calc-source-yield'),
+                        leaves: gv('calc-leaves'),
+                        coverW: gv('calc-cover-w'),
+                        coverH: gv('calc-cover-h'),
+                        closedCoverW: gv('closed-calc-cover-w'),
+                        closedCoverH: gv('closed-calc-cover-h'),
+                        coverBleed: gv('calc-cover-bleed'),
+                        coverGripper: gv('calc-cover-gripper'),
+                        coverQty: gv('calc-cover-qty'),
+                        coverPages: gv('calc-cover-pages'),
+                        coverDesc: gv('calc-cover-desc'),
+                        sourceCoverW: gv('calc-source-cover-w'),
+                        sourceCoverH: gv('calc-source-cover-h'),
+                        sourceCoverYield: gv('calc-source-cover-yield'),
+                        pActive: gc('calc-paper-active'),
+                        pPrice: gv('calc-paper-price'),
+                        pUnit: gv('calc-paper-unit'),
+                        pWeight: gv('calc-paper-weight'),
+                        pSupplyType: gv('calc-paper-supply-type'),
+                        pSupplyW: gv('calc-paper-supply-w'),
+                        pSupplyH: gv('calc-paper-supply-h'),
+                        pWaste: gv('calc-paper-waste-leaves'),
+                        givenSheetsL: gv('calc-given-sheets-leaves'),
+                        givenSheetsC: gv('calc-given-sheets-cover'),
+                        cbActive: gc('calc-cardboard-active'),
+                        cbPrice: gv('calc-cardboard-price'),
+                        cbUnit: gv('calc-cardboard-unit'),
+                        cbWeight: gv('calc-cardboard-weight'),
+                        cbSupplyType: gv('calc-cb-supply-type'),
+                        cbSupplyW: gv('calc-cb-supply-w'),
+                        cbSupplyH: gv('calc-cb-supply-h'),
+                        mTypeL: gv('calc-machine-type-leaves'),
+                        mRateL: gv('calc-machine-rate-leaves'),
+                        mSpeedL: gv('calc-machine-speed-leaves'),
+                        mPrepL: gv('calc-machine-prep-time-leaves'),
+                        frontL: gv('calc-color-front-leaves'),
+                        backL: gv('calc-color-back-leaves'),
+                        obratL: gc('calc-is-obrat-leaves'),
+                        washesL: gv('calc-color-washes-leaves'),
+                        washPriceL: gv('calc-wash-price-leaves'),
+                        platesNumL: gv('calc-plates-num-leaves'),
+                        platesPriceL: gv('calc-plates-price-leaves'),
+                        changePriceL: gv('calc-change-price-leaves'),
+                        platesActiveL: gc('calc-plates-active-leaves'),
+                        mutNumL: gv('calc-mut-num-leaves'),
+                        mutPlatesL: gv('calc-mut-plates-leaves'),
+                        mutChangeL: gv('calc-mut-change-price-leaves'),
+                        prepPriceL: gv('calc-prep-price-leaves'),
+                        wasteL: gv('calc-paper-waste-leaves'),
+                        wasteManualL: gv('calc-paper-waste-leaves-manual'),
+                        mTypeC: gv('calc-machine-type-cover'),
+                        mRateC: gv('calc-machine-rate-cover'),
+                        mSpeedC: gv('calc-machine-speed-cover'),
+                        mPrepC: gv('calc-machine-prep-time-cover'),
+                        frontC: gv('calc-color-front-cover'),
+                        backC: gv('calc-color-back-cover'),
+                        obratC: gc('calc-is-obrat-cover'),
+                        washesC: gv('calc-color-washes-cover'),
+                        washPriceC: gv('calc-wash-price-cover'),
+                        platesNumC: gv('calc-plates-num-cover'),
+                        platesPriceC: gv('calc-plates-price-cover'),
+                        changePriceC: gv('calc-change-price-cover'),
+                        platesActiveC: gc('calc-plates-active-cover'),
+                        mutNumC: gv('calc-mut-num-cover'),
+                        mutPlatesC: gv('calc-mut-plates-cover'),
+                        mutChangeC: gv('calc-mut-change-price-cover'),
+                        prepPriceC: gv('calc-prep-price-cover'),
+                        wasteC: gv('calc-paper-waste-cover'),
+                        wasteManualC: gv('calc-paper-waste-cover-manual'),
+                        commercial: gv('calc-commercial'),
+                        margin: gv('calc-margin'),
+                        minusPrice: gc('calc-minus-price'),
+                        orderType: gv('calc-order-type'),
+                        dnNumber: gv('calc-dn-number'),
+                        dnOld: gv('calc-dn-old'),
+                        dnDeadline: gv('calc-dn-deadline'),
+                        dnUrgent: gc('calc-dn-urgent'),
+                        dnPackaging: gv('calc-dn-packaging')
+                    },
+                    results: {
+                        total: (document.getElementById('res-price-total') || {}).innerText || '',
+                        perItem: (document.getElementById('res-price-per-item') || {}).innerText || '',
+                        sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
+                    }
+                };
+
+                const STORAGE_KEY_BROSURA = 'darko_brosura_arhiv';
+                let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY_BROSURA) || '[]');
+                if (typeof currentLoadedProjectId !== 'undefined' && currentLoadedProjectId) {
+                    arhiv = arhiv.filter(p => p.id !== currentLoadedProjectId);
+                }
+                arhiv.push(data);
+                localStorage.setItem(STORAGE_KEY_BROSURA, JSON.stringify(arhiv));
+                if (typeof currentLoadedProjectId !== 'undefined') currentLoadedProjectId = projectId;
+
+                const jsonStr = JSON.stringify(data, null, 2);
+                const nakladaStr = gv('quantity');
+                let s_naklada = nakladaStr ? ('nakl.' + nakladaStr.replace(/\s+/g, '').replace(/,/g, '-')) : '';
+                const cFront = gv('calc-color-front-leaves') || '0';
+                const cBack = gv('calc-color-back-leaves') || '0';
+                const cColors = (cFront === '0' && cBack === '0') ? '' : `b${cFront}${cBack}`;
+                const quoteNum = (gv('calc-quote-number') || gv('calc-dn-number') || '').replace(/[\/\\]/g, '-').trim();
+                let s_ponudba = quoteNum ? 'pon.' + quoteNum : '';
+                const customer = gv('calc-customer').trim();
+                const izdelek = name ? name.trim() : '';
+
+                let tParts = [s_ponudba, customer, izdelek, s_naklada, cColors].filter(Boolean);
+                const suggestedName = (tParts.length > 0 ? tParts.join('_') : name).replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.json';
 
                 try {
-
-                    function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
-
-                    function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
-
-
-
-                    let name = gv('calc-project-name').trim() || "Brez imena";
-
-                    const projectId = currentLoadedProjectId ? currentLoadedProjectId : Date.now();
-
-                    const data = {
-
-                        id: projectId,
-
-                        name: name,
-
-                        _source: 'darko-brosura',
-
-                        date: new Date().toLocaleString('sl-SI'),
-
-                        customer: gv('calc-customer'),
-
-                        custEmail: gv('calc-cust-email'),
-
-                        custAddress: gv('calc-cust-address'),
-
-                        deliveryAddress: gv('calc-delivery-address'),
-
-                        custId: gv('calc-cust-id'),
-
-                        quoteNum: gv('calc-quote-number'),
-
-                        customerCode: gv('calc-customer-code'),
-
-                        orderType: gv('calc-order-type'),
-
-                        inputs: {
-
-                            machine_format: gv('machine-format'),
-
-                            machine_format_cover: gv('machine-format-cover'),
-
-                            item_w: gv('width'),
-
-                            item_h: gv('height'),
-
-                            closedW: gv('closed-width'),
-
-                            closedH: gv('closed-height'),
-
-                            quantity: gv('quantity'),
-
-                            bleed: gv('bleed'),
-
-                            gripper: gv('gripper'),
-
-                            orientation: gv('item-orientation'),
-
-                            orientationCover: gv('item-orientation-cover'),
-
-                            itemsPerSheet: gv('items-per-sheet'),
-
-                            itemsPerSheetCover: gv('items-per-sheet-cover'),
-
-                            sourceW: gv('calc-source-w'),
-
-                            sourceH: gv('calc-source-h'),
-
-                            sourceYield: gv('calc-source-yield'),
-
-                            leaves: gv('calc-leaves'),
-
-                            coverW: gv('calc-cover-w'),
-
-                            coverH: gv('calc-cover-h'),
-
-                            closedCoverW: gv('closed-calc-cover-w'),
-
-                            closedCoverH: gv('closed-calc-cover-h'),
-
-                            coverBleed: gv('calc-cover-bleed'),
-
-                            coverGripper: gv('calc-cover-gripper'),
-
-                            coverQty: gv('calc-cover-qty'),
-
-                            coverPages: gv('calc-cover-pages'),
-
-                            coverDesc: gv('calc-cover-desc'),
-
-                            sourceCoverW: gv('calc-source-cover-w'),
-
-                            sourceCoverH: gv('calc-source-cover-h'),
-
-                            sourceCoverYield: gv('calc-source-cover-yield'),
-
-                            pActive: gc('calc-paper-active'),
-
-                            pPrice: gv('calc-paper-price'),
-
-                            pUnit: gv('calc-paper-unit'),
-
-                            pWeight: gv('calc-paper-weight'),
-
-                            pSupplyType: gv('calc-paper-supply-type'),
-
-                            pSupplyW: gv('calc-paper-supply-w'),
-
-                            pSupplyH: gv('calc-paper-supply-h'),
-
-                            pWaste: gv('calc-paper-waste-leaves'),
-
-                            givenSheetsL: gv('calc-given-sheets-leaves'),
-
-                            givenSheetsC: gv('calc-given-sheets-cover'),
-
-                            cbActive: gc('calc-cardboard-active'),
-
-                            cbPrice: gv('calc-cardboard-price'),
-
-                            cbUnit: gv('calc-cardboard-unit'),
-
-                            cbWeight: gv('calc-cardboard-weight'),
-
-                            cbSupplyType: gv('calc-cb-supply-type'),
-
-                            cbSupplyW: gv('calc-cb-supply-w'),
-
-                            cbSupplyH: gv('calc-cb-supply-h'),
-
-                            mTypeL: gv('calc-machine-type-leaves'),
-
-                            mRateL: gv('calc-machine-rate-leaves'),
-
-                            mSpeedL: gv('calc-machine-speed-leaves'),
-
-                            mPrepL: gv('calc-machine-prep-time-leaves'),
-
-                            frontL: gv('calc-color-front-leaves'),
-
-                            backL: gv('calc-color-back-leaves'),
-
-                            obratL: gc('calc-is-obrat-leaves'),
-
-                            washesL: gv('calc-color-washes-leaves'),
-
-                            washPriceL: gv('calc-wash-price-leaves'),
-
-                            platesNumL: gv('calc-plates-num-leaves'),
-
-                            platesPriceL: gv('calc-plates-price-leaves'),
-
-                            changePriceL: gv('calc-change-price-leaves'),
-
-                            platesActiveL: gc('calc-plates-active-leaves'),
-
-                            mutNumL: gv('calc-mut-num-leaves'),
-
-                            mutPlatesL: gv('calc-mut-plates-leaves'),
-
-                            mutChangeL: gv('calc-mut-change-price-leaves'),
-
-                            prepPriceL: gv('calc-prep-price-leaves'),
-
-                            wasteL: gv('calc-paper-waste-leaves'),
-                            wasteManualL: gv('calc-paper-waste-leaves-manual'),
-
-                            mTypeC: gv('calc-machine-type-cover'),
-                            mRateC: gv('calc-machine-rate-cover'),
-                            mSpeedC: gv('calc-machine-speed-cover'),
-                            mPrepC: gv('calc-machine-prep-time-cover'),
-                            frontC: gv('calc-color-front-cover'),
-                            backC: gv('calc-color-back-cover'),
-                            obratC: gc('calc-is-obrat-cover'),
-                            washesC: gv('calc-color-washes-cover'),
-                            washPriceC: gv('calc-wash-price-cover'),
-                            platesNumC: gv('calc-plates-num-cover'),
-                            platesPriceC: gv('calc-plates-price-cover'),
-                            changePriceC: gv('calc-change-price-cover'),
-                            platesActiveC: gc('calc-plates-active-cover'),
-                            mutNumC: gv('calc-mut-num-cover'),
-                            mutPlatesC: gv('calc-mut-plates-cover'),
-                            mutChangeC: gv('calc-mut-change-price-cover'),
-                            prepPriceC: gv('calc-prep-price-cover'),
-                            wasteC: gv('calc-paper-waste-cover'),
-                            wasteManualC: gv('calc-paper-waste-cover-manual'),
-
-                            commercial: gv('calc-commercial'),
-
-                            margin: gv('calc-margin'),
-
-                            minusPrice: gc('calc-minus-price'),
-
-                            orderType: gv('calc-order-type'),
-
-                            dnNumber: gv('calc-dn-number'),
-
-                            dnOld: gv('calc-dn-old'),
-
-                            dnDeadline: gv('calc-dn-deadline'),
-
-                            dnUrgent: gc('calc-dn-urgent'),
-
-                            dnPackaging: gv('calc-dn-packaging'),
-
-                            finish: {
-
-                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), coverOnly: gc('f-cilinder-cover-only') },
-                                ril: { active: gc('f-ril-active'), speed: gv('f-ril-speed'), rate: gv('f-ril-rate'), hours: gv('f-ril-hours') },
-
-                                zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
-
-                                razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
-
-                                razrez: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
-
-                                precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
-
-                                znasanje: { active: gc('f-znasanje-active'), prep: gv('f-znasanje-prep'), per1000: gv('f-znasanje-per1000') },
-
-                                brosiranje: { active: gc('f-brosiranje-active'), prep: gv('f-brosiranje-prep'), kos: gv('f-brosiranje-kos') },
-
-                                spiraljenje: { active: gc('f-spiraljenje-active'), prep: gv('f-spiraljenje-prep'), kos: gv('f-spiraljenje-kos') },
-
-                                spiral: { active: gc('f-spiraljenje-active'), prep: gv('f-spiraljenje-prep'), kos: gv('f-spiraljenje-kos') },
-
-                                sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
-
-                                lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
-
-                                extra: { active: gc('f-extra-active'), manual: gv('f-extra-manual'), external: gv('f-extra-external') },
-
-                                tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
-
-                                uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type'), format: gv('f-uv-format'), extraWaste: gv('f-uv-extra-waste') },
-                                uv2: { active: gc('f-uv2-active'), prep: gv('f-uv2-prep'), per1000: gv('f-uv2-per1000'), sides: gv('f-uv2-sides'), type: gv('f-uv2-type'), format: gv('f-uv2-format'), extraWaste: gv('f-uv2-extra-waste') },
-
-                                lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000') },
-
-                                delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
-
-                                delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') },
-
-                                deliveryFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
-
-                            }
-
-                        },
-
-                        finish: {
-
-                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), coverOnly: gc('f-cilinder-cover-only') },
-                            ril: { active: gc('f-ril-active'), speed: gv('f-ril-speed'), rate: gv('f-ril-rate'), hours: gv('f-ril-hours') },
-
-                            zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
-
-                            razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
-
-                            razrez: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
-
-                            precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
-
-                            znasanje: { active: gc('f-znasanje-active'), prep: gv('f-znasanje-prep'), per1000: gv('f-znasanje-per1000') },
-
-                            brosiranje: { active: gc('f-brosiranje-active'), prep: gv('f-brosiranje-prep'), kos: gv('f-brosiranje-kos') },
-
-                            spiraljenje: { active: gc('f-spiraljenje-active'), prep: gv('f-spiraljenje-prep'), kos: gv('f-spiraljenje-kos') },
-
-                            spiral: { active: gc('f-spiraljenje-active'), prep: gv('f-spiraljenje-prep'), kos: gv('f-spiraljenje-kos') },
-
-                            sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
-
-                            lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
-
-                            extra: { active: gc('f-extra-active'), manual: gv('f-extra-manual'), external: gv('f-extra-external') },
-
-                            tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
-
-                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type'), format: gv('f-uv-format'), extraWaste: gv('f-uv-extra-waste') },
-                            uv2: { active: gc('f-uv2-active'), prep: gv('f-uv2-prep'), per1000: gv('f-uv2-per1000'), sides: gv('f-uv2-sides'), type: gv('f-uv2-type'), format: gv('f-uv2-format'), extraWaste: gv('f-uv2-extra-waste') },
-
-                            lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000') },
-
-                            delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
-
-                            delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') },
-
-                            deliveryFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
-
-                        },
-
-                        results: {
-
-                            total: (document.getElementById('res-price-total') || {}).innerText || '',
-
-                            perItem: (document.getElementById('res-price-per-item') || {}).innerText || '',
-
-                            sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
-
+                    const srvRes = await fetch('http://127.0.0.1:8095', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
+                    });
+                    if (srvRes.ok) {
+                        const srvData = await srvRes.json();
+                        if (srvData.status === 'success') {
+                            if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                            if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                            alert("✓ Shranjeno v srečko-server (ponudbe test):\nDatoteka: " + suggestedName);
+                            return;
                         }
-
-                    };
-
-
-
-                    let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-
-                    if (currentLoadedProjectId) {
-                        arhiv = arhiv.filter(p => p.id !== currentLoadedProjectId);
                     }
+                } catch (srvErr) {
+                    console.log("Srečko-server save error:", srvErr);
+                }
 
-                    arhiv.push(data);
-
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
-
-                    currentLoadedProjectId = projectId;
-
-
-
-                    if (!silent) {
-                        document.getElementById('calc-project-name').value = "";
+                if (typeof g_projectsDirHandle !== 'undefined' && g_projectsDirHandle) {
+                    try {
+                        const fileHandle = await g_projectsDirHandle.getFileHandle(suggestedName, { create: true });
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(jsonStr);
+                        await writable.close();
+                        if (typeof refreshDiskProjects === 'function') await refreshDiskProjects();
+                        if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                        alert("✓ Shranjeno v povezano mapo: [" + (g_projectsDirHandle ? g_projectsDirHandle.name : "omrežna mapa") + "]\nDatoteka: " + suggestedName);
+                        return;
+                    } catch (dirErr) {
+                        console.log("Direct folder handle write error:", dirErr);
                     }
+                }
 
-                    renderSavedProjects();
+                if (window.showSaveFilePicker) {
+                    try {
+                        const handle = await window.showSaveFilePicker({
+                            suggestedName: suggestedName,
+                            types: [{ description: 'Brošura JSON', accept: { 'application/json': ['.json'] } }],
+                        });
+                        const writable = await handle.createWritable();
+                        await writable.write(jsonStr);
+                        await writable.close();
+                        return;
+                    } catch (e) { if (e.name === 'AbortError') return; alert("Napaka pri shranjevanju: " + e.message); }
+                }
 
-                    updateCustomerDatalist();
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = suggestedName;
+                document.body.appendChild(a); a.click();
+                setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
 
-
-
-                    if (btn) {
-
-                        const oldHTML = btn.innerHTML;
-
-                        btn.innerHTML = "✅ SHRANJENO";
-
-                        btn.style.background = "#10b981";
-
-                        setTimeout(() => {
-
-                            btn.innerHTML = oldHTML;
-
-                            btn.style.background = "#10b981";
-
-                        }, 2000);
-
-                    }
-
-                } catch (err) { console.error("saveCurrentProject error:", err); }
-
+            } catch (err) {
+                alert("Napaka pri shranjevanju: " + err.message);
             }
+        }
 
+        function saveCurrentProject(btn = null, silent = false) {
+            saveProjectToFile();
+        }
 
-
-            async function toggleProjectsDropdown() {
+        async function toggleProjectsDropdown() {
                 const list = document.getElementById('projects-dropdown-list');
                 if (!list) return;
                 if (list.style.display === 'flex' || list.style.display === 'block') {
@@ -9807,6 +9661,7 @@
             function exportSingleProject(id) {
 
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                arhiv = arhiv.filter(proj => isBrosuraProject(proj));
 
                 let proj = arhiv.find(p => p.id == id);
 
@@ -9836,6 +9691,14 @@
 
 
 
+            function isBrosuraProject(proj) {
+                if (!proj) return false;
+                if (proj._source) return proj._source === 'darko-brosura' || proj._source === 'brosura';
+                const inp = proj.inputs || {};
+                if (inp.leaves || inp.coverW || inp.coverPages || inp.itemsPerSheetCover) return true;
+                return false;
+            }
+
             function renderSavedProjects() {
             function getSearchableText(obj) {
                 let text = "";
@@ -9862,8 +9725,10 @@
 
 
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                arhiv = arhiv.filter(proj => isBrosuraProject(proj));
 
-                const filter = (document.getElementById('project-search-input').value || "").toLowerCase();
+                const searchInput = document.getElementById('project-search-input');
+                const filter = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
 
 
@@ -10364,6 +10229,7 @@
             function loadProject(id) {
 
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                arhiv = arhiv.filter(proj => isBrosuraProject(proj));
 
                 let proj = arhiv.find(p => p.id == id);
 
@@ -10382,6 +10248,7 @@
                 if (!confirm("Ali ste prepričani, da želite izbrisati to ponudbo?")) return;
 
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                arhiv = arhiv.filter(proj => isBrosuraProject(proj));
 
                 arhiv = arhiv.filter(p => p.id != id);
 
