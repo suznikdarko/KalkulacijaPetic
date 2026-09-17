@@ -1182,6 +1182,8 @@
                         </div>
                         <div id="digital-plakat-price-info" style="font-size: 0.85rem; color: #93c5fd; font-weight: 500;"></div>
                     </div>
+                    <div id="machine-efficiency-warning"
+                        style="display: none; margin-top: 10px; padding: 10px 14px; border-radius: 8px; font-size: 0.88rem; font-weight: bold; transition: all 0.3s ease;"></div>
                 </div>
             </div>
             <!-- 4. Dodelava -->
@@ -2442,6 +2444,52 @@
                 return 2.39;
             }
             return 0;
+        }
+        function updateMachineEfficiencyWarning(mType, qty, totalPrintCost, totalPrepCost, totalSheetsNeeded) {
+            const warnEl = document.getElementById('machine-efficiency-warning');
+            if (!warnEl) return;
+            if (mType === 'digital-plakat') {
+                const posterFormat = document.getElementById('calc-poster-format') ? document.getElementById('calc-poster-format').value : 'B1';
+                if (qty >= 40) {
+                    warnEl.style.display = 'block';
+                    warnEl.style.background = 'rgba(245, 158, 11, 0.15)';
+                    warnEl.style.border = '1px solid #f59e0b';
+                    warnEl.style.color = '#fef08a';
+                    warnEl.innerHTML = `⚠️ <strong>Nasvet za ekonomičnost (Plakati):</strong> Pri nakladi <strong>${qty} kos</strong> (${posterFormat}) na digitalnem ploterju znaša tisk <strong>${totalPrintCost.toFixed(2).replace('.', ',')} €</strong>. Za tolikšno količino plakatov priporočamo preverjanje kalkulacije na offset stroju (npr. <strong>S8</strong> ali <strong>CD</strong>), saj je offset tisk pri večjih nakladah ugodnejši!`;
+                } else {
+                    warnEl.style.display = 'block';
+                    warnEl.style.background = 'rgba(16, 185, 129, 0.12)';
+                    warnEl.style.border = '1px solid #10b981';
+                    warnEl.style.color = '#a7f3d0';
+                    warnEl.innerHTML = `✅ <strong>Eko izbira:</strong> Digitalni tisk plakatov je za naklado <strong>${qty} kos</strong> optimalna in najugodnejša izbira (brez stroškov offset priprav in CTP plošč).`;
+                }
+            } else if (mType === 'digital') {
+                if (totalSheetsNeeded >= 300 || qty >= 500) {
+                    warnEl.style.display = 'block';
+                    warnEl.style.background = 'rgba(245, 158, 11, 0.15)';
+                    warnEl.style.border = '1px solid #f59e0b';
+                    warnEl.style.color = '#fef08a';
+                    warnEl.innerHTML = `⚠️ <strong>Nasvet za ekonomičnost:</strong> Pri nakladi <strong>${qty} kos</strong> (${totalSheetsNeeded} pol) je digitalni tisk obsežen. Priporočamo preverjanje tiska na offset stroju (npr. <strong>S4</strong> ali <strong>S8</strong>), ker bo cena po poli na offsetu nižja.`;
+                } else {
+                    warnEl.style.display = 'block';
+                    warnEl.style.background = 'rgba(16, 185, 129, 0.12)';
+                    warnEl.style.border = '1px solid #10b981';
+                    warnEl.style.color = '#a7f3d0';
+                    warnEl.innerHTML = `✅ <strong>Eko izbira:</strong> Digitalni tisk je za naklado <strong>${qty} kos</strong> hitra in ekonomična rešitev.`;
+                }
+            } else if (mType !== 'cooperation') {
+                if (totalSheetsNeeded <= 80 && qty <= 100) {
+                    warnEl.style.display = 'block';
+                    warnEl.style.background = 'rgba(59, 130, 246, 0.15)';
+                    warnEl.style.border = '1px solid #3b82f6';
+                    warnEl.style.color = '#bfdbfe';
+                    warnEl.innerHTML = `💡 <strong>Nasvet:</strong> Za majhno naklado (<strong>${qty} kos</strong>) pri offset tiska plačate fiksno pripravo in CTP plošče (${totalPrepCost.toFixed(2).replace('.', ',')} €). Priporočamo preverjanje <strong>Digitalnega tiska</strong>!`;
+                } else {
+                    warnEl.style.display = 'none';
+                }
+            } else {
+                warnEl.style.display = 'none';
+            }
         }
         function onPosterFormatChange() {
             const posterFmt = document.getElementById('calc-poster-format') ? document.getElementById('calc-poster-format').value : 'B1';
@@ -4138,6 +4186,9 @@
             }
             totalFinishCost += deliveryCost; // Sedaj prištejemo k dodelavi!
             let commercialCost = parseFloat(document.getElementById('calc-commercial').value) || 0;
+            if (qty === q) {
+                updateMachineEfficiencyWarning(mType, qty, totalPrintCost, totalPrepCost, totalSheetsNeeded);
+            }
             let subtotalWithoutDelivery = paperCost + totalPrepCost + totalPrintCost + (totalFinishCost - deliveryCost) + commercialCost;
             if (document.getElementById('calc-minus-price').checked) {
                 subtotalWithoutDelivery = subtotalWithoutDelivery * 0.952; // -4.8%
