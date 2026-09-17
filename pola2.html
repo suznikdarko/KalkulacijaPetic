@@ -787,6 +787,7 @@
                             <option value="SM4+lak">SM4+lak</option>
                             <option value="CD UV">CD UV</option>
                             <option value="digital">Digitalni stroj</option>
+                            <option value="digital-plakat">Digitalni tisk - plakat (B1, B2, A1)</option>
                             <option value="cooperation">Kooperacija (B1/A1)</option>
                         </select>
                     </div>
@@ -1162,6 +1163,25 @@
                             </select>
                         </div>
                     </div>
+                    <div id="digital-plakat-inputs-group"
+                        style="display: none; background: rgba(59, 130, 246, 0.08); padding: 12px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); margin-top: 10px; flex-direction: column; gap: 0.75rem;">
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <div class="form-group" style="flex: 1; margin: 0;">
+                                <label style="color: #60a5fa; font-weight: bold;">Format plakata (Cenik)</label>
+                                <select id="calc-poster-format" onchange="onPosterFormatChange()" style="background: #1e293b; color: white; padding: 6px; border-radius: 6px; border: 1px solid #3b82f6; width: 100%;">
+                                    <option value="B1" selected>Format B1 (700 x 1000 mm)</option>
+                                    <option value="B2">Format B2 (500 x 700 mm)</option>
+                                    <option value="A1">Format A1 (594 x 841 mm)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1; margin: 0;">
+                                <label style="color: #60a5fa; font-weight: bold;">Število tulcev (1,42 € / kom)</label>
+                                <input type="number" id="calc-poster-tubes" value="0" min="0" step="1" onchange="calculatePrice()"
+                                    style="background: #1e293b; color: white; padding: 6px; border-radius: 6px; border: 1px solid #3b82f6; width: 100%;" placeholder="0">
+                            </div>
+                        </div>
+                        <div id="digital-plakat-price-info" style="font-size: 0.85rem; color: #93c5fd; font-weight: 500;"></div>
+                    </div>
                 </div>
             </div>
             <!-- 4. Dodelava -->
@@ -1169,12 +1189,6 @@
                 <div
                     style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); margin-bottom: 1rem;">
                     <h3 style="border-bottom: none; margin-bottom: 0;">4. Dodelava</h3>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="calculate-btn" onclick="calculatePrice()"
-                            style="background: #10b981; margin: 0; padding: 0.5rem 1rem; width: auto; font-size: 0.9rem;">Osveži vse stroške</button>
-                        <button class="calculate-btn" onclick="exportToFile()"
-                            style="background: #6366f1; margin: 0; padding: 0.5rem 1rem; width: auto; font-size: 0.9rem;" title="Shrani trenutni projekt v JSON datoteko ali povezano mapo">💾 SHRANI PROJEKT (JSON)</button>
-                    </div>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem;">
                     <div>
@@ -2318,8 +2332,9 @@
             return false;
         }
         function isSheetFamilyMatching(rawFamily, sheetFamily, mType = '', sheetName = '') {
-            if (sheetFamily === 'DIGITAL') return mType === 'digital';
+            if (sheetFamily === 'DIGITAL') return (mType === 'digital' || mType === 'digital-plakat');
             if (rawFamily === 'OTHER') return true;
+            if (mType === 'digital-plakat') return true;
             if (rawFamily === 'N') {
                 return sheetFamily === 'N' || sheetName === '638x448' || sheetName === 'SRA3';
             }
@@ -2370,6 +2385,7 @@
             'SM4+lak': { rate: 160, speed: 6900, prep: 10, useDynamic: true, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'CD UV': { rate: 280, speed: 6900, prep: 10, useDynamic: true, maxW: 698, maxH: 498, defaultFormat: 'B2' },
             'digital': { rate: 40, speed: 1800, prep: 10, useDynamic: false, defaultFormat: 'Digital (480x320)', maxW: 480, maxH: 320 },
+            'digital-plakat': { rate: 0, speed: 500, prep: 0, useDynamic: false, defaultFormat: 'B1', maxW: 1000, maxH: 707 },
             'cooperation': { rate: 0, speed: 6000, prep: 0, useDynamic: false, defaultFormat: 'B1', maxW: 1000, maxH: 707 }
         };
         let g_lastBestLayout = null;
@@ -2399,16 +2415,75 @@
             let diff = el.value.length - oldVal.length;
             el.setSelectionRange(cursor + diff, cursor + diff);
         }
+        function getDigitalPosterUnitPrice(format, qty) {
+            qty = parseInt(qty) || 1;
+            if (format === 'B1') {
+                if (qty <= 5) return 15.06;
+                if (qty <= 10) return 14.35;
+                if (qty <= 20) return 12.48;
+                if (qty <= 30) return 10.12;
+                if (qty <= 50) return 8.67;
+                return 8.12;
+            } else if (format === 'B2') {
+                if (qty <= 5) return 12.48;
+                if (qty <= 10) return 11.32;
+                if (qty <= 20) return 10.01;
+                if (qty <= 30) return 8.437;
+                return 7.785;
+            } else if (format === 'A1') {
+                if (qty <= 5) return 13.45;
+                if (qty <= 10) return 12.01;
+                if (qty <= 20) return 11.31;
+                if (qty <= 30) return 9.44;
+                if (qty <= 50) return 8.01;
+                if (qty <= 100) return 7.785;
+                if (qty <= 200) return 6.21;
+                if (qty <= 400) return 4.33;
+                return 2.39;
+            }
+            return 0;
+        }
+        function onPosterFormatChange() {
+            const posterFmt = document.getElementById('calc-poster-format') ? document.getElementById('calc-poster-format').value : 'B1';
+            const mFormatSelect = document.getElementById('machine-format');
+            if (mFormatSelect) {
+                mFormatSelect.value = posterFmt;
+            }
+            const widthEl = document.getElementById('width');
+            const heightEl = document.getElementById('height');
+            if (posterFmt === 'B1') {
+                if (widthEl) widthEl.value = "700";
+                if (heightEl) heightEl.value = "1000";
+            } else if (posterFmt === 'B2') {
+                if (widthEl) widthEl.value = "500";
+                if (heightEl) heightEl.value = "700";
+            } else if (posterFmt === 'A1') {
+                if (widthEl) widthEl.value = "594";
+                if (heightEl) heightEl.value = "841";
+            }
+            if (typeof calculate === 'function') {
+                calculate();
+            } else {
+                calculatePrice();
+            }
+        }
         function applyMachineDefaults() {
             const itemsInp = document.getElementById('items-per-sheet');
             if (itemsInp) itemsInp.value = "";
             const mType = document.getElementById('calc-machine-type').value;
             const profile = machineProfiles[mType];
             const isCoop = (mType === 'cooperation');
+            const isPlakat = (mType === 'digital-plakat');
             const machineInputs = document.getElementById('machine-inputs-group');
             const coopInputs = document.getElementById('cooperation-inputs-group');
-            if (machineInputs) machineInputs.style.display = isCoop ? 'none' : 'block';
+            const plakatInputs = document.getElementById('digital-plakat-inputs-group');
+            if (machineInputs) machineInputs.style.display = (isCoop || isPlakat) ? 'none' : 'block';
             if (coopInputs) coopInputs.style.display = isCoop ? 'flex' : 'none';
+            if (plakatInputs) plakatInputs.style.display = isPlakat ? 'flex' : 'none';
+            if (isPlakat) {
+                onPosterFormatChange();
+                return;
+            }
             if (profile) {
                 document.getElementById('calc-machine-rate').value = profile.rate;
                 const prepTimeInp = document.getElementById('calc-machine-prep-time');
@@ -2418,13 +2493,28 @@
                 }
                 const mFormatSelect = document.getElementById('machine-format');
                 if (mFormatSelect) {
-                    mFormatSelect.value = isCoop ? 'B1' : 'auto';
+                    if (isCoop) mFormatSelect.value = 'B1';
+                    else if (isPlakat) {
+                        const posterFmt = document.getElementById('calc-poster-format') ? document.getElementById('calc-poster-format').value : 'B1';
+                        mFormatSelect.value = posterFmt;
+                    } else {
+                        mFormatSelect.value = 'auto';
+                    }
                 }
                 if (mType === 'digital') {
                     const platesInp = document.getElementById('calc-plates-num');
                     if (platesInp) platesInp.value = "0";
                     const prepInp = document.getElementById('calc-prep-price');
                     if (prepInp) prepInp.value = "30";
+                    const mutInp = document.getElementById('calc-mut-plates');
+                    if (mutInp) mutInp.value = "0";
+                    const precutPrepInp = document.getElementById('f-precut-prep');
+                    if (precutPrepInp) precutPrepInp.value = "10";
+                } else if (mType === 'digital-plakat') {
+                    const platesInp = document.getElementById('calc-plates-num');
+                    if (platesInp) platesInp.value = "0";
+                    const prepInp = document.getElementById('calc-prep-price');
+                    if (prepInp) prepInp.value = "0";
                     const mutInp = document.getElementById('calc-mut-plates');
                     if (mutInp) mutInp.value = "0";
                     const precutPrepInp = document.getElementById('f-precut-prep');
@@ -2788,10 +2878,11 @@
                 g_editedWorkOrderHTML = '';
             }
             try {
-                const w = parseFloat(document.getElementById('width').value) || 0;
-                const h = parseFloat(document.getElementById('height').value) || 0;
-                const b = parseFloat(document.getElementById('bleed').value) || 0;
-                const g = parseFloat(document.getElementById('gripper').value) || 0;
+                let w = parseFloat(document.getElementById('width').value) || 0;
+                let h = parseFloat(document.getElementById('height').value) || 0;
+                const mType = document.getElementById('calc-machine-type').value;
+                const b = (mType === 'digital-plakat') ? 0 : (parseFloat(document.getElementById('bleed').value) || 0);
+                const g = (mType === 'digital-plakat') ? 0 : (parseFloat(document.getElementById('gripper').value) || 0);
                 const qStr = document.getElementById('quantity').value || "0";
                 const qArr = qStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
                 const q = qArr[0] || 0;
@@ -2799,7 +2890,6 @@
                 const mFormat = document.getElementById('machine-format').value;
                 const sw = parseFloat(document.getElementById('calc-source-w').value) || 1000;
                 const sh = parseFloat(document.getElementById('calc-source-h').value) || 700;
-                const mType = document.getElementById('calc-machine-type').value;
                 const profile = machineProfiles[mType];
                 if (q <= 0) return;
                 if (!g_manualLayout && (w <= 0 || h <= 0)) return;
@@ -2821,7 +2911,20 @@
                 let bestSheet = null;
                 let bestLayout = null;
                 let bestScore = -1;
-                if (g_manualLayout) {
+                if (mType === 'digital-plakat') {
+                    const posterFmt = document.getElementById('calc-poster-format') ? document.getElementById('calc-poster-format').value : 'B1';
+                    bestSheet = sheets.find(s => s.name === posterFmt) || sheets.find(s => s.name === 'B1') || sheets[0];
+                    bestLayout = {
+                        count: 1,
+                        cols: 1,
+                        rows: 1,
+                        rot: false,
+                        gripEdge: 'H',
+                        itemW: w,
+                        itemH: h,
+                        items: [{ id: 1, x: 0, y: 0, w: w, h: h, bleed: 0, rot: false }]
+                    };
+                } else if (g_manualLayout) {
                     bestSheet = sheets.find(s => s.w === g_manualLayout.sheetW && s.h === g_manualLayout.sheetH) || sheets.find(s => s.name === mFormat) || sheets[0];
                     bestLayout = {
                         count: g_manualLayout.items.length,
@@ -3591,7 +3694,7 @@
             let paperWasteSheets = 320;
             if (!isNaN(manualWaste)) {
                 paperWasteSheets = manualWaste;
-            } else if (mTypeForWaste === 'digital') {
+            } else if (mTypeForWaste === 'digital' || mTypeForWaste === 'digital-plakat') {
                 paperWasteSheets = 50;
             } else {
                 let _front = parseInt(document.getElementById('calc-color-front').value) || 0;
@@ -3811,6 +3914,7 @@
             }
             let mPrepTime = mPrepMinutes / 60;
             let totalPrintCost = printHours * mRate;
+            let totalFinishCost = 0;
             if (mType === 'digital') {
                 platesNum = 0;
                 numberOfChanges = 0;
@@ -3828,8 +3932,32 @@
                 }
                 totalPrintCost = printSheets * perSheetCost;
                 printHours = 0; // Strojnega časa za tisk ne upoštevamo po uri
+            } else if (mType === 'digital-plakat') {
+                platesNum = 0;
+                numberOfChanges = 0;
+                washesNum = 0;
+                washCost = 0;
+                totalPrepCost = 0;
+                paperCost = 0; // Cenik plakatov že zajema papir in tisk
+                let posterFormat = document.getElementById('calc-poster-format') ? document.getElementById('calc-poster-format').value : 'B1';
+                let posterUnitPrice = getDigitalPosterUnitPrice(posterFormat, qty);
+                totalPrintCost = qty * posterUnitPrice;
+                printHours = 0;
+
+                let numTubes = parseFloat(document.getElementById('calc-poster-tubes') ? document.getElementById('calc-poster-tubes').value : 0) || 0;
+                let tubeCost = numTubes * 1.42;
+                totalFinishCost += tubeCost;
+
+                if (qty === q) {
+                    let infoEl = document.getElementById('digital-plakat-price-info');
+                    if (infoEl) {
+                        let unitPriceStr = posterUnitPrice.toFixed(3).replace('.', ',');
+                        let printCostStr = totalPrintCost.toFixed(2).replace('.', ',');
+                        let tubeCostStr = tubeCost.toFixed(2).replace('.', ',');
+                        infoEl.innerHTML = `📌 <strong>Cenik ${posterFormat}</strong> za ${qty} kos: <strong>${unitPriceStr} € / kos</strong> (skupaj tisk plakatov: <strong>${printCostStr} €</strong>)${numTubes > 0 ? ` | 📦 Tulci (${numTubes}x 1,42 €): <strong>${tubeCostStr} €</strong>` : ''}`;
+                    }
+                }
             }
-            let totalFinishCost = 0;
             if (mType === 'cooperation') {
                 totalPrepCost = 0;
                 let coopPrice = parseFloat(document.getElementById('calc-cooperation-price').value) || 0;
@@ -6328,6 +6456,8 @@
                 if (inp.washPrice !== undefined) setV('calc-wash-price', inp.washPrice);
                 if (inp.cooperationPrice !== undefined) setV('calc-cooperation-price', inp.cooperationPrice);
                 if (inp.cooperationUnit !== undefined) setV('calc-cooperation-unit', inp.cooperationUnit);
+                if (inp.posterFormat !== undefined) setV('calc-poster-format', inp.posterFormat);
+                if (inp.posterTubes !== undefined) setV('calc-poster-tubes', inp.posterTubes);
                 if (inp.platesPrice !== undefined) setV('calc-plates-price', inp.platesPrice);
                 if (inp.prepPrice !== undefined) setV('calc-prep-price', inp.prepPrice);
                 if (inp.changePrice !== undefined) setV('calc-change-price', inp.changePrice);
@@ -6636,6 +6766,8 @@
                         washPrice: parseFloat(document.getElementById('calc-wash-price').value) || 25,
                         cooperationPrice: document.getElementById('calc-cooperation-price') ? document.getElementById('calc-cooperation-price').value : '',
                         cooperationUnit: document.getElementById('calc-cooperation-unit') ? document.getElementById('calc-cooperation-unit').value : 'flat',
+                        posterFormat: document.getElementById('calc-poster-format') ? document.getElementById('calc-poster-format').value : 'B1',
+                        posterTubes: document.getElementById('calc-poster-tubes') ? document.getElementById('calc-poster-tubes').value : '0',
                         machineType: document.getElementById('calc-machine-type').value,
                         machineRate: document.getElementById('calc-machine-rate').value,
                         machineSpeed: document.getElementById('calc-machine-speed').value,
