@@ -64,7 +64,12 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
-### D. Upoštevanje Obračanja (`isObrat`) in ŠV Tiska (`isSV`) pri 1-Barvnih Mutacijah (`pola2.html`)
+### D. Prikazovanje in Preračunavanje Cene na Kos v Ponudbah na 4 Decimalke
+- **Sprememba:** V vseh ponudbah (`getQuoteHTML`, predogled ponudb in izpisi specifikacij) v vseh delovnih datotekah (`pola2.html`, `blok2.html`, `brosura2.html`, `kuverte2.html`, `etikete2.html`, `TENOVIS2.html`) so bile cene na kos (`Cena za kos` / `perItem` / `pricePerUnit`) usklajene na **4 decimalna mesta** (npr. `0,1234 €`).
+
+---
+
+### E. Upoštevanje Obračanja (`isObrat`) in ŠV Tiska (`isSV`) pri 1-Barvnih Mutacijah (`pola2.html`)
 - **Težava:** Pri 1-barvni obojestranski mutaciji (`Mutacija v 1 barvi obojestransko (1/1)`) je bilo potrebno pravilno obračunati število dodatnih plošč glede na to, ali gre za ravni tisk ali za tisk z obračanjem (Ob) / ŠV tisk.
 - **Pravilo:**
   - **Ravni tisk (Ločeni plošči za spredaj/zadaj):** 1-barvna obojestranska mutacija (1/1) zahteva **2 dodatni plošči** na mutacijo (1 spredaj + 1 zadaj).
@@ -73,7 +78,7 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
-### E. Uskladitev Prednastavljenih Formatov Kuvert in Vrečk (`envelopePresets`)
+### F. Uskladitev Prednastavljenih Formatov Kuvert in Vrečk (`envelopePresets`)
 - **Težava:** Ob izbiri formata kuverte ali vrečke v padajočem menuju `#envelope-preset` (npr. `C5 LO`, `C4 BO`, `Vrečka C5`...) se dimenzije (širina in višina) niso spremenile.
 - **Vzrok:** Vrednosti ustreznih HTML opcij (`value="C5_LO"`, `value="C4_BO"`, `value="Vrecka_C5_LO"`...) se niso ujemale s ključi v JavaScript objektu `envelopePresets` (tam so bili definirani le splošni ključi `'C5'`, `'C4'` z napačnimi dimenzijami).
 - **Rešitev:**
@@ -82,7 +87,7 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
-### F. Filtriranje Projektov v "MOJI PROJEKTI" (Prikaz samo projekte za trenutni modul)
+### G. Filtriranje Projektov v "MOJI PROJEKTI" (Prikaz samo projekte za trenutni modul)
 - **Težava:** Pred tem sta se pri prikazu "MOJI PROJEKTI" in datotek na disku prikazovala tudi projekti iz drugih modulov (`pola`, `blok`, `brosura`, `etikete`, `tenovis`), ker je preverjanje `isKuverteProject` vključevalo preveč splošna polja (kot je `inp.quantities`).
 - **Rešitev:**
   1. Funkcija `isKuverteProject(proj)` sedaj natančno preverja identifikator `_source === 'darko-kuverte'` ter polja, specifična le za kuverte (npr. `envelopePreset`, `postCount`), in eksplicitno izključuje polja iz drugih modulov (`paperType`, `cardboardWeight`, `coverMaterialCode`, `leavesMaterial`).
@@ -90,13 +95,13 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
-### G. Odstranitev Utripanja Polja za Naklado
+### H. Odstranitev Utripanja Polja za Naklado
 - **Težava:** Vnosno polje za naklado (`calc-quantities`) je imelo nastavljeno CSS animacijo `blinkRequired 1.5s infinite`, zaradi česar je rdeče utripalo.
 - **Rešitev:** Odstranjena je bila inline CSS animacija iz HTML polja, odstranjeno JS nastavljanje animacije `qtyInput.style.animation` in izbrisan `@keyframes blinkRequired` CSS pravilo.
 
 ---
 
-### H. Nezaščiteni Dostopi do Manjkajočih DOM Elementov (`TypeError`)
+### I. Nezaščiteni Dostopi do Manjkajočih DOM Elementov (`TypeError`)
 - **Težava:** Klic `.value` ali `.checked` na elementu, ki v trenutnem HTML-ju ne obstaja:
   ```javascript
   // NAPAKA (če f-zgibanje-speed ne obstaja):
@@ -133,6 +138,6 @@ Ko uporabnik sporoči, da se zavihek ne odziva, izvedi naslednje korake:
 1. **Predloge (`blok.html`, `pola.html`, `brosura.html`, `etikete.html`, `kuverte.html`, `tenovis.html`):**
    - Teh datotek **NE SPREMINJAJ**. Vedno delaj na ustreznih delovnih kopijah (`blok2.html`, `pola2.html`, `kuverte2.html` itd.).
 2. **Git:**
-   - Ne izvajaj `git commit` me `git push`. Uporabnik to dela samodejno.
+   - Ne izvajaj `git commit` ali `git push`. Uporabnik to dela samodejno.
 3. **Obseg sprememb:**
    - Spreminjaj samo tisti program, za katerega je uporabnik eksplicitno zaprosil.
