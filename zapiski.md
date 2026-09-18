@@ -64,8 +64,11 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
-### D. Prikazovanje in Preračunavanje Cene na Kos v Ponudbah na 4 Decimalke
-- **Sprememba:** V vseh ponudbah (`getQuoteHTML`, predogled ponudb in izpisi specifikacij) v vseh delovnih datotekah (`pola2.html`, `blok2.html`, `brosura2.html`, `kuverte2.html`, `etikete2.html`, `TENOVIS2.html`) so bile cene na kos (`Cena za kos` / `perItem` / `pricePerUnit`) usklajene na **4 decimalna mesta** (npr. `0,1234 €`).
+### D. Uskladitev Skupne Cene na Zaokroženo Ceno na Kos (4 Decimalke)
+- **Težava:** Če se je cena na kos prikazovala na 4 decimalke (npr. `0,1235 €`), skupna cena pa se je računala iz nezaokrožene cene (npr. `0.12345678 * 10.000 = 1.234,57 €`), je prišlo do odstopanja med prikazano ceno na kos × količina in prikazano skupno ceno (`0,1235 * 10.000 = 1.235,00 €`).
+- **Rešitev:**
+  V vseh kalkulacijskih datotekah (`pola2.html`, `blok2.html`, `brosura2.html`, `kuverte2.html`, `etikete2.html`, `TENOVIS2.html`) se sedaj cena na kos najprej zaokroži na 4 decimalna mesta (`Math.round((rawPrice / quantity) * 10000) / 10000`), nato pa se skupna cena izračuna natančno kot `zaokrožena_cena_na_kos_4dec * količina` (`Math.round((pricePerUnit_4dec * quantity) * 100) / 100`).
+  S tem je skupna cena v ponudbah in kalkulacijah vedno 100% skladna z zmnožkom cene na kos in količine!
 
 ---
 
