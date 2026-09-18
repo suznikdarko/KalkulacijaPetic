@@ -64,7 +64,16 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
-### D. Filtriranje Projektov v "MOJI PROJEKTI" (Prikaz samo projekte za trenutni modul)
+### D. Uskladitev Prednastavljenih Formatov Kuvert in Vrečk (`envelopePresets`)
+- **Težava:** Ob izbiri formata kuverte ali vrečke v padajočem menuju `#envelope-preset` (npr. `C5 LO`, `C4 BO`, `Vrečka C5`...) se dimenzije (širina in višina) niso spremenile.
+- **Vzrok:** Vrednosti ustreznih HTML opcij (`value="C5_LO"`, `value="C4_BO"`, `value="Vrecka_C5_LO"`...) se niso ujemale s ključi v JavaScript objektu `envelopePresets` (tam so bili definirani le splošni ključi `'C5'`, `'C4'` z napačnimi dimenzijami).
+- **Rešitev:**
+  1. Obnovljen in dopolnjen objekt `envelopePresets` z vsemi točnimi dimenzijami za vse kuverte in vrečke (`Amerikanka`, `C6`, `B6`, `C6/5`, `C5`, `B5`, `C4`, `B4`, `Vrečke E4`, `400` itd.).
+  2. V funkcijo `applyEnvelopePreset()` dodan pametni parser, ki v primeru neujemanja ključa samodejno razbere dimenzije v mm neposredno iz besedila opcije (npr. `"C5 LO (229x162 mm)"` -> širina 229 mm, višina 162 mm).
+
+---
+
+### E. Filtriranje Projektov v "MOJI PROJEKTI" (Prikaz samo projekte za trenutni modul)
 - **Težava:** Pred tem sta se pri prikazu "MOJI PROJEKTI" in datotek na disku prikazovala tudi projekti iz drugih modulov (`pola`, `blok`, `brosura`, `etikete`, `tenovis`), ker je preverjanje `isKuverteProject` vključevalo preveč splošna polja (kot je `inp.quantities`).
 - **Rešitev:**
   1. Funkcija `isKuverteProject(proj)` sedaj natančno preverja identifikator `_source === 'darko-kuverte'` ter polja, specifična le za kuverte (npr. `envelopePreset`, `postCount`), in eksplicitno izključuje polja iz drugih modulov (`paperType`, `cardboardWeight`, `coverMaterialCode`, `leavesMaterial`).
@@ -72,7 +81,13 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
-### E. Nezaščiteni Dostopi do Manjkajočih DOM Elementov (`TypeError`)
+### F. Odstranitev Utripanja Polja za Naklado
+- **Težava:** Vnosno polje za naklado (`calc-quantities`) je imelo nastavljeno CSS animacijo `blinkRequired 1.5s infinite`, zaradi česar je rdeče utripalo.
+- **Rešitev:** Odstranjena je bila inline CSS animacija iz HTML polja, odstranjeno JS nastavljanje animacije `qtyInput.style.animation` in izbrisan `@keyframes blinkRequired` CSS pravilo.
+
+---
+
+### G. Nezaščiteni Dostopi do Manjkajočih DOM Elementov (`TypeError`)
 - **Težava:** Klic `.value` ali `.checked` na elementu, ki v trenutnem HTML-ju ne obstaja:
   ```javascript
   // NAPAKA (če f-zgibanje-speed ne obstaja):

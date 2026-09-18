@@ -312,18 +312,7 @@
             background: rgba(15, 23, 42, 0.5);
         }
 
-        @keyframes blinkRequired {
 
-            0%,
-            100% {
-                box-shadow: 0 0 0 0 transparent;
-            }
-
-            50% {
-                box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.6);
-                border-color: #ef4444;
-            }
-        }
 
         .editable-area.waiting-for-paste {
             cursor: cell !important;
@@ -573,7 +562,7 @@
                     <div style="flex: 2;">
                         <label>Naklade (z vejico)</label>
                         <input type="text" id="calc-quantities" value="" placeholder="" onchange="calculate()"
-                            style="animation: blinkRequired 1.5s infinite; background: rgba(15,23,42,0.9); border: 1px solid var(--glass-border); width: 100%; padding: 0.5rem; color: var(--text-main); border-radius: 6px; outline: none;">
+                            style="background: rgba(15,23,42,0.9); border: 1px solid var(--glass-border); width: 100%; padding: 0.5rem; color: var(--text-main); border-radius: 6px; outline: none;">
                     </div>
                     <div style="flex: 2;">
                         <label>Stroj</label>
@@ -4322,22 +4311,81 @@ function printQuote() {
 
         const envelopePresets = {
             'Amerikanka_LO': { w: 230, h: 110 },
-            'Amerikanka_DO': { w: 230, h: 110 },
             'Amerikanka_BO': { w: 230, h: 110 },
-            'C6': { w: 230, h: 162 },
-            'DL': { w: 220, h: 220 },
-            'C5': { w: 324, h: 229 },
-            'C4': { w: 458, h: 324 },
-            'B5': { w: 353, h: 250 },
-            'B4': { w: 500, h: 353 }
+            'Amerikanka_DO': { w: 230, h: 110 },
+            'C6_LO': { w: 162, h: 114 },
+            'C6_BO': { w: 162, h: 114 },
+            'C6_DO': { w: 162, h: 114 },
+            'B6_LO': { w: 176, h: 125 },
+            'B6_BO': { w: 176, h: 125 },
+            'B6_DO': { w: 176, h: 125 },
+            'C65_LO': { w: 229, h: 114 },
+            'C65_BO': { w: 229, h: 114 },
+            'C65_DO': { w: 229, h: 114 },
+            'C5_LO': { w: 229, h: 162 },
+            'C5_BO': { w: 229, h: 162 },
+            'C5_DO': { w: 229, h: 162 },
+            'B5_LO': { w: 250, h: 176 },
+            'B5_BO': { w: 250, h: 176 },
+            'B5_DO': { w: 250, h: 176 },
+            'C4_LO': { w: 324, h: 229 },
+            'C4_BO': { w: 324, h: 229 },
+            'C4_DO': { w: 324, h: 229 },
+            'B4_LO': { w: 353, h: 250 },
+            'B4_BO': { w: 353, h: 250 },
+            'B4_DO': { w: 353, h: 250 },
+            'Vrecka_C6_LO': { w: 120, h: 162 },
+            'Vrecka_C6_BO': { w: 120, h: 162 },
+            'Vrecka_C6_DO': { w: 120, h: 162 },
+            'Vrecka_B6_LO': { w: 125, h: 176 },
+            'Vrecka_B6_BO': { w: 125, h: 176 },
+            'Vrecka_B6_DO': { w: 125, h: 176 },
+            'Vrecka_C5_LO': { w: 162, h: 229 },
+            'Vrecka_C5_BO': { w: 162, h: 229 },
+            'Vrecka_C5_DO': { w: 162, h: 229 },
+            'Vrecka_B5_LO': { w: 176, h: 250 },
+            'Vrecka_B5_BO': { w: 176, h: 250 },
+            'Vrecka_B5_DO': { w: 176, h: 250 },
+            'Vrecka_C4_LO': { w: 229, h: 324 },
+            'Vrecka_C4_BO': { w: 229, h: 324 },
+            'Vrecka_C4_DO': { w: 229, h: 324 },
+            'Vrecka_B4_LO': { w: 250, h: 353 },
+            'Vrecka_B4_BO': { w: 250, h: 353 },
+            'Vrecka_B4_DO': { w: 250, h: 353 },
+            'Vrecka_E4_LO': { w: 280, h: 400 },
+            'Vrecka_E4_BO': { w: 280, h: 400 },
+            'Vrecka_E4_DO': { w: 280, h: 400 },
+            'Vrecka_400_LO': { w: 300, h: 400 }
         };
 
         function applyEnvelopePreset() {
-            const type = document.getElementById('envelope-preset').value;
-            if (type !== 'custom' && envelopePresets[type]) {
-                document.getElementById('width').value = envelopePresets[type].w;
-                document.getElementById('height').value = envelopePresets[type].h;
-                calculate();
+            const selectEl = document.getElementById('envelope-preset');
+            if (!selectEl) return;
+            const type = selectEl.value;
+            if (type === 'custom') return;
+
+            let w = 0, h = 0;
+            if (envelopePresets[type]) {
+                w = envelopePresets[type].w;
+                h = envelopePresets[type].h;
+            } else {
+                const selectedOpt = selectEl.options[selectEl.selectedIndex];
+                if (selectedOpt) {
+                    const text = selectedOpt.text;
+                    const match = text.match(/\((\d+)\s*[xX×]\s*(\d+)\s*mm\)/);
+                    if (match) {
+                        w = parseInt(match[1]);
+                        h = parseInt(match[2]);
+                    }
+                }
+            }
+
+            if (w > 0 && h > 0) {
+                const widthEl = document.getElementById('width');
+                const heightEl = document.getElementById('height');
+                if (widthEl) widthEl.value = w;
+                if (heightEl) heightEl.value = h;
+                if (typeof calculate === 'function') calculate();
             }
         }
 
@@ -4366,7 +4414,7 @@ function printQuote() {
             const qtyInput = document.getElementById('calc-quantities');
 
             if (!qStr) {
-                qtyInput.style.animation = 'blinkRequired 1.5s infinite';
+                // animation removed
                 qtyInput.focus();
                 return;
             }
