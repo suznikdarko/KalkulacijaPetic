@@ -1246,7 +1246,7 @@
 <div style="display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;">
                                 ${item.quantities.map(q => {
                                     const pTot = q.priceTotal !== undefined ? q.priceTotal : (q.total !== undefined ? q.total : (q.finalTotal !== undefined ? q.finalTotal : 0));
-                                    return `<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${formatQty(q.qty)}: ${formatPrice(pTot)}</span>`;
+                                    const fQty = typeof formatQty === 'function' ? formatQty(q.qty) : (q.qty ? Number(q.qty).toLocaleString('de-DE') : '0'); const fPrc = typeof formatPrice === 'function' ? formatPrice(pTot) : (pTot ? Number(pTot).toFixed(2).replace('.', ',') + ' €' : '0,00 €'); return `<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${fQty}: ${fPrc}</span>`;
                                 }).join('')}
                             </div>
                         </div>
@@ -1971,7 +1971,7 @@ if (isWord) {
 
         function getWorkOrderHTML() {
 
-            const qtyStr = document.getElementById('quantity').value || '0';
+            const qtyStr = document.getElementById('calc-quantities') ? document.getElementById('calc-quantities').value : (document.getElementById('quantity') ? document.getElementById('quantity').value : '0');
 
             const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
 
@@ -1985,11 +1985,11 @@ if (isWord) {
 
 
 
-            let customer = document.getElementById('calc-customer').value || "Ni vpisano";
+            let customer = (document.getElementById('calc-customer') ? document.getElementById('calc-customer').value : "") || "Ni vpisano";
 
             let customerCode = document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "";
 
-            let custAddress = document.getElementById('calc-cust-address').value || "";
+            let custAddress = (document.getElementById('calc-cust-address') ? document.getElementById('calc-cust-address').value : "") || "";
 
             let custEmail = document.getElementById('calc-cust-email') ? document.getElementById('calc-cust-email').value : "";
 
@@ -2007,19 +2007,19 @@ if (isWord) {
 
             let packaging = document.getElementById('calc-dn-packaging') ? document.getElementById('calc-dn-packaging').value : "";
 
-            let quoteNum = document.getElementById('calc-quote-number').value || "";
+            let quoteNum = (document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : "") || "";
 
             let orderType = document.getElementById('calc-order-type') ? document.getElementById('calc-order-type').value : "";
 
-            let product = document.getElementById('calc-project-name').value || "Ni vpisano";
+            let product = (document.getElementById('calc-project-name') ? document.getElementById('calc-project-name').value : "") || "Ni vpisano";
 
             let dnNotes = document.getElementById('calc-notes') ? document.getElementById('calc-notes').value : "";
 
             let materialDesc = document.getElementById('calc-material-desc') ? document.getElementById('calc-material-desc').value : "";
 
-            let paperType = document.getElementById('calc-paper-type').value || "";
+            let paperType = document.getElementById('calc-paper-type') ? document.getElementById('calc-paper-type').value : (document.getElementById('envelope-preset') ? document.getElementById('envelope-preset').value : "");
 
-            let paperWeight = document.getElementById('calc-paper-weight').value || "";
+            let paperWeight = document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value : "";
 
             let materialCode = document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value.trim() : "";
 
@@ -2077,11 +2077,11 @@ if (isWord) {
 
 
 
-            let front = parseInt(document.getElementById('calc-color-front').value) || 0;
+            let front = parseInt(document.getElementById('calc-colors-front') ? document.getElementById('calc-colors-front').value : (document.getElementById('calc-color-front') ? document.getElementById('calc-color-front').value : "0")) || 0;
 
-            let back = parseInt(document.getElementById('calc-color-back').value) || 0;
+            let back = parseInt(document.getElementById('calc-colors-back') ? document.getElementById('calc-colors-back').value : (document.getElementById('calc-color-back') ? document.getElementById('calc-color-back').value : "0")) || 0;
 
-            let isObrat = document.getElementById('calc-is-obrat').checked;
+            let isObrat = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
 
             let isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
 
@@ -2267,7 +2267,7 @@ if (isWord) {
 
             if (document.getElementById('f-zgibanje-active') && document.getElementById('f-zgibanje-active').checked) {
 
-                let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 6800;
+                let zSpeed = document.getElementById('f-zgibanje-speed') ? parseFloat(document.getElementById('f-zgibanje-speed').value) || 6800 : 6800;
 
                 let foldsSelect = document.getElementById('f-zgibanje-folds');
 
@@ -2303,7 +2303,7 @@ if (isWord) {
 
             if (document.getElementById('f-extra-active') && document.getElementById('f-extra-active').checked) {
 
-                let extraSpeed = parseFloat(document.getElementById('f-extra-speed').value) || 1;
+                let extraSpeed = document.getElementById('f-extra-speed') ? parseFloat(document.getElementById('f-extra-speed').value) || 1 : 1;
 
                 let extraHours = Math.ceil((q / extraSpeed) * 10) / 10;
 
@@ -3012,20 +3012,13 @@ if (isWord) {
                     const file = await fileHandle.getFile();
                     await processFile(file);
                 } catch (e) {
-                            const res = event.target.result;
-                            if (typeof res === 'string' && res.startsWith('PK')) {
-                                let r2 = new FileReader();
-                                r2.onload = ev2 => parseAndSaveExcelStock(ev2.target.result);
-                                r2.readAsArrayBuffer(file);
-                            } else {
-                                parseAndSaveStock(res);
-                            }
-                        };
-                        reader.readAsText(file);
-                    }
-                };
-                fileInput.click();
+                    if (e.name === 'AbortError') return;
+                    triggerFallbackInput();
+                }
+            } else {
+                triggerFallbackInput();
             }
+        }
 
 function parseAndSaveExcelStock(buffer) {
             try {
@@ -3613,22 +3606,22 @@ function printQuote() {
         }
 
         function getWorkOrderHTML() {
-            const quantitiesStr = document.getElementById('calc-quantities').value || '';
+            const quantitiesStr = (document.getElementById('calc-quantities') ? document.getElementById('calc-quantities').value : '') || '';
             const qList = quantitiesStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, ''))).filter(n => !isNaN(n) && n > 0);
             const q = qList[0] || 1000;
 
-            const qo = parseFloat(document.getElementById('calc-qty-ordered').value) || 0;
+            const qo = document.getElementById('calc-qty-ordered') ? (parseFloat(document.getElementById('calc-qty-ordered').value) || 0) : 0;
             const oqVal = qo || q;
 
             let calcRes = calculateForSingleQty(q);
             if (!calcRes) return "Napaka pri generiranju naloga.";
             let d = calcRes.details;
 
-            let customer = document.getElementById('calc-customer').value || "Ni vpisano";
+            let customer = (document.getElementById('calc-customer') ? document.getElementById('calc-customer').value : "") || "Ni vpisano";
             let customerCode = document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : "";
-            let custAddress = document.getElementById('calc-cust-address').value || "";
+            let custAddress = (document.getElementById('calc-cust-address') ? document.getElementById('calc-cust-address').value : "") || "";
             let custEmail = document.getElementById('calc-cust-email') ? document.getElementById('calc-cust-email').value : "";
-            let deliveryAddress = document.getElementById('calc-delivery-address').value || "";
+            let deliveryAddress = (document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : "") || "";
 
             let dnNum = document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value : "";
             let dnOld = document.getElementById('calc-dn-old') ? document.getElementById('calc-dn-old').value : "";
@@ -4572,7 +4565,7 @@ function printQuote() {
         calculate();
 
         // --- ARHIV IN STRANKE ---
-        var STORAGE_KEY = 'kuverte_kalkulator_arhiv';
+        var STORAGE_KEY = 'kuverte_arhiv';
 
         function toggleEmailDropdown() {
             var list = document.getElementById('email-dropdown-list');
@@ -4989,7 +4982,10 @@ function printQuote() {
 
                 if (window.showSaveFilePicker) {
                     try {
-                        const handle = await window.showSaveFilePicker({
+                        let savePicker = (window.top && window.top !== window && typeof window.top.showSaveFilePicker === 'function')
+                            ? window.top.showSaveFilePicker.bind(window.top)
+                            : window.showSaveFilePicker.bind(window);
+                        const handle = await savePicker({
                             suggestedName: suggestedName,
                             types: [{ description: 'Kuverte JSON', accept: { 'application/json': ['.json'] } }],
                         });
@@ -4997,7 +4993,12 @@ function printQuote() {
                         await writable.write(jsonStr);
                         await writable.close();
                         return;
-                    } catch (e) { if (e.name === 'AbortError') return; alert("Napaka pri shranjevanju: " + e.message); }
+                    } catch (e) { 
+                        if (e.name === 'AbortError') return; 
+                        if (e.name !== 'SecurityError' && !(e.message && e.message.includes('sub frames'))) {
+                            alert("Napaka pri shranjevanju: " + e.message); 
+                        }
+                    }
                 }
 
                 const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -5017,9 +5018,9 @@ function printQuote() {
             saveProjectToFile();
         }
 
-        function exportToFile() {
+        async function exportToFile() {
             try {
-                let name = document.getElementById('calc-project-name').value.trim() || "Ponudba_Kuverte";
+                let name = (document.getElementById('calc-project-name') ? document.getElementById('calc-project-name').value.trim() : "") || "Ponudba_Kuverte";
                 const data = {
                     name: name,
                     date: new Date().toLocaleString('sl-SI'),
@@ -5041,7 +5042,7 @@ function printQuote() {
                         item_h: document.getElementById('height').value,
                         envelopePreset: document.getElementById('envelope-preset').value,
                         quantities: document.getElementById('calc-quantities').value,
-                        qtyOrdered: document.getElementById('calc-qty-ordered').value,
+                        qtyOrdered: document.getElementById('calc-qty-ordered') ? document.getElementById('calc-qty-ordered').value : '',
                         mPrice: document.getElementById('calc-material-price').value,
                         packaging: document.getElementById('calc-packaging').value,
                         margin: document.getElementById('calc-margin').value,
@@ -5088,10 +5089,14 @@ function printQuote() {
                 let parts = [s_ponudba, s_stranka, s_izdelek, s_naklada, s_barve].filter(Boolean);
                 let baseName = parts.length > 0 ? parts.join('_').replace(/\s+/g, '_') : name.replace(/\s+/g, '_');
                 const suggestedFileName = baseName + '.kuverta.json';
+                const jsonStr = JSON.stringify(data, null, 2);
 
                 if (window.showSaveFilePicker) {
                     try {
-                        const handle = await window.showSaveFilePicker({
+                        let savePicker = (window.top && window.top !== window && typeof window.top.showSaveFilePicker === 'function')
+                            ? window.top.showSaveFilePicker.bind(window.top)
+                            : window.showSaveFilePicker.bind(window);
+                        const handle = await savePicker({
                             suggestedName: suggestedFileName,
                             types: [{ description: 'JSON Ponudba (Shranite v C:\\DARKO-KUVERTE)', accept: { 'application/json': ['.json'] } }],
                         });
@@ -5191,6 +5196,7 @@ function printQuote() {
 
         var g_projectsDirHandle = null;
         var g_diskProjects = [];
+        // STORAGE_KEY is already declared above as var STORAGE_KEY
 
         function setHandleInIndexedDB(handle, key) {
             return new Promise((resolve, reject) => {
@@ -5229,15 +5235,43 @@ function printQuote() {
             });
         }
 
+        async function autoConnectFolder() {
+            try {
+                let handle = await getHandleFromIndexedDB('kuverte_dir_handle') || await getHandleFromIndexedDB('kalkulacije_shared_dir_handle');
+                if (handle) {
+                    const status = await handle.queryPermission({ mode: 'readwrite' });
+                    if (status === 'granted') {
+                        g_projectsDirHandle = handle;
+                        await refreshDiskProjects();
+                        if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                    }
+                }
+            } catch (e) { }
+        }
+
         async function syncWithFolder() {
             try {
-                g_projectsDirHandle = await window.showDirectoryPicker();
+                let picker = (window.top && window.top !== window && typeof window.top.showDirectoryPicker === 'function') 
+                    ? window.top.showDirectoryPicker.bind(window.top) 
+                    : (window.showDirectoryPicker ? window.showDirectoryPicker.bind(window) : null);
+                
+                if (!picker) {
+                    alert("Vaš brskalnik ne podpira izbire map.");
+                    return;
+                }
+                g_projectsDirHandle = await picker();
                 await setHandleInIndexedDB(g_projectsDirHandle, 'kuverte_dir_handle');
+                await setHandleInIndexedDB(g_projectsDirHandle, 'kalkulacije_shared_dir_handle');
                 await refreshDiskProjects();
                 renderSavedProjects();
                 alert("Mapa uspešno povezana in shranjena!");
             } catch (err) {
-                if (err.name !== 'AbortError') alert("Napaka: " + err.message);
+                if (err.name === 'AbortError') return;
+                if (err.name === 'SecurityError' || (err.message && (err.message.includes('sub frames') || err.message.includes('Cross origin')))) {
+                    alert("⚠️ Brskalnik iz varnostnih razlogov onemogoča izbiro mape znotraj okna (iframe).\n\nČe želite povezati lokalno mapo, prosimo odprite 'kuverte2.html' neposredno v svojem zavihku.");
+                    return;
+                }
+                alert("Napaka: " + err.message);
             }
         }
 
@@ -5247,7 +5281,23 @@ function printQuote() {
             try {
                 for await (const entry of g_projectsDirHandle.values()) {
                     if (entry.kind === 'file' && entry.name.endsWith('.json')) {
-                        g_diskProjects.push(entry);
+                        const lowerName = entry.name.toLowerCase();
+                        // Exclude obvious files belonging to other modules
+                        if (lowerName.endsWith('.pola.json') || lowerName.endsWith('.blok.json') || lowerName.endsWith('.brosura.json') || lowerName.endsWith('.etiketa.json') || lowerName.endsWith('.tenovis.json')) {
+                            continue;
+                        }
+                        if (lowerName.includes('kuverta') || lowerName.includes('kuverte')) {
+                            g_diskProjects.push(entry);
+                        } else {
+                            try {
+                                const file = await entry.getFile();
+                                const text = await file.text();
+                                const data = JSON.parse(text);
+                                if (isKuverteProject(data)) {
+                                    g_diskProjects.push(entry);
+                                }
+                            } catch (e) {}
+                        }
                     }
                 }
             } catch (err) { console.error(err); }
@@ -5302,14 +5352,15 @@ function printQuote() {
             } catch (e) { }
         }
 
-        async async function toggleProjectsDropdown() {
+        async function toggleProjectsDropdown() {
             const list = document.getElementById('projects-dropdown-list');
+            if (!list) return;
             if (list.style.display === 'block') {
                 list.style.display = 'none';
             } else {
                 if (!g_projectsDirHandle) {
                     try {
-                        const handle = await getHandleFromIndexedDB('kuverte_dir_handle');
+                        let handle = await getHandleFromIndexedDB('kuverte_dir_handle') || await getHandleFromIndexedDB('kalkulacije_shared_dir_handle');
                         if (handle) {
                             if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') {
                                 g_projectsDirHandle = handle;
@@ -5329,14 +5380,20 @@ function printQuote() {
         }
 
         function isKuverteProject(proj) {
-                if (!proj) return false;
-                if (proj._source) return proj._source === 'darko-kuverte' || proj._source === 'kuverte';
-                const inp = proj.inputs || {};
-                if (inp.envelopePreset || inp.quantities || inp.postCount) return true;
-                return false;
+            if (!proj) return false;
+            if (proj._source) {
+                return proj._source === 'darko-kuverte' || proj._source === 'kuverte';
             }
+            if (proj.type && proj.type.toLowerCase().includes('kuvert')) return true;
+            const inp = proj.inputs || {};
+            // envelopePreset and postCount are specific to envelopes
+            if (inp.envelopePreset !== undefined || inp.postCount !== undefined || inp.postPricePer !== undefined) return true;
+            // Exclude inputs specific to other calculation types
+            if (inp.paperType || inp.cardboardWeight || inp.coverMaterialCode || inp.leavesMaterial) return false;
+            return false;
+        }
 
-            function renderSavedProjects() {
+        function renderSavedProjects() {
             function getSearchableText(obj) {
                 let text = "";
                 for (let key in obj) {
@@ -5360,8 +5417,8 @@ function printQuote() {
             const searchInput = document.getElementById('project-search-input');
             const filter = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
-            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-                arhiv = arhiv.filter(proj => isKuverteProject(proj));
+            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || localStorage.getItem('kuverte_arhiv') || '[]');
+            arhiv = arhiv.filter(proj => isKuverteProject(proj));
 
             arhiv.sort((a, b) => b.id - a.id);
             let filtered = filter ? arhiv.filter(proj => {
@@ -5418,6 +5475,9 @@ function printQuote() {
                 }
                 listContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem; line-height:1.4;">' + msg + '</div>';
             } else {
+                if (g_projectsDirHandle) {
+                    html = '<div style="padding: 8px 12px; background: rgba(16, 185, 129, 0.15); border-bottom: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.8rem; font-weight: bold; color: #10b981; display: flex; justify-content: space-between; align-items: center;"><span>📁 Povezana mapa: [' + g_projectsDirHandle.name + ']</span><button onclick="syncWithFolder()" style="background:#10b981; color:white; border:none; padding:2px 8px; border-radius:4px; font-size:0.7rem; cursor:pointer;" title="Spremeni ali zamenjaj povezano mapo na disku">Spremeni mapo</button></div>' + html;
+                }
                 listContent.innerHTML = html;
             }
         }
@@ -5449,8 +5509,8 @@ function printQuote() {
         }
 
         function loadProject(id) {
-            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-                arhiv = arhiv.filter(proj => isKuverteProject(proj));
+            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || localStorage.getItem('kuverte_arhiv') || '[]');
+            arhiv = arhiv.filter(proj => isKuverteProject(proj));
             let proj = arhiv.find(p => p.id === id);
             if (!proj) return;
             loadProjectData(proj);
@@ -5459,757 +5519,23 @@ function printQuote() {
 
         function deleteProject(id) {
             if (!confirm("Ali ste prepričani, da želite izbrisati ta projekt?")) return;
-            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-                arhiv = arhiv.filter(proj => isKuverteProject(proj));
+            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || localStorage.getItem('kuverte_arhiv') || '[]');
+            arhiv = arhiv.filter(proj => isKuverteProject(proj));
             arhiv = arhiv.filter(p => p.id !== id);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
+            localStorage.setItem('kuverte_arhiv', JSON.stringify(arhiv));
             renderSavedProjects();
             updateCustomerDatalist();
         }
 
-
-
         window.onload = function () {
+            autoConnectFolder();
             updateCustomerDatalist();
-            renderBasket();
-            calculate();
-        };
-    
-
-        // --- SAVE/LOAD PROJECT FUNCTIONS ---
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if (!data.inputs) throw new Error("Neveljavna datoteka!");
-                    if (data._source && data._source !== 'kuverte') {
-                        alert("Opozorilo: Ta datoteka morda ne pripada kuvertam (vir: " + data._source + "). Odpiram vseeno...");
-                    }
-                    loadProjectData(data);
-                    alert("Ponudba '" + (data.name || "Brez imena") + "' uspešno uvožena!");
-                } catch (err) { alert("Napaka pri uvozu: " + err.message); }
-                event.target.value = "";
-            };
-            reader.readAsText(file);
-        }
-
-        async function saveProjectToFile() {
-            try {
-                let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
-                function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
-                function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
-                const data = {
-                    name: name,
-                    _source: 'kuverte',
-                    date: new Date().toLocaleString('de-DE'),
-                    customer: gv('calc-customer'),
-                    custAddress: gv('calc-cust-address'),
-                    deliveryAddress: gv('calc-delivery-address'),
-                    custEmail: gv('calc-cust-email'),
-                    quoteNum: gv('calc-quote-number'),
-                    dnNum: gv('calc-dn-number'),
-                    dnOld: gv('calc-dn-old'),
-                    deadline: gv('calc-dn-deadline'),
-                    packaging: gv('calc-dn-packaging'),
-                    givenSheets: gv('calc-given-sheets'),
-                    customerCode: gv('calc-customer-code'),
-                    preparedBy: gv('calc-prepared-by'),
-                    materialCode: gv('calc-material-code'),
-                    notes: gv('calc-notes'),
-                    editedQuoteHTML: typeof g_editedQuoteHTML !== 'undefined' ? g_editedQuoteHTML : '',
-                    editedQuoteATHTML: typeof g_editedQuoteATHTML !== 'undefined' ? g_editedQuoteATHTML : '',
-                    editedWorkOrderHTML: typeof g_editedWorkOrderHTML !== 'undefined' ? g_editedWorkOrderHTML : '',
-                    inputs: {
-                        'calc-dn-old': gv('calc-dn-old'),
-                        'calc-dn-packaging': gv('calc-dn-packaging'),
-                        'calc-order-type': gv('calc-order-type'),
-                        'calc-given-sheets': gv('calc-given-sheets'),
-                        'calc-customer-code': gv('calc-customer-code'),
-                        'calc-customer': gv('calc-customer'),
-                        'calc-quantities': gv('calc-quantities'),
-                        'calc-material-price': gv('calc-material-price'),
-                        'calc-use-manual-work': gv('calc-use-manual-work'),
-                        'calc-project-name': gv('calc-project-name'),
-                        'calc-machine-rate': gv('calc-machine-rate'),
-                        'calc-waste-manual': gv('calc-waste-manual'),
-                        'calc-paper-weight': gv('calc-paper-weight'),
-                        'calc-machine': gv('calc-machine'),
-                        'calc-color-change-price': gv('calc-color-change-price'),
-                        'f-del-fixed-active': gc('f-del-fixed-active'),
-                        'calc-colors-front': gv('calc-colors-front'),
-                        'calc-machine-speed': gv('calc-machine-speed'),
-                        'calc-cust-address': gv('calc-cust-address'),
-                        'calc-prepared-by': gv('calc-prepared-by'),
-                        'calc-prep-price': gv('calc-prep-price'),
-                        'f-post-price-per': gv('f-post-price-per'),
-                        'calc-use-personalization': gv('calc-use-personalization'),
-                        'calc-margin': gv('calc-margin'),
-                        'calc-plate-price': gv('calc-plate-price'),
-                        'calc-plate-count': gv('calc-plate-count'),
-                        'calc-dn-deadline': gv('calc-dn-deadline'),
-                        'calc-manual-work': gv('calc-manual-work'),
-                        'calc-material-code': gv('calc-material-code'),
-                        'f-delivery-active': gc('f-delivery-active'),
-                        'calc-cust-email': gv('calc-cust-email'),
-                        'calc-notes': gv('calc-notes'),
-                        'calc-change-price': gv('calc-change-price'),
-                        'f-post-count': gv('f-post-count'),
-                        'f-del-fixed-price': gv('f-del-fixed-price'),
-                        'calc-minus-price': gv('calc-minus-price'),
-                        'calc-color-change-count': gv('calc-color-change-count'),
-                        'calc-dn-number': gv('calc-dn-number'),
-                        'calc-override-total': gv('calc-override-total'),
-                        'calc-waste': gv('calc-waste'),
-                        'calc-quote-number': gv('calc-quote-number'),
-                        'calc-auto-speed': gv('calc-auto-speed'),
-                        'calc-colors-back': gv('calc-colors-back'),
-                        'calc-personalization': gv('calc-personalization'),
-                        'calc-commercial': gv('calc-commercial'),
-                        'calc-dn-urgent': gc('calc-dn-urgent'),
-                        'calc-is-obrat': gc('calc-is-obrat'),
-                        'calc-delivery-address': gv('calc-delivery-address'),
-                        'calc-grafotehna': gv('calc-grafotehna'),
-                        'calc-packaging': gv('calc-packaging')
-                    }
-                };
-
-                const fileName = name.replace(/[^a-z0-9Ā-ſ]/gi, '_') + '.kuverte.json';
-                
-                try {
-                    const res = await fetch('http://127.0.0.1:8095', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ filename: fileName, content: JSON.stringify(data, null, 2), type: 'json' })
-                    });
-                    if (res.ok) {
-                        const jsonRes = await res.json();
-                        alert(jsonRes.message || 'Uspešno shranjeno na strežnik!');
-                        return;
-                    }
-                } catch (err) {
-                    console.log("Server JSON save failed, using local download fallback", err);
-                }
-
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
-                const a = document.createElement('a');
-                a.href = dataStr;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-                setTimeout(() => document.body.removeChild(a), 100);
-            } catch(e) {
-                alert("Napaka pri shranjevanju projekta: " + e.message);
-                console.error(e);
-            }
-        }
-
-        function loadProjectData(data) {
-            if (!data || !data.inputs) return;
-            const inps = data.inputs;
-            function setv(id, val) { if (val !== undefined) { var el = document.getElementById(id); if (el) el.value = val; } }
-            function setc(id, val) { if (val !== undefined) { var el = document.getElementById(id); if (el) el.checked = val; } }
-            
-            Object.keys(inps).forEach(key => {
-                const el = document.getElementById(key);
-                if (el) {
-                    if (el.type === 'checkbox') el.checked = inps[key];
-                    else el.value = inps[key];
-                }
-            });
-            
-            if (typeof g_editedQuoteHTML !== 'undefined') g_editedQuoteHTML = data.editedQuoteHTML || '';
-            if (typeof g_editedQuoteATHTML !== 'undefined') g_editedQuoteATHTML = data.editedQuoteATHTML || '';
-            if (typeof g_editedWorkOrderHTML !== 'undefined') g_editedWorkOrderHTML = data.editedWorkOrderHTML || '';
-
+            if (typeof renderBasket === 'function') renderBasket();
             if (typeof calculate === 'function') calculate();
-        }
+        };
 
-        // define exportToFile for the old button if any
         window.exportToFile = saveProjectToFile;
-
-        async function loadStockFile() {
-            const processFile = async (file) => {
-                if (file.name.toLowerCase().endsWith('.xlsx')) {
-                    const buffer = await file.arrayBuffer();
-                    parseAndSaveExcelStock(buffer);
-                } else {
-                    const text = await file.text();
-                    if (text.startsWith('PK')) {
-                        const buffer = await file.arrayBuffer();
-                        parseAndSaveExcelStock(buffer);
-                    } else {
-                        parseAndSaveStock(text);
-                    }
-                }
-            };
-
-            const triggerFallbackInput = () => {
-                let fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.accept = '.json,.xlsx';
-                fileInput.onchange = async e => {
-                    let file = e.target.files[0];
-                    if (file) await processFile(file);
-                };
-                fileInput.click();
-            };
-
-            const isInIframe = window.self !== window.top;
-            if (!isInIframe && typeof window.showOpenFilePicker === 'function') {
-                try {
-                    const [fileHandle] = await window.showOpenFilePicker({
-                        types: [{
-                            description: 'Zaloga (JSON ali Excel .xlsx)',
-                            accept: { 
-                                'application/json': ['.json'],
-                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
-                            }
-                        }],
-                        multiple: false
-                    });
-                    const file = await fileHandle.getFile();
-                    await processFile(file);
-                } catch (e) {
-                    if (e.name === 'AbortError') return;
-                    triggerFallbackInput();
-                }
-            } else {
-                triggerFallbackInput();
-            }
-
-function parseAndSaveExcelStock(buffer) {
-            try {
-                if (typeof XLSX === 'undefined') {
-                    alert("Za branje Excel (.xlsx) datotek je potreben spletni modul XLSX.\n\nProsimo izberite datoteko 'zalogaSimon.json'.");
-                    return;
-                }
-                const wb = XLSX.read(new Uint8Array(buffer), { type: 'array' });
-
-                const prispeloMap = {};
-                if (wb.Sheets['PRISPELO']) {
-                    const rowsP = XLSX.utils.sheet_to_json(wb.Sheets['PRISPELO'], { header: 1 });
-                    for (let r = 1; r < rowsP.length; r++) {
-                        const row = rowsP[r];
-                        if (row && row[1] !== undefined && row[6] !== undefined) {
-                            const sif = String(row[1]).trim();
-                            const kol = parseFloat(row[6]) || 0;
-                            prispeloMap[sif] = (prispeloMap[sif] || 0) + kol;
-                        }
-                    }
-                }
-
-                const odpisMap = {};
-                if (wb.Sheets['ODPIS']) {
-                    const rowsO = XLSX.utils.sheet_to_json(wb.Sheets['ODPIS'], { header: 1 });
-                    for (let r = 1; r < rowsO.length; r++) {
-                        const row = rowsO[r];
-                        if (row && row[1] !== undefined && row[6] !== undefined) {
-                            const sif = String(row[1]).trim();
-                            const kol = parseFloat(row[6]) || 0;
-                            odpisMap[sif] = (odpisMap[sif] || 0) + kol;
-                        }
-                    }
-                }
-
-                const stockData = [];
-                if (wb.Sheets['TRENUTNA ZALOGA']) {
-                    const rowsZ = XLSX.utils.sheet_to_json(wb.Sheets['TRENUTNA ZALOGA'], { header: 1 });
-                    for (let r = 1; r < rowsZ.length; r++) {
-                        const row = rowsZ[r];
-                        if (row && row[0] !== undefined) {
-                            const sif = String(row[0]).trim();
-                            const naziv = String(row[1] || '').trim();
-                            const sirina = row[2] || '';
-                            const visina = row[3] || '';
-                            const gramatura = row[4] || '';
-                            const zacetna = parseFloat(row[5]) || 0;
-                            const pVal = prispeloMap[sif] || 0;
-                            const oVal = odpisMap[sif] || 0;
-                            const zalogaVal = zacetna + pVal - oVal;
-                            const formatStr = (sirina && visina) ? `${sirina}x${visina}` : '';
-
-                            stockData.push({
-                                'šifra materiala': sif,
-                                'sifra': sif,
-                                'naziv': naziv,
-                                'širina': sirina,
-                                'višina': visina,
-                                'format': formatStr,
-                                'gramatura': gramatura,
-                                'začetna zaloga': zacetna,
-                                'prispelo': pVal,
-                                'odpis': oVal,
-                                'zaloga': zalogaVal
-                            });
-                        }
-                    }
-                }
-
-                if (stockData.length > 0) {
-                    stockDataList = stockData;
-                    localStorage.setItem('zaloga_simon_data', JSON.stringify(stockData));
-                    updateStockCountBadge();
-                    alert(`Uspešno naložena zaloga iz Excel datoteke: ${stockData.length.toLocaleString('de-DE')} artiklov!`);
-                    if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
-                } else {
-                    alert("V Excel datoteki ni bilo najdenih artiklov na zavihku 'TRENUTNA ZALOGA'.");
-                }
-            } catch (e) {
-                alert("Napaka pri branju Excel zaloge: " + e.message);
-            }
-        }
-
-        function parseAndSaveStock(content) {
-            try {
-                if (typeof content === 'string' && (content.startsWith('PK') || content.includes('zaloga materiala'))) {
-                    alert("Izbrali ste Excel (.xlsx) datoteko. Sistem jo je samodejno prepoznal.");
-                    return;
-                }
-                let data = JSON.parse(content);
-                if (Array.isArray(data)) {
-                    stockDataList = data;
-                    localStorage.setItem('zaloga_simon_data', JSON.stringify(data));
-                    updateStockCountBadge();
-                    alert(`Uspešno naložena zaloga: ${data.length.toLocaleString('de-DE')} artiklov!`);
-                    if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
-                } else {
-                    alert("Datoteka mora vsebovati JSON seznam artiklov (polje objektov).");
-                }
-            } catch (e) {
-                alert("Napaka pri branju JSON zaloge: " + e.message + "\n\nZa naložitev Excel datoteke (.xlsx) izberite datoteko znova ali kliknite '📂 Naloži zalogaSimon.json'.");
-            }
-        }
-
-        function searchStock(queryStr) {
-            if (!stockDataList || stockDataList.length === 0) return [];
-            if (!queryStr || queryStr.trim().length === 0) {
-                return [...stockDataList].sort((a, b) => (parseFloat(b.zaloga || b.Zaloga) || 0) - (parseFloat(a.zaloga || a.Zaloga) || 0)).slice(0, 50);
-            }
-
-            let cleanQuery = queryStr.toLowerCase().trim()
-                .replace(/(\d+)\s*[x\*]\s*(\d+)/gi, '$1x$2')
-                .replace(/(\d+)\s*g\b/gi, '$1g');
-
-            const rawTokens = cleanQuery.split(/\s+/).filter(t => t.length > 0);
-            if (rawTokens.length === 0) return [];
-
-            const extractDims = (str) => {
-                const match = (str || '').match(/(\d+)\s*x\s*(\d+)/i);
-                if (match) {
-                    const d1 = parseInt(match[1], 10);
-                    const d2 = parseInt(match[2], 10);
-                    return [`${d1}x${d2}`, `${d2}x${d1}`];
-                }
-                return null;
-            };
-
-            const matches = stockDataList.filter(item => {
-                const title = (item['naziv'] || item['opis'] || item['material'] || item['Naziv'] || '').toString().toLowerCase();
-                const code = (item['šifra materiala'] || item['sifra'] || item['šifra'] || item['Šifra materiala'] || '').toString().toLowerCase();
-                const gramVal = (item['gramatura'] !== undefined && item['gramatura'] !== null) ? String(item['gramatura']).trim() : '';
-                const fmtStr = (item['format'] || (item['širina'] && item['višina'] ? `${item['širina']}x${item['višina']}` : '')).toString().toLowerCase();
-                const w = item['širina'] ? String(item['širina']) : '';
-                const h = item['višina'] ? String(item['višina']) : '';
-
-                const itemDims = extractDims(fmtStr) || (w && h ? [`${w}x${h}`, `${h}x${w}`] : []);
-                const fullStrNorm = `${title} ${code} ${gramVal}g ${fmtStr}`.replace(/(\d+)\s*g\b/g, '$1g');
-
-                return rawTokens.every(token => {
-                    // 1. Format Dimension Check (e.g. 70x100 matches 100x70 or 70x100)
-                    const tokenDims = extractDims(token);
-                    if (tokenDims) {
-                        if (itemDims.some(d => tokenDims.includes(d)) || fmtStr.includes(token)) {
-                            return true;
-                        }
-                    }
-
-                    // 2. Grammage check (e.g. 250g)
-                    if (/^\d+g$/i.test(token)) {
-                        const gNum = token.slice(0, -1);
-                        if (gramVal === gNum || fullStrNorm.includes(token) || title.includes(`${gNum}g`) || title.includes(`${gNum} g`)) {
-                            return true;
-                        }
-                    }
-
-                    // 3. Direct text match (e.g. "mat", "offset", "premazni")
-                    if (fullStrNorm.includes(token) || title.includes(token) || code.includes(token) || fmtStr.includes(token)) {
-                        return true;
-                    }
-
-                    // 4. Pure number match (e.g. "250") -> matches grammage or dimensions
-                    if (/^\d+$/.test(token)) {
-                        if (gramVal === token || w === token || h === token) {
-                            return true;
-                        }
-                    }
-
-                    return false;
-                });
-            });
-
-            return matches.sort((a, b) => {
-                const qA = parseFloat(a.zaloga !== undefined ? a.zaloga : a.Zaloga) || 0;
-                const qB = parseFloat(b.zaloga !== undefined ? b.zaloga : b.Zaloga) || 0;
-                if (qA > 0 && qB <= 0) return -1;
-                if (qA <= 0 && qB > 0) return 1;
-                return qB - qA;
-            });
-        }
-
-        function getCombinedSearchQuery(targetComp) {
-            let desc = '';
-            let gram = '';
-
-            if (targetComp === 'leaves') {
-                desc = document.getElementById('calc-leaves-material')?.value || '';
-                gram = document.getElementById('calc-paper-weight')?.value || '';
-            } else if (targetComp === 'cover') {
-                desc = document.getElementById('calc-cover-desc')?.value || '';
-                gram = document.getElementById('calc-cardboard-weight')?.value || '';
-            } else {
-                desc = document.getElementById('calc-paper-type')?.value || document.getElementById('calc-material-desc')?.value || document.getElementById('calc-leaves-material')?.value || '';
-                gram = document.getElementById('calc-paper-weight')?.value || '';
-            }
-
-            let parts = [];
-            if (desc && desc.trim()) parts.push(desc.trim());
-            if (gram && gram.trim()) {
-                const gStr = gram.trim();
-                if (!desc.toLowerCase().includes(gStr.toLowerCase())) {
-                    parts.push(gStr.toLowerCase().endsWith('g') ? gStr : gStr + 'g');
-                }
-            }
-
-            return parts.join(' ');
-        }
-
-        function onMaterialStockInput(inputEl, targetComp) {
-            activeMaterialTarget = targetComp || 'paper';
-
-            let codeInput = null;
-            if (activeMaterialTarget === 'leaves') {
-                codeInput = document.getElementById('calc-material-code');
-            } else if (activeMaterialTarget === 'cover') {
-                codeInput = document.getElementById('calc-cover-material-code');
-            } else {
-                codeInput = document.getElementById('calc-material-code') || document.getElementById('materialCode');
-            }
-
-            if (inputEl && inputEl.id !== 'calc-material-code' && inputEl.id !== 'calc-cover-material-code' && codeInput) {
-                codeInput.value = '';
-            }
-
-            const combinedQuery = getCombinedSearchQuery(activeMaterialTarget);
-            const val = combinedQuery || (inputEl ? inputEl.value : '');
-            const targetInput = (inputEl && inputEl.id !== 'calc-paper-weight' && inputEl.id !== 'calc-cardboard-weight')
-                ? inputEl
-                : (document.getElementById('calc-paper-type') || document.getElementById('calc-material-desc') || document.getElementById('calc-leaves-material') || document.getElementById('calc-cover-desc') || inputEl);
-
-            if (!val || val.trim().length < 1) {
-                hideStockPopup();
-                updateMaterialStockStatusBadge(targetInput, '', null);
-                return;
-            }
-            if (!stockDataList || stockDataList.length === 0) {
-                initStockData();
-                if (!stockDataList || stockDataList.length === 0) {
-                    showStockPopupPrompt(targetInput);
-                    return;
-                }
-            }
-            const results = searchStock(val);
-            if (inputEl && inputEl.id !== 'calc-paper-weight' && inputEl.id !== 'calc-cardboard-weight') {
-                showStockPopup(inputEl, results);
-            }
-            updateMaterialStockStatusBadge(targetInput, val, null);
-        }
-
-        function updateMaterialStockStatusBadge(inputEl, title, qty) {
-            if (!inputEl) return;
-            let parent = inputEl.parentElement;
-            if (!parent) return;
-            let badge = parent.querySelector('.stock-inline-status-badge');
-            if (!badge) {
-                badge = document.createElement('div');
-                badge.className = 'stock-inline-status-badge';
-                badge.style.fontSize = '0.8rem';
-                badge.style.marginTop = '4px';
-                badge.style.fontWeight = 'bold';
-                badge.style.display = 'flex';
-                badge.style.alignItems = 'center';
-                badge.style.gap = '6px';
-                parent.appendChild(badge);
-            }
-
-            if (qty !== undefined && qty !== null && qty !== '') {
-                const qNum = parseFloat(qty) || 0;
-                if (qNum > 0) {
-                    badge.innerHTML = `<span style="color:#34d399; background:rgba(52,211,153,0.12); padding:3px 10px; border-radius:6px; border:1px solid rgba(52,211,153,0.3); display:inline-block;">✅ NA ZALOGI: <strong>${qNum.toLocaleString('de-DE')} pol</strong></span>`;
-                } else {
-                    badge.innerHTML = `<span style="color:#f87171; background:rgba(248,113,113,0.12); padding:3px 10px; border-radius:6px; border:1px solid rgba(248,113,113,0.3); display:inline-block;">❌ NI NA ZALOGI (0 pol)</span>`;
-                }
-            } else if (title && title.trim().length >= 2) {
-                const matches = searchStock(title);
-                if (matches && matches.length > 0) {
-                    const totalQty = matches.reduce((sum, item) => sum + (parseFloat(item.zaloga !== undefined ? item.zaloga : item.Zaloga) || 0), 0);
-                    const firstName = matches[0].naziv || matches[0].Naziv || title;
-                    if (totalQty > 0) {
-                        if (matches.length === 1) {
-                            badge.innerHTML = `<span style="color:#34d399; background:rgba(52,211,153,0.12); padding:3px 10px; border-radius:6px; border:1px solid rgba(52,211,153,0.3); display:inline-block;">✅ NA ZALOGI: <strong>${totalQty.toLocaleString('de-DE')} pol</strong> (${escapeHtml(firstName)})</span>`;
-                        } else {
-                            badge.innerHTML = `<span style="color:#34d399; background:rgba(52,211,153,0.12); padding:3px 10px; border-radius:6px; border:1px solid rgba(52,211,153,0.3); display:inline-block;">✅ NA ZALOGI: <strong>${totalQty.toLocaleString('de-DE')} pol</strong> (${matches.length} artiklov za "${escapeHtml(title)}")</span>`;
-                        }
-                    } else {
-                        badge.innerHTML = `<span style="color:#f87171; background:rgba(248,113,113,0.12); padding:3px 10px; border-radius:6px; border:1px solid rgba(248,113,113,0.3); display:inline-block;">❌ NI NA ZALOGI (0 pol v bazi za ${matches.length} artiklov "${escapeHtml(title)}")</span>`;
-                    }
-                } else {
-                    badge.innerHTML = `<span style="color:#fbbf24; background:rgba(251,191,36,0.12); padding:3px 10px; border-radius:6px; border:1px solid rgba(251,191,36,0.3); display:inline-block;">⚠️ Ni najdeno v zalogi Simon za "${escapeHtml(title)}"</span>`;
-                }
-            } else {
-                badge.innerHTML = '';
-            }
-        }
-
-        function showStockPopupPrompt(inputEl) {
-            let popup = getOrCreatePopup();
-            const rect = inputEl.getBoundingClientRect();
-            popup.style.position = 'fixed';
-            popup.style.top = (rect.bottom + 2) + 'px';
-            popup.style.left = rect.left + 'px';
-            popup.style.width = Math.max(rect.width, 320) + 'px';
-            popup.style.zIndex = '999999';
-            popup.style.background = '#0f172a';
-            popup.style.border = '1px solid #3b82f6';
-            popup.style.borderRadius = '8px';
-            popup.style.padding = '10px 14px';
-            popup.style.boxShadow = '0 10px 30px rgba(0,0,0,0.6)';
-            popup.style.display = 'block';
-
-            popup.innerHTML = `
-                <div style="font-size:0.85rem; color:#94a3b8; text-align:center;">
-                    📦 Podatki o zalogi Simon še niso naloženi.<br>
-                    <button type="button" onclick="loadStockFile()" style="margin-top:6px; padding:4px 10px; background:#3b82f6; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold; font-size:0.8rem;">
-                        📂 Naloži zalogaSimon.json
-                    </button>
-                </div>
-            `;
-        }
-
-        function getOrCreatePopup() {
-            let popup = document.getElementById('stock-autocomplete-popup');
-            if (!popup) {
-                popup = document.createElement('div');
-                popup.id = 'stock-autocomplete-popup';
-                document.body.appendChild(popup);
-
-                document.addEventListener('click', (e) => {
-                    if (!popup.contains(e.target) && !e.target.hasAttribute('oninput')) {
-                        hideStockPopup();
-                    }
-                });
-            }
-            return popup;
-        }
-
-        function showStockPopup(inputEl, results) {
-            let popup = getOrCreatePopup();
-            if (!results || results.length === 0) {
-                popup.style.display = 'none';
-                return;
-            }
-            const rect = inputEl.getBoundingClientRect();
-            popup.style.position = 'fixed';
-            popup.style.top = (rect.bottom + 2) + 'px';
-            popup.style.left = rect.left + 'px';
-            popup.style.width = Math.max(rect.width, 360) + 'px';
-            popup.style.zIndex = '999999';
-            popup.style.background = '#0f172a';
-            popup.style.border = '1px solid #3b82f6';
-            popup.style.borderRadius = '8px';
-            popup.style.boxShadow = '0 10px 30px rgba(0,0,0,0.8)';
-            popup.style.maxHeight = '280px';
-            popup.style.overflowY = 'auto';
-            popup.style.display = 'block';
-
-            let html = '';
-            results.slice(0, 25).forEach(item => {
-                const title = item['naziv'] || item['opis'] || item['material'] || item['Naziv'] || 'Neznan material';
-                const code = item['šifra materiala'] || item['sifra'] || item['šifra'] || item['Šifra materiala'] || '';
-                const qty = item['zaloga'] !== undefined ? item['zaloga'] : (item['Zaloga'] !== undefined ? item['Zaloga'] : 0);
-                const gram = item['gramatura'] || '';
-                const qtyNum = parseFloat(qty) || 0;
-                const qtyColor = qtyNum > 0 ? '#34d399' : '#f87171';
-                const formatStr = item['format'] || (item['širina'] && item['višina'] ? `${item['širina']}x${item['višina']}` : '');
-
-                const safeTitle = escapeJsStr(title);
-                const safeCode = escapeJsStr(code);
-                const safeGram = escapeJsStr(gram ? String(gram) : '');
-                const safeFmt = escapeJsStr(formatStr);
-
-                html += `
-                    <div onclick="selectStockItem('${safeTitle}', '${safeCode}', '${safeGram}', '${safeFmt}', ${qtyNum})"
-                         style="padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #e2e8f0;"
-                         onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='transparent'">
-                        <div style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:8px;">
-                            <strong style="color: #60a5fa;">${escapeHtml(title)}</strong>
-                            ${code ? `<span style="font-size: 0.75rem; color: #94a3b8; margin-left: 6px;">[Šifra: ${escapeHtml(code)}]</span>` : ''}
-                            ${gram ? `<span style="font-size: 0.75rem; color: #a7f3d0; margin-left: 6px;">${escapeHtml(String(gram))}g</span>` : ''}
-                            ${formatStr ? `<span style="font-size: 0.75rem; color: #fbbf24; margin-left: 6px;">(${escapeHtml(formatStr)})</span>` : ''}
-                        </div>
-                        <div style="font-weight: bold; color: ${qtyColor}; font-size: 0.8rem; white-space: nowrap;">
-                            📦 ${qtyNum.toLocaleString('de-DE')} pol
-                        </div>
-                    </div>
-                `;
-            });
-            popup.innerHTML = html;
-        }
-
-        function hideStockPopup() {
-            const popup = document.getElementById('stock-autocomplete-popup');
-            if (popup) popup.style.display = 'none';
-        }
-
-        function escapeJsStr(str) {
-            if (!str) return '';
-            return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        }
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        }
-
-        function selectStockItem(title, code, gram, formatStr, qty) {
-            hideStockPopup();
-
-            let descInput = null;
-            let codeInput = null;
-            let weightInput = null;
-
-            if (activeMaterialTarget === 'leaves') {
-                descInput = document.getElementById('calc-leaves-material');
-                codeInput = document.getElementById('calc-material-code');
-                weightInput = document.getElementById('calc-paper-weight');
-            } else if (activeMaterialTarget === 'cover') {
-                descInput = document.getElementById('calc-cover-desc');
-                codeInput = document.getElementById('calc-cover-material-code');
-                weightInput = document.getElementById('calc-cardboard-weight');
-            } else {
-                descInput = document.getElementById('calc-paper-type') || document.getElementById('calc-material-desc') || document.getElementById('calc-leaves-material') || document.getElementById('materialCode');
-                codeInput = document.getElementById('calc-material-code') || document.getElementById('materialCode');
-                weightInput = document.getElementById('calc-paper-weight');
-            }
-
-            if (descInput) descInput.value = title;
-            if (codeInput && code) codeInput.value = code;
-            if (weightInput && gram) weightInput.value = gram;
-
-            if (descInput && typeof extractGrammage === 'function' && weightInput) {
-                extractGrammage(descInput, weightInput.id);
-            }
-
-            // PRIKAZ STANJA ZALOGE BREZ SAMODEJNEGA PRERAČUNAVANJA CEN/KALKULACIJE
-            updateMaterialStockStatusBadge(descInput || codeInput, title, qty);
-            closeStockSearchModal();
-        }
-
-        function openStockSearchModal(targetComp) {
-            activeMaterialTarget = targetComp || 'paper';
-            const modal = document.getElementById('modal-stock-search');
-            if (modal) {
-                modal.style.display = 'flex';
-                const input = document.getElementById('stock-search-input');
-                if (input) {
-                    const currentVal = getCombinedSearchQuery(activeMaterialTarget);
-                    input.value = currentVal;
-                    input.focus();
-                }
-                renderStockSearchResults();
-            }
-        }
-
-        function closeStockSearchModal() {
-            const modal = document.getElementById('modal-stock-search');
-            if (modal) modal.style.display = 'none';
-        }
-
-        function renderStockSearchResults() {
-            const query = document.getElementById('stock-search-input')?.value || '';
-            const container = document.getElementById('stock-search-results-container');
-            if (!container) return;
-
-            if (!stockDataList || stockDataList.length === 0) {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 2.5rem 1rem; color: #94a3b8;">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📦</div>
-                        <div style="font-weight: bold; font-size: 1.1rem; color: #e2e8f0; margin-bottom: 0.4rem;">Zaloga Simon še ni naložena</div>
-                        <div style="font-size: 0.85rem; max-width: 450px; margin: 0 auto 1.2rem auto;">Naložite datoteko <code>zalogaSimon.json</code> z vašega računalnika ali mreže. Shranila se bo v vašem brskalniku.</div>
-                        <button type="button" onclick="loadStockFile()" style="padding: 0.6rem 1.2rem; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);">
-                            📂 Izberi datoteko zalogaSimon.json
-                        </button>
-                    </div>
-                `;
-                return;
-            }
-
-            const results = searchStock(query);
-            if (results.length === 0) {
-                container.innerHTML = `<div style="text-align: center; padding: 2rem; color: #f87171;">Ni materiala v zalogi, ki bi ustrezal iskanju "${escapeHtml(query)}".</div>`;
-                return;
-            }
-
-            let html = `<div style="margin-bottom: 0.6rem; font-size: 0.8rem; color: #94a3b8;">Najdeno: <strong style="color:#38bdf8;">${results.length.toLocaleString('de-DE')}</strong> artiklov (prikazano do 100)</div>`;
-            html += `<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: #e2e8f0;">
-                <thead>
-                    <tr style="background: #1e293b; color: #94a3b8; text-align: left;">
-                        <th style="padding: 10px 8px;">Šifra</th>
-                        <th style="padding: 10px 8px;">Naziv materiala</th>
-                        <th style="padding: 10px 8px;">Format</th>
-                        <th style="padding: 10px 8px; text-align: right;">Zaloga (pol)</th>
-                        <th style="padding: 10px 8px; text-align: center;">Akcija</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-
-            results.slice(0, 100).forEach(item => {
-                const title = item['naziv'] || item['opis'] || item['material'] || item['Naziv'] || 'Neznan material';
-                const code = item['šifra materiala'] || item['sifra'] || item['šifra'] || item['Šifra materiala'] || '-';
-                const qty = item['zaloga'] !== undefined ? item['zaloga'] : (item['Zaloga'] !== undefined ? item['Zaloga'] : 0);
-                const gram = item['gramatura'] || '';
-                const qtyNum = parseFloat(qty) || 0;
-                const qtyColor = qtyNum > 0 ? '#34d399' : '#f87171';
-                const formatStr = item['format'] || (item['širina'] && item['višina'] ? `${item['širina']}x${item['višina']}` : '-');
-
-                const safeTitle = escapeJsStr(title);
-                const safeCode = escapeJsStr(code === '-' ? '' : code);
-                const safeGram = escapeJsStr(gram ? String(gram) : '');
-                const safeFmt = escapeJsStr(formatStr === '-' ? '' : formatStr);
-
-                html += `
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='transparent'">
-                        <td style="padding: 8px; font-family: monospace; color: #38bdf8; font-weight: bold;">${escapeHtml(code)}</td>
-                        <td style="padding: 8px; font-weight: bold; color: #f8fafc;">${escapeHtml(title)} ${gram ? `<span style="color:#a7f3d0; font-size:0.78rem;">(${gram}g)</span>` : ''}</td>
-                        <td style="padding: 8px; color: #fbbf24;">${escapeHtml(formatStr)}</td>
-                        <td style="padding: 8px; text-align: right; font-weight: bold; color: ${qtyColor};">📦 ${qtyNum.toLocaleString('de-DE')} pol</td>
-                        <td style="padding: 8px; text-align: center;">
-                            <button type="button" onclick="selectStockItem('${safeTitle}', '${safeCode}', '${safeGram}', '${safeFmt}')" style="padding: 4px 10px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">Izberi</button>
-                        </td>
-                    </tr>
-                `;
-            });
-
-            html += `</tbody></table>`;
-            container.innerHTML = html;
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            initStockData();
-        });
     </script>
-
-
->
+</body>
+</html>

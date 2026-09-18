@@ -1,0 +1,114 @@
+# Zapiski in Navodila za Odpravljanje Napak (KalkulacijaPetrič)
+
+Ta dokument vsebuje podroben pregled zaznamih težav, vzrokov za neodzivnost spletnih zavihkov (`kuverte2.html`, `pola2.html`, `blok2.html`, `brosura2.html`, `etikete2.html`, `TENOVIS2.html`) ter rešitve za hitro odpravljanje napak v prihodnje.
+
+---
+
+## 1. Vzroki za Popolno Neodzivnost Zavihkov ("se ne odziva")
+
+Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne odpre, preračun ne deluje), gre v 99 % primerov za **kritično sintaktično ali runtime napako v JavaScriptu**, zaradi katere brskalnik prekine izvajanje celotne skripte.
+
+### A. Podvojene Globalne Deklaracije Spremenljivk (`SyntaxError`)
+- **Težava:** Če je v skripti navedeno npr.:
+  ```javascript
+  var STORAGE_KEY = 'kuverte_kalkulator_arhiv';
+  // ... kasneje v isti ali drugi skripti:
+  const STORAGE_KEY = 'kuverte_arhiv';
+  ```
+- **Posledica:** JavaScript pogon (V8) sproži `SyntaxError: Identifier 'STORAGE_KEY' has already been declared` med parsiranjem. Celoten skriptni blok se prekine in **nobena funkcija v tistem bloku se ne registrira** (`toggleProjectsDropdown is not defined`, `calculate is not defined`, ...).
+- **Rešitev:** Vse globalne ključe deklariraj enotno z `var` ali pa uporabi različna imena (npr. `STORAGE_KEY_KUVERTE`).
+
+---
+
+### B. Uporaba `await` v Navadni (Ne-Async) Funkciji (`SyntaxError`)
+- **Težava:** Klic `await` v funkciji, ki nima predpone `async`:
+  ```javascript
+  // NAPAKA:
+  function exportToFile() {
+      const handle = await window.showSaveFilePicker(...);
+  }
+  ```
+- **Posledica:** `SyntaxError: await is only valid in async functions`. Skripta se spet ne prevede.
+- **Rešitev:** Funkcija mora imeti obvezno deklaracijo `async function exportToFile()`.
+
+---
+
+### C. Omejitve `File System Access API` znotraj `<iframe>` (`SecurityError`)
+- **Težava:** Ko so zavihki naloženi znotraj `<iframe>` v glavnem vmesniku (`PETRIČ.KALKULACIJE2.html`), brskalnik (Chrome/Edge) iz varnostnih razlogov blokira klica `showDirectoryPicker()` in `showSaveFilePicker()`:
+  > `SecurityError: Failed to execute 'showDirectoryPicker' on 'Window': Cross origin sub frames aren't allowed to show a file picker.`
+- **Rešitev:**
+  1. Klic preusmeri na krovno okno (`window.top`):
+     ```javascript
+     let picker = (window.top && window.top !== window && typeof window.top.showDirectoryPicker === 'function')
+         ? window.top.showDirectoryPicker.bind(window.top)
+         : window.showDirectoryPicker.bind(window);
+     ```
+  2. Ulovi `SecurityError` in v primeru shranjevanja projekta samodejno preklopi na standardni prenosi (Blob Download Fallback):
+     ```javascript
+     catch (e) {
+         if (e.name === 'SecurityError' || (e.message && e.message.includes('sub frames'))) {
+             // Samodejni preklop na prenos v mapo Prenosi
+             const blob = new Blob([jsonStr], { type: 'application/json' });
+             const url = URL.createObjectURL(blob);
+             const a = document.createElement('a');
+             a.href = url;
+             a.download = suggestedName;
+             document.body.appendChild(a);
+             a.click();
+             document.body.removeChild(a);
+             URL.revokeObjectURL(url);
+             return;
+         }
+     }
+     ```
+
+---
+
+### D. Filtriranje Projektov v "MOJI PROJEKTI" (Prikaz samo projekte za trenutni modul)
+- **Težava:** Pred tem sta se pri prikazu "MOJI PROJEKTI" in datotek na disku prikazovala tudi projekti iz drugih modulov (`pola`, `blok`, `brosura`, `etikete`, `tenovis`), ker je preverjanje `isKuverteProject` vključevalo preveč splošna polja (kot je `inp.quantities`).
+- **Rešitev:**
+  1. Funkcija `isKuverteProject(proj)` sedaj natančno preverja identifikator `_source === 'darko-kuverte'` ter polja, specifična le za kuverte (npr. `envelopePreset`, `postCount`), in eksplicitno izključuje polja iz drugih modulov (`paperType`, `cardboardWeight`, `coverMaterialCode`, `leavesMaterial`).
+  2. Funkcija `refreshDiskProjects()` pri branju mape iz diska samodejno preskoči datoteke z končnicami `.pola.json`, `.blok.json`, `.brosura.json`, `.etiketa.json`, `.tenovis.json` ter preveri vsebino JSON datotek.
+
+---
+
+### E. Nezaščiteni Dostopi do Manjkajočih DOM Elementov (`TypeError`)
+- **Težava:** Klic `.value` ali `.checked` na elementu, ki v trenutnem HTML-ju ne obstaja:
+  ```javascript
+  // NAPAKA (če f-zgibanje-speed ne obstaja):
+  let zSpeed = parseFloat(document.getElementById('f-zgibanje-speed').value) || 6800;
+  ```
+- **Posledica:** `TypeError: Cannot read properties of null (reading 'value')`. Izračun se sredi izvajanja prekine.
+- **Rešitev:** Uporabljaj varne funkcije za branje vrednosti (`gv` in `gc`) ali ternarne preveritve:
+  ```javascript
+  let zSpeed = document.getElementById('f-zgibanje-speed') 
+      ? parseFloat(document.getElementById('f-zgibanje-speed').value) || 6800 
+      : 6800;
+  ```
+
+---
+
+## 2. Hitri Diagnostični Protokol (Če se zavihek spet ne odziva)
+
+Ko uporabnik sporoči, da se zavihek ne odziva, izvedi naslednje korake:
+
+1. **Preveri sintakso vseh `<script>` blokov:**
+   - Preveri, če katera od funkcij z `await` nima `async`.
+   - Preveri podvojene `const` ali `let` deklaracije v globalnem obsegu.
+
+2. **Preveri konzolo brskalnika (CDP / Headless Log):**
+   - Preveri, ali se v konzoli pojavlja `Uncaught ReferenceError: ... is not defined` ali `SyntaxError`.
+
+3. **Preveri varnostne pogoje vseh `getElementById` klicev:**
+   - Preveri, ali se kjerkoli izvede `.value` ali `.checked` brez predhodnega preverjanja obstoja elementa.
+
+---
+
+## 3. Pravila pri Delu z Datotekami
+
+1. **Predloge (`blok.html`, `pola.html`, `brosura.html`, `etikete.html`, `kuverte.html`, `tenovis.html`):**
+   - Teh datotek **NE SPREMINJAJ**. Vedno delaj na ustreznih delovnih kopijah (`blok2.html`, `pola2.html`, `kuverte2.html` itd.).
+2. **Git:**
+   - Ne izvajaj `git commit` ali `git push`. Uporabnik to dela samodejno.
+3. **Obseg sprememb:**
+   - Spreminjaj samo tisti program, za katerega je uporabnik eksplicitno zaprosil.
