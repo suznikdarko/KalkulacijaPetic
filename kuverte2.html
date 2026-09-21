@@ -1545,17 +1545,46 @@ if (isWord) {
                         }
 
                         function exportQuoteWord(isAT) {
-                            const content = document.querySelector('.editable-area').innerHTML;
-                            const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
-                            const footer = "</body></html>";
-                            const sourceHTML = header + content + footer;
-                            const blob = new Blob(['\\ufeff', sourceHTML], { type: 'application/msword' });
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = isAT ? 'Angebot.doc' : 'Ponudba.doc';
-                            link.click();
-                            URL.revokeObjectURL(url);
+                            try {
+                                const content = document.querySelector('.editable-area').innerHTML;
+                                const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
+                                const footer = "</body></html>";
+                                const sourceHTML = header + content + footer;
+
+                                let wordName = '';
+                                if (window.opener && typeof window.opener.generateQuoteWordFilename === 'function') {
+                                    wordName = window.opener.generateQuoteWordFilename(isAT);
+                                } else {
+                                    let prefix = isAT ? 'ang.' : 'pon.';
+                                    wordName = prefix + 'ponudba.doc';
+                                }
+
+                                // 1. Takoj sprožimo prenosa v brskalniku (sinhrono v kliku)
+                                const blob = new Blob(['\\ufeff', sourceHTML], { type: 'application/msword;charset=utf-8' });
+                                const url = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = wordName;
+                                document.body.appendChild(link);
+                                link.click();
+                                setTimeout(() => { if (link.parentNode) link.parentNode.removeChild(link); URL.revokeObjectURL(url); }, 500);
+
+                                // 2. V ozadju poskusimo shraniti še na server Srečko (PONUDBE 2026)
+                                fetch('http://127.0.0.1:8095', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ type: 'word', filename: wordName, content: sourceHTML })
+                                }).then(res => res.json()).then(srvData => {
+                                    if (srvData && srvData.status === 'success') {
+                                        console.log("📄 Word uspešno shranjen na server Srečko:", srvData.path || wordName);
+                                    }
+                                }).catch(srvErr => {
+                                    console.log("Server Srečko save info:", srvErr);
+                                });
+
+                            } catch (e) {
+                                alert("Napaka pri pripravi Word dokumenta: " + e.message);
+                            }
                         }
 
                         document.addEventListener('keydown', function(e) {
@@ -1846,38 +1875,61 @@ if (isWord) {
             `;
         }
 
-        function exportQuoteWord() {
+        function generateQuoteWordFilename(isAT = false) {
+            let _gv = id => { let el = document.getElementById(id); return el ? el.value : ''; };
+            let rawQuoteNum = (_gv('calc-quote-number') || '').replace(/[\/\\]/g, '-').trim();
+            let cleanNum = rawQuoteNum.replace(/^(pon\.|ang\.|pon|ang)/i, '').trim();
+            let prefix = isAT ? 'ang.' : 'pon.';
+            let s_ponudba = cleanNum ? (prefix + cleanNum) : (isAT ? 'ang' : 'pon');
 
+            let s_stranka = (_gv('calc-customer') || '').trim();
+            let s_izdelek = (_gv('calc-project-name') || 'Kuverte').trim();
+            let nakladaStr = _gv('calc-quantities') || _gv('calc-qty-ordered') || '';
+            let s_naklada = nakladaStr ? ('nakl.' + nakladaStr.replace(/\s+/g, '').replace(/,/g, '-')) : '';
+            let cFront = _gv('calc-colors-front') || '0';
+            let cBack = _gv('calc-colors-back') || '0';
+            let s_barve = (cFront === '0' && cBack === '0') ? '' : ('b' + cFront + cBack);
+
+            let parts = [s_ponudba, s_stranka, s_izdelek, s_naklada, s_barve].filter(Boolean);
+            let baseName = parts.join('_').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_');
+            if (!baseName) baseName = isAT ? 'ang_ponudba' : 'pon_ponudba';
+            return baseName + '.doc';
+        }
+
+        function exportQuoteWord(isAT = false) {
             try {
+                const htmlContent = getQuoteHTML(true, isAT);
+                const wordName = generateQuoteWordFilename(isAT);
 
-                const htmlContent = getQuoteHTML(true, '', false);
+                let fullHtml = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + wordName + "</title><style>body { font-family: Arial, sans-serif; font-size: 11pt; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + htmlContent + "</body></html>";
 
-
-                const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
+                // 1. Takoj sprožimo prenosa v brskalniku (sinhrono v kliku)
+                const blob = new Blob(['\ufeff', fullHtml], { type: 'application/msword;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
-
                 const link = document.createElement('a');
-
-                const projectName = document.getElementById('calc-project-name').value || 'Ponudba';
-
                 link.href = url;
-
-                link.download = "Ponudba_" + projectName.replace(/\s+/g, '_') + ".doc";
-
+                link.download = wordName;
                 document.body.appendChild(link);
-
                 link.click();
+                setTimeout(() => { if (link.parentNode) link.parentNode.removeChild(link); URL.revokeObjectURL(url); }, 500);
 
-                setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(url); }, 100);
+                // 2. V ozadju poskusimo shraniti še na server Srečko (PONUDBE 2026)
+                fetch('http://127.0.0.1:8095', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'word', filename: wordName, content: fullHtml })
+                }).then(res => res.json()).then(srvData => {
+                    if (srvData && srvData.status === 'success') {
+                        console.log("📄 Word uspešno shranjen na server Srečko:", srvData.path || wordName);
+                    }
+                }).catch(srvErr => {
+                    console.log("Server Srečko save info:", srvErr);
+                });
 
             } catch (e) {
-
                 alert("Napaka pri pripravi Word dokumenta: " + e.message);
-
                 console.error(e);
-
             }
-
         }
 
 
@@ -4025,23 +4077,7 @@ function printQuote() {
             }
         }
 
-        function exportQuoteWord() {
-            try {
-                const htmlContent = getQuoteHTML(true);
-                const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                const projectName = document.getElementById('calc-project-name').value || 'Ponudba';
-                link.href = url;
-                link.download = "Ponudba_" + projectName.replace(/\s+/g, '_') + ".doc";
-                document.body.appendChild(link);
-                link.click();
-                setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(url); }, 100);
-            } catch (e) {
-                alert("Napaka pri pripravi Word dokumenta: " + e.message);
-                console.error(e);
-            }
-        }
+        // Word export handled by exportQuoteWord(isAT)
 
         function openQuotePreview(isAT = false) {
             try {
