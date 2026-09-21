@@ -7289,84 +7289,95 @@
             `;
         }
 
-        function exportQuoteWord() {
+        function generateQuoteWordFilename(isAT = false) {
+            let _gv = id => { let el = document.getElementById(id); return el ? el.value : ''; };
+            let rawQuoteNum = (_gv('calc-quote-number') || '').replace(/[\/\\]/g, '-').trim();
+            let cleanNum = rawQuoteNum.replace(/^(pon\.|ang\.|pon|ang)/i, '').trim();
+            let prefix = isAT ? 'ang.' : 'pon.';
+            let s_ponudba = cleanNum ? (prefix + cleanNum) : (isAT ? 'ang' : 'pon');
 
-            try {
+            let s_stranka = (_gv('calc-customer') || '').trim();
+            let s_izdelek = (_gv('calc-project-name') || 'Etikete').trim();
+            let nakladaStr = _gv('calc-quantities') || _gv('calc-qty-ordered') || '';
+            let s_naklada = nakladaStr ? ('nakl.' + nakladaStr.replace(/\s+/g, '').replace(/,/g, '-')) : '';
+            let cFront = _gv('calc-colors-front') || '0';
+            let cBack = _gv('calc-colors-back') || '0';
+            let s_barve = (cFront === '0' && cBack === '0') ? '' : ('b' + cFront + cBack);
 
-                const htmlContent = getQuoteHTML(true, '', false);
-
-
-                const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
-                const url = URL.createObjectURL(blob);
-
-                const link = document.createElement('a');
-
-                const projectName = document.getElementById('calc-project-name').value || 'Ponudba';
-
-                link.href = url;
-
-                link.download = "Ponudba_" + projectName.replace(/\s+/g, '_') + ".doc";
-
-                document.body.appendChild(link);
-
-                link.click();
-
-                setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(url); }, 100);
-
-            } catch (e) {
-
-                alert("Napaka pri pripravi Word dokumenta: " + e.message);
-
-                console.error(e);
-
-            }
-
+            let parts = [s_ponudba, s_stranka, s_izdelek, s_naklada, s_barve].filter(Boolean);
+            let baseName = parts.join('_').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_');
+            if (!baseName) baseName = isAT ? 'ang_ponudba' : 'pon_ponudba';
+            return baseName + '.doc';
         }
 
+        function exportQuoteWord(isAT = false) {
+            try {
+                const htmlContent = getQuoteHTML(true, '', isAT);
+                const wordName = generateQuoteWordFilename(isAT);
 
+                let fullHtml = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + wordName + "</title><style>body { font-family: Arial, sans-serif; font-size: 11pt; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + htmlContent + "</body></html>";
+
+                const blob = new Blob(['\ufeff', fullHtml], { type: 'application/msword;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = wordName;
+                document.body.appendChild(link);
+                link.click();
+                setTimeout(() => { if (link.parentNode) link.parentNode.removeChild(link); URL.revokeObjectURL(url); }, 500);
+
+                fetch('http://127.0.0.1:8095', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'word', filename: wordName, content: fullHtml })
+                }).then(res => res.json()).then(srvData => {
+                    if (srvData && srvData.status === 'success') {
+                        console.log("📄 Word uspešno shranjen na server Srečko:", srvData.path || wordName);
+                    }
+                }).catch(srvErr => {
+                    console.log("Server Srečko save info:", srvErr);
+                });
+
+            } catch (e) {
+                alert("Napaka pri pripravi Word dokumenta: " + e.message);
+                console.error(e);
+            }
+        }
 
         function downloadWordDoc(filename, htmlContent) {
-
             try {
-
-                let name = filename || 'dokument';
-
+                let name = filename;
+                if (!name || name === 'dokument' || name === 'ponudba') {
+                    name = generateQuoteWordFilename(false);
+                }
                 if (!name.endsWith('.doc')) name += '.doc';
-
-
 
                 let fullHtml = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + name + "</title><style>body { font-family: Arial, sans-serif; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + htmlContent + "</body></html>";
 
-
-
-                let base64 = btoa(unescape(encodeURIComponent('\ufeff' + fullHtml)));
-
-                let dataUri = 'data:application/msword;base64,' + base64;
-
-
-
+                let blob = new Blob(['\ufeff', fullHtml], { type: 'application/msword;charset=utf-8' });
+                let url = URL.createObjectURL(blob);
                 let a = document.createElement('a');
-
-                a.href = dataUri;
-
+                a.href = url;
                 a.download = name;
-
                 document.body.appendChild(a);
-
                 a.click();
+                setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); URL.revokeObjectURL(url); }, 500);
 
-                setTimeout(() => {
-
-                    if (a.parentNode) a.parentNode.removeChild(a);
-
-                }, 500);
+                fetch('http://127.0.0.1:8095', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'word', filename: name, content: fullHtml })
+                }).then(res => res.json()).then(srvData => {
+                    if (srvData && srvData.status === 'success') {
+                        console.log("📄 Word uspešno shranjen na server Srečko:", srvData.path || name);
+                    }
+                }).catch(srvErr => {
+                    console.log("Server Srečko save info:", srvErr);
+                });
 
             } catch (e) {
-
                 alert("Napaka pri prenosu Word datoteke: " + e.message);
-
             }
-
         }
 
 
