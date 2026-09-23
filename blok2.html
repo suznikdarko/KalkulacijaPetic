@@ -783,6 +783,7 @@
                     <select id="machine-format"
                         onchange="document.getElementById('items-per-sheet').value=''; document.getElementById('items-per-sheet-cover').value=''; calculate()">
                         <option value="auto">Samodejno (B2 max)</option>
+                        <option value="B1">B1 (1000 x 700 mm)</option>
                         <option value="900x640">900x640 (900 x 640 mm)</option>
                         <option value="B2">B2 (698 x 498 mm)</option>
                         <option value="638x448">Izrez (638 x 448 mm)</option>
@@ -803,6 +804,7 @@
                     <select id="machine-format-cover"
                         onchange="const el = document.getElementById('items-per-sheet-cover'); if(el) el.value=''; calculate()">
                         <option value="auto">Samodejno (B2 max)</option>
+                        <option value="B1">B1 (1000 x 700 mm)</option>
                         <option value="900x640">900x640 (900 x 640 mm)</option>
                         <option value="B2">B2 (698 x 498 mm)</option>
                         <option value="638x448">Izrez (638 x 448 mm)</option>
@@ -3461,11 +3463,16 @@ window.addEventListener('error', function (e) {
                     const itemW = w + (2 * b);
                     const itemH = h + (2 * b);
 
+                    let frontL = parseInt(document.getElementById('calc-color-front-leaves')?.value || 0) || 0;
+                    let backL = parseInt(document.getElementById('calc-color-back-leaves')?.value || 0) || 0;
+                    let isNoPrintL = (frontL === 0 && backL === 0);
+                    let effG = isNoPrintL ? 0 : g;
+
                     const checkSheet = (sheet) => {
-                        // Preveri omejitev samega stroja (S4, S8...)
+                        // Preveri omejitev samega stroja (S4, S8...) samo če JE tisk
                         let mTypeL = gV('calc-machine-type-leaves') || "S4";
                         let profileL = machineProfiles[mTypeL];
-                        if (profileL) {
+                        if (!isNoPrintL && profileL) {
                             let machineFits = (sheet.w <= profileL.limitW && sheet.h <= profileL.limitH) ||
                                 (sheet.h <= profileL.limitW && sheet.w <= profileL.limitH);
                             if (!machineFits) return;
@@ -3474,12 +3481,12 @@ window.addEventListener('error', function (e) {
                         // Preveri če gre v vir materiala
                         const rawFamily = getPaperFamily(sw, sh);
                         let fitsSource = (sw >= sheet.w && sh >= sheet.h) || (sw >= sheet.h && sh >= sheet.w);
-                        let familyMatches = isSheetFamilyMatching(rawFamily, sheet.family, mTypeL, sheet.name);
+                        let familyMatches = isNoPrintL || isSheetFamilyMatching(rawFamily, sheet.family, mTypeL, sheet.name);
                         if (!fitsSource || !familyMatches) return;
 
                         let isObratL = document.getElementById('calc-is-obrat-leaves')?.checked || false;
-                        let layout1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, g, fMode, mTypeL === 'digital', isObratL);
-                        let layout2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, g, fMode, mTypeL === 'digital', isObratL);
+                        let layout1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, effG, fMode, mTypeL === 'digital', isObratL);
+                        let layout2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, effG, fMode, mTypeL === 'digital', isObratL);
 
                         let bestForThisSheet = null;
                         let mode = 'L';
@@ -3498,7 +3505,7 @@ window.addEventListener('error', function (e) {
                             let score;
                             let isSatisfied = (targetCount > 0 && bestForThisSheet.count >= targetCount);
 
-                            const isStandard = sheet.family === 'B' || sheet.family === 'A' || sheet.family === 'N' || sheet.family === 'DIGITAL';
+                            const isStandard = sheet.family === 'B' || sheet.family === 'A' || sheet.family === 'N' || sheet.family === 'DIGITAL' || sheet.family === 'RAW';
                             const standardBonus = isStandard ? 10000000 : 0;
                             const standardBonusNormal = isStandard ? 500 : 0;
 
@@ -3520,10 +3527,16 @@ window.addEventListener('error', function (e) {
                         }
                     };
 
+                    let sheetsToTestL = [...sheets];
+                    const rawFamilyL = getPaperFamily(sw, sh);
+                    if (isNoPrintL || !sheetsToTestL.some(s => (s.w === sw && s.h === sh) || (s.w === sh && s.h === sw))) {
+                        sheetsToTestL.unshift({ name: `Osnovna pola (${sw}x${sh})`, w: sw, h: sh, family: rawFamilyL });
+                    }
+
                     if (mFormat === 'auto') {
-                        sheets.forEach(checkSheet);
+                        sheetsToTestL.forEach(checkSheet);
                     } else {
-                        let s = sheets.find(s => s.name === mFormat);
+                        let s = sheetsToTestL.find(s => s.name === mFormat) || sheets.find(s => s.name === mFormat);
                         if (s) checkSheet(s);
                     }
                 }
@@ -3535,6 +3548,11 @@ window.addEventListener('error', function (e) {
 
                     const itemW = w + (2 * b);
                     const itemH = h + (2 * b);
+
+                    let frontL = parseInt(document.getElementById('calc-color-front-leaves')?.value || 0) || 0;
+                    let backL = parseInt(document.getElementById('calc-color-back-leaves')?.value || 0) || 0;
+                    let isNoPrintL = (frontL === 0 && backL === 0);
+                    let effG = isNoPrintL ? 0 : g;
 
                     const isNcr = document.getElementById('calc-ncr-active')?.checked || false;
                     const ncrParts = parseInt(gV('calc-ncr-parts')) || 2;
@@ -3583,7 +3601,7 @@ window.addEventListener('error', function (e) {
                     setT('res-size', `${drawW} x ${drawH}`);
                     setT('res-size-leaves-val', `${drawW}x${drawH}`);
 
-                    drawCanvas('canvas-leaves', drawW, drawH, bestLayout, g, w, h, b, (targetCount > 0 && targetCount !== bestLayout.count), targetCount);
+                    drawCanvas('canvas-leaves', drawW, drawH, bestLayout, effG, w, h, b, (targetCount > 0 && targetCount !== bestLayout.count), targetCount);
 
                     let itemsInpL = document.getElementById('items-per-sheet');
                     if (itemsInpL) {
@@ -3636,15 +3654,20 @@ window.addEventListener('error', function (e) {
                     const cItemW = cw + (2 * cb);
                     const cItemH = ch + (2 * cb);
 
+                    let frontC = parseInt(document.getElementById('calc-color-front-cover')?.value || 0) || 0;
+                    let backC = parseInt(document.getElementById('calc-color-back-cover')?.value || 0) || 0;
+                    let isNoPrintC = (frontC === 0 && backC === 0);
+                    let effCg = isNoPrintC ? 0 : cg;
+
                     let cBestSheet = null;
                     let cBestLayout = null;
                     let cBestScore = -1;
 
                     const checkCoverSheet = (sheet) => {
-                        // Preveri omejitev stroja za ovitek
+                        // Preveri omejitev stroja za ovitek (samo če JE tisk)
                         let mTypeC = gV('calc-machine-type-cover') || "S4";
                         let profileC = machineProfiles[mTypeC];
-                        if (profileC) {
+                        if (!isNoPrintC && profileC) {
                             let machineFits = (sheet.w <= profileC.limitW && sheet.h <= profileC.limitH) ||
                                 (sheet.h <= profileC.limitW && sheet.w <= profileC.limitH);
                             if (!machineFits) return;
@@ -3652,12 +3675,12 @@ window.addEventListener('error', function (e) {
 
                         const rawFamilyC = getPaperFamily(swc, shc);
                         let fitsSource = (swc >= sheet.w && shc >= sheet.h) || (swc >= sheet.h && shc >= sheet.w);
-                        let familyMatches = isSheetFamilyMatching(rawFamilyC, sheet.family, mTypeC, sheet.name);
+                        let familyMatches = isNoPrintC || isSheetFamilyMatching(rawFamilyC, sheet.family, mTypeC, sheet.name);
                         if (!fitsSource || !familyMatches) return;
 
                         let isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
-                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital', isObratC);
-                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeCover, mTypeC === 'digital', isObratC);
+                        let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, effCg, fModeCover, mTypeC === 'digital', isObratC);
+                        let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, effCg, fModeCover, mTypeC === 'digital', isObratC);
 
                         let bL = null, bM = 'L';
                         if (l1 && l2) {
@@ -3674,7 +3697,7 @@ window.addEventListener('error', function (e) {
                             let score;
                             let isSatisfied = (targetCountCover > 0 && bL.count >= targetCountCover);
 
-                            const isStandard = sheet.family === 'B' || sheet.family === 'A' || sheet.family === 'N' || sheet.family === 'DIGITAL';
+                            const isStandard = sheet.family === 'B' || sheet.family === 'A' || sheet.family === 'N' || sheet.family === 'DIGITAL' || sheet.family === 'RAW';
                             const standardBonus = isStandard ? 10000000 : 0;
                             const standardBonusNormal = isStandard ? 500 : 0;
 
@@ -3696,9 +3719,15 @@ window.addEventListener('error', function (e) {
                         }
                     };
 
-                    if (mFormatCover === 'auto') sheets.forEach(checkCoverSheet);
+                    let sheetsToTestC = [...sheets];
+                    const rawFamilyC = getPaperFamily(swc, shc);
+                    if (isNoPrintC || !sheetsToTestC.some(s => (s.w === swc && s.h === shc) || (s.w === shc && s.h === swc))) {
+                        sheetsToTestC.unshift({ name: `Osnovna pola (${swc}x${shc})`, w: swc, h: shc, family: rawFamilyC });
+                    }
+
+                    if (mFormatCover === 'auto') sheetsToTestC.forEach(checkCoverSheet);
                     else {
-                        let s = sheets.find(s => s.name === mFormatCover);
+                        let s = sheetsToTestC.find(s => s.name === mFormatCover) || sheets.find(s => s.name === mFormatCover);
                         if (s) checkCoverSheet(s);
                     }
 
@@ -3738,7 +3767,7 @@ window.addEventListener('error', function (e) {
                         if (!bestSheet) {
                             setT('res-size', `${cDrawW} x ${cDrawH}`);
                         }
-                        drawCanvas('canvas-cover', cDrawW, cDrawH, cBestLayout, cg, cw, ch, cb, (targetCountCover > 0 && targetCountCover !== cBestLayout.count), targetCountCover);
+                        drawCanvas('canvas-cover', cDrawW, cDrawH, cBestLayout, effCg, cw, ch, cb, (targetCountCover > 0 && targetCountCover !== cBestLayout.count), targetCountCover);
 
                         let itemsInpC = document.getElementById('items-per-sheet-cover');
                         if (itemsInpC) {
