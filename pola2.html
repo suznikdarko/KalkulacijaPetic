@@ -1005,723 +1005,750 @@
         </div>
         <!-- DESNI PANEL: KALKULACIJA -->
         <div class="panel calculation">
-            <h2>Kalkulacija Stroškov Tiska</h2>
-            <div class="calc-grid">
-                <!-- 1. Papir -->
-                <div class="calc-section">
-                    <h3>1. Material (Papir)</h3>
-                    <div class="form-group">
-                        <label>Cena papirja</label>
-                        <div class="input-group">
-                            <input type="text" id="calc-paper-price" value="" placeholder="Vnesite ceno"
-                                onchange="calculatePrice()">
-                            <select id="calc-paper-unit" onchange="calculatePrice()">
-                                <option value="ton">na tono</option>
-                                <option value="1000">na 1000 pol</option>
-                                <option value="1">na 1 polo</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Gramatura (g/m²)</label>
-                        <input type="text" id="calc-paper-weight" value="" placeholder="g/m²" onchange="calculate()" oninput="onMaterialStockInput(this, 'paper')">
-                    </div>
-                    <div class="form-group">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span>Vrsta materiala (mat, glos...)</span>
-                            <button type="button" onclick="openStockSearchModal('paper')" style="padding:2px 8px; font-size:0.72rem; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🔍 Preveri zalogo (Simon)</button>
-                        </label>
-                        <input type="text" id="calc-paper-type" value="" placeholder="Vpišite naziv ali šifro (npr. 250g mat)..." onchange="calculate()"
-                            oninput="onMaterialStockInput(this, 'paper'); if(typeof extractGrammage === 'function') extractGrammage(this, 'calc-paper-weight');">
-                    </div>
-                    <div class="form-group">
-                        <label>Šifra materiala</label>
-                        <input type="text" id="calc-material-code" value="" placeholder="" onchange="calculate()"
-                            oninput="onMaterialStockInput(this, 'paper');">
-                    </div>
-                    <!-- Barve in obračanje prestavljene navzgor pod format tiskovne forme -->
-                    <div class="form-group">
-                        <label>Makulatura (št. pol) <small>(Prazno = Boss avto)</small></label>
-                        <div style="display:flex; gap:0.5rem; align-items:center;">
-                            <div style="flex:1;">
-                                <input type="number" id="calc-paper-waste-manual" value="" placeholder="Avto"
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                <h2 style="margin: 0;">Kalkulacija Stroškov Tiska</h2>
+            </div>
+            
+            <!-- ZAVIHKI ZA KALKULACIJO -->
+            <div class="calc-tabs-bar" style="display: flex; gap: 0.35rem; margin-bottom: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; flex-wrap: wrap;">
+                <button type="button" class="calc-tab-btn active" id="btn-calc-tab-papir-plosce" onclick="switchCalcTab('papir-plosce')" style="flex: 1; min-width: 100px; padding: 0.45rem 0.6rem; background: rgba(59, 130, 246, 0.25); border: 1px solid #3b82f6; color: white; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">📋 Papir & Plošče</button>
+                <button type="button" class="calc-tab-btn" id="btn-calc-tab-tisk-stroj" onclick="switchCalcTab('tisk-stroj')" style="flex: 1; min-width: 90px; padding: 0.45rem 0.6rem; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border); color: #94a3b8; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">🖨️ Tisk & Stroj</button>
+                <button type="button" class="calc-tab-btn" id="btn-calc-tab-dodelava" onclick="switchCalcTab('dodelava')" style="flex: 1; min-width: 80px; padding: 0.45rem 0.6rem; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border); color: #94a3b8; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">✂️ Dodelava</button>
+                <button type="button" class="calc-tab-btn" id="btn-calc-tab-povzetek" onclick="switchCalcTab('povzetek')" style="flex: 1; min-width: 100px; padding: 0.45rem 0.6rem; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border); color: #94a3b8; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">💶 Povzetek & RVC</button>
+                <button type="button" class="calc-tab-btn" id="btn-calc-tab-vse" onclick="switchCalcTab('vse')" style="padding: 0.45rem 0.6rem; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border); color: #94a3b8; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;" title="Prikaži vse sekcije z enim samim pomikom">👁️ Vse</button>
+            </div>
+
+            <!-- TAB 1: PAPIR IN PLOŠČE -->
+            <div class="calc-tab-pane" id="calc-tab-papir-plosce">
+                <div class="calc-grid">
+                    <!-- 1. Papir -->
+                    <div class="calc-section">
+                        <h3>1. Material (Papir)</h3>
+                        <div class="form-group">
+                            <label>Cena papirja</label>
+                            <div class="input-group">
+                                <input type="text" id="calc-paper-price" value="" placeholder="Vnesite ceno"
                                     onchange="calculatePrice()">
-                            </div>
-                            <div style="flex:1;">
-                                <input type="number" id="calc-paper-waste" value="320" readonly
-                                    style="background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.4); color:#fbbf24; font-weight:bold; cursor:default;"
-                                    title="Samodejno izračunano glede na barve in obračanje">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- 2. Priprava in Plošče -->
-                <div class="calc-section">
-                    <h3>2. Priprava in Plošče</h3>
-                    <div class="form-group">
-                        <label>Število plošč <small>(polno število)</small></label>
-                        <input type="number" id="calc-plates-num" value="4" onchange="calculatePrice()">
-                    </div>
-                    <div class="form-group">
-                        <label>Cena na ploščo ( )</label>
-                        <input type="number" id="calc-plates-price" value="10.00" step="0.5"
-                            onchange="calculatePrice()">
-                    </div>
-                    <div class="form-group">
-                        <label>Priprava tiska (pavšal )</label>
-                        <input type="number" id="calc-prep-price" value="25.00" step="1" onchange="calculatePrice()">
-                    </div>
-                    <div class="form-group">
-                        <label>Menjava plošč ( / kos - brez prve)</label>
-                        <input type="number" id="calc-change-price" value="10.00" step="1" onchange="calculatePrice()">
-                    </div>
-                    <div class="form-group"
-                        style="padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 5px;">
-                        <label>Vrsta mutacije</label>
-                        <select id="calc-mut-type" onchange="updateMutationPlates(); calculatePrice()">
-                            <option value="">Brez mutacij</option>
-                            <optgroup label="Mutacije v vseh barvah">
-                                <option value="Mutacija po prvi strani (1/0)">Mutacija po prvi strani (vse barve)</option>
-                                <option value="Mutacija po drugi strani (0/1)">Mutacija po drugi strani (vse barve)</option>
-                                <option value="Mutacija obojestransko (1/1)">Mutacija obojestransko (vse barve)</option>
-                            </optgroup>
-                            <optgroup label="Mutacije v le 1 barvi (črna / besedilo)">
-                                <option value="Mutacija v 1 barvi po prvi strani (1/0)">Mutacija v 1 barvi spredaj (1/0)</option>
-                                <option value="Mutacija v 1 barvi po drugi strani (0/1)">Mutacija v 1 barvi zadaj (0/1)</option>
-                                <option value="Mutacija v 1 barvi obojestransko (1/1)">Mutacija v 1 barvi obojestransko (1/1)</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Število mutacij</label>
-                        <input type="number" id="calc-mut-qty" value="0" min="0" step="1"
-                            oninput="updateMutationPlates(); calculatePrice()"
-                            onchange="updateMutationPlates(); calculatePrice()">
-                    </div>
-                    <div class="form-group">
-                        <label>Št. dodatnih plošč za mutacijo</label>
-                        <input type="number" id="calc-mut-plates" value="0" min="0" step="1"
-                            onchange="calculatePrice()">
-                    </div>
-                    <div class="form-group">
-                        <label>Razdelitev naklade po mutacijah</label>
-                        <input type="text" id="calc-mut-breakdown"
-                            placeholder="npr. 3.000 kos vrsta A, 2.000 kos vrsta B" oninput="calculatePrice()"
-                            onchange="calculatePrice()">
-                    </div>
-                    <div class="form-group">
-                        <label>Dodatek na mutacijo (pol)</label>
-                        <input type="text" id="calc-mut-dodatek" placeholder=""
-                            oninput="g_editedWorkOrderHTML = ''; calculatePrice()"
-                            onchange="g_editedWorkOrderHTML = ''; calculatePrice()">
-                    </div>
-                    <div id="calc-mut-warning"
-                        style="display: none; margin-top: 5px; padding: 8px 12px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; border-radius: 6px; color: #fca5a5; font-size: 0.85rem; font-weight: bold;">
-                        ⚠️ Opozorilo: Skupna količina mutacij (<span id="calc-mut-warning-qty">0</span> kos) presega
-                        naročeno količino (<span id="calc-mut-warning-target">0</span> kos)!
-                    </div>
-                    <div class="form-group"
-                        style="padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 5px;">
-                        <label>Pranje / Menjava barv (število pranj)</label>
-                        <div style="display: flex; gap: 0.2rem;">
-                            <input type="number" id="calc-color-washes" value="0" min="0" step="1"
-                                onchange="calculatePrice()" style="flex: 1;" placeholder="Št.">
-                            <input type="number" id="calc-wash-price" value="25.00" step="1" onchange="calculatePrice()"
-                                style="flex: 1;" placeholder=" /pranje">
-                        </div>
-                    </div>
-                </div>
-                <!-- 3. Tisk (Stroj) -->
-                <div class="calc-section">
-                    <h3>3. Tisk (Stroj)</h3>
-                    <!-- Izbira stroja prestavljena navzgor pod format tiskovne forme -->
-                    <div id="machine-inputs-group">
-                        <div class="form-group">
-                            <label>Urna postavka stroja (EUR/h)</label>
-                            <input type="number" id="calc-machine-rate" value="120.00" step="1">
-                        </div>
-                        <div class="form-group">
-                            <label style="display:flex; align-items:center; gap:0.4rem;">
-                                Dejanska hitrost tiska
-                                <span style="font-size:0.7rem; color:#94a3b8;">(samodejno glede na naklado &amp;
-                                    gramaturo)</span>
-                            </label>
-                            <input type="number" id="calc-machine-speed" readonly
-                                style="background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.4); color: #fbbf24; font-weight: bold; cursor: default;"
-                                title="Samodejno izračunana dejanska hitrost tiska">
-                        </div>
-                        <div class="form-group" style="display: none;">
-                            <label>Čas priprave stroja za tisk (minuti)</label>
-                            <input type="number" id="calc-machine-prep-time" value="" placeholder="Avto" step="5"
-                                onchange="calculatePrice()">
-                        </div>
-                    </div>
-                    <div id="cooperation-inputs-group"
-                        style="display: none; background: rgba(245, 158, 11, 0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.2); margin-top: 10px; flex-direction: column; gap: 0.75rem;">
-                        <div class="form-group" style="margin: 0;">
-                            <label style="color: #fbbf24; font-weight: bold;">Cena tiska kooperanta (EUR)</label>
-                            <input type="number" id="calc-cooperation-price" value="150.00" step="1"
-                                onchange="calculatePrice()">
-                        </div>
-                        <div class="form-group" style="margin: 0;">
-                            <label style="color: #fbbf24; font-weight: bold;">Način obračuna</label>
-                            <select id="calc-cooperation-unit" onchange="calculatePrice()">
-                                <option value="flat">Fiksni pavšal</option>
-                                <option value="sheet">Na tiskano polo</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div id="digital-plakat-inputs-group"
-                        style="display: none; background: rgba(59, 130, 246, 0.08); padding: 12px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); margin-top: 10px; flex-direction: column; gap: 0.75rem;">
-                        <div style="display: flex; gap: 1rem; align-items: center;">
-                            <div class="form-group" style="flex: 1; margin: 0;">
-                                <label style="color: #60a5fa; font-weight: bold;">Format plakata (Cenik)</label>
-                                <select id="calc-poster-format" onchange="onPosterFormatChange()" style="background: #1e293b; color: white; padding: 6px; border-radius: 6px; border: 1px solid #3b82f6; width: 100%;">
-                                    <option value="B1" selected>Format B1 (700 x 1000 mm)</option>
-                                    <option value="B2">Format B2 (500 x 700 mm)</option>
-                                    <option value="A1">Format A1 (594 x 841 mm)</option>
+                                <select id="calc-paper-unit" onchange="calculatePrice()">
+                                    <option value="ton">na tono</option>
+                                    <option value="1000">na 1000 pol</option>
+                                    <option value="1">na 1 polo</option>
                                 </select>
                             </div>
-                            <div class="form-group" style="flex: 1; margin: 0;">
-                                <label style="color: #60a5fa; font-weight: bold;">Število tulcev (1,42 € / kom)</label>
-                                <input type="number" id="calc-poster-tubes" value="0" min="0" step="1" onchange="calculatePrice()"
-                                    style="background: #1e293b; color: white; padding: 6px; border-radius: 6px; border: 1px solid #3b82f6; width: 100%;" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Gramatura (g/m²)</label>
+                            <input type="text" id="calc-paper-weight" value="" placeholder="g/m²" onchange="calculate()" oninput="onMaterialStockInput(this, 'paper')">
+                        </div>
+                        <div class="form-group">
+                            <label style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>Vrsta materiala (mat, glos...)</span>
+                                <button type="button" onclick="openStockSearchModal('paper')" style="padding:2px 8px; font-size:0.72rem; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🔍 Preveri zalogo (Simon)</button>
+                            </label>
+                            <input type="text" id="calc-paper-type" value="" placeholder="Vpišite naziv ali šifro (npr. 250g mat)..." onchange="calculate()"
+                                oninput="onMaterialStockInput(this, 'paper'); if(typeof extractGrammage === 'function') extractGrammage(this, 'calc-paper-weight');">
+                        </div>
+                        <div class="form-group">
+                            <label>Šifra materiala</label>
+                            <input type="text" id="calc-material-code" value="" placeholder="" onchange="calculate()"
+                                oninput="onMaterialStockInput(this, 'paper');">
+                        </div>
+                        <!-- Barve in obračanje prestavljene navzgor pod format tiskovne forme -->
+                        <div class="form-group">
+                            <label>Makulatura (št. pol) <small>(Prazno = Boss avto)</small></label>
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <div style="flex:1;">
+                                    <input type="number" id="calc-paper-waste-manual" value="" placeholder="Avto"
+                                        onchange="calculatePrice()">
+                                </div>
+                                <div style="flex:1;">
+                                    <input type="number" id="calc-paper-waste" value="320" readonly
+                                        style="background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.4); color:#fbbf24; font-weight:bold; cursor:default;"
+                                        title="Samodejno izračunano glede na barve in obračanje">
+                                </div>
                             </div>
                         </div>
-                        <div id="digital-plakat-price-info" style="font-size: 0.85rem; color: #93c5fd; font-weight: 500;"></div>
                     </div>
-                    <div id="machine-efficiency-warning"
-                        style="display: none; margin-top: 10px; padding: 10px 14px; border-radius: 8px; font-size: 0.88rem; font-weight: bold; transition: all 0.3s ease;"></div>
+                    <!-- 2. Priprava in Plošče -->
+                    <div class="calc-section">
+                        <h3>2. Priprava in Plošče</h3>
+                        <div class="form-group">
+                            <label>Število plošč <small>(polno število)</small></label>
+                            <input type="number" id="calc-plates-num" value="4" onchange="calculatePrice()">
+                        </div>
+                        <div class="form-group">
+                            <label>Cena na ploščo (€)</label>
+                            <input type="number" id="calc-plates-price" value="10.00" step="0.5"
+                                onchange="calculatePrice()">
+                        </div>
+                        <div class="form-group">
+                            <label>Priprava tiska (pavšal €)</label>
+                            <input type="number" id="calc-prep-price" value="25.00" step="1" onchange="calculatePrice()">
+                        </div>
+                        <div class="form-group">
+                            <label>Menjava plošč (€ / kos - brez prve)</label>
+                            <input type="number" id="calc-change-price" value="10.00" step="1" onchange="calculatePrice()">
+                        </div>
+                        <div class="form-group"
+                            style="padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 5px;">
+                            <label>Vrsta mutacije</label>
+                            <select id="calc-mut-type" onchange="updateMutationPlates(); calculatePrice()">
+                                <option value="">Brez mutacij</option>
+                                <optgroup label="Mutacije v vseh barvah">
+                                    <option value="Mutacija po prvi strani (1/0)">Mutacija po prvi strani (vse barve)</option>
+                                    <option value="Mutacija po drugi strani (0/1)">Mutacija po drugi strani (vse barve)</option>
+                                    <option value="Mutacija obojestransko (1/1)">Mutacija obojestransko (vse barve)</option>
+                                </optgroup>
+                                <optgroup label="Mutacije v le 1 barvi (črna / besedilo)">
+                                    <option value="Mutacija v 1 barvi po prvi strani (1/0)">Mutacija v 1 barvi spredaj (1/0)</option>
+                                    <option value="Mutacija v 1 barvi po drugi strani (0/1)">Mutacija v 1 barvi zadaj (0/1)</option>
+                                    <option value="Mutacija v 1 barvi obojestransko (1/1)">Mutacija v 1 barvi obojestransko (1/1)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Število mutacij</label>
+                            <input type="number" id="calc-mut-qty" value="0" min="0" step="1"
+                                oninput="updateMutationPlates(); calculatePrice()"
+                                onchange="updateMutationPlates(); calculatePrice()">
+                        </div>
+                        <div class="form-group">
+                            <label>Št. dodatnih plošč za mutacijo</label>
+                            <input type="number" id="calc-mut-plates" value="0" min="0" step="1"
+                                onchange="calculatePrice()">
+                        </div>
+                        <div class="form-group">
+                            <label>Razdelitev naklade po mutacijah</label>
+                            <input type="text" id="calc-mut-breakdown"
+                                placeholder="npr. 3.000 kos vrsta A, 2.000 kos vrsta B" oninput="calculatePrice()"
+                                onchange="calculatePrice()">
+                        </div>
+                        <div class="form-group">
+                            <label>Dodatek na mutacijo (pol)</label>
+                            <input type="text" id="calc-mut-dodatek" placeholder=""
+                                oninput="g_editedWorkOrderHTML = ''; calculatePrice()"
+                                onchange="g_editedWorkOrderHTML = ''; calculatePrice()">
+                        </div>
+                        <div id="calc-mut-warning"
+                            style="display: none; margin-top: 5px; padding: 8px 12px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; border-radius: 6px; color: #fca5a5; font-size: 0.85rem; font-weight: bold;">
+                            ⚠️ Opozorilo: Skupna količina mutacij (<span id="calc-mut-warning-qty">0</span> kos) presega
+                            naročeno količino (<span id="calc-mut-warning-target">0</span> kos)!
+                        </div>
+                        <div class="form-group"
+                            style="padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 5px;">
+                            <label>Pranje / Menjava barv (število pranj)</label>
+                            <div style="display: flex; gap: 0.2rem;">
+                                <input type="number" id="calc-color-washes" value="0" min="0" step="1"
+                                    onchange="calculatePrice()" style="flex: 1;" placeholder="Št.">
+                                <input type="number" id="calc-wash-price" value="25.00" step="1" onchange="calculatePrice()"
+                                    style="flex: 1;" placeholder="€/pranje">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <!-- 4. Dodelava -->
-            <div class="calc-section" style="grid-column: 1 / -1;">
-                <div
-                    style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); margin-bottom: 1rem;">
-                    <h3 style="border-bottom: none; margin-bottom: 0;">4. Dodelava</h3>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem;">
-                    <div>
-                        <!-- Razrez na format -->
-                        <div class="finish-item active" id="row-finish-razrez-format">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-razrez-format-active" checked
-                                    onchange="toggleFinishRow('razrez-format')">
-                                Razrez na format
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Normativ (pol/h)</small></label>
-                                <input type="number" id="f-razrez-format-speed" value="" placeholder="Avto"
-                                    onchange="calculatePrice()">
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Urna post. ( /h)</small></label>
-                                <input type="number" id="f-razrez-format-rate" value="" placeholder="Avto"
-                                    onchange="calculatePrice()">
-                            </div>
-                        </div>
-                        <!-- Razrez materiala (pred tiskom) -->
-                        <div class="finish-item active" id="row-finish-precut">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-precut-active" checked
-                                    onchange="toggleFinishRow('precut')">
-                                Razrez materiala (pred tiskom)
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Priprava noža ( )</small></label>
-                                <input type="number" id="f-precut-prep" value="5.00" step="0.5"
-                                    onchange="calculatePrice()">
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Cena na 1000 pol (€)</small></label>
-                                <input type="number" id="f-precut-per1000" value="3.60" step="0.1"
-                                    onchange="calculatePrice()">
-                            </div>
-                        </div>
-                        <!-- Cilinder -->
-                        <div class="finish-item" id="row-finish-cilinder">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-cilinder-active" onchange="toggleFinishRow('cilinder')">
-                                Cilinder
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Priprava (€)</small></label>
-                                <input type="number" id="f-cilinder-prep" value="20.00" onchange="calculatePrice()">
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Ročno ur (h)</small></label>
-                                <input type="number" id="f-cilinder-hours" value="" placeholder="Avto" step="0.1"
-                                    onchange="calculatePrice()">
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Urna post. (€/h)</small></label>
-                                <input type="number" id="f-cilinder-rate" value="40.00" onchange="calculatePrice()">
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Dodatek DN (pol)</small></label>
-                                <input type="number" id="f-cilinder-dodatek" value="0" min="0" placeholder="0">
-                            </div>
-                        </div>
-                        <!-- Orodje -->
-                        <div class="finish-item" id="row-finish-tool">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-tool-active" onchange="toggleFinishRow('tool')">
-                                Orodje (izsek)
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Cena orodja (€)</small></label>
-                                <input type="number" id="f-tool-cost" value="0.00" onchange="calculatePrice()">
-                            </div>
-                        </div>
-                        <!-- Ril - rilmašina -->
-                        <div class="finish-item" id="row-finish-ril">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-ril-active" onchange="toggleFinishRow('ril')">
-                                Ril - rilmašina
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Normativ (kom/h)</small></label>
-                                <input type="number" id="f-ril-speed" value="1200" onchange="calculatePrice()">
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Cena ure (€/h)</small></label>
-                                <input type="number" id="f-ril-rate" value="20.00" onchange="calculatePrice()">
-                            </div>
-                            <div class="form-group" style="margin:0; grid-column: 2;">
-                                <label><small>Ročno ur (h)</small></label>
-                                <input type="number" id="f-ril-hours" value="" placeholder="Avto" step="0.1"
-                                    onchange="calculatePrice()">
-                            </div>
-                        </div>
-                        <!-- Zgibanje -->
-                        <div class="finish-item" id="row-finish-zgibanje">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-zgibanje-active" onchange="toggleFinishRow('zgibanje')">
-                                Zgibanje
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Št. zgibov (1-6)</small></label>
-                                <select id="f-zgibanje-folds" onchange="updateZgibanjeDefaults(); calculatePrice()">
-                                    <option value="1" selected>1 zgib</option>
-                                    <option value="2">2 zgiba</option>
-                                    <option value="3">3 zgibi</option>
-                                    <option value="4">4 zgibi</option>
-                                    <option value="5">5 zgibov</option>
-                                    <option value="6">6 zgibov</option>
-                                </select>
-                                <script>
-        var g_lastSaveHandle = null;
-                                    function updateZgibanjeDefaults() {
-                                        let folds = parseInt(document.getElementById('f-zgibanje-folds').value) || 1;
-                                        let speedInput = document.getElementById('f-zgibanje-speed');
-                                        if (folds === 1) speedInput.value = 10800;
-                                        else if (folds === 2) speedInput.value = 8500;
-                                        else if (folds === 3) speedInput.value = 7500;
-                                        else if (folds === 4) speedInput.value = 5750;
-                                        else if (folds === 5) speedInput.value = 4500;
-                                        else if (folds === 6) speedInput.value = 3800;
-                                    }
-                                </script>
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Hitrost (kom/h)</small></label>
-                                <input type="number" id="f-zgibanje-speed" value="10800" onchange="calculatePrice()">
-                            </div>
-                        </div>
 
-                        <!-- Zasek Grafotehna -->
-                        <div class="finish-item" id="row-finish-zasek-grafotehna">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-zasek-grafotehna-active"
-                                    onchange="toggleFinishRow('zasek-grafotehna')">
-                                Zasek-Grafotehna
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Cena na komad (€)</small></label>
-                                <input type="number" id="f-zasek-grafotehna-price" value="0.00"
+            <!-- TAB 2: TISK (STROJ) -->
+            <div class="calc-tab-pane" id="calc-tab-tisk-stroj" style="display: none;">
+                <div class="calc-grid">
+                    <!-- 3. Tisk (Stroj) -->
+                    <div class="calc-section" style="grid-column: 1 / -1;">
+                        <h3>3. Tisk (Stroj)</h3>
+                        <!-- Izbira stroja prestavljena navzgor pod format tiskovne forme -->
+                        <div id="machine-inputs-group">
+                            <div class="form-group">
+                                <label>Urna postavka stroja (EUR/h)</label>
+                                <input type="number" id="calc-machine-rate" value="120.00" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label style="display:flex; align-items:center; gap:0.4rem;">
+                                    Dejanska hitrost tiska
+                                    <span style="font-size:0.7rem; color:#94a3b8;">(samodejno glede na naklado &amp;
+                                        gramaturo)</span>
+                                </label>
+                                <input type="number" id="calc-machine-speed" readonly
+                                    style="background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.4); color: #fbbf24; font-weight: bold; cursor: default;"
+                                    title="Samodejno izračunana dejanska hitrost tiska">
+                            </div>
+                            <div class="form-group" style="display: none;">
+                                <label>Čas priprave stroja za tisk (minuti)</label>
+                                <input type="number" id="calc-machine-prep-time" value="" placeholder="Avto" step="5"
                                     onchange="calculatePrice()">
                             </div>
                         </div>
+                        <div id="cooperation-inputs-group"
+                            style="display: none; background: rgba(245, 158, 11, 0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.2); margin-top: 10px; flex-direction: column; gap: 0.75rem;">
+                            <div class="form-group" style="margin: 0;">
+                                <label style="color: #fbbf24; font-weight: bold;">Cena tiska kooperanta (EUR)</label>
+                                <input type="number" id="calc-cooperation-price" value="150.00" step="1"
+                                    onchange="calculatePrice()">
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label style="color: #fbbf24; font-weight: bold;">Način obračuna</label>
+                                <select id="calc-cooperation-unit" onchange="calculatePrice()">
+                                    <option value="flat">Fiksni pavšal</option>
+                                    <option value="sheet">Na tiskano polo</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="digital-plakat-inputs-group"
+                            style="display: none; background: rgba(59, 130, 246, 0.08); padding: 12px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); margin-top: 10px; flex-direction: column; gap: 0.75rem;">
+                            <div style="display: flex; gap: 1rem; align-items: center;">
+                                <div class="form-group" style="flex: 1; margin: 0;">
+                                    <label style="color: #60a5fa; font-weight: bold;">Format plakata (Cenik)</label>
+                                    <select id="calc-poster-format" onchange="onPosterFormatChange()" style="background: #1e293b; color: white; padding: 6px; border-radius: 6px; border: 1px solid #3b82f6; width: 100%;">
+                                        <option value="B1" selected>Format B1 (700 x 1000 mm)</option>
+                                        <option value="B2">Format B2 (500 x 700 mm)</option>
+                                        <option value="A1">Format A1 (594 x 841 mm)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="flex: 1; margin: 0;">
+                                    <label style="color: #60a5fa; font-weight: bold;">Število tulcev (1,42 € / kom)</label>
+                                    <input type="number" id="calc-poster-tubes" value="0" min="0" step="1" onchange="calculatePrice()"
+                                        style="background: #1e293b; color: white; padding: 6px; border-radius: 6px; border: 1px solid #3b82f6; width: 100%;" placeholder="0">
+                                </div>
+                            </div>
+                            <div id="digital-plakat-price-info" style="font-size: 0.85rem; color: #93c5fd; font-weight: 500;"></div>
+                        </div>
+                        <div id="machine-efficiency-warning"
+                            style="display: none; margin-top: 10px; padding: 10px 14px; border-radius: 8px; font-size: 0.88rem; font-weight: bold; transition: all 0.3s ease;"></div>
                     </div>
-                    <div>
-                        <!-- Lepljenje -->
-                        <div class="finish-item" id="row-finish-lepljenje">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-lepljenje-active" onchange="toggleFinishRow('lepljenje')">
-                                Lepljenje Petrata
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Priprava ( )</small></label>
-                                <input type="number" id="f-lepljenje-prep" value="30.00" onchange="calculatePrice()">
+                </div>
+            </div>
+
+            <!-- TAB 3: DODELAVA -->
+            <div class="calc-tab-pane" id="calc-tab-dodelava" style="display: none;">
+                <!-- 4. Dodelava -->
+                <div class="calc-section">
+                    <div
+                        style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); margin-bottom: 1rem;">
+                        <h3 style="border-bottom: none; margin-bottom: 0;">4. Dodelava</h3>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem;">
+                        <div>
+                            <!-- Razrez na format -->
+                            <div class="finish-item active" id="row-finish-razrez-format">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-razrez-format-active" checked
+                                        onchange="toggleFinishRow('razrez-format')">
+                                    Razrez na format
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Normativ (pol/h)</small></label>
+                                    <input type="number" id="f-razrez-format-speed" value="" placeholder="Avto"
+                                        onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Urna post. (€/h)</small></label>
+                                    <input type="number" id="f-razrez-format-rate" value="" placeholder="Avto"
+                                        onchange="calculatePrice()">
+                                </div>
                             </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Cena/kos ( )</small></label>
-                                <input type="number" id="f-lepljenje-per1000" value="0.03" step="0.01"
-                                    onchange="calculatePrice()">
+                            <!-- Razrez materiala (pred tiskom) -->
+                            <div class="finish-item active" id="row-finish-precut">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-precut-active" checked
+                                        onchange="toggleFinishRow('precut')">
+                                    Razrez materiala (pred tiskom)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Priprava noža (€)</small></label>
+                                    <input type="number" id="f-precut-prep" value="5.00" step="0.5"
+                                        onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena na 1000 pol (€)</small></label>
+                                    <input type="number" id="f-precut-per1000" value="3.60" step="0.1"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
+                            <!-- Cilinder -->
+                            <div class="finish-item" id="row-finish-cilinder">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-cilinder-active" onchange="toggleFinishRow('cilinder')">
+                                    Cilinder
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Priprava (€)</small></label>
+                                    <input type="number" id="f-cilinder-prep" value="20.00" onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Ročno ur (h)</small></label>
+                                    <input type="number" id="f-cilinder-hours" value="" placeholder="Avto" step="0.1"
+                                        onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Urna post. (€/h)</small></label>
+                                    <input type="number" id="f-cilinder-rate" value="40.00" onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Dodatek DN (pol)</small></label>
+                                    <input type="number" id="f-cilinder-dodatek" value="0" min="0" placeholder="0">
+                                </div>
+                            </div>
+                            <!-- Orodje -->
+                            <div class="finish-item" id="row-finish-tool">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-tool-active" onchange="toggleFinishRow('tool')">
+                                    Orodje (izsek)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena orodja (€)</small></label>
+                                    <input type="number" id="f-tool-cost" value="0.00" onchange="calculatePrice()">
+                                </div>
+                            </div>
+                            <!-- Ril - rilmašina -->
+                            <div class="finish-item" id="row-finish-ril">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-ril-active" onchange="toggleFinishRow('ril')">
+                                    Ril - rilmašina
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Normativ (kom/h)</small></label>
+                                    <input type="number" id="f-ril-speed" value="1200" onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena ure (€/h)</small></label>
+                                    <input type="number" id="f-ril-rate" value="20.00" onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0; grid-column: 2;">
+                                    <label><small>Ročno ur (h)</small></label>
+                                    <input type="number" id="f-ril-hours" value="" placeholder="Avto" step="0.1"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
+                            <!-- Zgibanje -->
+                            <div class="finish-item" id="row-finish-zgibanje">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-zgibanje-active" onchange="toggleFinishRow('zgibanje')">
+                                    Zgibanje
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Št. zgibov (1-6)</small></label>
+                                    <select id="f-zgibanje-folds" onchange="updateZgibanjeDefaults(); calculatePrice()">
+                                        <option value="1" selected>1 zgib</option>
+                                        <option value="2">2 zgiba</option>
+                                        <option value="3">3 zgibi</option>
+                                        <option value="4">4 zgibi</option>
+                                        <option value="5">5 zgibov</option>
+                                        <option value="6">6 zgibov</option>
+                                    </select>
+                                    <script>
+                                        function updateZgibanjeDefaults() {
+                                            let folds = parseInt(document.getElementById('f-zgibanje-folds').value) || 1;
+                                            let speedInput = document.getElementById('f-zgibanje-speed');
+                                            if (folds === 1) speedInput.value = 10800;
+                                            else if (folds === 2) speedInput.value = 8500;
+                                            else if (folds === 3) speedInput.value = 7500;
+                                            else if (folds === 4) speedInput.value = 5750;
+                                            else if (folds === 5) speedInput.value = 4500;
+                                            else if (folds === 6) speedInput.value = 3800;
+                                        }
+                                    </script>
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Hitrost (kom/h)</small></label>
+                                    <input type="number" id="f-zgibanje-speed" value="10800" onchange="calculatePrice()">
+                                </div>
+                            </div>
+
+                            <!-- Zasek Grafotehna -->
+                            <div class="finish-item" id="row-finish-zasek-grafotehna">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-zasek-grafotehna-active"
+                                        onchange="toggleFinishRow('zasek-grafotehna')">
+                                    Zasek-Grafotehna
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena na komad (€)</small></label>
+                                    <input type="number" id="f-zasek-grafotehna-price" value="0.00"
+                                        onchange="calculatePrice()">
+                                </div>
                             </div>
                         </div>
-                        <!-- Špiraljenje -->
-                        <div class="finish-item" id="row-finish-spiral">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-spiral-active" onchange="toggleFinishRow('spiral')">
-                                Špiraljenje / Vrvice
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Cena po kosu ( )</small></label>
-                                <input type="number" id="f-spiral-price" value="0.00" step="0.01"
-                                    onchange="calculatePrice()">
-                            </div>
-                        </div>
-                        <!-- Ročno delo -->
-                        <div class="finish-item" id="row-finish-extra">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-extra-active" onchange="toggleFinishRow('extra')">
-                                Ročno delo
-                            </label>
-                            <div class="form-group" style="margin:0; display:flex; gap:0.5rem;">
-                                <div style="flex:1;">
-                                    <label><small>Količina (kos)</small></label>
-                                    <input type="number" id="f-extra-qty" placeholder="Vse" min="1" step="1"
-                                        onchange="calculatePrice()" style="padding:0.2rem; font-size:0.75rem; width:100%;">
+                        <div>
+                            <!-- Lepljenje -->
+                            <div class="finish-item" id="row-finish-lepljenje">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-lepljenje-active" onchange="toggleFinishRow('lepljenje')">
+                                    Lepljenje Petrata
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Priprava (€)</small></label>
+                                    <input type="number" id="f-lepljenje-prep" value="30.00" onchange="calculatePrice()">
                                 </div>
-                                <div style="flex:1;">
-                                    <label><small>Izdelkov / uro</small></label>
-                                    <input type="number" id="f-extra-speed" value="500" min="1" step="1"
-                                        onchange="calculatePrice()" style="padding:0.2rem; font-size:0.75rem; width:100%;">
-                                </div>
-                                <div style="flex:1;">
-                                    <label><small>Postavka (€/h)</small></label>
-                                    <input type="number" id="f-extra-rate" value="20.00" onchange="calculatePrice()" style="padding:0.2rem; font-size:0.75rem; width:100%;">
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena/kos (€)</small></label>
+                                    <input type="number" id="f-lepljenje-per1000" value="0.03" step="0.01"
+                                        onchange="calculatePrice()">
                                 </div>
                             </div>
-                        </div>
-                        <!-- Dodatna dela -->
-                        <div class="finish-item" id="row-finish-dodatna-dela"
-                            style="display: grid !important; grid-template-columns: 140px 1fr 1fr !important; gap: 0.5rem; align-items: start; padding: 0.6rem 0.8rem; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; background: rgba(16, 185, 129, 0.05);">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; cursor:pointer; margin-top: 0.4rem;">
-                                <input type="checkbox" id="f-dodatna-dela-active" onchange="toggleFinishRow('dodatna-dela')">
-                                Dodatna dela
-                            </label>
-                            <div style="grid-column: 2 / span 2; display: flex; flex-direction: column; gap: 0.4rem;">
-                                <div class="form-group" style="margin:0; width:100%;">
-                                    <label><small>Opis del</small></label>
-                                    <input type="text" id="f-dodatna-dela-desc" placeholder="Opis dodatnih del..."
-                                        onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                            <!-- Špiraljenje -->
+                            <div class="finish-item" id="row-finish-spiral">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-spiral-active" onchange="toggleFinishRow('spiral')">
+                                    Špiraljenje / Vrvice
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena po kosu (€)</small></label>
+                                    <input type="number" id="f-spiral-price" value="0.00" step="0.01"
+                                        onchange="calculatePrice()">
                                 </div>
-                                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.5rem; width:100%;">
-                                    <div class="form-group" style="margin:0;">
-                                        <label><small>Število pol</small></label>
-                                        <input type="number" id="f-dodatna-dela-sheets" placeholder="0" min="0" step="1"
+                            </div>
+                            <!-- Ročno delo -->
+                            <div class="finish-item" id="row-finish-extra">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-extra-active" onchange="toggleFinishRow('extra')">
+                                    Ročno delo
+                                </label>
+                                <div class="form-group" style="margin:0; display:flex; gap:0.5rem;">
+                                    <div style="flex:1;">
+                                        <label><small>Količina (kos)</small></label>
+                                        <input type="number" id="f-extra-qty" placeholder="Vse" min="1" step="1"
+                                            onchange="calculatePrice()" style="padding:0.2rem; font-size:0.75rem; width:100%;">
+                                    </div>
+                                    <div style="flex:1;">
+                                        <label><small>Izdelkov / uro</small></label>
+                                        <input type="number" id="f-extra-speed" value="500" min="1" step="1"
+                                            onchange="calculatePrice()" style="padding:0.2rem; font-size:0.75rem; width:100%;">
+                                    </div>
+                                    <div style="flex:1;">
+                                        <label><small>Postavka (€/h)</small></label>
+                                        <input type="number" id="f-extra-rate" value="20.00" onchange="calculatePrice()" style="padding:0.2rem; font-size:0.75rem; width:100%;">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Dodatna dela -->
+                            <div class="finish-item" id="row-finish-dodatna-dela"
+                                style="display: grid !important; grid-template-columns: 140px 1fr 1fr !important; gap: 0.5rem; align-items: start; padding: 0.6rem 0.8rem; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; background: rgba(16, 185, 129, 0.05);">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; cursor:pointer; margin-top: 0.4rem;">
+                                    <input type="checkbox" id="f-dodatna-dela-active" onchange="toggleFinishRow('dodatna-dela')">
+                                    Dodatna dela
+                                </label>
+                                <div style="grid-column: 2 / span 2; display: flex; flex-direction: column; gap: 0.4rem;">
+                                    <div class="form-group" style="margin:0; width:100%;">
+                                        <label><small>Opis del</small></label>
+                                        <input type="text" id="f-dodatna-dela-desc" placeholder="Opis dodatnih del..."
                                             onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
                                     </div>
-                                    <div class="form-group" style="margin:0;">
-                                        <label><small>Število komadov</small></label>
-                                        <input type="number" id="f-dodatna-dela-kom" placeholder="0" min="0" step="1"
-                                            onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
-                                    </div>
-                                    <div class="form-group" style="margin:0;">
-                                        <label><small>Cena polo/kom (€)</small></label>
-                                        <input type="number" id="f-dodatna-dela-price" value="0.00" step="0.001" min="0"
-                                            onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.5rem; width:100%;">
+                                        <div class="form-group" style="margin:0;">
+                                            <label><small>Število pol</small></label>
+                                            <input type="number" id="f-dodatna-dela-sheets" placeholder="0" min="0" step="1"
+                                                onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                        </div>
+                                        <div class="form-group" style="margin:0;">
+                                            <label><small>Število komadov</small></label>
+                                            <input type="number" id="f-dodatna-dela-kom" placeholder="0" min="0" step="1"
+                                                onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                        </div>
+                                        <div class="form-group" style="margin:0;">
+                                            <label><small>Cena polo/kom (€)</small></label>
+                                            <input type="number" id="f-dodatna-dela-price" value="0.00" step="0.001" min="0"
+                                                onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <!-- Razrez materiala - PREMAKNJENO NA VRH -->
-                        <!-- UV tuja usluga -->
-                        <div class="finish-item" id="row-finish-uv">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; margin: 0;">
-                                <input type="checkbox" id="f-uv-active" onchange="toggleFinishRow('uv')">
-                                UV lak (tuja)
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Tip laka</small></label>
-                                <select id="f-uv-type" onchange="updateUVLakPrice(); calculatePrice()"
-                                    style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
-                                    <option value="manual" selected>Ročni vnos</option>
-                                    <option value="sijajni">Odtis - Sijajni</option>
-                                    <option value="mat">Odtis - Mat</option>
-                                    <option value="relief">Relief</option>
-                                    <option value="rubl">Rubl</option>
-                                    <option value="blescice">Bleščice 10%</option>
-                                    <option value="rubl_sij">Rubl + Sij lak</option>
-                                    <option value="rubl_mat">Rubl + Mat lak</option>
-                                    <option value="pokritna_bela">Pokritna bela</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Strani</small></label>
-                                <select id="f-uv-sides" onchange="calculatePrice()"
-                                    style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
-                                    <option value="1/0" selected>1/0</option>
-                                    <option value="1/1">1/1</option>
-                                </select>
-                            </div>
-                            
-                            <!-- Druga vrstica -->
-                            <div></div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Format</small></label>
-                                <select id="f-uv-format" onchange="updateUVLakPrice(); calculatePrice()"
-                                    style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
-                                    <option value="auto" selected>Avto (Pola)</option>
-                                    <option value="50x35">50 x 35</option>
-                                    <option value="70x33">70 x 33</option>
-                                    <option value="70x50">70 x 50</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Priprava ( )</small></label>
-                                <input type="number" id="f-uv-prep" value="90.00" onchange="calculatePrice()"
-                                    style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
-                            </div>
-                            
-                            <!-- Tretja vrstica -->
-                            <div></div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Tiskar (odpad)</small></label>
-                                <input type="number" id="f-uv-extra-waste" value="50" oninput="calculatePrice()"
-                                    onchange="calculatePrice()"
-                                    style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Cena/1000 (€)</small></label>
-                                <input type="number" id="f-uv-per1000" value="25.00" onchange="calculatePrice()"
-                                    style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
-                            </div>
-                        </div>
-                        <!-- UV tuja usluga 2 -->
-                        <div class="finish-item" id="row-finish-uv2">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; margin: 0;">
-                                <input type="checkbox" id="f-uv2-active" onchange="toggleFinishRow('uv2')">
-                                UV lak 2 (tuja)
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Tip laka</small></label>
-                                <select id="f-uv2-type" onchange="updateUVLakPrice('2'); calculatePrice()"
-                                    style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
-                                    <option value="manual" selected>Ročni vnos</option>
-                                    <option value="sijajni">Odtis - Sijajni</option>
-                                    <option value="mat">Odtis - Mat</option>
-                                    <option value="relief">Relief</option>
-                                    <option value="rubl">Rubl</option>
-                                    <option value="blescice">Bleščice 10%</option>
-                                    <option value="rubl_sij">Rubl + Sij lak</option>
-                                    <option value="rubl_mat">Rubl + Mat lak</option>
-                                    <option value="pokritna_bela">Pokritna bela</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Strani</small></label>
-                                <select id="f-uv2-sides" onchange="calculatePrice()"
-                                    style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
-                                    <option value="1/0" selected>1/0</option>
-                                    <option value="1/1">1/1</option>
-                                </select>
-                            </div>
-                            
-                            <!-- Druga vrstica -->
-                            <div></div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Format</small></label>
-                                <select id="f-uv2-format" onchange="updateUVLakPrice('2'); calculatePrice()"
-                                    style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
-                                    <option value="auto" selected>Avto (Pola)</option>
-                                    <option value="50x35">50 x 35</option>
-                                    <option value="70x33">70 x 33</option>
-                                    <option value="70x50">70 x 50</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Priprava (€)</small></label>
-                                <input type="number" id="f-uv2-prep" value="90.00" onchange="calculatePrice()"
-                                    style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
-                            </div>
-                            
-                            <!-- Tretja vrstica -->
-                            <div></div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Tiskar (odpad)</small></label>
-                                <input type="number" id="f-uv2-extra-waste" value="50" oninput="calculatePrice()"
-                                    onchange="calculatePrice()"
-                                    style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Cena/1000 (€)</small></label>
-                                <input type="number" id="f-uv2-per1000" value="25.00" onchange="calculatePrice()"
-                                    style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
-                            </div>
-                        </div>
-                        <!-- Personalizacija -->
-                        <div class="finish-item" id="row-finish-personalization"
-                            style="padding: 0.6rem 0.8rem; border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; background: rgba(251, 191, 36, 0.05); display: flex; align-items: flex-end; gap: 0.8rem; flex-wrap: wrap;">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; height: 32px; margin: 0; white-space: nowrap; cursor: pointer;">
-                                <input type="checkbox" id="f-personalization-active"
-                                    onchange="toggleFinishRow('personalization')" style="margin:0; width:18px; height:18px; cursor:pointer;">
-                                Personalizacija
-                            </label>
-                            <div style="display:flex; gap:0.5rem; flex: 1; align-items: flex-end; flex-wrap: wrap;">
-                                <div class="form-group" style="margin:0; flex:1; min-width: 80px; display:flex; flex-direction:column; justify-content:flex-end;">
-                                    <label style="height: 2.2rem; display:flex; align-items:flex-end; margin-bottom: 3px;"><small style="line-height: 1.1;">Količina<br>(kos)</small></label>
-                                    <input type="number" id="f-personalization-qty" placeholder="Vse" min="1" step="1"
-                                        onchange="calculatePrice()" style="padding:0.3rem 0.5rem; font-size:0.8rem; height: 32px; box-sizing: border-box; width:100%;">
+                            <!-- UV tuja usluga -->
+                            <div class="finish-item" id="row-finish-uv">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; margin: 0;">
+                                    <input type="checkbox" id="f-uv-active" onchange="toggleFinishRow('uv')">
+                                    UV lak (tuja)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Tip laka</small></label>
+                                    <select id="f-uv-type" onchange="updateUVLakPrice(); calculatePrice()"
+                                        style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
+                                        <option value="manual" selected>Ročni vnos</option>
+                                        <option value="sijajni">Odtis - Sijajni</option>
+                                        <option value="mat">Odtis - Mat</option>
+                                        <option value="relief">Relief</option>
+                                        <option value="rubl">Rubl</option>
+                                        <option value="blescice">Bleščice 10%</option>
+                                        <option value="rubl_sij">Rubl + Sij lak</option>
+                                        <option value="rubl_mat">Rubl + Mat lak</option>
+                                        <option value="pokritna_bela">Pokritna bela</option>
+                                    </select>
                                 </div>
-                                <div class="form-group" style="margin:0; flex:1; min-width: 70px; display:flex; flex-direction:column; justify-content:flex-end;">
-                                    <label style="height: 2.2rem; display:flex; align-items:flex-end; margin-bottom: 3px;"><small style="line-height: 1.1;">Strani</small></label>
-                                    <select id="f-personalization-sides" onchange="calculatePrice()"
-                                        style="padding:0.3rem 0.5rem; font-size:0.8rem; height: 32px; box-sizing: border-box; width:100%;">
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Strani</small></label>
+                                    <select id="f-uv-sides" onchange="calculatePrice()"
+                                        style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
                                         <option value="1/0" selected>1/0</option>
                                         <option value="1/1">1/1</option>
                                     </select>
                                 </div>
-                                <div class="form-group" style="margin:0; flex:1; min-width: 90px; display:flex; flex-direction:column; justify-content:flex-end;">
-                                    <label style="height: 2.2rem; display:flex; align-items:flex-end; margin-bottom: 3px;"><small style="line-height: 1.1;">Delitev<br>pole</small></label>
-                                    <select id="f-personalization-split" onchange="calculatePrice()"
-                                        style="padding:0.3rem 0.5rem; font-size:0.8rem; height: 32px; box-sizing: border-box; width:100%;">
-                                        <option value="auto" selected>Avtomatsko</option>
-                                        <option value="2">Na 2 dela (polovici)</option>
-                                        <option value="3">Na 3 dele (tretjine)</option>
-                                        <option value="4">Na 4 dele (četrtine)</option>
-                                        <option value="1">Brez (1 pola)</option>
+                                
+                                <!-- Druga vrstica -->
+                                <div></div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Format</small></label>
+                                    <select id="f-uv-format" onchange="updateUVLakPrice(); calculatePrice()"
+                                        style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
+                                        <option value="auto" selected>Avto (Pola)</option>
+                                        <option value="50x35">50 x 35</option>
+                                        <option value="70x33">70 x 33</option>
+                                        <option value="70x50">70 x 50</option>
                                     </select>
                                 </div>
-                                <div class="form-group" style="margin:0; flex:1; min-width: 90px; display:flex; flex-direction:column; justify-content:flex-end;">
-                                    <label style="height: 2.2rem; display:flex; align-items:flex-end; margin-bottom: 3px;"><small style="line-height: 1.1;">Cena na<br>polo (€)</small></label>
-                                    <input type="number" id="f-personalization-price" value="0.03" step="0.01"
-                                        onchange="calculatePrice()" style="padding:0.3rem 0.5rem; font-size:0.8rem; height: 32px; box-sizing: border-box; width:100%;">
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Priprava (€)</small></label>
+                                    <input type="number" id="f-uv-prep" value="90.00" onchange="calculatePrice()"
+                                        style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
+                                </div>
+                                
+                                <!-- Tretja vrstica -->
+                                <div></div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Tiskar (odpad)</small></label>
+                                    <input type="number" id="f-uv-extra-waste" value="50" oninput="calculatePrice()"
+                                        onchange="calculatePrice()"
+                                        style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena/1000 (€)</small></label>
+                                    <input type="number" id="f-uv-per1000" value="25.00" onchange="calculatePrice()"
+                                        style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
+                                </div>
+                            </div>
+                            <!-- UV tuja usluga 2 -->
+                            <div class="finish-item" id="row-finish-uv2">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; margin: 0;">
+                                    <input type="checkbox" id="f-uv2-active" onchange="toggleFinishRow('uv2')">
+                                    UV lak 2 (tuja)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Tip laka</small></label>
+                                    <select id="f-uv2-type" onchange="updateUVLakPrice('2'); calculatePrice()"
+                                        style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
+                                        <option value="manual" selected>Ročni vnos</option>
+                                        <option value="sijajni">Odtis - Sijajni</option>
+                                        <option value="mat">Odtis - Mat</option>
+                                        <option value="relief">Relief</option>
+                                        <option value="rubl">Rubl</option>
+                                        <option value="blescice">Bleščice 10%</option>
+                                        <option value="rubl_sij">Rubl + Sij lak</option>
+                                        <option value="rubl_mat">Rubl + Mat lak</option>
+                                        <option value="pokritna_bela">Pokritna bela</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Strani</small></label>
+                                    <select id="f-uv2-sides" onchange="calculatePrice()"
+                                        style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
+                                        <option value="1/0" selected>1/0</option>
+                                        <option value="1/1">1/1</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Druga vrstica -->
+                                <div></div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Format</small></label>
+                                    <select id="f-uv2-format" onchange="updateUVLakPrice('2'); calculatePrice()"
+                                        style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
+                                        <option value="auto" selected>Avto (Pola)</option>
+                                        <option value="50x35">50 x 35</option>
+                                        <option value="70x33">70 x 33</option>
+                                        <option value="70x50">70 x 50</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Priprava (€)</small></label>
+                                    <input type="number" id="f-uv2-prep" value="90.00" onchange="calculatePrice()"
+                                        style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
+                                </div>
+                                
+                                <!-- Tretja vrstica -->
+                                <div></div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Tiskar (odpad)</small></label>
+                                    <input type="number" id="f-uv2-extra-waste" value="50" oninput="calculatePrice()"
+                                        onchange="calculatePrice()"
+                                        style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena/1000 (€)</small></label>
+                                    <input type="number" id="f-uv2-per1000" value="25.00" onchange="calculatePrice()"
+                                        style="padding: 0.2rem; font-size: 0.75rem; width: 100%;">
+                                </div>
+                            </div>
+                            <!-- Personalizacija -->
+                            <div class="finish-item" id="row-finish-personalization"
+                                style="padding: 0.6rem 0.8rem; border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; background: rgba(251, 191, 36, 0.05); display: flex; align-items: flex-end; gap: 0.8rem; flex-wrap: wrap;">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; height: 32px; margin: 0; white-space: nowrap; cursor: pointer;">
+                                    <input type="checkbox" id="f-personalization-active"
+                                        onchange="toggleFinishRow('personalization')" style="margin:0; width:18px; height:18px; cursor:pointer;">
+                                    Personalizacija
+                                </label>
+                                <div style="display:flex; gap:0.5rem; flex: 1; align-items: flex-end; flex-wrap: wrap;">
+                                    <div class="form-group" style="margin:0; flex:1; min-width: 80px; display:flex; flex-direction:column; justify-content:flex-end;">
+                                        <label style="height: 2.2rem; display:flex; align-items:flex-end; margin-bottom: 3px;"><small style="line-height: 1.1;">Količina<br>(kos)</small></label>
+                                        <input type="number" id="f-personalization-qty" placeholder="Vse" min="1" step="1"
+                                            onchange="calculatePrice()" style="padding:0.3rem 0.5rem; font-size:0.8rem; height: 32px; box-sizing: border-box; width:100%;">
+                                    </div>
+                                    <div class="form-group" style="margin:0; flex:1; min-width: 70px; display:flex; flex-direction:column; justify-content:flex-end;">
+                                        <label style="height: 2.2rem; display:flex; align-items:flex-end; margin-bottom: 3px;"><small style="line-height: 1.1;">Strani</small></label>
+                                        <select id="f-personalization-sides" onchange="calculatePrice()"
+                                            style="padding:0.3rem 0.5rem; font-size:0.8rem; height: 32px; box-sizing: border-box; width:100%;">
+                                            <option value="1/0" selected>1/0</option>
+                                            <option value="1/1">1/1</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin:0; flex:1; min-width: 90px; display:flex; flex-direction:column; justify-content:flex-end;">
+                                        <label style="height: 2.2rem; display:flex; align-items:flex-end; margin-bottom: 3px;"><small style="line-height: 1.1;">Delitev<br>pole</small></label>
+                                        <select id="f-personalization-split" onchange="calculatePrice()"
+                                            style="padding:0.3rem 0.5rem; font-size:0.8rem; height: 32px; box-sizing: border-box; width:100%;">
+                                            <option value="auto" selected>Avtomatsko</option>
+                                            <option value="2">Na 2 dela (polovici)</option>
+                                            <option value="3">Na 3 dele (tretjine)</option>
+                                            <option value="4">Na 4 dele (četrtine)</option>
+                                            <option value="1">Brez (1 pola)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin:0; flex:1; min-width: 90px; display:flex; flex-direction:column; justify-content:flex-end;">
+                                        <label style="height: 2.2rem; display:flex; align-items:flex-end; margin-bottom: 3px;"><small style="line-height: 1.1;">Cena na<br>polo (€)</small></label>
+                                        <input type="number" id="f-personalization-price" value="0.03" step="0.01"
+                                            onchange="calculatePrice()" style="padding:0.3rem 0.5rem; font-size:0.8rem; height: 32px; box-sizing: border-box; width:100%;">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Plastifikacija -->
+                            <div class="finish-item" id="row-finish-lam"
+                                style="padding: 0.75rem; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; background: rgba(139, 92, 246, 0.05);">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-lam-active" onchange="toggleFinishRow('lam')">
+                                    Plastifikacija
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Tip / Strani</small></label>
+                                    <div style="display:flex; gap:0.2rem;">
+                                        <select id="f-lam-type" onchange="calculatePrice()"
+                                            style="padding:0.2rem; font-size:0.75rem;">
+                                            <option value="mat">Mat</option>
+                                            <option value="sijaj">Sijaj</option>
+                                            <option value="soft">SoftTouch</option>
+                                            <option value="anti">Anti-Scratch</option>
+                                        </select>
+                                        <select id="f-lam-sides" onchange="calculatePrice()"
+                                            style="padding:0.2rem; font-size:0.75rem;">
+                                            <option value="1">1/0</option>
+                                            <option value="2">1/1</option>
+                                            <option value="0/1">0/1</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena na polo (€)</small></label>
+                                    <input type="number" id="f-lam-per1000" value="0.000" onchange="calculatePrice()"
+                                        step="0.001">
+                                </div>
+                            </div>
+                            <!-- Dostava (Pošta) -->
+                            <div class="finish-item" id="row-finish-delivery">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-delivery-active" onchange="toggleFinishRow('delivery')">
+                                    Dostava (Pošta)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Število dostav</small></label>
+                                    <input type="number" id="f-post-count" value="0" placeholder="Št."
+                                        onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena po dostavi (€)</small></label>
+                                    <input type="number" id="f-post-price-per" value="0.00" step="0.01" placeholder="€"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
+                            <!-- Dostava (Fiksno) -->
+                            <div class="finish-item" id="row-finish-del-fixed">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-del-fixed-active" onchange="toggleFinishRow('del-fixed')">
+                                    Dostava (Fiksno)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena dostave (€)</small></label>
+                                    <input type="number" id="f-del-fixed-price" value="0.00" step="0.01" placeholder="€"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
+                            <!-- Komerciala / Admin -->
+                            <div class="finish-item"
+                                style="border-left: 3px solid #60a5fa; background: rgba(59, 130, 246, 0.05);">
+                                <label
+                                    style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; color: #60a5fa;">
+                                    Komerciala / Admin
+                                </label>
+                                <div class="form-group" style="margin:0; grid-column: span 2;">
+                                    <label><small>Fiksni strošek (€)</small></label>
+                                    <input type="number" id="calc-commercial" value="10.00" step="0.5"
+                                        onchange="calculatePrice()">
                                 </div>
                             </div>
                         </div>
-                        <!-- Plastifikacija -->
-                        <div class="finish-item" id="row-finish-lam"
-                            style="padding: 0.75rem; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; background: rgba(139, 92, 246, 0.05);">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-lam-active" onchange="toggleFinishRow('lam')">
-                                Plastifikacija
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Tip / Strani</small></label>
-                                <div style="display:flex; gap:0.2rem;">
-                                    <select id="f-lam-type" onchange="calculatePrice()"
-                                        style="padding:0.2rem; font-size:0.75rem;">
-                                        <option value="mat">Mat</option>
-                                        <option value="sijaj">Sijaj</option>
-                                        <option value="soft">SoftTouch</option>
-                                        <option value="anti">Anti-Scratch</option>
-                                    </select>
-                                    <select id="f-lam-sides" onchange="calculatePrice()"
-                                        style="padding:0.2rem; font-size:0.75rem;">
-                                        <option value="1">1/0</option>
-                                        <option value="2">1/1</option>
-                                        <option value="0/1">0/1</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Cena na polo (€)</small></label>
-                                <input type="number" id="f-lam-per1000" value="0.000" onchange="calculatePrice()"
-                                    step="0.001">
-                            </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: POVZETEK & RVC -->
+            <div class="calc-tab-pane" id="calc-tab-povzetek" style="display: none;">
+                <!-- 4b. Marža / RVC -->
+                <div class="calc-section"
+                    style="background: rgba(245, 158, 11, 0.05); border-color: rgba(245, 158, 11, 0.3); display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem;">
+                    <div style="display: flex; gap: 1rem; align-items: flex-end; width: 100%;">
+                        <div class="form-group" style="margin:0; flex: 1;">
+                            <label style="font-weight:bold;">RVC / Marža (%)</label>
+                            <input type="number" id="calc-margin" value="0" step="1" onchange="calculatePrice()">
                         </div>
-                        <!-- Dostava (Pošta) -->
-                        <div class="finish-item" id="row-finish-delivery">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-delivery-active" onchange="toggleFinishRow('delivery')">
-                                Dostava (Pošta)
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Število dostav</small></label>
-                                <input type="number" id="f-post-count" value="0" placeholder="Št."
-                                    onchange="calculatePrice()">
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Cena po dostavi ( )</small></label>
-                                <input type="number" id="f-post-price-per" value="0.00" step="0.01" placeholder=" "
-                                    onchange="calculatePrice()">
-                            </div>
-                        </div>
-                        <!-- Dostava (Fiksno) -->
-                        <div class="finish-item" id="row-finish-del-fixed">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
-                                <input type="checkbox" id="f-del-fixed-active" onchange="toggleFinishRow('del-fixed')">
-                                Dostava (Fiksno)
-                            </label>
-                            <div class="form-group" style="margin:0;">
-                                <label><small>Cena dostave ( )</small></label>
-                                <input type="number" id="f-del-fixed-price" value="0.00" step="0.01" placeholder=" "
-                                    onchange="calculatePrice()">
-                            </div>
-                        </div>
-                        <!-- Komerciala / Admin -->
-                        <div class="finish-item"
-                            style="border-left: 3px solid #60a5fa; background: rgba(59, 130, 246, 0.05);">
+                        <div class="form-group" style="margin:0; flex: 1;">
                             <label
-                                style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; color: #60a5fa;">
-                                Komerciala / Admin
+                                style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; color: #ef4444; cursor: pointer;">
+                                <input type="checkbox" id="calc-minus-price" onchange="calculatePrice()"
+                                    style="width: 1.2rem; height: 1.2rem;">
+                                Minus cena 4,8%
                             </label>
-                            <div class="form-group" style="margin:0; grid-column: span 2;">
-                                <label><small>Fiksni strošek (€)</small></label>
-                                <input type="number" id="calc-commercial" value="10.00" step="0.5"
-                                    onchange="calculatePrice()">
-                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <!-- 4b. Marža / RVC -->
-            <div class="calc-section"
-                style="background: rgba(245, 158, 11, 0.05); border-color: rgba(245, 158, 11, 0.3); display: flex; flex-direction: column; gap: 0.75rem;">
-                <div style="display: flex; gap: 1rem; align-items: flex-end; width: 100%;">
-                    <div class="form-group" style="margin:0; flex: 1;">
-                        <label style="font-weight:bold;">RVC / Marža (%)</label>
-                        <input type="number" id="calc-margin" value="0" step="1" onchange="calculatePrice()">
+                <!-- 5. REZULTAT -->
+                <div class="calc-section" id="results-anchor"
+                    style="background: rgba(16, 185, 129, 0.1); border-color: #10b981; display:flex; justify-content:space-around; align-items:center; flex-wrap:wrap; gap: 1rem;">
+                    <div class="stat-card" style="background:transparent; border:none; text-align: center;">
+                        <div class="label" style="color: #cbd5e1;">Strošek Papirja</div>
+                        <div class="value" style="font-size:1.5rem; color:#f8fafc;" id="res-price-paper">0.00</div>
+                        <div style="font-size:0.85rem; color:#34d399; font-weight:bold; margin-top:2px;"
+                            id="res-price-paper-per-item">0,0000 € / kos</div>
                     </div>
-                    <div class="form-group" style="margin:0; flex: 1;">
-                        <label
-                            style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; color: #ef4444; cursor: pointer;">
-                            <input type="checkbox" id="calc-minus-price" onchange="calculatePrice()"
-                                style="width: 1.2rem; height: 1.2rem;">
-                            Minus cena 4,8%
-                        </label>
+                    <div class="stat-card" style="background:transparent; border:none; text-align: center;">
+                        <div class="label" style="color: #cbd5e1;">Plošče & Priprava</div>
+                        <div class="value" style="font-size:1.5rem; color:#f8fafc;" id="res-price-prep">0.00</div>
+                        <div style="font-size:0.85rem; color:#34d399; font-weight:bold; margin-top:2px;"
+                            id="res-price-prep-per-item">0,0000 € / kos</div>
                     </div>
-                </div>
-            </div>
-            <!-- 6. REZULTAT (preimenovano v 5) -->
-            <div class="calc-section" id="results-anchor"
-                style="grid-column: 1 / -1; background: rgba(16, 185, 129, 0.1); border-color: #10b981; display:flex; justify-content:space-around; align-items:center; flex-wrap:wrap; gap: 1rem;">
-                <div class="stat-card" style="background:transparent; border:none; text-align: center;">
-                    <div class="label" style="color: #cbd5e1;">Strošek Papirja</div>
-                    <div class="value" style="font-size:1.5rem; color:#f8fafc;" id="res-price-paper">0.00</div>
-                    <div style="font-size:0.85rem; color:#34d399; font-weight:bold; margin-top:2px;"
-                        id="res-price-paper-per-item">0,0000 € / kos</div>
-                </div>
-                <div class="stat-card" style="background:transparent; border:none; text-align: center;">
-                    <div class="label" style="color: #cbd5e1;">Plošče & Priprava</div>
-                    <div class="value" style="font-size:1.5rem; color:#f8fafc;" id="res-price-prep">0.00</div>
-                    <div style="font-size:0.85rem; color:#34d399; font-weight:bold; margin-top:2px;"
-                        id="res-price-prep-per-item">0,0000 € / kos</div>
-                </div>
-                <div class="stat-card" style="background:transparent; border:none; text-align: center;">
-                    <div class="label" style="color: #cbd5e1;">Čas Tiska</div>
-                    <div class="value" style="font-size:1.5rem; color:#f8fafc;" id="res-price-print">0.00</div>
-                    <div style="font-size:0.85rem; color:#34d399; font-weight:bold; margin-top:2px;"
-                        id="res-price-print-per-item">0,0000 € / kos</div>
-                </div>
-                <div class="stat-card" style="background:transparent; border:none; text-align: center;">
-                    <div class="label" style="color: #cbd5e1;">Dodelava & Usluge</div>
-                    <div class="value" style="font-size:1.5rem; color:#f8fafc;" id="res-price-finish">0.00</div>
-                    <div style="font-size:0.85rem; color:#34d399; font-weight:bold; margin-top:2px;"
-                        id="res-price-finish-per-item">0,0000 € / kos</div>
-                </div>
-                <div style="width: 1px; min-height: 50px; background: rgba(255,255,255,0.2);"></div>
-                <div class="stat-card" style="background:transparent; border:none; text-align: right;">
-                    <div class="label" style="color: #6ee7b7; font-size:1rem;">SKUPAJ BREZ DDV</div>
-                    <div class="value" style="font-size:2.5rem; color:#10b981;" id="res-price-total">0.00 </div>
-                </div>
-                <div class="stat-card" style="background:transparent; border:none; text-align: right;">
-                    <div class="label" style="color: #6ee7b7;">CENA NA KOS</div>
-                    <div class="value" style="font-size:1.5rem; color:#34d399;" id="res-price-per-item-stat-final">
-                        0.0000
+                    <div class="stat-card" style="background:transparent; border:none; text-align: center;">
+                        <div class="label" style="color: #cbd5e1;">Čas Tiska</div>
+                        <div class="value" style="font-size:1.5rem; color:#f8fafc;" id="res-price-print">0.00</div>
+                        <div style="font-size:0.85rem; color:#34d399; font-weight:bold; margin-top:2px;"
+                            id="res-price-print-per-item">0,0000 € / kos</div>
+                    </div>
+                    <div class="stat-card" style="background:transparent; border:none; text-align: center;">
+                        <div class="label" style="color: #cbd5e1;">Dodelava & Usluge</div>
+                        <div class="value" style="font-size:1.5rem; color:#f8fafc;" id="res-price-finish">0.00</div>
+                        <div style="font-size:0.85rem; color:#34d399; font-weight:bold; margin-top:2px;"
+                            id="res-price-finish-per-item">0,0000 € / kos</div>
+                    </div>
+                    <div style="width: 1px; min-height: 50px; background: rgba(255,255,255,0.2);"></div>
+                    <div class="stat-card" style="background:transparent; border:none; text-align: right;">
+                        <div class="label" style="color: #6ee7b7; font-size:1rem;">SKUPAJ BREZ DDV</div>
+                        <div class="value" style="font-size:2.5rem; color:#10b981;" id="res-price-total">0.00 €</div>
+                    </div>
+                    <div class="stat-card" style="background:transparent; border:none; text-align: right;">
+                        <div class="label" style="color: #6ee7b7;">CENA NA KOS</div>
+                        <div class="value" style="font-size:1.5rem; color:#34d399;" id="res-price-per-item-stat-final">
+                            0.0000 €
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1775,6 +1802,44 @@
 
     <script>
         var g_lastSaveHandle = null;
+
+        function switchCalcTab(tabId) {
+            const tabs = ['papir-plosce', 'tisk-stroj', 'dodelava', 'povzetek', 'vse'];
+            tabs.forEach(t => {
+                const btn = document.getElementById('btn-calc-tab-' + t);
+                const pane = document.getElementById('calc-tab-' + t);
+                if (btn) {
+                    if (t === tabId) {
+                        btn.classList.add('active');
+                        btn.style.background = 'rgba(59, 130, 246, 0.25)';
+                        btn.style.borderColor = '#3b82f6';
+                        btn.style.color = '#ffffff';
+                    } else {
+                        btn.classList.remove('active');
+                        btn.style.background = 'rgba(30, 41, 59, 0.6)';
+                        btn.style.borderColor = 'var(--glass-border)';
+                        btn.style.color = '#94a3b8';
+                    }
+                }
+                if (pane) {
+                    if (tabId === 'vse' || t === tabId) {
+                        pane.style.display = 'block';
+                    } else {
+                        pane.style.display = 'none';
+                    }
+                }
+            });
+            try {
+                localStorage.setItem('pola2_active_calc_tab', tabId);
+            } catch(e) {}
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                const savedTab = localStorage.getItem('pola2_active_calc_tab');
+                if (savedTab) switchCalcTab(savedTab);
+            } catch(e) {}
+        });
         function extractGrammage(sourceEl, targetId) {
             if (!sourceEl._grammageBlurBound) {
                 sourceEl.addEventListener('blur', function () {
