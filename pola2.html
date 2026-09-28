@@ -1053,6 +1053,69 @@
                             <input type="text" id="calc-material-code" value="" placeholder="" onchange="calculate()"
                                 oninput="onMaterialStockInput(this, 'paper');">
                         </div>
+
+                        <!-- MODUL ZA 2. PAPIR / KAŠIRANJE -->
+                        <div style="margin-bottom: 1.25rem; padding: 12px; background: rgba(59, 130, 246, 0.08); border: 1px dashed rgba(59, 130, 246, 0.4); border-radius: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #60a5fa; font-weight: 700; margin: 0;">
+                                    <input type="checkbox" id="calc-paper2-enable" onchange="togglePaper2Section(); calculatePrice();" style="width: 18px; height: 18px; cursor: pointer;">
+                                    🥞 Drugi papir / Kaširanje (Lepljenje 2 pol)
+                                </label>
+                            </div>
+                            
+                            <div id="paper2-container" style="display: none; margin-top: 10px; flex-direction: column; gap: 10px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label>Cena 2. papirja</label>
+                                    <div class="input-group">
+                                        <input type="text" id="calc-paper2-price" value="" placeholder="Vnesite ceno" onchange="calculatePrice()">
+                                        <select id="calc-paper2-unit" onchange="calculatePrice()">
+                                            <option value="ton">na tono</option>
+                                            <option value="1000">na 1000 pol</option>
+                                            <option value="1">na 1 polo</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label>Gramatura 2. papirja (g/m²)</label>
+                                    <input type="text" id="calc-paper2-weight" value="" placeholder="g/m² (npr. 300)" onchange="calculate()" oninput="onMaterialStockInput(this, 'paper2')">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span>Vrsta / Naziv 2. papirja</span>
+                                        <button type="button" onclick="openStockSearchModal('paper2')" style="padding:2px 8px; font-size:0.72rem; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🔍 Zaloga</button>
+                                    </label>
+                                    <input type="text" id="calc-paper2-type" value="" placeholder="Npr. Lepenka 1.5mm ali GD2 300g..." onchange="calculate()" oninput="onMaterialStockInput(this, 'paper2'); if(typeof extractGrammage === 'function') extractGrammage(this, 'calc-paper2-weight');">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label>Šifra 2. materiala</label>
+                                    <input type="text" id="calc-paper2-code" value="" placeholder="Šifra materiala 2" onchange="calculate()" oninput="onMaterialStockInput(this, 'paper2');">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label>Makulatura 2. papirja (št. pol) <small>(Prazno = enako kot 1. papir)</small></label>
+                                    <input type="number" id="calc-paper2-waste-manual" value="" placeholder="Avto" onchange="calculatePrice()">
+                                </div>
+                                
+                                <div style="padding: 10px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; margin-top: 5px;">
+                                    <label style="color: #34d399; font-weight: 700; margin-bottom: 5px; display: block;">✂️ Strošek kaširanja / lepljenja</label>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                        <div>
+                                            <label style="font-size: 0.75rem;">Priprava (€)</label>
+                                            <input type="number" id="calc-paper2-prep-price" value="15.00" step="1" onchange="calculatePrice()">
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 0.75rem;">Cena lepljenja (€)</label>
+                                            <div style="display: flex; gap: 4px;">
+                                                <input type="number" id="calc-paper2-kasiranje-price" value="0.05" step="0.01" onchange="calculatePrice()" style="flex:1;">
+                                                <select id="calc-paper2-kasiranje-unit" onchange="calculatePrice()" style="flex:1; font-size: 0.75rem; padding: 4px;">
+                                                    <option value="kos">/ kos</option>
+                                                    <option value="pola">/ polo</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <!-- Barve in obračanje prestavljene navzgor pod format tiskovne forme -->
                         <div class="form-group">
                             <label>Makulatura (št. pol) <small>(Prazno = Boss avto)</small></label>
@@ -2072,9 +2135,20 @@
                 renderBasket();
             }
         });
+        function togglePaper2Section() {
+            const chk = document.getElementById('calc-paper2-enable');
+            const container = document.getElementById('paper2-container');
+            if (chk && container) {
+                container.style.display = chk.checked ? 'flex' : 'none';
+            }
+        }
         function getActiveFinishingList() {
             const list = [];
             const isChecked = (id) => document.getElementById(id) && document.getElementById(id).checked;
+            if (isChecked('calc-paper2-enable')) {
+                const p2Type = document.getElementById('calc-paper2-type') ? document.getElementById('calc-paper2-type').value.trim() : '';
+                list.push(p2Type ? `Kaširanje / Lepljenje (${p2Type})` : 'Kaširanje / Lepljenje 2 pol');
+            }
             if (isChecked('f-cilinder-active')) list.push('Cilinder');
             if (isChecked('f-ril-active')) list.push('Ril - rilmašina');
             if (isChecked('f-zgibanje-active')) {
@@ -2155,7 +2229,9 @@
                         wasteManual: document.getElementById('calc-paper-waste-manual') ? document.getElementById('calc-paper-waste-manual').value : '',
                         mutPlates: document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : '',
                         format: (document.getElementById('width') ? document.getElementById('width').value : '') + ' x ' + (document.getElementById('height') ? document.getElementById('height').value : '') + ' mm',
-                        paper: (document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value : '') + 'g ' + (document.getElementById('calc-paper-type') ? document.getElementById('calc-paper-type').value : ''),
+                        paper: (document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value : '') + 'g ' + (document.getElementById('calc-paper-type') ? document.getElementById('calc-paper-type').value : '') +
+                            (document.getElementById('calc-paper2-enable') && document.getElementById('calc-paper2-enable').checked ?
+                                ' + Kaširano: ' + (document.getElementById('calc-paper2-weight') ? document.getElementById('calc-paper2-weight').value + 'g ' : '') + (document.getElementById('calc-paper2-type') ? document.getElementById('calc-paper2-type').value : 'Papir 2') : ''),
                         colors: getFormattedColorsString(),
                         finishing: getActiveFinishingList()
                     },
@@ -3513,12 +3589,19 @@
                 <div style="padding: 10px; background: rgba(59, 130, 246, 0.05); border-radius: 8px;">
                     <div style="font-weight: bold; color: #60a5fa; margin-bottom: 5px;">1. Material (Papir)</div>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                        <span>Tiskovne pole po razrezu:</span> <span style="font-weight: bold;">${formatQty(d.paper.totalSheets)} pol</span>
+                        <span>Tiskovne pole (Papir 1):</span> <span style="font-weight: bold;">${formatQty(d.paper.totalSheets)} pol</span>
                         <span style="color: #93c5fd;">Nerazrezane pole (${d.paper.sourceW} x ${d.paper.sourceH} mm, ${d.paper.sourceYield}x razrez):</span>
                         <span style="font-weight: bold; color: #93c5fd;">${formatQty(d.paper.sourceSheets)} pol</span>
-                        ${d.paper.kg > 0 ? `<span>Teža papirja (bruto):</span> <span>${d.paper.kg.toFixed(1)} kg</span>` : ''}
+                        ${d.paper.kg > 0 ? `<span>Teža 1. papirja (bruto):</span> <span>${d.paper.kg.toFixed(1)} kg</span>` : ''}
+                        ${d.paper2 && d.paper2.enabled ? `
+                        <div style="grid-column: 1/-1; height: 1px; background: rgba(59,130,246,0.2); margin: 5px 0;"></div>
+                        <div style="grid-column: 1/-1; font-weight: bold; color: #38bdf8;">+ 2. Papir (Kaširanje / Spodnji sloj): ${d.paper2.type || 'Papir 2'} (${d.paper2.weight} g/m²)</div>
+                        <span>Tiskovne pole (Papir 2):</span> <span style="font-weight: bold;">${formatQty(d.paper2.totalSheets)} pol</span>
+                        <span>Nerazrezane pole (Papir 2):</span> <span style="font-weight: bold;">${formatQty(d.paper2.sourceSheets)} pol</span>
+                        <span>Strošek 2. materiala:</span> <span>${formatPrice(d.paper2.cost)}</span>
+                        ` : ''}
                         <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
-                        <span>Strošek materiala:</span> <span>${formatPrice(d.paper.cost)}</span>
+                        <span>Strošek materiala skupaj:</span> <span style="font-weight: bold;">${formatPrice(d.paper.cost)}</span>
                     </div>
                 </div>
                 <!-- PREP -->
@@ -3929,6 +4012,67 @@
             } else {
                 paperCost = totalSourceSheetsNeeded * paperPrice;
             }
+
+            // IZRAČUN ZA 2. PAPIR IN KAŠIRANJE
+            const paper2Enabled = document.getElementById('calc-paper2-enable') ? document.getElementById('calc-paper2-enable').checked : false;
+            let paper2Cost = 0;
+            let totalKasiranjeCost = 0;
+            let paper2Type = "";
+            let paper2Weight = 0;
+            let paper2Code = "";
+            let paper2Price = 0;
+            let paper2Unit = "ton";
+            let paper2WasteSheets = paperWasteSheets;
+            let totalPaper2SheetsNeeded = 0;
+            let totalSourcePaper2SheetsNeeded = 0;
+            let kasiranjePrep = 0;
+            let kasiranjePrice = 0;
+            let kasiranjeUnit = "kos";
+            let kasiranjeWorkCost = 0;
+
+            if (paper2Enabled) {
+                paper2Type = document.getElementById('calc-paper2-type') ? document.getElementById('calc-paper2-type').value.trim() : "";
+                paper2Weight = parseFloat(document.getElementById('calc-paper2-weight') ? document.getElementById('calc-paper2-weight').value.replace(',', '.') : '0') || 0;
+                paper2Code = document.getElementById('calc-paper2-code') ? document.getElementById('calc-paper2-code').value.trim() : "";
+                paper2Price = parseFloat(document.getElementById('calc-paper2-price') ? document.getElementById('calc-paper2-price').value.replace(',', '.') : '0') || 0;
+                paper2Unit = document.getElementById('calc-paper2-unit') ? document.getElementById('calc-paper2-unit').value : "ton";
+                
+                const manualP2Waste = parseFloat(document.getElementById('calc-paper2-waste-manual') ? document.getElementById('calc-paper2-waste-manual').value : '');
+                if (!isNaN(manualP2Waste)) {
+                    paper2WasteSheets = manualP2Waste;
+                }
+                
+                totalPaper2SheetsNeeded = sheetsNeeded + paper2WasteSheets;
+                totalSourcePaper2SheetsNeeded = Math.ceil(totalPaper2SheetsNeeded / sourceYield);
+                if (orderedSheetsVal > 0) {
+                    totalSourcePaper2SheetsNeeded = orderedSheetsVal;
+                    totalPaper2SheetsNeeded = orderedSheetsVal * sourceYield;
+                }
+
+                if (paper2Unit === 'ton') {
+                    let areaM2 = (sourceW / 1000) * (sourceH / 1000);
+                    let weightKg2 = areaM2 * (paper2Weight / 1000) * totalSourcePaper2SheetsNeeded;
+                    paper2Cost = (weightKg2 / 1000) * paper2Price;
+                } else if (paper2Unit === '1000') {
+                    paper2Cost = (totalSourcePaper2SheetsNeeded / 1000) * paper2Price;
+                } else {
+                    paper2Cost = totalSourcePaper2SheetsNeeded * paper2Price;
+                }
+
+                kasiranjePrep = parseFloat(document.getElementById('calc-paper2-prep-price') ? document.getElementById('calc-paper2-prep-price').value.replace(',', '.') : '0') || 0;
+                kasiranjePrice = parseFloat(document.getElementById('calc-paper2-kasiranje-price') ? document.getElementById('calc-paper2-kasiranje-price').value.replace(',', '.') : '0') || 0;
+                kasiranjeUnit = document.getElementById('calc-paper2-kasiranje-unit') ? document.getElementById('calc-paper2-kasiranje-unit').value : "kos";
+
+                let effectiveTargetQty = (orderedQty && orderedQty > 0) ? orderedQty : qty;
+                if (kasiranjeUnit === 'kos') {
+                    kasiranjeWorkCost = effectiveTargetQty * kasiranjePrice;
+                } else {
+                    kasiranjeWorkCost = sheetsNeeded * kasiranjePrice;
+                }
+                totalKasiranjeCost = kasiranjePrep + kasiranjeWorkCost;
+
+                paperCost += paper2Cost;
+            }
             function getDynamicSpeed(baseSpeed, grammage, qty) {
                 let _front = parseInt(document.getElementById('calc-color-front').value) || 0;
                 let _back = parseInt(document.getElementById('calc-color-back').value) || 0;
@@ -4307,6 +4451,9 @@
             let itemHForWeight = parseFloat(document.getElementById('height')?.value.replace(',', '.')) || 0;
             let productAreaM2 = (itemWForWeight / 1000) * (itemHForWeight / 1000);
             let productWeightGrams = productAreaM2 * (paperWeight + (lamSidesForWeight * 25)); // 25g/m2 na plastifikacijo
+            if (paper2Enabled) {
+                productWeightGrams += productAreaM2 * paper2Weight;
+            }
             let singleWeightKg = productWeightGrams / 1000;
             let totalOrderWeightKg = singleWeightKg * effectiveQty;
 
@@ -4358,6 +4505,31 @@
                     cost: totalFinishCost
                 }
             };
+
+            if (paper2Enabled) {
+                details.paper2 = {
+                    enabled: true,
+                    type: paper2Type,
+                    weight: paper2Weight,
+                    code: paper2Code,
+                    price: paper2Price,
+                    unit: paper2Unit,
+                    wasteSheets: paper2WasteSheets,
+                    totalSheets: totalPaper2SheetsNeeded,
+                    sourceSheets: totalSourcePaper2SheetsNeeded,
+                    cost: paper2Cost,
+                    kasiranjePrep: kasiranjePrep,
+                    kasiranjePrice: kasiranjePrice,
+                    kasiranjeUnit: kasiranjeUnit,
+                    kasiranjeWorkCost: kasiranjeWorkCost,
+                    kasiranjeTotalCost: totalKasiranjeCost
+                };
+                details.finish.items.push({
+                    name: 'Kaširanje / Lepljenje 2 pol',
+                    cost: totalKasiranjeCost,
+                    breakdown: `Priprava: ${formatPrice(kasiranjePrep)} + Lepljenje (${kasiranjeUnit === 'kos' ? formatQty(effectiveQty) + ' kos' : formatQty(sheetsNeeded) + ' pol'} x ${formatPrice(kasiranjePrice)}): ${formatPrice(kasiranjeWorkCost)}`
+                });
+            }
             // Collect finishing items
             if (document.getElementById('f-cilinder-active').checked) {
                 let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value.replace(',', '.')) || 0;
@@ -6619,6 +6791,17 @@
                 if (inp.itemsPerSheet !== undefined) setV('items-per-sheet', inp.itemsPerSheet);
                 if (inp.itemOrientation !== undefined) setV('item-orientation', inp.itemOrientation);
                 if (inp.minusPrice !== undefined) setV('calc-minus-price', inp.minusPrice, true);
+                if (inp.paper2Enable !== undefined) setV('calc-paper2-enable', inp.paper2Enable, true);
+                if (inp.paper2Price !== undefined) setV('calc-paper2-price', inp.paper2Price);
+                if (inp.paper2Unit !== undefined) setV('calc-paper2-unit', inp.paper2Unit);
+                if (inp.paper2Weight !== undefined) setV('calc-paper2-weight', inp.paper2Weight);
+                if (inp.paper2Type !== undefined) setV('calc-paper2-type', inp.paper2Type);
+                if (inp.paper2Code !== undefined) setV('calc-paper2-code', inp.paper2Code);
+                if (inp.paper2WasteManual !== undefined) setV('calc-paper2-waste-manual', inp.paper2WasteManual);
+                if (inp.paper2PrepPrice !== undefined) setV('calc-paper2-prep-price', inp.paper2PrepPrice);
+                if (inp.paper2KasiranjePrice !== undefined) setV('calc-paper2-kasiranje-price', inp.paper2KasiranjePrice);
+                if (inp.paper2KasiranjeUnit !== undefined) setV('calc-paper2-kasiranje-unit', inp.paper2KasiranjeUnit);
+                if (typeof togglePaper2Section === 'function') togglePaper2Section();
 
                 // Load Finishing
                 if (inp.finish) {
@@ -6926,6 +7109,16 @@
                         itemsPerSheet: document.getElementById('items-per-sheet') ? document.getElementById('items-per-sheet').value : '',
                         itemOrientation: document.getElementById('item-orientation') ? document.getElementById('item-orientation').value : '',
                         minusPrice: document.getElementById('calc-minus-price') ? document.getElementById('calc-minus-price').checked : false,
+                        paper2Enable: gc('calc-paper2-enable'),
+                        paper2Price: gv('calc-paper2-price'),
+                        paper2Unit: gv('calc-paper2-unit'),
+                        paper2Weight: gv('calc-paper2-weight'),
+                        paper2Type: gv('calc-paper2-type'),
+                        paper2Code: gv('calc-paper2-code'),
+                        paper2WasteManual: gv('calc-paper2-waste-manual'),
+                        paper2PrepPrice: gv('calc-paper2-prep-price'),
+                        paper2KasiranjePrice: gv('calc-paper2-kasiranje-price'),
+                        paper2KasiranjeUnit: gv('calc-paper2-kasiranje-unit'),
                         finish: {
                             cilinder: { active: document.getElementById('f-cilinder-active').checked, prep: document.getElementById('f-cilinder-prep').value, hours: document.getElementById('f-cilinder-hours').value, rate: document.getElementById('f-cilinder-rate').value },
                             ril: { active: document.getElementById('f-ril-active').checked, speed: document.getElementById('f-ril-speed').value, rate: document.getElementById('f-ril-rate').value, hours: document.getElementById('f-ril-hours').value },
@@ -7997,6 +8190,15 @@
                         <td style="width: 50%; text-align: right;" class="bold">/</td>
                     </tr>`;
             }
+            if (isChecked('calc-paper2-enable')) {
+                let p2Type = document.getElementById('calc-paper2-type') ? document.getElementById('calc-paper2-type').value.trim() : '';
+                finishingRowsHtml += `
+                    <tr>
+                        <td style="width: 15%;">Kaširanje:</td>
+                        <td style="width: 35%;" class="bold">Lepljenje 2 pol (${p2Type || 'Papir 2'})</td>
+                        <td style="width: 50%; text-align: right;" class="bold">/</td>
+                    </tr>`;
+            }
             if (isChecked('f-delivery-active') || isChecked('f-del-fixed-active')) {
                 let delAddressStr = deliveryAddress ? deliveryAddress.replace(/\n/g, ', ') : (custAddress ? custAddress.replace(/\n/g, ', ') : '');
                 finishingRowsHtml += `
@@ -8085,6 +8287,17 @@
                             </div>
                         </td>
                     </tr>
+                    ${(d.paper2 && d.paper2.enabled) ? `
+                    <tr>
+                        <td style="width: 15%; vertical-align: top;">06 razrez 2. papir (kaširanje):</td>
+                        <td class="bold" style="color: #0284c7;">
+                            ${d.paper2.sourceSheets.toLocaleString('de-DE')} pol &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${sourceWCm} x ${sourceHCm} cm ${sourceGrain} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; na &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+                            <div style="display: inline-block; vertical-align: top;">
+                                ${d.paper2.totalSheets.toLocaleString('de-DE')} pol ${sheetWCm} x ${sheetHCm} cm &nbsp;&nbsp; (${d.paper2.type || 'Papir 2'} ${d.paper2.weight ? d.paper2.weight + 'g' : ''})
+                            </div>
+                        </td>
+                    </tr>
+                    ` : ''}
                 </table>
                 <table style="margin-top: 5px; width: 100%;">
                     <tr>
@@ -9880,7 +10093,11 @@
             let codeInput = null;
             let weightInput = null;
             
-            if (activeMaterialTarget === 'leaves') {
+            if (activeMaterialTarget === 'paper2') {
+                descInput = document.getElementById('calc-paper2-type');
+                codeInput = document.getElementById('calc-paper2-code');
+                weightInput = document.getElementById('calc-paper2-weight');
+            } else if (activeMaterialTarget === 'leaves') {
                 descInput = document.getElementById('calc-leaves-material');
                 codeInput = document.getElementById('calc-material-code');
                 weightInput = document.getElementById('calc-paper-weight');
