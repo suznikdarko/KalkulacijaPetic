@@ -3114,7 +3114,8 @@ window.addEventListener('error', function (e) {
                 { name: "Digital (448x318)", w: 448, h: 318, family: "DIGITAL" }
             ];
 
-            let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
+            let quoteBasket = [];
+            localStorage.removeItem('petric_quote_basket');
             renderBasket();
 
             var g_editedQuoteHTML = '';
@@ -7021,7 +7022,8 @@ async function saveCurrentProject(btn = null) {
                             total: (document.getElementById('res-price-total') || {}).innerText || '',
                             perItem: (document.getElementById('res-price-per-item') || {}).innerText || '',
                             sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
-                        }
+                        },
+                        quoteBasket: (typeof quoteBasket !== 'undefined' && Array.isArray(quoteBasket)) ? quoteBasket : []
                     };
 
                     let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -7285,6 +7287,13 @@ async function saveCurrentProject(btn = null) {
                     window.g_loadingProject = false;
                     return;
                 }
+                if (proj && Array.isArray(proj.quoteBasket)) {
+                    quoteBasket = proj.quoteBasket;
+                } else {
+                    quoteBasket = [];
+                }
+                localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+                if (typeof renderBasket === 'function') renderBasket();
                 try {
                     logDebug("🔄 Vstavljam podatke projekta: " + (proj.name || 'Brez imena'));
                     const inp = proj.inputs || {};
@@ -7736,7 +7745,8 @@ async function saveCurrentProject(btn = null) {
                                 delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
                                 delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
                             }
-                        }
+                        },
+                        quoteBasket: (typeof quoteBasket !== 'undefined' && Array.isArray(quoteBasket)) ? quoteBasket : []
                     };
 
                     const jsonStr = JSON.stringify(data, null, 2);

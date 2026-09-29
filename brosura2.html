@@ -4127,7 +4127,9 @@
 
 
 
-            let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
+            let quoteBasket = [];
+            localStorage.removeItem('petric_quote_basket');
+            renderBasket();
 
             var g_editedQuoteHTML = "";
             var g_editedQuoteATHTML = "";
@@ -9509,7 +9511,8 @@
                         total: (document.getElementById('res-price-total') || {}).innerText || '',
                         perItem: (document.getElementById('res-price-per-item') || {}).innerText || '',
                         sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
-                    }
+                    },
+                    quoteBasket: (typeof quoteBasket !== 'undefined' && Array.isArray(quoteBasket)) ? quoteBasket : []
                 };
 
                 const STORAGE_KEY_BROSURA = 'darko_brosura_arhiv';
@@ -9878,7 +9881,13 @@
             // Pomožna funkcija za nalaganje podatkov v polja (skupna za Arhiv in File Import)
 
             function loadProjectData(proj) {
-
+                if (proj && Array.isArray(proj.quoteBasket)) {
+                    quoteBasket = proj.quoteBasket;
+                } else {
+                    quoteBasket = [];
+                }
+                localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+                if (typeof renderBasket === 'function') renderBasket();
                 if (!proj || !proj.inputs) return;
 
                 const inp = proj.inputs;

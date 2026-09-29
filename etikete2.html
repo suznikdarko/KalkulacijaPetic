@@ -2226,7 +2226,8 @@
                 { name: "Digital (448x318)", w: 448, h: 318, family: "DIGITAL" }
             ];
 
-            let quoteBasket = JSON.parse(localStorage.getItem('petric_quote_basket')) || [];
+            let quoteBasket = [];
+            localStorage.removeItem('petric_quote_basket');
             renderBasket();
 
             var g_editedQuoteHTML = '';
@@ -5871,7 +5872,8 @@
                             total: (document.getElementById('res-price-total') || {}).innerText || '',
                             perItem: (document.getElementById('res-price-per-item') || {}).innerText || '',
                             sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
-                        }
+                        },
+                        quoteBasket: (typeof quoteBasket !== 'undefined' && Array.isArray(quoteBasket)) ? quoteBasket : []
                     };
 
                     let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -6055,6 +6057,13 @@
             function loadProjectData(proj) {
                 window.g_loadingProject = true;
                 if (!proj) return;
+                if (proj && Array.isArray(proj.quoteBasket)) {
+                    quoteBasket = proj.quoteBasket;
+                } else {
+                    quoteBasket = [];
+                }
+                localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+                if (typeof renderBasket === 'function') renderBasket();
                 const inp = proj.inputs || {};
 
                 g_editedQuoteHTML = proj.editedQuoteHTML || '';
@@ -6467,7 +6476,8 @@
                                 delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
                                 delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
                             }
-                        }
+                        },
+                        quoteBasket: (typeof quoteBasket !== 'undefined' && Array.isArray(quoteBasket)) ? quoteBasket : []
                     };
 
                     const jsonStr = JSON.stringify(data, null, 2);
