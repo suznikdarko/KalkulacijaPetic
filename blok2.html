@@ -6526,6 +6526,7 @@ window.addEventListener('error', function (e) {
                         return function () {
                             document.getElementById('calc-cust-email').value = emailVal;
                             document.getElementById('email-dropdown-list').style.display = 'none';
+                            if (typeof saveCurrentCustomerContact === 'function') saveCurrentCustomerContact();
                         };
                     })(em);
 
@@ -6763,14 +6764,14 @@ window.addEventListener('error', function (e) {
                     if (hasChanged) {
                         if (custInput) custInput.dataset.lastCustomer = val.trim();
 
-                        // Izpolni email, če je na voljo
-                        if (emailTarget && lastEmail !== "") {
+                        // Izpolni ali počisti email
+                        if (emailTarget) {
                             emailTarget.value = lastEmail;
                         }
 
-                        // Izpolni naslov, če je na voljo
+                        // Izpolni ali počisti naslov
                         var addressTarget = document.getElementById('calc-cust-address');
-                        if (addressTarget && lastAddress !== "") {
+                        if (addressTarget) {
                             addressTarget.value = lastAddress;
                         }
                     }
@@ -6778,7 +6779,61 @@ window.addEventListener('error', function (e) {
                     var safeLog = (typeof logDebug === 'function') ? logDebug : console.error;
                     safeLog("Napaka v handleCustomerUpdate: " + e.message);
                 }
-            }// Attach events safely
+            }
+
+            function saveCurrentCustomerContact() {
+                try {
+                    var custEl = document.getElementById('calc-customer');
+                    var emailEl = document.getElementById('calc-cust-email');
+                    var addrEl = document.getElementById('calc-cust-address');
+                    var codeEl = document.getElementById('calc-customer-code');
+
+                    if (!custEl) return;
+                    var custName = custEl.value ? custEl.value.trim() : "";
+                    if (!custName) return;
+
+                    var custKey = custName.toLowerCase();
+                    var contactsCache = JSON.parse(localStorage.getItem('petric_customer_contacts_cache') || '{}');
+                    var custCache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
+
+                    if (custCache.indexOf(custName) === -1) {
+                        custCache.push(custName);
+                        localStorage.setItem('petric_customers_cache', JSON.stringify(custCache));
+                    }
+
+                    var contact = contactsCache[custKey] || {};
+                    var updated = false;
+
+                    if (emailEl) {
+                        var em = emailEl.value ? emailEl.value.trim() : "";
+                        if (contact.email !== em) {
+                            contact.email = em;
+                            updated = true;
+                        }
+                    }
+                    if (addrEl) {
+                        var adr = addrEl.value ? addrEl.value.trim() : "";
+                        if (contact.address !== adr) {
+                            contact.address = adr;
+                            updated = true;
+                        }
+                    }
+                    if (codeEl) {
+                        var cd = codeEl.value ? codeEl.value.trim() : "";
+                        if (contact.code !== cd) {
+                            contact.code = cd;
+                            updated = true;
+                        }
+                    }
+
+                    if (updated) {
+                        contactsCache[custKey] = contact;
+                        localStorage.setItem('petric_customer_contacts_cache', JSON.stringify(contactsCache));
+                    }
+                } catch (e) { }
+            }
+
+            // Attach events safely
             try {
                 var custInput = document.getElementById('calc-customer');
                 if (custInput) {
@@ -6786,7 +6841,28 @@ window.addEventListener('error', function (e) {
                     custInput.addEventListener('change', function (e) { handleCustomerUpdate(e.target.value); });
                     custInput.addEventListener('blur', function (e) { handleCustomerUpdate(e.target.value); });
                 }
-            } catch (e) { logDebug("Napaka pri povezovanju dogodkov: " + e.message, true); }
+                var emailInput = document.getElementById('calc-cust-email');
+                if (emailInput) {
+                    emailInput.addEventListener('input', saveCurrentCustomerContact);
+                    emailInput.addEventListener('change', saveCurrentCustomerContact);
+                    emailInput.addEventListener('blur', saveCurrentCustomerContact);
+                }
+                var addrInput = document.getElementById('calc-cust-address');
+                if (addrInput) {
+                    addrInput.addEventListener('input', saveCurrentCustomerContact);
+                    addrInput.addEventListener('change', saveCurrentCustomerContact);
+                    addrInput.addEventListener('blur', saveCurrentCustomerContact);
+                }
+                var codeInput = document.getElementById('calc-customer-code');
+                if (codeInput) {
+                    codeInput.addEventListener('input', saveCurrentCustomerContact);
+                    codeInput.addEventListener('change', saveCurrentCustomerContact);
+                    codeInput.addEventListener('blur', saveCurrentCustomerContact);
+                }
+            } catch (e) {
+                var safeLog = (typeof logDebug === 'function') ? logDebug : console.error;
+                safeLog("Napaka pri povezovanju dogodkov: " + e.message);
+            }
 
             
             
@@ -6890,6 +6966,8 @@ async function saveCurrentProject(btn = null) {
                             if (nameInput) nameInput.value = name;
                         }
                     }
+
+                    saveCurrentCustomerContact();
 
                     const data = {
                         id: Date.now(),
