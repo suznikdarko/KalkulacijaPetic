@@ -595,7 +595,7 @@
                         </div>
                         <div class="form-group">
                             <label for="sheet-format">Format pole za tisk</label>
-                            <select id="sheet-format" onchange="calculate()">
+                            <select id="sheet-format" onchange="onSheetFormatChange()">
                                 <option value="330x488">330 x 488 mm (Digital)</option>
                                 <option value="450x640" selected>450 x 640 mm (B2 offset)</option>
                                 <option value="500x700">500 x 700 mm (B2 offset max)</option>
@@ -614,7 +614,7 @@
                     <div class="grid-2">
                         <div class="form-group">
                             <label for="print-tech">Izbira stroja</label>
-                            <select id="print-tech" onchange="calculate()">
+                            <select id="print-tech" onchange="onMachineFormatChange()">
                                 <option value="S4" selected>S4 (Offset 4-barvni)</option>
                                 <option value="S8">S8 (Offset 8-barvni)</option>
                                 <option value="CD">CD (Offset CD 102)</option>
@@ -1267,6 +1267,51 @@
                 }
             }
             return yieldCount;
+        }
+
+        
+        function onMachineFormatChange() {
+            const tech = document.getElementById('print-tech').value;
+            const sfSelect = document.getElementById('sheet-format');
+            if (sfSelect) {
+                if (tech === 'CD' || tech === 'CD UV') {
+                    sfSelect.value = 'B1';
+                } else if (tech === 'digital') {
+                    sfSelect.value = 'A3';
+                } else {
+                    sfSelect.value = 'B2';
+                }
+            }
+            onSheetFormatChange();
+        }
+
+        function onSheetFormatChange() {
+            // Reset manual overrides so optimal auto layout is re-calculated for new machine format
+            const calWidth = parseFloat(document.getElementById('cal-width').value) || 297;
+            const calHeight = parseFloat(document.getElementById('cal-height').value) || 420;
+            const sheetFormat = document.getElementById('sheet-format').value;
+
+            let sheetW = 700, sheetH = 500;
+            if (sheetFormat === 'B1') { sheetW = 1000; sheetH = 700; }
+            else if (sheetFormat === 'B3') { sheetW = 500; sheetH = 350; }
+            else if (sheetFormat === 'A3') { sheetW = 450; sheetH = 320; }
+            else if (sheetFormat === 'A4') { sheetW = 320; sheetH = 225; }
+
+            // Recalculate optimal leaves per form
+            let layoutLeaves = calculateBestLayout(sheetW, sheetH, calWidth, calHeight, 15, 3);
+            if (document.getElementById('cal-sheets-per-form')) {
+                document.getElementById('cal-sheets-per-form').value = layoutLeaves.count;
+            }
+
+            // Recalculate optimal podkarton per form
+            let podkartonW = parseFloat(document.getElementById('podkarton-w') ? document.getElementById('podkarton-w').value : calWidth) || calWidth;
+            let podkartonH = parseFloat(document.getElementById('podkarton-h') ? document.getElementById('podkarton-h').value : calHeight) || calHeight;
+            let layoutCover = calculateBestLayout(sheetW, sheetH, podkartonW, podkartonH, 15, 3);
+            if (document.getElementById('podkarton-sheets-per-form')) {
+                document.getElementById('podkarton-sheets-per-form').value = layoutCover.count;
+            }
+
+            calculate();
         }
 
         function calculate() {
