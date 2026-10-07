@@ -684,9 +684,20 @@
 
         <!-- CALCULATION PANEL -->
         <div class="panel calculation">
-            <h2>Specifikacije in Kalkulacija Kuvert</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                <h2 style="margin: 0;">Specifikacije in Kalkulacija Kuvert</h2>
+            </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <!-- ZAVIHKI ZA KALKULACIJO -->
+            <div class="calc-tabs-bar" style="display: flex; gap: 0.35rem; margin-bottom: 1rem; border-bottom: 1px solid var(--glass-border, rgba(255,255,255,0.1)); padding-bottom: 0.5rem; flex-wrap: wrap;">
+                <button type="button" class="calc-tab-btn active" id="btn-calc-tab-osnovni" onclick="switchCalcTab('osnovni')" style="flex: 1; min-width: 100px; padding: 0.45rem 0.6rem; background: rgba(59, 130, 246, 0.25); border: 1px solid #3b82f6; color: white; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">✉️ Osnovni Podatki</button>
+                <button type="button" class="calc-tab-btn" id="btn-calc-tab-tisk-dodelava" onclick="switchCalcTab('tisk-dodelava')" style="flex: 1; min-width: 90px; padding: 0.45rem 0.6rem; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border, rgba(255,255,255,0.1)); color: #94a3b8; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">🖨️ Tisk in Dodelava</button>
+                <button type="button" class="calc-tab-btn" id="btn-calc-tab-cene" onclick="switchCalcTab('cene')" style="flex: 1; min-width: 100px; padding: 0.45rem 0.6rem; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border, rgba(255,255,255,0.1)); color: #94a3b8; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">💶 Izračunane Cene & RVC</button>
+                <button type="button" class="calc-tab-btn" id="btn-calc-tab-vse" onclick="switchCalcTab('vse')" style="padding: 0.45rem 0.6rem; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border, rgba(255,255,255,0.1)); color: #94a3b8; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;" title="Prikaži vse sekcije z enim samim pomikom">👁️ Vse</button>
+            </div>
+
+            <!-- TAB 1: OSNOVNI PODATKI -->
+            <div class="calc-tab-pane" id="calc-tab-osnovni">
                 <div class="calc-section">
                     <h3>1. Osnovni Podatki</h3>
                     <!-- Naklade so prestavljene v glavo zgoraj -->
@@ -730,7 +741,10 @@
                         </div>
                     </div>
                 </div>
+            </div>
 
+            <!-- TAB 2: TISK IN DODELAVA -->
+            <div class="calc-tab-pane" id="calc-tab-tisk-dodelava" style="display: none;">
                 <div class="calc-section">
                     <h3>2. Tisk in Dodelava</h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 0.75rem;">
@@ -892,8 +906,10 @@
                 </div>
             </div>
 
-            <!-- Tabela za rezultate večih naklad -->
-            <div class="calc-section"
+            <!-- TAB 3: IZRAČUNANE CENE -->
+            <div class="calc-tab-pane" id="calc-tab-cene" style="display: none;">
+                <!-- Tabela za rezultate večih naklad -->
+                <div class="calc-section"
                 style="margin-top: 1.5rem; background: rgba(15, 23, 42, 0.4); padding: 1rem; border-radius: 8px;">
                 <h3 style="margin-bottom: 0.5rem;">Izračunane Cene</h3>
                 <div style="overflow-x: auto;">
@@ -921,6 +937,7 @@
                 <!-- Skrito, da ne zlomimo starih referenc zunaj te sekcije -->
                 <span id="res-price-total"></span>
                 <span id="res-price-per-item"></span>
+            </div>
             </div>
         </div>
     </div>
@@ -1000,6 +1017,44 @@
     </div>
 
     <script>
+        function switchCalcTab(tabId) {
+            const tabs = ['osnovni', 'tisk-dodelava', 'cene', 'vse'];
+            tabs.forEach(t => {
+                const btn = document.getElementById('btn-calc-tab-' + t);
+                const pane = document.getElementById('calc-tab-' + t);
+                if (btn) {
+                    if (t === tabId) {
+                        btn.classList.add('active');
+                        btn.style.background = 'rgba(59, 130, 246, 0.25)';
+                        btn.style.borderColor = '#3b82f6';
+                        btn.style.color = '#ffffff';
+                    } else {
+                        btn.classList.remove('active');
+                        btn.style.background = 'rgba(30, 41, 59, 0.6)';
+                        btn.style.borderColor = 'var(--glass-border, rgba(255,255,255,0.1))';
+                        btn.style.color = '#94a3b8';
+                    }
+                }
+                if (pane) {
+                    if (tabId === 'vse' || t === tabId) {
+                        pane.style.display = 'block';
+                    } else {
+                        pane.style.display = 'none';
+                    }
+                }
+            });
+            try {
+                localStorage.setItem('kuverte2_active_calc_tab', tabId);
+            } catch(e) {}
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                const savedTab = localStorage.getItem('kuverte2_active_calc_tab');
+                if (savedTab) switchCalcTab(savedTab);
+            } catch(e) {}
+        });
+
 
 
         var g_editedQuoteHTML = '';
