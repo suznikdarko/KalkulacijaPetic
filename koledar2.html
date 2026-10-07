@@ -2,6 +2,8 @@
 <html lang="sl">
 
 <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kalkulator Koledarjev - Petrič Kalkulacije</title>
@@ -441,6 +443,18 @@
                         <span>✉️ <strong id="attached-email-summary">Mail stranke</strong></span>
                         <button type="button" onclick="openEmailModal()" style="background: #0284c7; color: white; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-weight: bold; font-size: 0.75rem;" title="Odpri in uredi mail">👁️ Poglej / Uredi</button>
                         <button type="button" onclick="removeAttachedEmail()" style="background: rgba(239, 68, 68, 0.3); color: #f87171; border: 1px solid #ef4444; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.75rem;" title="Odstrani e-pošto">✕</button>
+                    </div>
+                    <button type="button" onclick="document.getElementById('pdf-file-input').click()"
+                        style="background: linear-gradient(135deg, #ec4899, #8b5cf6); border: none; border-radius: 8px; color: white; padding: 5px 12px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; box-shadow: 0 4px 12px rgba(236,72,153,0.3);"
+                        title="Naložite PDF naročila ali povpraševanja za samodejni prenos podatkov in ogled">
+                        📄 UVOZI PDF
+                    </button>
+                    <input type="file" id="pdf-file-input" accept=".pdf" style="display:none;" onchange="handlePdfFileUpload(event)">
+                    <div id="attached-pdf-badge" style="display:none; align-items: center; gap: 6px; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; border-radius: 8px; padding: 4px 10px; font-size: 0.8rem; color: #60a5fa;">
+                        <span>📄 <strong id="attached-pdf-name">datoteka.pdf</strong></span>
+                        <button type="button" onclick="openPdfViewerModal()" style="background: #3b82f6; color: white; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-weight: bold; font-size: 0.75rem;" title="Odpri predogled PDF v stranskem oknu">👁️ Poglej PDF</button>
+                        <button type="button" onclick="reopenPdfDataModal()" style="background: #8b5cf6; color: white; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-weight: bold; font-size: 0.75rem;" title="Ponovno prenesi podatke iz PDF">⚡ Prenesi podatke</button>
+                        <button type="button" onclick="removeAttachedPdf()" style="background: rgba(239, 68, 68, 0.3); color: #f87171; border: 1px solid #ef4444; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.75rem;" title="Odstrani pripet PDF z projekta">✕</button>
                     </div>
                 </div>
             </div>
@@ -1044,7 +1058,7 @@
                 console.log('Stock json fetch skipped or failed', e);
             }
             refreshProjectsDropdown();
-            try { updateEmailBadge(); } catch (e) { console.log(e); }
+            try { try { g_attachedPdf = (typeof proj !== "undefined" && proj ? (proj.attachedPdf || (proj.inputs && proj.inputs.attachedPdf)) : (typeof data !== "undefined" && data ? (data.attachedPdf || (data.inputs && data.inputs.attachedPdf)) : null)) || null; updatePdfBadge(); } catch(e){} updateEmailBadge(); } catch (e) { console.log(e); }
             calculate();
         });
 
@@ -1662,9 +1676,11 @@
                 hasVezica: document.getElementById('has-vezica').value,
                 manualLaborPrice: document.getElementById('manual-labor-price').value,
                 customerEmailBody: document.getElementById('calc-email-content') ? document.getElementById('calc-email-content').value : '',
+                        attachedPdf: g_attachedPdf ? { name: g_attachedPdf.name, dataUrl: g_attachedPdf.dataUrl, text: g_attachedPdf.text, timestamp: g_attachedPdf.timestamp } : null,
                 customerEmailSubject: document.getElementById('calc-email-subject') ? document.getElementById('calc-email-subject').value : '',
                 customerEmailSender: document.getElementById('calc-email-sender') ? document.getElementById('calc-email-sender').value : '',
                 customerEmailDate: document.getElementById('calc-email-date') ? document.getElementById('calc-email-date').value : '',
+                        attachedPdf: g_attachedPdf ? { name: g_attachedPdf.name, dataUrl: g_attachedPdf.dataUrl, text: g_attachedPdf.text, timestamp: g_attachedPdf.timestamp } : null,
                 timestamp: new Date().toISOString()
             };
         }
@@ -1721,13 +1737,13 @@
                 if (document.getElementById('calc-email-sender')) document.getElementById('calc-email-sender').value = send;
                 if (document.getElementById('calc-email-date')) document.getElementById('calc-email-date').value = date;
                 
-                updateEmailBadge();
+                try { g_attachedPdf = (typeof proj !== "undefined" && proj ? (proj.attachedPdf || (proj.inputs && proj.inputs.attachedPdf)) : (typeof data !== "undefined" && data ? (data.attachedPdf || (data.inputs && data.inputs.attachedPdf)) : null)) || null; updatePdfBadge(); } catch(e){} updateEmailBadge();
             } else {
                 if (document.getElementById('calc-email-content')) document.getElementById('calc-email-content').value = '';
                 if (document.getElementById('calc-email-subject')) document.getElementById('calc-email-subject').value = '';
                 if (document.getElementById('calc-email-sender')) document.getElementById('calc-email-sender').value = '';
                 if (document.getElementById('calc-email-date')) document.getElementById('calc-email-date').value = '';
-                updateEmailBadge();
+                try { g_attachedPdf = (typeof proj !== "undefined" && proj ? (proj.attachedPdf || (proj.inputs && proj.inputs.attachedPdf)) : (typeof data !== "undefined" && data ? (data.attachedPdf || (data.inputs && data.inputs.attachedPdf)) : null)) || null; updatePdfBadge(); } catch(e){} updateEmailBadge();
             }
 
             calculate();
@@ -1859,6 +1875,250 @@
         // ==========================================
         // E-POŠTA STRANKE (MODAL & LOGIKA)
         // ==========================================
+        
+        // --- LOGIKA ZA UVOZ, PARSANJE IN OGLED PDF DOKUMENTOV ---
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        var g_attachedPdf = null; // { name: '', dataUrl: '', text: '', timestamp: 0 }
+
+        async function handlePdfFileUpload(event) {
+            const file = event.target.files ? event.target.files[0] : null;
+            if (!file) return;
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const dataUrl = await new Promise((resolve) => {
+                    const r = new FileReader();
+                    r.onload = e => resolve(e.target.result);
+                    r.readAsDataURL(file);
+                });
+
+                let fullText = "";
+                if (typeof pdfjsLib !== 'undefined') {
+                    try {
+                        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                        const pdf = await loadingTask.promise;
+                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                            const page = await pdf.getPage(pageNum);
+                            const textContent = await page.getTextContent();
+                            const pageStr = textContent.items.map(item => item.str).join(" ");
+                            fullText += pageStr + "\n";
+                        }
+                    } catch (eText) {
+                        console.warn("PDF text extraction warning:", eText);
+                    }
+                }
+
+                g_attachedPdf = {
+                    name: file.name,
+                    dataUrl: dataUrl,
+                    text: fullText,
+                    timestamp: Date.now()
+                };
+
+                updatePdfBadge();
+                parsePdfAndShowDataModal(fullText, file.name);
+                event.target.value = '';
+            } catch (err) {
+                alert("Napaka pri branju PDF datoteke: " + err.message);
+                console.error("PDF Read Error:", err);
+            }
+        }
+
+        function updatePdfBadge() {
+            const badge = document.getElementById('attached-pdf-badge');
+            const nameEl = document.getElementById('attached-pdf-name');
+            if (!badge || !nameEl) return;
+            if (g_attachedPdf && g_attachedPdf.name) {
+                nameEl.textContent = g_attachedPdf.name;
+                badge.style.display = 'inline-flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function removeAttachedPdf() {
+            if (confirm("Ali želite odstraniti pripet PDF dokument iz te kalkulacije?")) {
+                g_attachedPdf = null;
+                updatePdfBadge();
+            }
+        }
+
+        function parsePdfAndShowDataModal(fullText, filename) {
+            let customer = "";
+            let quoteNum = "";
+            let dnNum = "";
+            let custCode = "";
+            let productCode = "";
+            let title = "";
+            let qty = "";
+            let fmtW = "";
+            let fmtH = "";
+            let deadline = "";
+            let packaging = "";
+
+            const lines = (fullText || '').split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            // Matchers
+            const matchCust = fullText.match(/(?:Stranka|Naročnik|Kupac|Naročnik\/Stranka|Firma|Podjetje)\s*[:#-]?\s*([^\n\r,]+)/i);
+            if (matchCust) customer = matchCust[1].trim();
+
+            const matchQuote = fullText.match(/(?:Ponudba\s*(?:št\.?|številka)?|PONUDBA\s*ŠT\.?|PON)\s*[:#-]?\s*([A-Za-z0-9\/-]+)/i);
+            if (matchQuote) quoteNum = matchQuote[1].trim();
+
+            const matchDn = fullText.match(/(?:D\.?N\.?|Delovni\s*nalog|Naročilo\s*št\.?)\s*[:#-]?\s*([A-Za-z0-9\/-]+)/i);
+            if (matchDn) dnNum = matchDn[1].trim();
+
+            const matchCode = fullText.match(/(?:Šifra\s*stranke|Koda\s*stranke|Šifra\s*kupca)\s*[:#-]?\s*([A-Za-z0-9\/-]+)/i);
+            if (matchCode) custCode = matchCode[1].trim();
+
+            const matchTitle = fullText.match(/(?:Artikel|Naziv|Izdelek|Zadeva|Predmet|Naziv\s*projekta)\s*[:#-]?\s*([^\n\r]+)/i);
+            if (matchTitle) title = matchTitle[1].trim();
+            if (!title && filename) {
+                title = filename.replace(/\.pdf$/i, '');
+            }
+
+            const matchQty = fullText.match(/(?:Količina|Naklada|Količina\s*v\s*kos)\s*[:#-]?\s*([\d\.\s]+)/i) || fullText.match(/(\d{1,3}(?:\.\d{3})*|\d+)\s*(?:kos|pcs|pol|kosov)/i);
+            if (matchQty) qty = matchQty[1].replace(/\s+/g, '').trim();
+
+            const matchFmt = fullText.match(/(\d{2,4})\s*[xX*×]\s*(\d{2,4})\s*(?:mm|cm)?/);
+            if (matchFmt) {
+                fmtW = matchFmt[1];
+                fmtH = matchFmt[2];
+            }
+
+            const matchDl = fullText.match(/(?:Rok|Rok\s*dobave|Rok\s*izdelave|Datum\s*dobave)\s*[:#-]?\s*([\d\.\s\/]+)/i);
+            if (matchDl) deadline = matchDl[1].trim();
+
+            const matchPkg = fullText.match(/(?:Pakiranje|Pakirano)\s*[:#-]?\s*([^\n\r]+)/i);
+            if (matchPkg) packaging = matchPkg[1].trim();
+
+            // Set modal values
+            function setField(id, val) {
+                const el = document.getElementById(id);
+                if (el) el.value = val || '';
+            }
+            setField('pdf-val-customer', customer);
+            setField('pdf-val-project-name', title);
+            setField('pdf-val-quote-num', quoteNum);
+            setField('pdf-val-dn-num', dnNum);
+            setField('pdf-val-cust-code', custCode);
+            setField('pdf-val-product-code', productCode);
+            setField('pdf-val-qty', qty);
+            setField('pdf-val-fmt-w', fmtW);
+            setField('pdf-val-fmt-h', fmtH);
+            setField('pdf-val-deadline', deadline);
+            setField('pdf-val-packaging', packaging);
+            setField('pdf-val-notes', fullText ? fullText.slice(0, 1500) : '');
+
+            const modal = document.getElementById('modal-pdf-data-confirm');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function applyParsedPdfData() {
+            function setValIfChecked(chkId, inputId, targetId, isCheckboxField = false) {
+                const chk = document.getElementById(chkId);
+                if (chk && chk.checked) {
+                    const valInput = document.getElementById(inputId);
+                    const targetEl = document.getElementById(targetId);
+                    if (valInput && targetEl) {
+                        if (isCheckboxField) {
+                            targetEl.checked = !!valInput.checked;
+                        } else {
+                            targetEl.value = valInput.value;
+                        }
+                        if (typeof updateInputStyles === 'function') updateInputStyles(targetEl);
+                    }
+                }
+            }
+
+            setValIfChecked('pdf-chk-customer', 'pdf-val-customer', 'calc-customer');
+            setValIfChecked('pdf-chk-project-name', 'pdf-val-project-name', 'calc-project-name');
+            setValIfChecked('pdf-chk-quote-num', 'pdf-val-quote-num', 'calc-quote-number');
+            setValIfChecked('pdf-chk-dn-num', 'pdf-val-dn-num', 'calc-dn-number');
+            setValIfChecked('pdf-chk-cust-code', 'pdf-val-cust-code', 'calc-customer-code');
+            setValIfChecked('pdf-chk-product-code', 'pdf-val-product-code', 'calc-product-code');
+            setValIfChecked('pdf-chk-deadline', 'pdf-val-deadline', 'calc-dn-deadline');
+            setValIfChecked('pdf-chk-packaging', 'pdf-val-packaging', 'calc-dn-packaging');
+            setValIfChecked('pdf-chk-notes', 'pdf-val-notes', 'calc-notes');
+
+            // Quantity
+            const chkQty = document.getElementById('pdf-chk-qty');
+            if (chkQty && chkQty.checked) {
+                const valStr = document.getElementById('pdf-val-qty')?.value || '';
+                const qtyVal = parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
+                if (!isNaN(qtyVal) && qtyVal > 0) {
+                    const inpQty = document.getElementById('quantity') || document.getElementById('inp-quantity') || document.getElementById('calc-qty') || document.getElementById('proj-quantities');
+                    if (inpQty) {
+                        inpQty.value = qtyVal;
+                        if (typeof updateInputStyles === 'function') updateInputStyles(inpQty);
+                    }
+                }
+            }
+
+            // Format
+            const chkFmt = document.getElementById('pdf-chk-format');
+            if (chkFmt && chkFmt.checked) {
+                const fmtW = parseFloat(document.getElementById('pdf-val-fmt-w')?.value);
+                const fmtH = parseFloat(document.getElementById('pdf-val-fmt-h')?.value);
+                if (!isNaN(fmtW) && fmtW > 0) {
+                    const elW = document.getElementById('width') || document.getElementById('inp-format-x') || document.getElementById('dim-w');
+                    if (elW) { elW.value = fmtW; if (typeof updateInputStyles === 'function') updateInputStyles(elW); }
+                }
+                if (!isNaN(fmtH) && fmtH > 0) {
+                    const elH = document.getElementById('height') || document.getElementById('inp-format-y') || document.getElementById('dim-h');
+                    if (elH) { elH.value = fmtH; if (typeof updateInputStyles === 'function') updateInputStyles(elH); }
+                }
+            }
+
+            closePdfDataModal();
+            if (typeof calculatePrice === 'function') calculatePrice();
+            else if (typeof calculate === 'function') calculate();
+        }
+
+        function reopenPdfDataModal() {
+            if (g_attachedPdf && (g_attachedPdf.text || g_attachedPdf.name)) {
+                parsePdfAndShowDataModal(g_attachedPdf.text || '', g_attachedPdf.name || '');
+            } else {
+                alert("Ni naloženega PDF dokumenta.");
+            }
+        }
+
+        function closePdfDataModal() {
+            const modal = document.getElementById('modal-pdf-data-confirm');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function openPdfViewerModal() {
+            if (!g_attachedPdf || !g_attachedPdf.dataUrl) {
+                alert("Ni naloženega PDF dokumenta za ogled.");
+                return;
+            }
+            const modal = document.getElementById('modal-pdf-viewer');
+            const iframe = document.getElementById('pdf-viewer-iframe');
+            const filenameEl = document.getElementById('pdf-viewer-filename');
+            if (modal && iframe) {
+                if (filenameEl) filenameEl.textContent = g_attachedPdf.name || 'Dokument.pdf';
+                iframe.src = g_attachedPdf.dataUrl;
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closePdfViewerModal() {
+            const modal = document.getElementById('modal-pdf-viewer');
+            const iframe = document.getElementById('pdf-viewer-iframe');
+            if (modal) modal.style.display = 'none';
+            if (iframe) iframe.src = 'about:blank';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closePdfViewerModal();
+                closePdfDataModal();
+            }
+        });
+
         function openEmailModal() {
             const modal = document.getElementById('email-modal-overlay');
             if (modal) {
@@ -1876,7 +2136,7 @@
             if (modal) {
                 modal.style.display = 'none';
             }
-            updateEmailBadge();
+            try { g_attachedPdf = (typeof proj !== "undefined" && proj ? (proj.attachedPdf || (proj.inputs && proj.inputs.attachedPdf)) : (typeof data !== "undefined" && data ? (data.attachedPdf || (data.inputs && data.inputs.attachedPdf)) : null)) || null; updatePdfBadge(); } catch(e){} updateEmailBadge();
         }
 
         function onEmailFieldChanged() {
@@ -1893,7 +2153,7 @@
                 statusEl.textContent = '✓ Shranjeno v kalkulacijo!';
                 setTimeout(() => { statusEl.textContent = ''; }, 2000);
             }
-            updateEmailBadge();
+            try { g_attachedPdf = (typeof proj !== "undefined" && proj ? (proj.attachedPdf || (proj.inputs && proj.inputs.attachedPdf)) : (typeof data !== "undefined" && data ? (data.attachedPdf || (data.inputs && data.inputs.attachedPdf)) : null)) || null; updatePdfBadge(); } catch(e){} updateEmailBadge();
             closeEmailModal();
         }
 
@@ -1904,7 +2164,7 @@
                     const el = document.getElementById(id);
                     if (el) el.value = '';
                 });
-                updateEmailBadge();
+                try { g_attachedPdf = (typeof proj !== "undefined" && proj ? (proj.attachedPdf || (proj.inputs && proj.inputs.attachedPdf)) : (typeof data !== "undefined" && data ? (data.attachedPdf || (data.inputs && data.inputs.attachedPdf)) : null)) || null; updatePdfBadge(); } catch(e){} updateEmailBadge();
             }
         }
 
@@ -2117,6 +2377,146 @@
             }
         });
     </script>
+
+    
+    <!-- MODAL ZA PRENOS PODATKOV IZ PDF -->
+    <div id="modal-pdf-data-confirm" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.85); backdrop-filter:blur(8px); z-index:99999; justify-content:center; align-items:center;">
+        <div style="background:#0f172a; border:2px solid #8b5cf6; border-radius:16px; width:95%; max-width:850px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 25px 50px rgba(0,0,0,0.9); overflow:hidden;">
+            <div style="padding:1rem 1.4rem; background:linear-gradient(135deg, #1e293b, #3b0764); border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; color:#c084fc; font-size:1.15rem; display:flex; align-items:center; gap:0.6rem;">
+                    📄 Prebrani podatki iz PDF naročila / povpraševanja
+                </h3>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" onclick="openPdfViewerModal()" style="background:#3b82f6; color:white; border:none; border-radius:6px; padding:6px 12px; font-size:0.8rem; font-weight:bold; cursor:pointer;">👁️ Poglej izvorni PDF</button>
+                    <button type="button" onclick="closePdfDataModal()" style="background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer; font-weight:bold;">&times;</button>
+                </div>
+            </div>
+            
+            <div style="padding:1.2rem; flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:1.2rem; color:#e2e8f0; font-size:0.88rem;">
+                <div style="background:rgba(139, 92, 246, 0.15); border:1px solid rgba(139, 92, 246, 0.4); border-radius:10px; padding:10px 14px; color:#d8b4fe;">
+                    💡 <strong>Navodilo:</strong> Preverite razpoznane podatke. Označite ali uredite vrednosti, ki jih želite avtomatsko prenesti v glavo kalkulacije.
+                </div>
+
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:1rem;">
+                    <!-- Stranka -->
+                    <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#60a5fa;">
+                            <input type="checkbox" id="pdf-chk-customer" checked style="width:16px; height:16px;"> Stranka / Naročnik
+                        </label>
+                        <input type="text" id="pdf-val-customer" style="width:100%; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
+                    </div>
+
+                    <!-- Naziv izdeka -->
+                    <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#60a5fa;">
+                            <input type="checkbox" id="pdf-chk-project-name" checked style="width:16px; height:16px;"> Naziv artikla / Izdelek
+                        </label>
+                        <input type="text" id="pdf-val-project-name" style="width:100%; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
+                    </div>
+
+                    <!-- Številka ponudbe -->
+                    <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#34d399;">
+                            <input type="checkbox" id="pdf-chk-quote-num" checked style="width:16px; height:16px;"> Številka ponudbe
+                        </label>
+                        <input type="text" id="pdf-val-quote-num" style="width:100%; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
+                    </div>
+
+                    <!-- Številka D.N. -->
+                    <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#34d399;">
+                            <input type="checkbox" id="pdf-chk-dn-num" checked style="width:16px; height:16px;"> Številka D.N.
+                        </label>
+                        <input type="text" id="pdf-val-dn-num" style="width:100%; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
+                    </div>
+
+                    <!-- Šifra stranke -->
+                    <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#fbbf24;">
+                            <input type="checkbox" id="pdf-chk-cust-code" checked style="width:16px; height:16px;"> Šifra stranke
+                        </label>
+                        <input type="text" id="pdf-val-cust-code" style="width:100%; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
+                    </div>
+
+                    <!-- Šifra izdelka -->
+                    <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#fbbf24;">
+                            <input type="checkbox" id="pdf-chk-product-code" checked style="width:16px; height:16px;"> Šifra izdelka
+                        </label>
+                        <input type="text" id="pdf-val-product-code" style="width:100%; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
+                    </div>
+
+                    <!-- Količina -->
+                    <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#f472b6;">
+                            <input type="checkbox" id="pdf-chk-qty" checked style="width:16px; height:16px;"> Količina / Naklada (kos)
+                        </label>
+                        <input type="text" id="pdf-val-qty" style="width:100%; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
+                    </div>
+
+                    <!-- Format (Š x V) -->
+                    <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#f472b6;">
+                            <input type="checkbox" id="pdf-chk-format" checked style="width:16px; height:16px;"> Format Tiskovine (mm)
+                        </label>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input type="number" id="pdf-val-fmt-w" placeholder="Širina (mm)" style="flex:1; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
+                            <span>x</span>
+                            <input type="number" id="pdf-val-fmt-h" placeholder="Višina (mm)" style="flex:1; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
+                        </div>
+                    </div>
+
+                    <!-- Rok izdelave -->
+                    <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#a7f3d0;">
+                            <input type="checkbox" id="pdf-chk-deadline" checked style="width:16px; height:16px;"> Rok dobave / izdelave
+                        </label>
+                        <input type="text" id="pdf-val-deadline" style="width:100%; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
+                    </div>
+
+                    <!-- Pakiranje -->
+                    <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#a7f3d0;">
+                            <input type="checkbox" id="pdf-chk-packaging" checked style="width:16px; height:16px;"> Pakiranje
+                        </label>
+                        <input type="text" id="pdf-val-packaging" style="width:100%; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
+                    </div>
+                </div>
+
+                <!-- Opombe / Izsek besedila -->
+                <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                    <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#cbd5e1;">
+                        <input type="checkbox" id="pdf-chk-notes" checked style="width:16px; height:16px;"> Vnesite celotno besedilo iz PDF v Opombe
+                    </label>
+                    <textarea id="pdf-val-notes" rows="4" style="width:100%; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white; font-family:monospace; font-size:0.8rem; resize:vertical;"></textarea>
+                </div>
+            </div>
+
+            <div style="padding:1rem 1.4rem; background:#1e293b; border-top:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
+                <button type="button" onclick="closePdfDataModal()" style="padding:8px 16px; background:#475569; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Prekliči</button>
+                <button type="button" onclick="applyParsedPdfData()" style="padding:10px 24px; background:linear-gradient(135deg, #10b981, #059669); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:1rem; box-shadow:0 4px 15px rgba(16,185,129,0.4);">
+                    ✅ VNESI PODATKE V KALKULACIJO
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PREGLEDOVALNIK PDF DOKUMENTA -->
+    <div id="modal-pdf-viewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.9); backdrop-filter:blur(10px); z-index:999999; flex-direction:column; overflow:hidden;">
+        <div style="padding:10px 18px; background:#1e293b; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; color:white;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:1.1rem; font-weight:bold; color:#60a5fa; display:flex; align-items:center; gap:6px;">📄 Pregledovalnik PDF</span>
+                <span id="pdf-viewer-filename" style="background:#0f172a; padding:4px 12px; border-radius:6px; font-size:0.85rem; color:#cbd5e1; border:1px solid #475569;"></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button type="button" onclick="reopenPdfDataModal()" style="background:#8b5cf6; color:white; border:none; border-radius:6px; padding:6px 14px; font-size:0.8rem; font-weight:bold; cursor:pointer;">⚡ Prenesi podatke v kalkulacijo</button>
+                <button type="button" onclick="closePdfViewerModal()" style="background:#ef4444; color:white; border:none; border-radius:6px; padding:6px 14px; font-size:0.8rem; font-weight:bold; cursor:pointer;">✕ Zapri (Esc)</button>
+            </div>
+        </div>
+        <div style="flex:1; background:#0f172a; display:flex; justify-content:center; align-items:center; padding:12px;">
+            <iframe id="pdf-viewer-iframe" style="width:100%; height:100%; border:none; border-radius:10px; background:white; box-shadow:0 10px 30px rgba(0,0,0,0.5);"></iframe>
+        </div>
+    </div>
 
     <!-- MODAL ZA E-POŠTO STRANKE -->
     <div id="email-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 99999; justify-content: center; align-items: center;">
