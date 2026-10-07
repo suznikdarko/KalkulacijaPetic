@@ -940,6 +940,20 @@
 
                 </div>
 
+                <!-- E-POŠTA STRANKE GUMB IN ZNAČKA -->
+                <div style="margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" onclick="openEmailModal()" id="btn-open-email-modal"
+                        style="background: linear-gradient(135deg, #0284c7, #2563eb); border: none; border-radius: 8px; color: white; padding: 5px 12px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; box-shadow: 0 4px 12px rgba(2,132,199,0.3); transition: all 0.2s;"
+                        title="Vnos, prilep ali uvoz e-pošte / povpraševanja stranke">
+                        ✉️ E-POŠTA STRANKE
+                    </button>
+                    <div id="attached-email-badge" style="display:none; align-items: center; gap: 6px; background: rgba(2, 132, 199, 0.2); border: 1px solid #0284c7; border-radius: 8px; padding: 4px 10px; font-size: 0.8rem; color: #38bdf8;">
+                        <span>✉️ <strong id="attached-email-summary">Mail stranke</strong></span>
+                        <button type="button" onclick="openEmailModal()" style="background: #0284c7; color: white; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-weight: bold; font-size: 0.75rem;" title="Odpri in uredi mail">👁️ Poglej / Uredi</button>
+                        <button type="button" onclick="removeAttachedEmail()" style="background: rgba(239, 68, 68, 0.3); color: #f87171; border: 1px solid #ef4444; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.75rem;" title="Odstrani e-pošto">✕</button>
+                    </div>
+                </div>
+
             </div>
 
 
@@ -8133,6 +8147,11 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
                     notes: gv('calc-notes'),
 
+                    customerEmailBody: gv('calc-email-content'),
+                    customerEmailSubject: gv('calc-email-subject'),
+                    customerEmailSender: gv('calc-email-sender'),
+                    customerEmailDate: gv('calc-email-date'),
+
                     mutType: gv('calc-mut-type'),
 
                     mutQty: gv('calc-mut-qty'),
@@ -8146,6 +8165,11 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     editedWorkOrderHTML: g_editedWorkOrderHTML,
 
                     inputs: {
+
+                        emailBody: gv('calc-email-content'),
+                        emailSubject: gv('calc-email-subject'),
+                        emailSender: gv('calc-email-sender'),
+                        emailDate: gv('calc-email-date'),
 
                         orderedSheets: gv('calc-ordered-sheets'),
 
@@ -8429,6 +8453,11 @@ async function saveProjectToFile() {
 
                     notes: gv('calc-notes'),
 
+                    customerEmailBody: gv('calc-email-content'),
+                    customerEmailSubject: gv('calc-email-subject'),
+                    customerEmailSender: gv('calc-email-sender'),
+                    customerEmailDate: gv('calc-email-date'),
+
                     mutType: gv('calc-mut-type'),
 
                     mutQty: gv('calc-mut-qty'),
@@ -8440,6 +8469,11 @@ async function saveProjectToFile() {
                     editedWorkOrderHTML: g_editedWorkOrderHTML,
 
                     inputs: {
+
+                        emailBody: gv('calc-email-content'),
+                        emailSubject: gv('calc-email-subject'),
+                        emailSender: gv('calc-email-sender'),
+                        emailDate: gv('calc-email-date'),
 
                         orderedSheets: gv('calc-ordered-sheets'),
 
@@ -9247,6 +9281,11 @@ async function saveProjectToFile() {
     sv('calc-prepared-by', proj.preparedBy);
     sv('calc-material-code', proj.materialCode);
     sv('calc-notes', proj.notes);
+    sv('calc-email-content', proj.customerEmailBody || (proj.inputs && proj.inputs.emailBody) || '');
+    sv('calc-email-subject', proj.customerEmailSubject || (proj.inputs && proj.inputs.emailSubject) || '');
+    sv('calc-email-sender', proj.customerEmailSender || (proj.inputs && proj.inputs.emailSender) || '');
+    sv('calc-email-date', proj.customerEmailDate || (proj.inputs && proj.inputs.emailDate) || '');
+    if (typeof updateEmailBadge === 'function') updateEmailBadge();
     sv('calc-mut-type', proj.mutType);
     sv('calc-mut-qty', proj.mutQty);
     sv('calc-mut-plates', proj.mutPlates);
@@ -9425,9 +9464,20 @@ function loadProject(id) {
 
                     mutPlates: document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates')?.value : '',
 
+                    notes: document.getElementById('calc-notes')?.value,
+                    customerEmailBody: document.getElementById('calc-email-content')?.value,
+                    customerEmailSubject: document.getElementById('calc-email-subject')?.value,
+                    customerEmailSender: document.getElementById('calc-email-sender')?.value,
+                    customerEmailDate: document.getElementById('calc-email-date')?.value,
+
                     timestamp: Date.now(),
 
                     inputs: {
+
+                        emailBody: document.getElementById('calc-email-content')?.value,
+                        emailSubject: document.getElementById('calc-email-subject')?.value,
+                        emailSender: document.getElementById('calc-email-sender')?.value,
+                        emailDate: document.getElementById('calc-email-date')?.value,
 
                         orderedSheets: document.getElementById('calc-ordered-sheets') ? document.getElementById('calc-ordered-sheets')?.value : '',
 
@@ -12353,12 +12403,353 @@ function loadProject(id) {
             container.innerHTML = html;
         }
 
+        // --- EMAIL STRANKE / POVPRAŠEVANJE LOGIKA ---
+        function openEmailModal() {
+            const modal = document.getElementById('email-modal-overlay');
+            if (modal) {
+                modal.style.display = 'flex';
+                updateEmailBadge();
+                const content = document.getElementById('calc-email-content');
+                if (content && !content.value.trim()) {
+                    setTimeout(() => content.focus(), 50);
+                }
+            }
+        }
+
+        function closeEmailModal() {
+            const modal = document.getElementById('email-modal-overlay');
+            if (modal) modal.style.display = 'none';
+            updateEmailBadge();
+        }
+
+        function onEmailFieldChanged() {
+            const text = document.getElementById('calc-email-content')?.value || '';
+            const charCountEl = document.getElementById('email-char-count');
+            if (charCountEl) {
+                charCountEl.textContent = text.length + ' znakov';
+            }
+        }
+
+        function saveEmailModalData() {
+            updateEmailBadge();
+            const statusEl = document.getElementById('email-modal-status');
+            if (statusEl) {
+                statusEl.textContent = '✓ Sporočilo uspešno shranjeno v kalkulaciji!';
+                setTimeout(() => {
+                    if (statusEl) statusEl.textContent = '';
+                    closeEmailModal();
+                }, 400);
+            } else {
+                closeEmailModal();
+            }
+        }
+
+        function removeAttachedEmail() {
+            if (confirm('Ali res želite odstraniti shranjeno e-pošto iz te kalkulacije?')) {
+                const ids = ['calc-email-content', 'calc-email-subject', 'calc-email-sender', 'calc-email-date'];
+                ids.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+                updateEmailBadge();
+            }
+        }
+
+        function clearEmailForm() {
+            if (confirm('Ali želite počistiti vsa polja e-pošte?')) {
+                const ids = ['calc-email-content', 'calc-email-subject', 'calc-email-sender', 'calc-email-date'];
+                ids.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+                onEmailFieldChanged();
+            }
+        }
+
+        function updateEmailBadge() {
+            const text = document.getElementById('calc-email-content')?.value || '';
+            const subject = document.getElementById('calc-email-subject')?.value || '';
+            const sender = document.getElementById('calc-email-sender')?.value || '';
+            const badge = document.getElementById('attached-email-badge');
+            const summaryEl = document.getElementById('attached-email-summary');
+            const onEmailBtn = document.getElementById('btn-open-email-modal');
+
+            if (badge && summaryEl) {
+                if (text.trim() || subject.trim()) {
+                    let label = subject.trim() || sender.trim() || 'E-pošta stranke';
+                    if (label.length > 25) label = label.substring(0, 23) + '...';
+                    summaryEl.textContent = label;
+                    badge.style.display = 'inline-flex';
+                    if (onEmailBtn) onEmailBtn.style.display = 'none';
+                } else {
+                    badge.style.display = 'none';
+                    if (onEmailBtn) onEmailBtn.style.display = 'inline-flex';
+                }
+            }
+            onEmailFieldChanged();
+        }
+
+        async function pasteEmailFromClipboard() {
+            try {
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                    const text = await navigator.clipboard.readText();
+                    if (text) {
+                        const contentEl = document.getElementById('calc-email-content');
+                        if (contentEl) {
+                            contentEl.value = text;
+                            autoParseEmailHeaders(text);
+                            onEmailFieldChanged();
+                        }
+                    }
+                } else {
+                    alert('Uporabite bližnjico Ctrl+V za prilepitev besedila v polje.');
+                }
+            } catch (e) {
+                console.warn('Clipboard read failed:', e);
+                alert('Za prilepitev kliknite v polje z vsebino in pritisnite Ctrl+V.');
+            }
+        }
+
+        function handleEmailDrop(event) {
+            event.preventDefault();
+            const el = document.getElementById('calc-email-content');
+            if (el) {
+                el.style.borderColor = '#475569';
+                el.style.background = '#0f172a';
+            }
+            if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+                readEmailFile(event.dataTransfer.files[0]);
+            } else if (event.dataTransfer) {
+                const text = event.dataTransfer.getData('text');
+                if (text && el) {
+                    el.value = text;
+                    autoParseEmailHeaders(text);
+                    onEmailFieldChanged();
+                }
+            }
+        }
+
+        function handleEmailFileSelect(event) {
+            const file = event.target.files && event.target.files[0];
+            if (file) {
+                readEmailFile(file);
+            }
+        }
+
+        function readEmailFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result || '';
+                const contentEl = document.getElementById('calc-email-content');
+                if (contentEl) {
+                    contentEl.value = text;
+                    autoParseEmailHeaders(text);
+                    onEmailFieldChanged();
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function autoParseEmailHeaders(text) {
+            if (!text) return;
+            const subjMatch = text.match(/(?:Subject|Zadeva|Predmet):\s*(.+)/i);
+            if (subjMatch && subjMatch[1]) {
+                const subjEl = document.getElementById('calc-email-subject');
+                if (subjEl && !subjEl.value) subjEl.value = subjMatch[1].trim();
+            }
+            const fromMatch = text.match(/(?:From|Od|Pošiljatelj|Posiljatelj):\s*(.+)/i);
+            if (fromMatch && fromMatch[1]) {
+                const fromEl = document.getElementById('calc-email-sender');
+                if (fromEl && !fromEl.value) fromEl.value = fromMatch[1].trim();
+            }
+            const dateMatch = text.match(/(?:Date|Datum):\s*(.+)/i);
+            if (dateMatch && dateMatch[1]) {
+                const dateEl = document.getElementById('calc-email-date');
+                if (dateEl && !dateEl.value) dateEl.value = dateMatch[1].trim();
+            }
+        }
+
+        function extractDataFromEmail() {
+            const text = document.getElementById('calc-email-content')?.value || '';
+            if (!text.trim()) {
+                alert('Najprej prilepite ali vnesite besedilo e-pošte!');
+                return;
+            }
+
+            let extracted = [];
+
+            // 1. Stranka / Pošiljatelj
+            const fromEl = document.getElementById('calc-email-sender')?.value || '';
+            const custInput = document.getElementById('calc-customer');
+            if (fromEl && custInput && !custInput.value) {
+                let cleanCust = fromEl.replace(/<.*?>/, '').trim();
+                extracted.push(`• Stranka: ${cleanCust}`);
+            }
+
+            // 2. Količina / Naklada
+            const qtyMatch = text.match(/(?:naklada|količina|kolicina|kosov|kom|kol|qty|kosa|kos)[\s:]*([0-9\.\s]+)/i);
+            let parsedQty = null;
+            if (qtyMatch && qtyMatch[1]) {
+                let q = qtyMatch[1].replace(/\./g, '').replace(/\s/g, '');
+                if (parseInt(q) > 0) {
+                    parsedQty = parseInt(q);
+                    extracted.push(`• Naklada / Količina: ${parsedQty.toLocaleString('de-DE')} kos`);
+                }
+            }
+
+            // 3. Format / Dimenzije
+            const dimMatch = text.match(/([0-9]+(?:[\.,][0-9]+)?)\s*[xX*×]\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:mm|cm)?/);
+            let parsedW = null, parsedH = null;
+            if (dimMatch && dimMatch[1] && dimMatch[2]) {
+                parsedW = parseFloat(dimMatch[1].replace(',', '.'));
+                parsedH = parseFloat(dimMatch[2].replace(',', '.'));
+                if (parsedW > 0 && parsedH > 0) {
+                    extracted.push(`• Format: ${parsedW} x ${parsedH} mm`);
+                }
+            }
+
+            // 4. Papir
+            const paperMatch = text.match(/([0-9]{2,3})\s*g(?:ram)?\s*([a-zA-ZčšžČŠŽ]+)?/i);
+            if (paperMatch) {
+                extracted.push(`• Papir: ${paperMatch[0]}`);
+            }
+
+            if (extracted.length === 0) {
+                if (confirm('Sistem ni zaznal točnih številčnih parametrov. Ali želite besedilo maila dodati v polje "Pripombe / posebnosti"?')) {
+                    const notesEl = document.getElementById('calc-notes');
+                    if (notesEl) {
+                        notesEl.value = (notesEl.value ? notesEl.value + '\n\n' : '') + text;
+                    }
+                }
+                return;
+            }
+
+            const msg = "Zaznani podatki iz sporočila:\n\n" + extracted.join('\n') + "\n\nAli želite te podatke samodejno prenesti v polja kalkulacije in pripombe?";
+            if (confirm(msg)) {
+                if (fromEl && custInput && !custInput.value) {
+                    custInput.value = fromEl.replace(/<.*?>/, '').trim();
+                }
+                if (parsedQty) {
+                    const qtyInput = document.getElementById('quantity');
+                    if (qtyInput) qtyInput.value = parsedQty;
+                }
+                if (parsedW && parsedH) {
+                    const wInput = document.getElementById('width');
+                    const hInput = document.getElementById('height');
+                    if (wInput && hInput) {
+                        wInput.value = parsedW;
+                        hInput.value = parsedH;
+                    }
+                }
+                if (paperMatch && paperMatch[1]) {
+                    const pwInput = document.getElementById('calc-paper-weight');
+                    if (pwInput) pwInput.value = paperMatch[1];
+                }
+                const notesEl = document.getElementById('calc-notes');
+                if (notesEl && !notesEl.value.trim()) {
+                    notesEl.value = "Povpraševanje:\n" + text.substring(0, 300) + (text.length > 300 ? '...' : '');
+                }
+                if (typeof calculate === 'function') calculate();
+                alert('Podatki uspešno preneseni v kalkulacijo!');
+            }
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                closeEmailModal();
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
             try { initStockData(); } catch (e) { console.error(e); }
             try { autoConnectFolder(); } catch (e) { console.error(e); }
+            try { updateEmailBadge(); } catch (e) { console.error(e); }
             try { if (typeof calculate === 'function') calculate(); } catch (e) { console.error(e); }
         });
     </script>
+
+    <!-- MODAL ZA E-POŠTO STRANKE -->
+    <div id="email-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 99999; justify-content: center; align-items: center;">
+        <div style="background: #1e293b; border: 1px solid #3b82f6; border-radius: 12px; width: 850px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); overflow: hidden; font-family: 'Inter', sans-serif;">
+            
+            <!-- MODAL HEADER -->
+            <div style="padding: 14px 20px; background: #0f172a; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.25rem;">✉️</span>
+                    <div>
+                        <h3 style="margin: 0; color: #f8fafc; font-size: 1.05rem; font-weight: 700;">E-pošta / Povpraševanje stranke</h3>
+                        <p style="margin: 0; color: #94a3b8; font-size: 0.75rem;">Prilepite sporočilo ali uvozite datoteko – shrani se neposredno v kalkulacijo</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeEmailModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.25rem; cursor: pointer; padding: 4px 8px; border-radius: 6px;" title="Zapri (Esc)">✕</button>
+            </div>
+
+            <!-- MODAL TOOLBAR -->
+            <div style="padding: 10px 20px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <button type="button" onclick="pasteEmailFromClipboard()" style="background: #2563eb; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;" title="Prilepi iz odložišča">
+                    📋 Prilepi iz odložišča
+                </button>
+                <button type="button" onclick="document.getElementById('email-file-input').click()" style="background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;" title="Uvozi datoteko sporočila">
+                    📂 Uvozi datoteko (.eml, .txt, .msg)
+                </button>
+                <input type="file" id="email-file-input" accept=".eml,.txt,.msg,.log" style="display:none;" onchange="handleEmailFileSelect(event)">
+                <button type="button" onclick="extractDataFromEmail()" style="background: #8b5cf6; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;" title="Poskusi samodejno izluščiti podatke o stranki, nakladi, formatu...">
+                    ⚡ Izlušči podatke v kalkulacijo
+                </button>
+                <button type="button" onclick="clearEmailForm()" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; border-radius: 6px; padding: 6px 10px; font-size: 0.8rem; cursor: pointer;" title="Počisti vsa polja e-pošte">
+                    🧹 Počisti
+                </button>
+            </div>
+
+            <!-- MODAL CONTENT / FORM -->
+            <div style="padding: 16px 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                
+                <!-- METADATA ROW -->
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label for="calc-email-subject" style="display: block; font-size: 0.75rem; color: #94a3b8; font-weight: 600; margin-bottom: 4px;">Zadeva (Subject):</label>
+                        <input type="text" id="calc-email-subject" placeholder="Npr. Povpraševanje za tisk..." style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; padding: 6px 10px; font-size: 0.85rem;" oninput="onEmailFieldChanged()">
+                    </div>
+                    <div>
+                        <label for="calc-email-sender" style="display: block; font-size: 0.75rem; color: #94a3b8; font-weight: 600; margin-bottom: 4px;">Pošiljatelj / Email:</label>
+                        <input type="text" id="calc-email-sender" placeholder="ime@stranka.si" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; padding: 6px 10px; font-size: 0.85rem;" oninput="onEmailFieldChanged()">
+                    </div>
+                    <div>
+                        <label for="calc-email-date" style="display: block; font-size: 0.75rem; color: #94a3b8; font-weight: 600; margin-bottom: 4px;">Datum maila:</label>
+                        <input type="text" id="calc-email-date" placeholder="07. 10. 2026" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; padding: 6px 10px; font-size: 0.85rem;" oninput="onEmailFieldChanged()">
+                    </div>
+                </div>
+
+                <!-- EMAIL BODY TEXTAREA / DROP ZONE -->
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <label for="calc-email-content" style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">Vsebina e-pošte / sporočila:</label>
+                        <span id="email-char-count" style="font-size: 0.72rem; color: #64748b;">0 znakov</span>
+                    </div>
+                    <textarea id="calc-email-content" placeholder="Prilepite celotno sporočilo (Ctrl+V) ali povlecite .eml / .txt datoteko sem..." rows="12"
+                        style="width: 100%; box-sizing: border-box; flex: 1; min-height: 250px; background: #0f172a; border: 1.5px dashed #475569; border-radius: 8px; color: #e2e8f0; padding: 12px; font-family: 'Segoe UI', Inter, sans-serif; font-size: 0.85rem; line-height: 1.5; resize: vertical;"
+                        oninput="onEmailFieldChanged()"
+                        ondragover="event.preventDefault(); this.style.borderColor='#3b82f6'; this.style.background='#1e293b';"
+                        ondragleave="this.style.borderColor='#475569'; this.style.background='#0f172a';"
+                        ondrop="handleEmailDrop(event)"></textarea>
+                </div>
+            </div>
+
+            <!-- MODAL FOOTER -->
+            <div style="padding: 12px 20px; background: #0f172a; border-top: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
+                <div id="email-modal-status" style="font-size: 0.8rem; color: #10b981; font-weight: 600;"></div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" onclick="closeEmailModal()" style="background: #334155; color: #e2e8f0; border: none; border-radius: 6px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; cursor: pointer;">
+                        Zapri
+                    </button>
+                    <button type="button" onclick="saveEmailModalData()" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: white; border: none; border-radius: 6px; padding: 8px 18px; font-size: 0.85rem; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(2,132,199,0.3);">
+                        💾 Shrani v kalkulacijo
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
 
 </body>
 
