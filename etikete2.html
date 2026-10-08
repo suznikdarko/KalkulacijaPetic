@@ -10079,10 +10079,16 @@
         
         // --- LOGIKA ZA UVOZ, PARSANJE IN OGLED PDF DOKUMENTOV ---
         if (typeof pdfjsLib !== 'undefined') {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            try {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            } catch(eWorker) {
+                console.warn("PDF.js worker init:", eWorker);
+            }
         }
 
-        var g_attachedPdf = null; // { name: '', dataUrl: '', text: '', timestamp: 0 }
+        var g_attachedPdf = null; // { name: '', dataUrl: '', arrayBuffer: null, text: '', widthMm: null, heightMm: null, numPages: 0, timestamp: 0 }
+        var g_currentPdfDoc = null;
+        var g_pdfZoomScale = 'fit';
 
         async function handlePdfFileUpload(event) {
             const file = event.target.files ? event.target.files[0] : null;
@@ -10096,15 +10102,25 @@
                 });
 
                 let fullText = "";
+                let detectedWidthMm = null;
+                let detectedHeightMm = null;
+                let numPages = 0;
+
                 if (typeof pdfjsLib !== 'undefined') {
                     try {
-                        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer.slice(0) });
                         const pdf = await loadingTask.promise;
+                        numPages = pdf.numPages;
                         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                             const page = await pdf.getPage(pageNum);
                             const textContent = await page.getTextContent();
                             const pageStr = textContent.items.map(item => item.str).join(" ");
                             fullText += pageStr + "\n";
+                            if (pageNum === 1) {
+                                const vp = page.getViewport({ scale: 1.0 });
+                                detectedWidthMm = Math.round(vp.width * 25.4 / 72);
+                                detectedHeightMm = Math.round(vp.height * 25.4 / 72);
+                            }
                         }
                     } catch (eText) {
                         console.warn("PDF text extraction warning:", eText);
@@ -10114,12 +10130,16 @@
                 g_attachedPdf = {
                     name: file.name,
                     dataUrl: dataUrl,
+                    arrayBuffer: arrayBuffer,
                     text: fullText,
+                    widthMm: detectedWidthMm,
+                    heightMm: detectedHeightMm,
+                    numPages: numPages,
                     timestamp: Date.now()
                 };
 
                 updatePdfBadge();
-                parsePdfAndShowDataModal(fullText, file.name);
+                parsePdfAndShowDataModal(fullText, file.name, detectedWidthMm, detectedHeightMm);
                 event.target.value = '';
             } catch (err) {
                 alert("Napaka pri branju PDF datoteke: " + err.message);
@@ -10142,11 +10162,12 @@
         function removeAttachedPdf() {
             if (confirm("Ali želite odstraniti pripet PDF dokument iz te kalkulacije?")) {
                 g_attachedPdf = null;
+                g_currentPdfDoc = null;
                 updatePdfBadge();
             }
         }
 
-        function parsePdfAndShowDataModal(fullText, filename) {
+        function parsePdfAndShowDataModal(fullText, filename, detectedW, detectedH) {
             let customer = "";
             let quoteNum = "";
             let dnNum = "";
@@ -10159,41 +10180,54 @@
             let deadline = "";
             let packaging = "";
 
-            const lines = (fullText || '').split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            const text = fullText || '';
 
             // Matchers
-            const matchCust = fullText.match(/(?:Stranka|Naročnik|Kupac|Naročnik\/Stranka|Firma|Podjetje)\s*[:#-]?\s*([^\n\r,]+)/i);
+            const matchCust = text.match(/(?:Stranka|Naročnik|Kupac|Naročnik\/Stranka|Firma|Podjetje|Kunde)\s*[:#-]?\s*([^\n\r,]+)/i);
             if (matchCust) customer = matchCust[1].trim();
 
-            const matchQuote = fullText.match(/(?:Ponudba\s*(?:št\.?|številka)?|PONUDBA\s*ŠT\.?|PON)\s*[:#-]?\s*([A-Za-z0-9\/-]+)/i);
+            const matchQuote = text.match(/(?:Ponudba\s*(?:št\.?|številka)?|PONUDBA\s*ŠT\.?|PON|Angebot)\s*[:#-]?\s*([A-Za-z0-9\/-]+)/i);
             if (matchQuote) quoteNum = matchQuote[1].trim();
 
-            const matchDn = fullText.match(/(?:D\.?N\.?|Delovni\s*nalog|Naročilo\s*št\.?)\s*[:#-]?\s*([A-Za-z0-9\/-]+)/i);
+            const matchDn = text.match(/(?:D\.?N\.?|Delovni\s*nalog|Naročilo\s*št\.?|Auftrag)\s*[:#-]?\s*([A-Za-z0-9\/-]+)/i);
             if (matchDn) dnNum = matchDn[1].trim();
 
-            const matchCode = fullText.match(/(?:Šifra\s*stranke|Koda\s*stranke|Šifra\s*kupca)\s*[:#-]?\s*([A-Za-z0-9\/-]+)/i);
+            const matchCode = text.match(/(?:Šifra\s*stranke|Koda\s*stranke|Šifra\s*kupca|Kundennummer)\s*[:#-]?\s*([A-Za-z0-9\/-]+)/i);
             if (matchCode) custCode = matchCode[1].trim();
 
-            const matchTitle = fullText.match(/(?:Artikel|Naziv|Izdelek|Zadeva|Predmet|Naziv\s*projekta)\s*[:#-]?\s*([^\n\r]+)/i);
-            if (matchTitle) title = matchTitle[1].trim();
+            const matchTitle = text.match(/(?:Artikel|Naziv|Izdelek|Zadeva|Predmet|Naziv\s*projekta|Titel)\s*[:#-]?\s*([^\n\r]+)/i);
+            if (matchTitle && matchTitle[1].trim().length > 1 && !matchTitle[1].match(/^(Rückseite|Innenseite)$/i)) {
+                title = matchTitle[1].trim();
+            }
             if (!title && filename) {
-                title = filename.replace(/\.pdf$/i, '');
+                title = filename.replace(/\.pdf$/i, '').replace(/[\(\[\{]\d+[\)\]\}]$/, '').trim();
             }
 
-            const matchQty = fullText.match(/(?:Količina|Naklada|Količina\s*v\s*kos)\s*[:#-]?\s*([\d\.\s]+)/i) || fullText.match(/(\d{1,3}(?:\.\d{3})*|\d+)\s*(?:kos|pcs|pol|kosov)/i);
+            const matchQty = text.match(/(?:Količina|Naklada|Količina\s*v\s*kos|Auflage|Menge)\s*[:#-]?\s*([\d\.\s]+)/i) || text.match(/(\d{1,3}(?:\.\d{3})*|\d+)\s*(?:kos|pcs|pol|kosov|Stk|Stück)/i);
             if (matchQty) qty = matchQty[1].replace(/\s+/g, '').trim();
 
-            const matchFmt = fullText.match(/(\d{2,4})\s*[xX*×]\s*(\d{2,4})\s*(?:mm|cm)?/);
+            const matchFmt = text.match(/(\d{2,4})\s*[xX*×]\s*(\d{2,4})\s*(?:mm|cm)?/);
             if (matchFmt) {
                 fmtW = matchFmt[1];
                 fmtH = matchFmt[2];
+            } else if (detectedW && detectedH) {
+                fmtW = detectedW;
+                fmtH = detectedH;
+            } else if (g_attachedPdf && g_attachedPdf.widthMm && g_attachedPdf.heightMm) {
+                fmtW = g_attachedPdf.widthMm;
+                fmtH = g_attachedPdf.heightMm;
             }
 
-            const matchDl = fullText.match(/(?:Rok|Rok\s*dobave|Rok\s*izdelave|Datum\s*dobave)\s*[:#-]?\s*([\d\.\s\/]+)/i);
+            const matchDl = text.match(/(?:Rok|Rok\s*dobave|Rok\s*izdelave|Datum\s*dobave|Liefertermin)\s*[:#-]?\s*([\d\.\s\/]+)/i);
             if (matchDl) deadline = matchDl[1].trim();
 
-            const matchPkg = fullText.match(/(?:Pakiranje|Pakirano)\s*[:#-]?\s*([^\n\r]+)/i);
+            const matchPkg = text.match(/(?:Pakiranje|Pakirano|Verpackung)\s*[:#-]?\s*([^\n\r]+)/i);
             if (matchPkg) packaging = matchPkg[1].trim();
+
+            let notesText = text ? text.slice(0, 1500) : '';
+            if (fmtW && fmtH && !matchFmt) {
+                notesText = `[Zaznan format strani PDF: ${fmtW} x ${fmtH} mm]\n` + notesText;
+            }
 
             // Set modal values
             function setField(id, val) {
@@ -10211,10 +10245,13 @@
             setField('pdf-val-fmt-h', fmtH);
             setField('pdf-val-deadline', deadline);
             setField('pdf-val-packaging', packaging);
-            setField('pdf-val-notes', fullText ? fullText.slice(0, 1500) : '');
+            setField('pdf-val-notes', notesText.trim());
 
             const modal = document.getElementById('modal-pdf-data-confirm');
-            if (modal) modal.style.display = 'flex';
+            if (modal) {
+                modal.style.zIndex = '1000005';
+                modal.style.display = 'flex';
+            }
         }
 
         function applyParsedPdfData() {
@@ -10279,8 +10316,8 @@
         }
 
         function reopenPdfDataModal() {
-            if (g_attachedPdf && (g_attachedPdf.text || g_attachedPdf.name)) {
-                parsePdfAndShowDataModal(g_attachedPdf.text || '', g_attachedPdf.name || '');
+            if (g_attachedPdf && (g_attachedPdf.text || g_attachedPdf.name || g_attachedPdf.dataUrl)) {
+                parsePdfAndShowDataModal(g_attachedPdf.text || '', g_attachedPdf.name || '', g_attachedPdf.widthMm, g_attachedPdf.heightMm);
             } else {
                 alert("Ni naloženega PDF dokumenta.");
             }
@@ -10291,32 +10328,199 @@
             if (modal) modal.style.display = 'none';
         }
 
+        // --- ZANESLJIV PDF PREGLEDOVALNIK (CANVAS IZRIS Z VISOKO LOČLJIVOSTJO) ---
+        async function renderPdfDocument() {
+            if (!g_attachedPdf) return;
+            const scrollContainer = document.getElementById('pdf-viewer-scroll-container');
+            const loadingEl = document.getElementById('pdf-viewer-loading');
+            const pagesInfoEl = document.getElementById('pdf-viewer-pages-info');
+            const zoomLevelEl = document.getElementById('pdf-zoom-level');
+            
+            if (!scrollContainer) return;
+            if (loadingEl) {
+                loadingEl.style.display = 'block';
+                loadingEl.innerHTML = '⏳ Nalaganje in izrisovanje PDF dokumenta...';
+            }
+
+            try {
+                let dataToLoad = null;
+                if (g_attachedPdf.arrayBuffer) {
+                    dataToLoad = g_attachedPdf.arrayBuffer.slice(0);
+                } else if (g_attachedPdf.dataUrl) {
+                    const base64 = g_attachedPdf.dataUrl.indexOf(',') >= 0 ? g_attachedPdf.dataUrl.split(',')[1] : g_attachedPdf.dataUrl;
+                    const bin = atob(base64);
+                    const bytes = new Uint8Array(bin.length);
+                    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                    g_attachedPdf.arrayBuffer = bytes.buffer;
+                    dataToLoad = bytes.buffer.slice(0);
+                }
+
+                if (!dataToLoad) {
+                    if (loadingEl) loadingEl.innerHTML = '<span style="color:#ef4444;">Ni podatkov za prikaz PDF dokumenta.</span>';
+                    return;
+                }
+
+                if (!g_currentPdfDoc) {
+                    const loadingTask = pdfjsLib.getDocument({ data: dataToLoad });
+                    g_currentPdfDoc = await loadingTask.promise;
+                }
+
+                const pdf = g_currentPdfDoc;
+                const numPages = pdf.numPages;
+                if (pagesInfoEl) {
+                    pagesInfoEl.textContent = `(${numPages} ${numPages === 1 ? 'stran' : (numPages === 2 ? 'strani' : 'strani')})`;
+                }
+
+                const oldPages = scrollContainer.querySelectorAll('.pdf-page-wrapper');
+                oldPages.forEach(el => el.remove());
+
+                const containerWidth = Math.max(300, scrollContainer.clientWidth - 60);
+
+                for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const unscaledViewport = page.getViewport({ scale: 1.0 });
+
+                    let scale = (typeof g_pdfZoomScale === 'number') ? g_pdfZoomScale : 1.0;
+                    if (g_pdfZoomScale === 'fit' || !g_pdfZoomScale) {
+                        scale = Math.min(2.5, Math.max(0.35, (containerWidth / unscaledViewport.width)));
+                    }
+                    if (zoomLevelEl) zoomLevelEl.textContent = Math.round(scale * 100) + '%';
+
+                    const viewport = page.getViewport({ scale: scale });
+
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'pdf-page-wrapper';
+                    wrapper.style.display = 'flex';
+                    wrapper.style.flexDirection = 'column';
+                    wrapper.style.alignItems = 'center';
+                    wrapper.style.margin = '0 auto 24px auto';
+                    wrapper.style.maxWidth = '100%';
+
+                    if (numPages > 1) {
+                        const pageLabel = document.createElement('div');
+                        pageLabel.style.color = '#94a3b8';
+                        pageLabel.style.fontSize = '0.8rem';
+                        pageLabel.style.marginBottom = '6px';
+                        pageLabel.style.fontWeight = '600';
+                        pageLabel.textContent = `Stran ${pageNum} od ${numPages}`;
+                        wrapper.appendChild(pageLabel);
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                    canvas.width = Math.floor(viewport.width * dpr);
+                    canvas.height = Math.floor(viewport.height * dpr);
+                    canvas.style.width = Math.floor(viewport.width) + 'px';
+                    canvas.style.height = Math.floor(viewport.height) + 'px';
+                    canvas.style.boxShadow = '0 15px 35px rgba(0,0,0,0.6)';
+                    canvas.style.borderRadius = '8px';
+                    canvas.style.background = '#ffffff';
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.scale(dpr, dpr);
+
+                    wrapper.appendChild(canvas);
+                    scrollContainer.appendChild(wrapper);
+
+                    await page.render({
+                        canvasContext: ctx,
+                        viewport: viewport
+                    }).promise;
+                }
+
+                if (loadingEl) loadingEl.style.display = 'none';
+            } catch (err) {
+                console.error("Napaka pri izrisu PDF:", err);
+                if (loadingEl) {
+                    loadingEl.style.display = 'block';
+                    loadingEl.innerHTML = `<div style="color:#f87171; text-align:center; padding:20px;">
+                        <p style="font-weight:bold; margin-bottom:8px;">Napaka pri izrisu PDF dokumenta: ${err.message}</p>
+                        <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:12px;">Dokument lahko kljub temu prenesete na računalnik ali vnesete podatke v kalkulacijo.</p>
+                        <button type="button" onclick="downloadAttachedPdf()" style="background:#0284c7; color:white; border:none; border-radius:6px; padding:8px 16px; font-weight:bold; cursor:pointer;">💾 Prenesi izvirni PDF</button>
+                    </div>`;
+                }
+            }
+        }
+
+        function changePdfZoom(delta) {
+            let current = (typeof g_pdfZoomScale === 'number') ? g_pdfZoomScale : 1.0;
+            let next = Math.round((current + delta) * 10) / 10;
+            if (next < 0.3) next = 0.3;
+            if (next > 3.0) next = 3.0;
+            g_pdfZoomScale = next;
+            renderPdfDocument();
+        }
+
+        function setPdfZoomFit() {
+            g_pdfZoomScale = 'fit';
+            renderPdfDocument();
+        }
+
+        function setPdfZoom100() {
+            g_pdfZoomScale = 1.0;
+            renderPdfDocument();
+        }
+
+        function downloadAttachedPdf() {
+            if (!g_attachedPdf) return;
+            const a = document.createElement('a');
+            if (g_attachedPdf.dataUrl) {
+                a.href = g_attachedPdf.dataUrl;
+            } else if (g_attachedPdf.arrayBuffer) {
+                const blob = new Blob([g_attachedPdf.arrayBuffer], { type: 'application/pdf' });
+                a.href = URL.createObjectURL(blob);
+            }
+            a.download = g_attachedPdf.name || 'Dokument.pdf';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 300);
+        }
+
         function openPdfViewerModal() {
-            if (!g_attachedPdf || !g_attachedPdf.dataUrl) {
+            if (!g_attachedPdf || (!g_attachedPdf.dataUrl && !g_attachedPdf.arrayBuffer)) {
                 alert("Ni naloženega PDF dokumenta za ogled.");
                 return;
             }
             const modal = document.getElementById('modal-pdf-viewer');
-            const iframe = document.getElementById('pdf-viewer-iframe');
             const filenameEl = document.getElementById('pdf-viewer-filename');
-            if (modal && iframe) {
-                if (filenameEl) filenameEl.textContent = g_attachedPdf.name || 'Dokument.pdf';
-                iframe.src = g_attachedPdf.dataUrl;
+            if (filenameEl) filenameEl.textContent = g_attachedPdf.name || 'Dokument.pdf';
+            if (modal) {
                 modal.style.display = 'flex';
+                g_currentPdfDoc = null;
+                g_pdfZoomScale = 'fit';
+                renderPdfDocument();
             }
         }
 
         function closePdfViewerModal() {
             const modal = document.getElementById('modal-pdf-viewer');
-            const iframe = document.getElementById('pdf-viewer-iframe');
             if (modal) modal.style.display = 'none';
-            if (iframe) iframe.src = 'about:blank';
+            const scrollContainer = document.getElementById('pdf-viewer-scroll-container');
+            if (scrollContainer) {
+                const oldPages = scrollContainer.querySelectorAll('.pdf-page-wrapper');
+                oldPages.forEach(el => el.remove());
+            }
+            g_currentPdfDoc = null;
         }
+
+        window.addEventListener('resize', () => {
+            const modal = document.getElementById('modal-pdf-viewer');
+            if (modal && modal.style.display === 'flex' && g_pdfZoomScale === 'fit') {
+                if (window._pdfResizeTimer) clearTimeout(window._pdfResizeTimer);
+                window._pdfResizeTimer = setTimeout(() => {
+                    renderPdfDocument();
+                }, 250);
+            }
+        });
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                closePdfViewerModal();
-                closePdfDataModal();
+                const dataModal = document.getElementById('modal-pdf-data-confirm');
+                if (dataModal && dataModal.style.display === 'flex') {
+                    closePdfDataModal();
+                } else {
+                    closePdfViewerModal();
+                }
             }
         });
 
@@ -10587,7 +10791,7 @@
 
     
     <!-- MODAL ZA PRENOS PODATKOV IZ PDF -->
-    <div id="modal-pdf-data-confirm" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.85); backdrop-filter:blur(8px); z-index:99999; justify-content:center; align-items:center;">
+    <div id="modal-pdf-data-confirm" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.85); backdrop-filter:blur(8px); z-index:1000005; justify-content:center; align-items:center;">
         <div style="background:#0f172a; border:2px solid #8b5cf6; border-radius:16px; width:95%; max-width:850px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 25px 50px rgba(0,0,0,0.9); overflow:hidden;">
             <div style="padding:1rem 1.4rem; background:linear-gradient(135deg, #1e293b, #3b0764); border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0; color:#c084fc; font-size:1.15rem; display:flex; align-items:center; gap:0.6rem;">
@@ -10709,19 +10913,30 @@
     </div>
 
     <!-- MODAL PREGLEDOVALNIK PDF DOKUMENTA -->
-    <div id="modal-pdf-viewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.9); backdrop-filter:blur(10px); z-index:999999; flex-direction:column; overflow:hidden;">
-        <div style="padding:10px 18px; background:#1e293b; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; color:white;">
-            <div style="display:flex; align-items:center; gap:12px;">
-                <span style="font-size:1.1rem; font-weight:bold; color:#60a5fa; display:flex; align-items:center; gap:6px;">📄 Pregledovalnik PDF</span>
-                <span id="pdf-viewer-filename" style="background:#0f172a; padding:4px 12px; border-radius:6px; font-size:0.85rem; color:#cbd5e1; border:1px solid #475569;"></span>
-            </div>
+    <div id="modal-pdf-viewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.92); backdrop-filter:blur(10px); z-index:1000000; flex-direction:column; overflow:hidden; font-family:'Inter',sans-serif;">
+        <div style="padding:10px 18px; background:#1e293b; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; color:white; flex-wrap:wrap; gap:10px;">
             <div style="display:flex; align-items:center; gap:10px;">
-                <button type="button" onclick="reopenPdfDataModal()" style="background:#8b5cf6; color:white; border:none; border-radius:6px; padding:6px 14px; font-size:0.8rem; font-weight:bold; cursor:pointer;">⚡ Prenesi podatke v kalkulacijo</button>
+                <span style="font-size:1.1rem; font-weight:bold; color:#60a5fa; display:flex; align-items:center; gap:6px;">📄 Pregledovalnik PDF</span>
+                <span id="pdf-viewer-filename" style="background:#0f172a; padding:4px 12px; border-radius:6px; font-size:0.85rem; color:#cbd5e1; border:1px solid #475569; max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+                <span id="pdf-viewer-pages-info" style="font-size:0.82rem; color:#94a3b8;"></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; background:#0f172a; padding:4px 8px; border-radius:8px; border:1px solid #334155;">
+                <button type="button" onclick="changePdfZoom(-0.2)" title="Pomanjšaj (-)" style="background:#334155; color:white; border:none; border-radius:4px; width:28px; height:28px; cursor:pointer; font-weight:bold; font-size:1rem; display:flex; align-items:center; justify-content:center;">−</button>
+                <span id="pdf-zoom-level" style="font-size:0.82rem; font-weight:bold; color:#e2e8f0; min-width:46px; text-align:center;">100%</span>
+                <button type="button" onclick="changePdfZoom(0.2)" title="Povečaj (+)" style="background:#334155; color:white; border:none; border-radius:4px; width:28px; height:28px; cursor:pointer; font-weight:bold; font-size:1rem; display:flex; align-items:center; justify-content:center;">+</button>
+                <button type="button" onclick="setPdfZoomFit()" title="Prilagodi širini" style="background:#334155; color:#93c5fd; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.75rem; font-weight:600;">↔ Prilagodi</button>
+                <button type="button" onclick="setPdfZoom100()" title="Ponastavi na 100%" style="background:#334155; color:#cbd5e1; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.75rem;">1:1</button>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button type="button" onclick="downloadAttachedPdf()" title="Prenesi izvirno PDF datoteko" style="background:#0284c7; color:white; border:none; border-radius:6px; padding:6px 12px; font-size:0.8rem; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">💾 Prenesi PDF</button>
+                <button type="button" onclick="reopenPdfDataModal()" style="background:linear-gradient(135deg, #8b5cf6, #7c3aed); color:white; border:none; border-radius:6px; padding:6px 14px; font-size:0.8rem; font-weight:bold; cursor:pointer; box-shadow:0 2px 10px rgba(139,92,246,0.3); display:flex; align-items:center; gap:5px;">⚡ Prenesi podatke v kalkulacijo</button>
                 <button type="button" onclick="closePdfViewerModal()" style="background:#ef4444; color:white; border:none; border-radius:6px; padding:6px 14px; font-size:0.8rem; font-weight:bold; cursor:pointer;">✕ Zapri (Esc)</button>
             </div>
         </div>
-        <div style="flex:1; background:#0f172a; display:flex; justify-content:center; align-items:center; padding:12px;">
-            <iframe id="pdf-viewer-iframe" style="width:100%; height:100%; border:none; border-radius:10px; background:white; box-shadow:0 10px 30px rgba(0,0,0,0.5);"></iframe>
+        <div id="pdf-viewer-scroll-container" style="flex:1; background:#0b1120; overflow:auto; display:flex; flex-direction:column; align-items:center; gap:20px; padding:24px; position:relative;">
+            <div id="pdf-viewer-loading" style="display:none; color:#cbd5e1; font-size:1rem; margin-top:60px; background:#1e293b; padding:16px 28px; border-radius:12px; border:1px solid #334155; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+                ⏳ Nalaganje in izrisovanje PDF dokumenta...
+            </div>
         </div>
     </div>
 
