@@ -2474,14 +2474,56 @@
             let partMin = Math.min(cutW, cutH);
             let isTrimmed = false;
 
-            // Obrezovanje traku na max digitalno dolžino 480 mm (npr. s 498 mm ali 500 mm na 480 mm)
-            if (partMax > 480 && partMax <= 510) {
-                partMax = 480;
-                isTrimmed = true;
+            // Obrezovanje traku / pole na max digitalno dolžino 480 mm (npr. s 498 mm ali 525 mm na 480 mm - digital ne rabi 10mm ofsetnega prijemalca)
+            if (partMax > 480 && partMax <= 525) {
+                let canTrimMax = true;
+                let bLayout = window.g_lastBestLayout;
+                if (bLayout && bLayout.itemW && bLayout.itemH && bLayout.cols && bLayout.rows) {
+                    let cutAxis = sheetW >= sheetH ? 'W' : 'H';
+                    let colsOnHalf = cutAxis === 'W' ? Math.ceil(bLayout.cols / digCutFactor) : bLayout.cols;
+                    let rowsOnHalf = cutAxis === 'H' ? Math.ceil(bLayout.rows / digCutFactor) : bLayout.rows;
+                    let occMax = Math.max(colsOnHalf * bLayout.itemW, rowsOnHalf * bLayout.itemH);
+                    if (occMax > 480) {
+                        canTrimMax = false;
+                    }
+                }
+                if (canTrimMax) {
+                    partMax = 480;
+                    isTrimmed = true;
+                }
             }
-            if (partMin > 320 && partMin <= 335) {
-                partMin = 320;
-                isTrimmed = true;
+            // Obrezovanje širine na max digitalno širino 320 mm (npr. pri razrezu B2 pole na pol: 349-365 mm na 320 mm)
+            if (partMin > 320 && partMin <= 365) {
+                let canTrimMin = true;
+                let bLayout = window.g_lastBestLayout;
+                if (bLayout && bLayout.itemW && bLayout.itemH && bLayout.cols && bLayout.rows) {
+                    let cutAxis = sheetW >= sheetH ? 'W' : 'H';
+                    let colsOnHalf = cutAxis === 'W' ? Math.ceil(bLayout.cols / digCutFactor) : bLayout.cols;
+                    let rowsOnHalf = cutAxis === 'H' ? Math.ceil(bLayout.rows / digCutFactor) : bLayout.rows;
+                    let occDim1 = colsOnHalf * bLayout.itemW;
+                    let occDim2 = rowsOnHalf * bLayout.itemH;
+                    let occMin = Math.min(occDim1, occDim2);
+                    let occMax = Math.max(occDim1, occDim2);
+                    if (occMin > 320 || occMax > 480) {
+                        canTrimMin = false;
+                    }
+                } else {
+                    let wEl = document.getElementById('width');
+                    let hEl = document.getElementById('height');
+                    let bldEl = document.getElementById('bleed');
+                    let wInp = parseFloat((wEl ? wEl.value : '').replace(',', '.')) || 0;
+                    let hInp = parseFloat((hEl ? hEl.value : '').replace(',', '.')) || 0;
+                    let bld = parseFloat((bldEl ? bldEl.value : '2').replace(',', '.')) || 0;
+                    let itmMin = Math.min(wInp, hInp) + 2 * bld;
+                    let itmMax = Math.max(wInp, hInp) + 2 * bld;
+                    if (itmMin > 320 || itmMax > 480) {
+                        canTrimMin = false;
+                    }
+                }
+                if (canTrimMin) {
+                    partMin = 320;
+                    isTrimmed = true;
+                }
             }
             
             // Maximum digital format for personalization is 480x320 mm
