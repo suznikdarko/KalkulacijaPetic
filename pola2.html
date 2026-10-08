@@ -1687,7 +1687,7 @@
                                     </div>
                                     <div class="form-group" style="margin:0; flex:1; min-width: 90px; display:flex; flex-direction:column; justify-content:flex-end;">
                                         <label style="height: 2.2rem; display:flex; align-items:flex-end; margin-bottom: 3px;"><small style="line-height: 1.1;">Delitev<br>pole</small></label>
-                                        <select id="f-personalization-split" onchange="calculatePrice()"
+                                        <select id="f-personalization-split" onchange="document.getElementById('items-per-sheet').value=''; calculatePrice()"
                                             style="padding:0.3rem 0.5rem; font-size:0.8rem; height: 32px; box-sizing: border-box; width:100%;">
                                             <option value="auto" selected>Avtomatsko</option>
                                             <option value="2">Na 2 dela (polovici)</option>
@@ -2456,14 +2456,28 @@
                 }
             }
             
+            let cutAxis = sheetW >= sheetH ? 'W' : 'H';
+            let bLayout = window.g_lastBestLayout;
+            if (bLayout && (digCutFactor === 2 || digCutFactor === 3)) {
+                if (bLayout.cols % digCutFactor === 0 && bLayout.rows % digCutFactor !== 0) {
+                    cutAxis = 'W';
+                } else if (bLayout.rows % digCutFactor === 0 && bLayout.cols % digCutFactor !== 0) {
+                    cutAxis = 'H';
+                } else if (bLayout.cols >= digCutFactor && bLayout.rows < digCutFactor) {
+                    cutAxis = 'W';
+                } else if (bLayout.rows >= digCutFactor && bLayout.cols < digCutFactor) {
+                    cutAxis = 'H';
+                }
+            }
+
             let cutW = sheetW;
             let cutH = sheetH;
             
             if (digCutFactor === 2) {
-                if (sheetW >= sheetH) cutW = Math.round(sheetW / 2);
+                if (cutAxis === 'W') cutW = Math.round(sheetW / 2);
                 else cutH = Math.round(sheetH / 2);
             } else if (digCutFactor === 3) {
-                if (sheetW >= sheetH) cutW = Math.round(sheetW / 3);
+                if (cutAxis === 'W') cutW = Math.round(sheetW / 3);
                 else cutH = Math.round(sheetH / 3);
             } else if (digCutFactor === 4) {
                 cutW = Math.round(sheetW / 2);
@@ -2533,6 +2547,7 @@
             return {
                 digCutFactor: digCutFactor,
                 isLargeSheet: isLargeSheet,
+                cutAxis: cutAxis,
                 cutW: cutW,
                 cutH: cutH,
                 partMax: partMax,
@@ -5552,9 +5567,80 @@
                     }
                 }
             }
+            // Informacije o razrezu za personalizacijo (za ustrezen razmik stavkov po sektorjih)
+            const isPersActive = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+            const currentMType = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
+            let itemsCount = layout ? layout.count : 1;
+            let splitInfo = getPersonalizationSplitInfo(sheetW, sheetH, itemsCount, currentMType);
+            let digCutFactor = splitInfo.digCutFactor;
+            let isPersSplit = isPersActive && splitInfo.isLargeSheet && digCutFactor > 1 && !layout.isMixed && !isObratChecked;
+            let layoutCutAxis = 'W';
+            if (digCutFactor === 2 || digCutFactor === 3) {
+                if (usedCols % digCutFactor === 0 && usedRows % digCutFactor !== 0) {
+                    layoutCutAxis = 'W';
+                } else if (usedRows % digCutFactor === 0 && usedCols % digCutFactor !== 0) {
+                    layoutCutAxis = 'H';
+                } else if (usedCols >= digCutFactor && usedRows < digCutFactor) {
+                    layoutCutAxis = 'W';
+                } else if (usedRows >= digCutFactor && usedCols < digCutFactor) {
+                    layoutCutAxis = 'H';
+                } else {
+                    layoutCutAxis = splitInfo.cutAxis || (sheetW >= sheetH ? 'W' : 'H');
+                }
+            }
+
             slotsToDraw.forEach(slot => {
-                const x = (startX + slot.c * layout.itemW) * scale;
-                const y = (startY + slot.r * layout.itemH) * scale;
+                let x, y;
+                if (isPersSplit) {
+                    if (digCutFactor === 4) {
+                        let secW = sheetW / 2;
+                        let secH = sheetH / 2;
+                        let colsPerSec = Math.max(1, Math.round(usedCols / 2));
+                        let rowsPerSec = Math.max(1, Math.round(usedRows / 2));
+                        let marginSecX = Math.max(0, (secW - colsPerSec * layout.itemW) / 2);
+                        let secXIdx = Math.min(1, Math.floor(slot.c / colsPerSec));
+                        let cInSec = slot.c - secXIdx * colsPerSec;
+                        let itemX = secXIdx * secW + marginSecX + cInSec * layout.itemW;
+
+                        let secYIdx = Math.min(1, Math.floor(slot.r / rowsPerSec));
+                        let rInSec = slot.r - secYIdx * rowsPerSec;
+                        let effSecH = (secYIdx === 1 && layout.gripEdge === 'H') ? Math.max(rowsPerSec * layout.itemH, secH - gripper) : secH;
+                        let marginSecY = Math.max(0, (effSecH - (rowsPerSec * layout.itemH)) / 2);
+                        let itemY = secYIdx * secH + marginSecY + rInSec * layout.itemH;
+
+                        x = itemX * scale;
+                        y = itemY * scale;
+                    } else if (layoutCutAxis === 'W') {
+                        let numSec = digCutFactor; // 2 ali 3
+                        let secW = sheetW / numSec;
+                        let colsPerSec = Math.max(1, Math.round(usedCols / numSec));
+                        let secContentW = colsPerSec * layout.itemW;
+                        let marginSecX = Math.max(0, (secW - secContentW) / 2);
+                        let secIdx = Math.min(numSec - 1, Math.floor(slot.c / colsPerSec));
+                        let cInSec = slot.c - secIdx * colsPerSec;
+                        let itemX = secIdx * secW + marginSecX + cInSec * layout.itemW;
+                        let itemY = startY + slot.r * layout.itemH;
+
+                        x = itemX * scale;
+                        y = itemY * scale;
+                    } else { // layoutCutAxis === 'H'
+                        let numSec = digCutFactor; // 2 ali 3
+                        let secH = sheetH / numSec;
+                        let rowsPerSec = Math.max(1, Math.round(usedRows / numSec));
+                        let secContentH = rowsPerSec * layout.itemH;
+                        let marginSecY = Math.max(0, (secH - secContentH) / 2);
+                        let secIdx = Math.min(numSec - 1, Math.floor(slot.r / rowsPerSec));
+                        let rInSec = slot.r - secIdx * rowsPerSec;
+                        let itemY = secIdx * secH + marginSecY + rInSec * layout.itemH;
+                        let itemX = startX + slot.c * layout.itemW;
+
+                        x = itemX * scale;
+                        y = itemY * scale;
+                    }
+                } else {
+                    x = (startX + slot.c * layout.itemW) * scale;
+                    y = (startY + slot.r * layout.itemH) * scale;
+                }
                 const innerW = (layout.rot ? origH : origW);
                 const innerH = (layout.rot ? origW : origH);
                 drawOneItem(ctx, x, y, layout.itemW, layout.itemH, innerW, innerH, bleed, scale);
@@ -5600,12 +5686,6 @@
             }
 
             // Nariši linije razreza za personalizacijo (če je vklopljena personalizacija)
-            const isPersActive = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
-            const currentMType = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
-            let itemsCount = layout ? layout.count : 1;
-            let splitInfo = getPersonalizationSplitInfo(sheetW, sheetH, itemsCount, currentMType);
-            let digCutFactor = splitInfo.digCutFactor;
-            
             if (isPersActive && splitInfo.isLargeSheet && digCutFactor > 1) {
                 ctx.save();
                 let fitsDigital = splitInfo.fitsDigital;
@@ -5679,7 +5759,7 @@
                         cutPositions = [1 / 3, 2 / 3];
                     }
 
-                    if (sheetW >= sheetH) {
+                    if (layoutCutAxis === 'W') {
                     // Vertikalni rezi
                     cutPositions.forEach(ratio => {
                         const cutX = (sheetW * ratio) * scale;
@@ -5700,12 +5780,13 @@
                         ctx.setLineDash([]);
                     });
 
-                    const midX = (sheetW * 0.5) * scale;
+                    const badgeCutRatio = (cutPositions.length > 0) ? cutPositions[0] : 0.5;
+                    const badgeX = (sheetW * badgeCutRatio) * scale;
                     ctx.font = 'bold 11px Inter, sans-serif';
                     const textMetrics = ctx.measureText(badgeText);
                     const bw = textMetrics.width + 20;
                     const bh = 24;
-                    const bx = midX - bw / 2;
+                    const bx = badgeX - bw / 2;
                     const by = (canvas.height - bh) / 2;
 
                     ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
@@ -5719,7 +5800,7 @@
                     ctx.fillStyle = '#ffffff';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(badgeText, midX, by + bh / 2 + 1);
+                    ctx.fillText(badgeText, badgeX, by + bh / 2 + 1);
                 } else {
                     // Horizontalni rezi
                     cutPositions.forEach(ratio => {
@@ -5741,13 +5822,14 @@
                         ctx.setLineDash([]);
                     });
 
-                    const midY = (sheetH * 0.5) * scale;
+                    const badgeCutRatioY = (cutPositions.length > 0) ? cutPositions[0] : 0.5;
+                    const badgeY = (sheetH * badgeCutRatioY) * scale;
                     ctx.font = 'bold 11px Inter, sans-serif';
                     const textMetrics = ctx.measureText(badgeText);
                     const bw = textMetrics.width + 20;
                     const bh = 24;
                     const bx = (canvas.width - bw) / 2;
-                    const by = midY - bh / 2;
+                    const by = badgeY - bh / 2;
 
                     ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
                     ctx.shadowColor = 'rgba(0,0,0,0.4)';
@@ -5760,7 +5842,7 @@
                     ctx.fillStyle = '#ffffff';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(badgeText, canvas.width / 2, midY + 1);
+                    ctx.fillText(badgeText, canvas.width / 2, badgeY + 1);
                 }
                 }
                 ctx.restore();
