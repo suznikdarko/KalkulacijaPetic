@@ -1295,10 +1295,11 @@
                                     <div class="form-group">
                                         <label>Cena papirja</label>
                                         <div class="input-group">
-                                            <input id="calc-paper-price" onchange="calculatePrice()" placeholder="Vpišite ceno"
-                                                step="0.01" type="number" value="" />
+                                            <input id="calc-paper-price" oninput="calculatePrice()" onchange="calculatePrice()" placeholder="Vpišite ceno"
+                                                type="text" inputmode="decimal" value="" />
                                             <select id="calc-paper-unit" onchange="calculatePrice()">
                                                 <option value="ton">na tono</option>
+                                                <option value="kg">na kg</option>
                                                 <option value="1000">na 1000 pol</option>
                                                 <option value="1">na 1 polo</option>
                                             </select>
@@ -1320,9 +1321,9 @@
                                         <label>Šifra materiala</label>
                                         <input id="calc-material-code" onchange="calculate()" placeholder="" type="text" value="" />
                                     </div>
-                                    <div class="form-group" style="display: none;">
+                                    <div class="form-group">
                                         <label>Gramatura listov (g/m²)</label>
-                                        <input id="calc-paper-weight" onchange="calculatePrice()" placeholder="80" type="number"
+                                        <input id="calc-paper-weight" oninput="calculatePrice()" onchange="calculatePrice()" placeholder="80" type="text" inputmode="numeric"
                                             value="" />
                                     </div>
                                     <div class="form-group" style="margin-bottom: 0; display:none;">
@@ -1343,11 +1344,12 @@
                                     <div class="form-group">
                                         <label>Cena podkartona</label>
                                         <div class="input-group">
-                                            <input id="calc-cardboard-price" onchange="calculatePrice()" step="0.01"
-                                                type="number" value="" placeholder="Vpišite ceno" />
+                                            <input id="calc-cardboard-price" oninput="calculatePrice()" onchange="calculatePrice()"
+                                                type="text" inputmode="decimal" value="" placeholder="Vpišite ceno" />
                                             <select id="calc-cardboard-unit" onchange="calculatePrice()">
                                                 <option value="sheet">na 1 polo</option>
                                                 <option value="1000">na 1000 pol</option>
+                                                <option value="kg">na kg</option>
                                                 <option selected="" value="ton">na tono</option>
                                             </select>
                                         </div>
@@ -1369,10 +1371,10 @@
                                         <input id="calc-cover-material-code" onchange="calculate()" placeholder="" type="text"
                                             value="" />
                                     </div>
-                                    <div class="form-group" style="display: none;">
+                                    <div class="form-group">
                                         <label>Gramatura podkartona (g/m²)</label>
-                                        <input id="calc-cardboard-weight" onchange="calculatePrice()" placeholder="300"
-                                            type="number" value="" />
+                                        <input id="calc-cardboard-weight" oninput="calculatePrice()" onchange="calculatePrice()" placeholder="300"
+                                            type="text" inputmode="numeric" value="" />
                                     </div>
                                 </div>
                             </div>
@@ -3045,9 +3047,35 @@ function initStockData() {
                 extractGrammage(descInput, weightInput.id);
             }
 
-            // PRIKAZ STANJA ZALOGE BREZ SAMODEJNEGA PRERAČUNAVANJA CEN/KALKULACIJE
+            if (formatStr) {
+                let fParts = String(formatStr).split(/[x×*]/);
+                if (fParts.length === 2) {
+                    let fw = parseFloat(fParts[0].trim());
+                    let fh = parseFloat(fParts[1].trim());
+                    if (!isNaN(fw) && !isNaN(fh) && fw > 0 && fh > 0) {
+                        if (fw < 200) fw *= 10;
+                        if (fh < 200) fh *= 10;
+                        let minD = Math.min(fw, fh);
+                        let maxD = Math.max(fw, fh);
+                        if (activeMaterialTarget === 'cover') {
+                            const swEl = document.getElementById('calc-source-cover-w');
+                            const shEl = document.getElementById('calc-source-cover-h');
+                            if (swEl) swEl.value = minD;
+                            if (shEl) shEl.value = maxD;
+                        } else {
+                            const swEl = document.getElementById('calc-source-w');
+                            const shEl = document.getElementById('calc-source-h');
+                            if (swEl) swEl.value = minD;
+                            if (shEl) shEl.value = maxD;
+                        }
+                    }
+                }
+            }
+
+            // PRIKAZ STANJA ZALOGE
             updateMaterialStockStatusBadge(descInput || codeInput, title, qty);
             closeStockSearchModal();
+            if (typeof calculate === 'function') calculate();
         }
 
         function openStockSearchModal(targetComp) {
@@ -3586,6 +3614,18 @@ window.addEventListener('error', function (e) {
                 const el = document.getElementById(id);
                 if (el) el.innerText = text;
             }
+            function parseLocaleFloat(val, defaultVal = 0) {
+                if (val === undefined || val === null) return defaultVal;
+                let clean = String(val).trim();
+                if (!clean) return defaultVal;
+                if (clean.includes('.') && clean.includes(',')) {
+                    clean = clean.replace(/\./g, '').replace(/,/g, '.');
+                } else if (clean.includes(',')) {
+                    clean = clean.replace(/,/g, '.');
+                }
+                const num = parseFloat(clean);
+                return isNaN(num) ? defaultVal : num;
+            }
             function extractGrammage(sourceEl, targetId) {
                 if (!sourceEl._grammageBlurBound) {
                     sourceEl.addEventListener('blur', function () {
@@ -4087,6 +4127,8 @@ window.addEventListener('error', function (e) {
                     if (sTotal) sTotal.innerText = formatPrice(r.totalPrice, 2);
                     if (sPerItem) sPerItem.innerText = formatPrice(r.perItem, 4);
                     if (s1000) s1000.innerText = formatPrice(r.perItem * 1000, 2);
+                    if (document.getElementById('res-price-paper')) document.getElementById('res-price-paper').innerText = formatPrice(r.paperCost, 2);
+                    if (document.getElementById('sticky-p-paper')) document.getElementById('sticky-p-paper').innerText = formatPrice(r.paperCost, 2);
                 }
 
                 // Prikaži tabelo za več naklad v specifikaciji
@@ -4793,22 +4835,33 @@ window.addEventListener('error', function (e) {
                     let totalSheetsNeeded = totalSheetsNeededLeaves + totalSheetsNeededCover;
 
                     // 1. MATERIAL
-                    let pPrice = parseFloat(document.getElementById('calc-paper-price')?.value || 0) || 0;
+                    let pPrice = parseLocaleFloat(document.getElementById('calc-paper-price')?.value, 0);
                     let pUnit = document.getElementById('calc-paper-unit')?.value || "ton";
-                    let pWeight = parseFloat(document.getElementById('calc-paper-weight')?.value || 135) || 135;
+                    let pWeight = parseLocaleFloat(document.getElementById('calc-paper-weight')?.value, 80) || 80;
 
                     let paperCost = 0;
-                    let pSupplyW = parseFloat(document.getElementById('calc-source-w')?.value || 700) || 700;
-                    let pSupplyH = parseFloat(document.getElementById('calc-source-h')?.value || 1000) || 1000;
+                    let pSupplyW = parseLocaleFloat(document.getElementById('calc-source-w')?.value, 700) || 700;
+                    let pSupplyH = parseLocaleFloat(document.getElementById('calc-source-h')?.value, 1000) || 1000;
                     let pYield = 1, pParentSheetsNeeded = 0;
 
-                    // Pridobi dimenzije za liste
-                    let drawWL = 0, drawHL = 0;
-                    let sizeTextL = document.getElementById('res-size-leaves-val')?.textContent || "";
-                    let sizeStrL = sizeTextL.split('x');
-                    if (sizeStrL.length === 2) {
-                        drawWL = parseFloat(sizeStrL[0]);
-                        drawHL = parseFloat(sizeStrL[1]);
+                    // Pridobi dimenzije za liste (uporabi predane parametre drawW/drawH ali preberi iz DOM)
+                    let drawWL = (typeof drawW === 'number' && !isNaN(drawW) && drawW > 0) ? drawW : 0;
+                    let drawHL = (typeof drawH === 'number' && !isNaN(drawH) && drawH > 0) ? drawH : 0;
+                    if (drawWL === 0 || drawHL === 0) {
+                        let sizeTextL = document.getElementById('res-size-leaves-val')?.textContent || document.getElementById('res-size')?.innerText || "";
+                        let sizeStrL = sizeTextL.split(/[x×]/);
+                        if (sizeStrL.length === 2) {
+                            drawWL = parseLocaleFloat(sizeStrL[0], 0);
+                            drawHL = parseLocaleFloat(sizeStrL[1], 0);
+                        }
+                    }
+                    if (drawWL === 0 || drawHL === 0) {
+                        let iw = parseLocaleFloat(document.getElementById('width')?.value, 0);
+                        let ih = parseLocaleFloat(document.getElementById('height')?.value, 0);
+                        if (iw > 0 && ih > 0) {
+                            drawWL = iw;
+                            drawHL = ih;
+                        }
                     }
 
                     if (drawWL > 0 && drawHL > 0) {
@@ -4816,55 +4869,60 @@ window.addEventListener('error', function (e) {
                         let pYield2 = Math.floor(pSupplyW / drawHL) * Math.floor(pSupplyH / drawWL);
                         pYield = Math.max(pYield1, pYield2) || 1;
                         pParentSheetsNeeded = Math.ceil(totalSheetsNeededLeaves / pYield);
+                    } else if (totalSheetsNeededLeaves > 0) {
+                        pParentSheetsNeeded = totalSheetsNeededLeaves;
                     }
 
                     if (!document.getElementById('calc-paper-active') || document.getElementById('calc-paper-active').checked) {
-                        if (drawWL > 0 && drawHL > 0) {
-                            if (pUnit === "1") {
-                                paperCost = pParentSheetsNeeded * pPrice;
-                            } else if (pUnit === "1000") {
-                                paperCost = (pParentSheetsNeeded / 1000) * pPrice;
-                            } else if (pUnit === "kg") {
-                                let areaM2 = (pSupplyW / 1000) * (pSupplyH / 1000);
-                                let sheetKg = areaM2 * (pWeight / 1000);
-                                paperCost = pParentSheetsNeeded * sheetKg * pPrice;
-                            } else if (pUnit === "ton") {
-                                let areaM2 = (pSupplyW / 1000) * (pSupplyH / 1000);
-                                let sheetKg = areaM2 * (pWeight / 1000);
-                                let totalKg = pParentSheetsNeeded * sheetKg;
-                                paperCost = (totalKg / 1000) * pPrice;
-                            }
+                        if (pUnit === "1") {
+                            paperCost = pParentSheetsNeeded * pPrice;
+                        } else if (pUnit === "1000") {
+                            paperCost = (pParentSheetsNeeded / 1000) * pPrice;
+                        } else if (pUnit === "kg") {
+                            let areaM2 = (pSupplyW / 1000) * (pSupplyH / 1000);
+                            let sheetKg = areaM2 * (pWeight / 1000);
+                            paperCost = pParentSheetsNeeded * sheetKg * pPrice;
+                        } else if (pUnit === "ton") {
+                            let areaM2 = (pSupplyW / 1000) * (pSupplyH / 1000);
+                            let sheetKg = areaM2 * (pWeight / 1000);
+                            let totalKg = pParentSheetsNeeded * sheetKg;
+                            paperCost = (totalKg / 1000) * pPrice;
                         }
                     }
 
                     // Podkarton (obračunamo, če je vnesena cena)
-                    let cbPrice = parseFloat(document.getElementById('calc-cardboard-price').value) || 0;
-                    let cbSupplyW = parseFloat(document.getElementById('calc-source-cover-w').value) || 700;
-                    let cbSupplyH = parseFloat(document.getElementById('calc-source-cover-h').value) || 1000;
+                    let cbPrice = parseLocaleFloat(document.getElementById('calc-cardboard-price')?.value, 0);
+                    let cbSupplyW = parseLocaleFloat(document.getElementById('calc-source-cover-w')?.value, 700) || 700;
+                    let cbSupplyH = parseLocaleFloat(document.getElementById('calc-source-cover-h')?.value, 1000) || 1000;
                     let cbYield = 1, cbParentSheetsNeeded = 0;
 
                     // Pridobi dimenzije za ovitek (že pridobljeno na začetku funkcije)
                     if (drawWC === 0 || drawHC === 0) {
-                        let sizeTextC = document.getElementById('res-size-cover-val').textContent;
-                        let sizeStrC = sizeTextC.split('x');
+                        let sizeTextC = document.getElementById('res-size-cover-val')?.textContent || "";
+                        let sizeStrC = sizeTextC.split(/[x×]/);
                         if (sizeStrC.length === 2) {
-                            drawWC = parseFloat(sizeStrC[0]);
-                            drawHC = parseFloat(sizeStrC[1]);
+                            drawWC = parseLocaleFloat(sizeStrC[0], 0);
+                            drawHC = parseLocaleFloat(sizeStrC[1], 0);
                         }
                     }
+                    let effCbW = drawWC > 0 ? drawWC : drawWL;
+                    let effCbH = drawHC > 0 ? drawHC : drawHL;
 
-                    if (drawWC > 0 && drawHC > 0) {
-                        let cbYield1 = Math.floor(cbSupplyW / drawWC) * Math.floor(cbSupplyH / drawHC);
-                        let cbYield2 = Math.floor(cbSupplyW / drawHC) * Math.floor(cbSupplyH / drawWC);
+                    if (effCbW > 0 && effCbH > 0) {
+                        let cbYield1 = Math.floor(cbSupplyW / effCbW) * Math.floor(cbSupplyH / effCbH);
+                        let cbYield2 = Math.floor(cbSupplyW / effCbH) * Math.floor(cbSupplyH / effCbW);
                         cbYield = Math.max(cbYield1, cbYield2) || 1;
-                        cbParentSheetsNeeded = Math.ceil(totalSheetsNeededCover / cbYield);
+                        let sheetsForCb = totalSheetsNeededCover > 0 ? totalSheetsNeededCover : totalItemsForm;
+                        cbParentSheetsNeeded = Math.ceil(sheetsForCb / cbYield);
+                    } else if (totalItemsForm > 0) {
+                        cbParentSheetsNeeded = totalItemsForm;
                     }
 
                     let cbUnit = document.getElementById('calc-cardboard-unit') ? document.getElementById('calc-cardboard-unit').value : "item";
-                    let cbWeight = parseFloat(document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : 300) || 300;
+                    let cbWeight = parseLocaleFloat(document.getElementById('calc-cardboard-weight')?.value, 300) || 300;
 
                     let cbCost = 0;
-                    if (cbPrice > 0 && drawWC > 0 && drawHC > 0) {
+                    if (cbPrice > 0) {
                         if (cbUnit === 'item') {
                             cbCost = totalItemsForm * cbPrice;
                         } else if (cbUnit === 'sheet') {
@@ -5507,10 +5565,10 @@ window.addEventListener('error', function (e) {
                                 sheetW: drawWL,
                                 sheetH: drawHL,
                                 yield: pYield,
-                                kg: (pUnit === "ton" || pUnit === "kg") ? (pParentSheetsNeeded * ((pSupplyW / 1000) * (pSupplyH / 1000)) * (pWeight / 1000)) : 0
+                                kg: (pParentSheetsNeeded * ((pSupplyW / 1000) * (pSupplyH / 1000)) * (pWeight / 1000))
                             },
                             cover: {
-                                active: cbPrice > 0,
+                                active: (cbPrice > 0 || (document.getElementById('calc-cover-desc') && document.getElementById('calc-cover-desc').value.trim() !== '') || totalSheetsNeededCover > 0),
                                 sheets: totalSheetsNeededCover,
                                 parentSheets: cbParentSheetsNeeded,
                                 sourceW: cbSupplyW,
@@ -5518,7 +5576,7 @@ window.addEventListener('error', function (e) {
                                 sheetW: drawWC,
                                 sheetH: drawHC,
                                 yield: cbYield,
-                                kg: (cbUnit === "ton" || cbUnit === "kg") ? (cbParentSheetsNeeded * ((cbSupplyW / 1000) * (cbSupplyH / 1000)) * ((parseFloat(document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : 300) || 300) / 1000)) : 0
+                                kg: (cbParentSheetsNeeded * ((cbSupplyW / 1000) * (cbSupplyH / 1000)) * (cbWeight / 1000))
                             }
                         },
                         leavesPrint: {
@@ -7639,6 +7697,11 @@ async function saveCurrentProject(btn = null) {
                     setV('calc-paper-price', inp.pPrice ?? inp.paperPrice ?? proj.pPrice ?? proj.paperPrice);
                     setV('calc-paper-unit', inp.pUnit ?? inp.paperUnit ?? proj.pUnit ?? proj.paperUnit);
                     setV('calc-paper-weight', inp.pWeight ?? inp.paperWeight ?? proj.pWeight ?? proj.paperWeight);
+                    let curPW = document.getElementById('calc-paper-weight');
+                    let curLM = document.getElementById('calc-leaves-material');
+                    if (curPW && (!curPW.value || curPW.value === '') && curLM && curLM.value) {
+                        extractGrammage(curLM, 'calc-paper-weight');
+                    }
                     setV('calc-paper-supply-type', inp.pSupplyType ?? proj.pSupplyType);
                     setV('calc-paper-supply-w', inp.pSupplyW ?? proj.pSupplyW);
                     setV('calc-paper-supply-h', inp.pSupplyH ?? proj.pSupplyH);
@@ -7687,6 +7750,11 @@ async function saveCurrentProject(btn = null) {
                     setV('calc-cardboard-price', inp.cbPrice !== undefined ? inp.cbPrice : inp.cardboardPrice);
                     setV('calc-cardboard-unit', inp.cbUnit !== undefined ? inp.cbUnit : inp.cardboardUnit);
                     setV('calc-cardboard-weight', inp.cbWeight !== undefined ? inp.cbWeight : inp.cardboardWeight);
+                    let curCW = document.getElementById('calc-cardboard-weight');
+                    let curCD = document.getElementById('calc-cover-desc');
+                    if (curCW && (!curCW.value || curCW.value === '') && curCD && curCD.value) {
+                        extractGrammage(curCD, 'calc-cardboard-weight');
+                    }
                     setV('calc-cb-supply-type', inp.cbSupplyType);
                     setV('calc-cb-supply-w', inp.cbSupplyW);
                     setV('calc-cb-supply-h', inp.cbSupplyH);
