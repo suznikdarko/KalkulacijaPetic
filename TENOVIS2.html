@@ -12811,14 +12811,28 @@ function loadProject(id) {
                 nameSpan.textContent = `📄 ${p.name || 'Dokument ' + (idx + 1)}`;
                 item.appendChild(nameSpan);
 
-                // Gumb za ogled
+                // Gumb za ogled (stransko okno)
                 const viewBtn = document.createElement('button');
                 viewBtn.type = 'button';
                 viewBtn.onclick = () => openPdfViewerModal(idx);
                 viewBtn.style.cssText = 'background: #2563eb; color: white; border: none; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-weight: bold; font-size: 0.72rem;';
-                viewBtn.title = 'Odpri predogled tega PDF dokumenta';
+                viewBtn.title = 'Odpri izvirni PDF v stranskem oknu ob kalkulaciji';
                 viewBtn.textContent = '👁️ Poglej';
                 item.appendChild(viewBtn);
+
+                // Gumb za odprtje v novem zavihku
+                const tabBtn = document.createElement('button');
+                tabBtn.type = 'button';
+                tabBtn.onclick = () => {
+                    syncActiveAttachedPdf();
+                    g_currentPdfIndex = idx;
+                    g_attachedPdf = g_attachedPdfs[idx];
+                    openPdfInNewTab();
+                };
+                tabBtn.style.cssText = 'background: #4f46e5; color: white; border: none; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-weight: bold; font-size: 0.72rem;';
+                tabBtn.title = 'Odpri izvirni PDF v novem zavihku ali na drugem zaslonu';
+                tabBtn.textContent = '↗ Zavihek';
+                item.appendChild(tabBtn);
 
                 // Gumb za prenos podatkov
                 const dataBtn = document.createElement('button');
@@ -13053,23 +13067,70 @@ function loadProject(id) {
             }
         }
 
-        // --- ZANESLJIV PDF PREGLEDOVALNIK (CANVAS IZRIS Z VISOKO LOČLJIVOSTJO IN OSTRINO + VGRAJENI BRSKALNIK) ---
-        var g_pdfViewerMode = 'canvas'; // 'canvas' ali 'native'
+        // --- ZANESLJIV PDF PREGLEDOVALNIK (IZVIRNI BRSKALNIŠKI PREDOGLED + STRANSKI DELJENI POGLED) ---
+        var g_pdfViewerMode = 'native'; // 'native' (izvirni originalni PDF z označevanjem/kopiranjem) ali 'canvas'
+        var g_pdfViewerLayout = 'side'; // 'side' (stransko okno ob kalkulaciji) ali 'full' (celozaslonski)
+        var g_pdfViewerWidth = '52%';
         var g_pdfNativeBlobUrl = null;
 
+        function setPdfViewerLayout(layout, customWidth) {
+            g_pdfViewerLayout = layout || 'side';
+            const modal = document.getElementById('modal-pdf-viewer');
+            const btnSide = document.getElementById('btn-layout-side');
+            const btnFull = document.getElementById('btn-layout-full');
+            const resizer = document.getElementById('pdf-viewer-resizer');
+            const widthPresets = document.getElementById('pdf-width-presets');
+            if (!modal) return;
+
+            if (g_pdfViewerLayout === 'side') {
+                modal.style.left = 'auto';
+                modal.style.right = '0';
+                modal.style.top = '0';
+                modal.style.bottom = '0';
+                modal.style.width = customWidth || g_pdfViewerWidth || '52%';
+                modal.style.maxWidth = '95vw';
+                modal.style.minWidth = '380px';
+                modal.style.height = '100vh';
+                modal.style.borderLeft = '3px solid #3b82f6';
+                modal.style.boxShadow = '-15px 0 50px rgba(0,0,0,0.85)';
+                modal.style.background = '#0f172a';
+                if (resizer) resizer.style.display = 'block';
+                if (widthPresets) widthPresets.style.display = 'flex';
+                if (btnSide) { btnSide.style.background = '#2563eb'; btnSide.style.color = 'white'; }
+                if (btnFull) { btnFull.style.background = 'transparent'; btnFull.style.color = '#94a3b8'; }
+            } else {
+                modal.style.left = '0';
+                modal.style.right = '0';
+                modal.style.top = '0';
+                modal.style.bottom = '0';
+                modal.style.width = '100%';
+                modal.style.maxWidth = 'none';
+                modal.style.minWidth = 'none';
+                modal.style.height = '100vh';
+                modal.style.borderLeft = 'none';
+                modal.style.boxShadow = 'none';
+                modal.style.background = 'rgba(15,23,42,0.96)';
+                if (resizer) resizer.style.display = 'none';
+                if (widthPresets) widthPresets.style.display = 'none';
+                if (btnSide) { btnSide.style.background = 'transparent'; btnSide.style.color = '#94a3b8'; }
+                if (btnFull) { btnFull.style.background = '#2563eb'; btnFull.style.color = 'white'; }
+            }
+        }
+
         function setPdfViewerMode(mode) {
-            g_pdfViewerMode = mode;
+            g_pdfViewerMode = mode || 'native';
             const canvasContainer = document.getElementById('pdf-viewer-canvas-mode');
             const iframeContainer = document.getElementById('pdf-viewer-iframe-mode');
             const btnCanvas = document.getElementById('btn-mode-canvas');
             const btnNative = document.getElementById('btn-mode-native');
             const zoomToolbar = document.getElementById('pdf-zoom-toolbar');
+            const nativeTip = document.getElementById('pdf-native-tip');
 
-            if (mode === 'native') {
+            if (g_pdfViewerMode === 'native') {
                 if (canvasContainer) canvasContainer.style.display = 'none';
                 if (iframeContainer) iframeContainer.style.display = 'flex';
-                if (zoomToolbar) zoomToolbar.style.opacity = '0.35';
-                if (zoomToolbar) zoomToolbar.style.pointerEvents = 'none';
+                if (zoomToolbar) zoomToolbar.style.display = 'none';
+                if (nativeTip) nativeTip.style.display = 'flex';
                 if (btnCanvas) {
                     btnCanvas.style.background = 'transparent';
                     btnCanvas.style.color = '#94a3b8';
@@ -13082,8 +13143,8 @@ function loadProject(id) {
             } else {
                 if (canvasContainer) canvasContainer.style.display = 'flex';
                 if (iframeContainer) iframeContainer.style.display = 'none';
-                if (zoomToolbar) zoomToolbar.style.opacity = '1';
-                if (zoomToolbar) zoomToolbar.style.pointerEvents = 'auto';
+                if (zoomToolbar) zoomToolbar.style.display = 'flex';
+                if (nativeTip) nativeTip.style.display = 'none';
                 if (btnCanvas) {
                     btnCanvas.style.background = '#2563eb';
                     btnCanvas.style.color = 'white';
@@ -13328,7 +13389,15 @@ function loadProject(id) {
                 }
                 if (blob) {
                     const blobUrl = URL.createObjectURL(blob);
-                    window.open(blobUrl, '_blank');
+                    let win = null;
+                    try {
+                        if (window.top && window.top !== window) {
+                            win = window.top.open(blobUrl, '_blank');
+                        }
+                    } catch(e) {}
+                    if (!win) {
+                        window.open(blobUrl, '_blank');
+                    }
                 }
             } catch(e) {
                 console.error("Napaka pri odpiranju PDF v novem zavihku:", e);
@@ -13427,12 +13496,9 @@ function loadProject(id) {
             if (modal) {
                 modal.style.display = 'flex';
                 g_currentPdfDoc = null;
-                g_pdfZoomScale = 'readable'; // Udobno veliko za takojšnje branje
-                g_pdfViewerMode = 'canvas';
-                setPdfViewerMode('canvas');
-                setTimeout(() => {
-                    renderPdfDocument();
-                }, 50);
+                setPdfViewerLayout(g_pdfViewerLayout || 'side');
+                setPdfViewerMode('native');
+                initPdfViewerResizer();
             }
         }
 
@@ -13452,6 +13518,42 @@ function loadProject(id) {
                 g_pdfNativeBlobUrl = null;
             }
             g_currentPdfDoc = null;
+        }
+
+        var g_resizerInitialized = false;
+        function initPdfViewerResizer() {
+            if (g_resizerInitialized) return;
+            const resizer = document.getElementById('pdf-viewer-resizer');
+            const modal = document.getElementById('modal-pdf-viewer');
+            const iframe = document.getElementById('pdf-viewer-native-frame');
+            if (!resizer || !modal) return;
+            g_resizerInitialized = true;
+
+            let isResizing = false;
+
+            resizer.addEventListener('mousedown', (e) => {
+                if (g_pdfViewerLayout !== 'side') return;
+                isResizing = true;
+                if (iframe) iframe.style.pointerEvents = 'none';
+                document.body.style.cursor = 'ew-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                const newWidth = Math.max(380, Math.min(window.innerWidth - 250, window.innerWidth - e.clientX));
+                g_pdfViewerWidth = newWidth + 'px';
+                modal.style.width = g_pdfViewerWidth;
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (!isResizing) return;
+                isResizing = false;
+                if (iframe) iframe.style.pointerEvents = 'auto';
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            });
         }
 
         // Povečava/pomanjšava s kolescem miške (Ctrl + Wheel)
@@ -13882,55 +13984,63 @@ function loadProject(id) {
         </div>
     </div>
 
-    <!-- MODAL PREGLEDOVALNIK PDF DOKUMENTA -->
-    <div id="modal-pdf-viewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.95); backdrop-filter:blur(10px); z-index:1000000; flex-direction:column; overflow:hidden; font-family:'Inter',sans-serif;">
-        <div style="padding:10px 18px; background:#1e293b; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; color:white; flex-wrap:wrap; gap:10px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:1.1rem; font-weight:bold; color:#60a5fa; display:flex; align-items:center; gap:6px;">📄 Pregledovalnik PDF</span>
+    <!-- MODAL / STRANSKI PREGLEDOVALNIK PDF DOKUMENTA -->
+    <div id="modal-pdf-viewer" style="display:none; position:fixed; top:0; right:0; width:52%; height:100vh; background:#0f172a; z-index:999999; flex-direction:column; overflow:hidden; font-family:'Inter',sans-serif; border-left:3px solid #3b82f6; box-shadow:-15px 0 50px rgba(0,0,0,0.85);">
+        <!-- Vlečnik za poljubno širino (Resizer) -->
+        <div id="pdf-viewer-resizer" style="position:absolute; left:0; top:0; width:6px; height:100%; cursor:ew-resize; background:rgba(59,130,246,0.35); z-index:1000; transition:background 0.2s;" title="Povlecite levo ali desno za poljubno širino okna" onmouseover="this.style.background='#3b82f6'" onmouseout="this.style.background='rgba(59,130,246,0.35)'"></div>
+
+        <!-- HEADER / TOOLBAR -->
+        <div style="padding:10px 14px; background:#1e293b; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; color:white; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:1.05rem; font-weight:bold; color:#60a5fa; display:flex; align-items:center; gap:6px;">📄 Izvirni PDF</span>
                 <button type="button" id="pdf-viewer-prev-btn" onclick="switchPdfPrev()" title="Prejšnji PDF dokument" style="display:none; background:#334155; color:white; border:none; border-radius:4px; width:26px; height:26px; cursor:pointer; font-weight:bold;">◀</button>
-                <select id="pdf-viewer-selector" onchange="switchPdfInViewer(parseInt(this.value))" style="display:none; background:#0f172a; color:#f8fafc; border:1px solid #3b82f6; border-radius:6px; padding:4px 8px; font-size:0.82rem; max-width:280px; cursor:pointer; font-weight:600;"></select>
+                <select id="pdf-viewer-selector" onchange="switchPdfInViewer(parseInt(this.value))" style="display:none; background:#0f172a; color:#f8fafc; border:1px solid #3b82f6; border-radius:6px; padding:3px 6px; font-size:0.8rem; max-width:200px; cursor:pointer; font-weight:600;"></select>
                 <button type="button" id="pdf-viewer-next-btn" onclick="switchPdfNext()" title="Naslednji PDF dokument" style="display:none; background:#334155; color:white; border:none; border-radius:4px; width:26px; height:26px; cursor:pointer; font-weight:bold;">▶</button>
-                <span id="pdf-viewer-filename" style="background:#0f172a; padding:4px 12px; border-radius:6px; font-size:0.85rem; color:#cbd5e1; border:1px solid #475569; max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
-                <span id="pdf-viewer-pages-info" style="font-size:0.82rem; color:#94a3b8;"></span>
+                <span id="pdf-viewer-filename" style="background:#0f172a; padding:3px 10px; border-radius:6px; font-size:0.82rem; color:#cbd5e1; border:1px solid #475569; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+                <span id="pdf-viewer-pages-info" style="font-size:0.8rem; color:#94a3b8;"></span>
             </div>
 
-            <!-- PREKLOP NAČINA POGLEDA -->
-            <div style="display:flex; background:#0f172a; padding:3px; border-radius:8px; border:1px solid #334155; gap:2px;">
-                <button type="button" id="btn-mode-canvas" onclick="setPdfViewerMode('canvas')" title="Izris z visoko ostrino in nastavitvami povečave" style="background:#2563eb; color:white; border:none; border-radius:6px; padding:4px 10px; font-size:0.75rem; font-weight:700; cursor:pointer;">🖼️ Jasen izris</button>
-                <button type="button" id="btn-mode-native" onclick="setPdfViewerMode('native')" title="Vgrajeni brskalniški PDF pregledovalnik z orodno vrstico brskalnika" style="background:transparent; color:#94a3b8; border:none; border-radius:6px; padding:4px 10px; font-size:0.75rem; font-weight:600; cursor:pointer;">📄 Vgrajen brskalnik</button>
+            <!-- PREKLOP STRANSKI / POLNI POGLED + HITRE ŠIRINE -->
+            <div style="display:flex; align-items:center; gap:4px; background:#0f172a; padding:3px 6px; border-radius:8px; border:1px solid #334155;">
+                <button type="button" id="btn-layout-side" onclick="setPdfViewerLayout('side')" title="Stranski pogled ob kalkulaciji (kalkulacija ostane vidna na levi)" style="background:#2563eb; color:white; border:none; border-radius:5px; padding:4px 8px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;">🌓 Ob kalkulaciji</button>
+                <div id="pdf-width-presets" style="display:flex; gap:2px;">
+                    <button type="button" onclick="setPdfViewerLayout('side', '40%')" title="Širina 40%" style="background:#1e293b; color:#94a3b8; border:none; border-radius:4px; padding:3px 6px; font-size:0.7rem; font-weight:600; cursor:pointer;">40%</button>
+                    <button type="button" onclick="setPdfViewerLayout('side', '52%')" title="Širina 50%" style="background:#1e293b; color:#94a3b8; border:none; border-radius:4px; padding:3px 6px; font-size:0.7rem; font-weight:600; cursor:pointer;">50%</button>
+                    <button type="button" onclick="setPdfViewerLayout('side', '65%')" title="Širina 65%" style="background:#1e293b; color:#94a3b8; border:none; border-radius:4px; padding:3px 6px; font-size:0.7rem; font-weight:600; cursor:pointer;">65%</button>
+                </div>
+                <button type="button" id="btn-layout-full" onclick="setPdfViewerLayout('full')" title="Celozaslonski pogled (100% širina)" style="background:transparent; color:#94a3b8; border:none; border-radius:5px; padding:4px 8px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:4px;">⬛ Cel zaslon</button>
             </div>
 
-            <div id="pdf-zoom-toolbar" style="display:flex; align-items:center; gap:6px; background:#0f172a; padding:4px 8px; border-radius:8px; border:1px solid #334155;">
-                <button type="button" onclick="changePdfZoom(-0.2)" title="Pomanjšaj (−)" style="background:#334155; color:white; border:none; border-radius:4px; width:28px; height:28px; cursor:pointer; font-weight:bold; font-size:1rem; display:flex; align-items:center; justify-content:center;">−</button>
-                <span id="pdf-zoom-level" style="font-size:0.82rem; font-weight:bold; color:#e2e8f0; min-width:46px; text-align:center;">100%</span>
-                <button type="button" onclick="changePdfZoom(0.2)" title="Povečaj (+)" style="background:#334155; color:white; border:none; border-radius:4px; width:28px; height:28px; cursor:pointer; font-weight:bold; font-size:1rem; display:flex; align-items:center; justify-content:center;">+</button>
-                <button type="button" onclick="setPdfZoomReadable()" title="Optimalna velikost za takojšnje branje besedila (~1050px)" style="background:#2563eb; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.75rem; font-weight:700;">🔍 Berljivo</button>
-                <button type="button" onclick="setPdfZoomFit()" title="Prilagodi širini okna" style="background:#334155; color:#93c5fd; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.75rem; font-weight:600;">↔ Širina</button>
-                <button type="button" onclick="setPdfZoomPage()" title="Celotna stran v oknu brez drsenja" style="background:#334155; color:#cbd5e1; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.75rem;">↕ Stran</button>
-                <button type="button" onclick="setPdfZoom(1.0)" title="100% velikost" style="background:#334155; color:#cbd5e1; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.75rem;">100%</button>
-                <button type="button" onclick="setPdfZoom(1.5)" title="150% povečava" style="background:#334155; color:#cbd5e1; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.75rem;">150%</button>
-                <button type="button" onclick="setPdfZoom(2.0)" title="200% povečava" style="background:#334155; color:#cbd5e1; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.75rem;">200%</button>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <button type="button" onclick="openPdfInNewTab()" title="Odpri PDF v novem zavihku brskalnika" style="background:#4f46e5; color:white; border:none; border-radius:6px; padding:6px 12px; font-size:0.8rem; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">↗ V novem zavihku</button>
-                <button type="button" onclick="downloadAttachedPdf()" title="Prenesi izvirno PDF datoteko" style="background:#0284c7; color:white; border:none; border-radius:6px; padding:6px 12px; font-size:0.8rem; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">💾 Prenesi PDF</button>
-                <button type="button" onclick="reopenPdfDataModal()" style="background:linear-gradient(135deg, #8b5cf6, #7c3aed); color:white; border:none; border-radius:6px; padding:6px 14px; font-size:0.8rem; font-weight:bold; cursor:pointer; box-shadow:0 2px 10px rgba(139,92,246,0.3); display:flex; align-items:center; gap:5px;">⚡ Prenesi podatke v kalkulacijo</button>
-                <button type="button" onclick="closePdfViewerModal()" style="background:#ef4444; color:white; border:none; border-radius:6px; padding:6px 14px; font-size:0.8rem; font-weight:bold; cursor:pointer;">✕ Zapri (Esc)</button>
+            <!-- GUMBI ZA AKCIJE -->
+            <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" onclick="openPdfInNewTab()" title="Odpri izvirni PDF v novem zavihku brskalnika ali na drugem zaslonu" style="background:#4f46e5; color:white; border:none; border-radius:6px; padding:5px 10px; font-size:0.78rem; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">↗ V novem zavihku</button>
+                <button type="button" onclick="reopenPdfDataModal()" title="Ponovno preveri in samodejno prenesi polja iz PDF v kalkulacijo" style="background:linear-gradient(135deg, #8b5cf6, #7c3aed); color:white; border:none; border-radius:6px; padding:5px 10px; font-size:0.78rem; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">⚡ Samodejni prenos</button>
+                <button type="button" onclick="downloadAttachedPdf()" title="Prenesi izvirno PDF datoteko" style="background:#0284c7; color:white; border:none; border-radius:6px; padding:5px 8px; font-size:0.78rem; font-weight:bold; cursor:pointer;">💾</button>
+                <button type="button" onclick="closePdfViewerModal()" title="Zapri stransko okno (Esc)" style="background:#ef4444; color:white; border:none; border-radius:6px; padding:5px 12px; font-size:0.8rem; font-weight:bold; cursor:pointer;">✕</button>
             </div>
         </div>
 
-        <!-- CANVAS NAČIN POGLEDA -->
-        <div id="pdf-viewer-canvas-mode" style="flex:1; width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden;">
+        <!-- OPOZORILO / NAVODILO ZA KOPIRANJE V PONUDBO -->
+        <div id="pdf-native-tip" style="background:rgba(30, 41, 59, 0.95); border-bottom:1px solid #334155; padding:6px 14px; font-size:0.78rem; color:#cbd5e1; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <span style="display:flex; align-items:center; gap:6px;">
+                <span style="color:#38bdf8; font-weight:bold;">💡 KOPIRANJE V PONUDBO:</span> 
+                V dokumentu spodaj z miško označite želeno besedilo in pritisnite <kbd style="background:#0f172a; padding:1px 6px; border-radius:4px; border:1px solid #475569; font-weight:bold; color:#60a5fa;">Ctrl + C</kbd>, nato ga prilepite (<kbd style="background:#0f172a; padding:1px 6px; border-radius:4px; border:1px solid #475569; font-weight:bold; color:#60a5fa;">Ctrl + V</kbd>) v polje kalkulacije na levi.
+            </span>
+            <span style="font-size:0.73rem; color:#94a3b8; font-weight:600;">100% izvirni PDF brez popačenj</span>
+        </div>
+
+        <!-- VGRAJENI BRSKALNIŠKI IFRAME NAČIN POGLEDA (GLAVNI IN PRIVZETI) -->
+        <div id="pdf-viewer-iframe-mode" style="flex:1; width:100%; height:100%; display:flex; flex-direction:column; background:#0b1120;">
+            <iframe id="pdf-viewer-native-frame" src="about:blank" style="width:100%; height:100%; border:none; background:#1e293b;" title="Vgrajeni PDF pregledovalnik"></iframe>
+        </div>
+
+        <!-- CANVAS NAČIN POGLEDA (REZERVNI) -->
+        <div id="pdf-viewer-canvas-mode" style="flex:1; width:100%; height:100%; display:none; flex-direction:column; overflow:hidden;">
             <div id="pdf-viewer-scroll-container" style="flex:1; background:#0b1120; overflow:auto; display:flex; flex-direction:column; align-items:center; gap:20px; padding:24px; position:relative;">
                 <div id="pdf-viewer-loading" style="display:none; color:#cbd5e1; font-size:1rem; margin-top:60px; background:#1e293b; padding:16px 28px; border-radius:12px; border:1px solid #334155; box-shadow:0 10px 25px rgba(0,0,0,0.5); font-family:sans-serif;">
-                    ⏳ Nalaganje in izrisovanje PDF dokumenta z visoko ostrino...
+                    ⏳ Nalaganje in izrisovanje PDF dokumenta...
                 </div>
             </div>
-        </div>
-
-        <!-- VGRAJENI BRSKALNIŠKI IFRAME NAČIN POGLEDA -->
-        <div id="pdf-viewer-iframe-mode" style="flex:1; width:100%; height:100%; display:none; flex-direction:column; background:#0b1120;">
-            <iframe id="pdf-viewer-native-frame" src="about:blank" style="width:100%; height:100%; border:none; background:#1e293b;" title="Vgrajeni PDF pregledovalnik"></iframe>
         </div>
     </div>
 
