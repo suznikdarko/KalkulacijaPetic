@@ -9688,18 +9688,38 @@
                 const stockData = [];
                 if (wb.Sheets['TRENUTNA ZALOGA']) {
                     const rowsZ = XLSX.utils.sheet_to_json(wb.Sheets['TRENUTNA ZALOGA'], { header: 1 });
+                    let colIdxSifra = 0, colIdxNaziv = 1, colIdxSirina = 2, colIdxVisina = 3, colIdxGram = 4, colIdxZacetna = 5, colIdxTrenutna = 8;
+                    if (rowsZ.length > 0) {
+                        const hRow = rowsZ[0] || [];
+                        for (let c = 0; c < hRow.length; c++) {
+                            const h = String(hRow[c] || '').toLowerCase().trim();
+                            if (h.includes('šifra') || h.includes('sifra')) colIdxSifra = c;
+                            else if (h.includes('naziv') || h.includes('ime')) colIdxNaziv = c;
+                            else if (h.includes('širina') || h.includes('sirina')) colIdxSirina = c;
+                            else if (h.includes('višina') || h.includes('visina')) colIdxVisina = c;
+                            else if (h.includes('gram')) colIdxGram = c;
+                            else if (h.includes('začetna') || h.includes('zacetna')) colIdxZacetna = c;
+                            else if (h.includes('trenutna')) colIdxTrenutna = c;
+                        }
+                    }
+
                     for (let r = 1; r < rowsZ.length; r++) {
                         const row = rowsZ[r];
-                        if (row && row[0] !== undefined) {
-                            const sif = String(row[0]).trim();
-                            const naziv = String(row[1] || '').trim();
-                            const sirina = row[2] || '';
-                            const visina = row[3] || '';
-                            const gramatura = row[4] || '';
-                            const zacetna = parseFloat(row[5]) || 0;
+                        if (row && row[colIdxSifra] !== undefined) {
+                            const sif = String(row[colIdxSifra]).trim();
+                            const naziv = String(row[colIdxNaziv] || '').trim();
+                            const sirina = row[colIdxSirina] || '';
+                            const visina = row[colIdxVisina] || '';
+                            const gramatura = row[colIdxGram] || '';
+                            const zacetna = parseFloat(row[colIdxZacetna]) || 0;
                             const pVal = prispeloMap[sif] || 0;
                             const oVal = odpisMap[sif] || 0;
-                            const zalogaVal = zacetna + pVal - oVal;
+                            
+                            const cTrenutnaRaw = row[colIdxTrenutna];
+                            let zalogaVal = (cTrenutnaRaw !== undefined && cTrenutnaRaw !== null && String(cTrenutnaRaw).trim() !== '' && !isNaN(parseFloat(cTrenutnaRaw)))
+                                ? parseFloat(cTrenutnaRaw)
+                                : (zacetna + pVal - oVal);
+
                             const formatStr = (sirina && visina) ? `${sirina}x${visina}` : '';
 
                             stockData.push({
@@ -9713,6 +9733,7 @@
                                 'začetna zaloga': zacetna,
                                 'prispelo': pVal,
                                 'odpis': oVal,
+                                'trenutna zaloga': zalogaVal,
                                 'zaloga': zalogaVal
                             });
                         }
@@ -9757,7 +9778,11 @@
         function searchStock(queryStr) {
             if (!stockDataList || stockDataList.length === 0) return [];
             if (!queryStr || queryStr.trim().length === 0) {
-                return [...stockDataList].sort((a, b) => (parseFloat(b.zaloga || b.Zaloga) || 0) - (parseFloat(a.zaloga || a.Zaloga) || 0)).slice(0, 50);
+                return [...stockDataList].sort((a, b) => {
+                    const qB = parseFloat(b['trenutna zaloga'] !== undefined ? b['trenutna zaloga'] : (b.zaloga !== undefined ? b.zaloga : b.Zaloga)) || 0;
+                    const qA = parseFloat(a['trenutna zaloga'] !== undefined ? a['trenutna zaloga'] : (a.zaloga !== undefined ? a.zaloga : a.Zaloga)) || 0;
+                    return qB - qA;
+                }).slice(0, 50);
             }
 
             let cleanQuery = queryStr.toLowerCase().trim()
@@ -9822,8 +9847,8 @@
             });
 
             return matches.sort((a, b) => {
-                const qA = parseFloat(a.zaloga !== undefined ? a.zaloga : a.Zaloga) || 0;
-                const qB = parseFloat(b.zaloga !== undefined ? b.zaloga : b.Zaloga) || 0;
+                const qA = parseFloat(a['trenutna zaloga'] !== undefined ? a['trenutna zaloga'] : (a.zaloga !== undefined ? a.zaloga : a.Zaloga)) || 0;
+                const qB = parseFloat(b['trenutna zaloga'] !== undefined ? b['trenutna zaloga'] : (b.zaloga !== undefined ? b.zaloga : b.Zaloga)) || 0;
                 if (qA > 0 && qB <= 0) return -1;
                 if (qA <= 0 && qB > 0) return 1;
                 return qB - qA;
@@ -9925,7 +9950,7 @@
             } else if (title && title.trim().length >= 2) {
                 const matches = searchStock(title);
                 if (matches && matches.length > 0) {
-                    const totalQty = matches.reduce((sum, item) => sum + (parseFloat(item.zaloga !== undefined ? item.zaloga : item.Zaloga) || 0), 0);
+                    const totalQty = matches.reduce((sum, item) => sum + (parseFloat(item['trenutna zaloga'] !== undefined ? item['trenutna zaloga'] : (item.zaloga !== undefined ? item.zaloga : item.Zaloga)) || 0), 0);
                     const firstName = matches[0].naziv || matches[0].Naziv || title;
                     if (totalQty > 0) {
                         if (matches.length === 1) {
@@ -10009,7 +10034,7 @@
             results.slice(0, 25).forEach(item => {
                 const title = item['naziv'] || item['opis'] || item['material'] || item['Naziv'] || 'Neznan material';
                 const code = item['šifra materiala'] || item['sifra'] || item['šifra'] || item['Šifra materiala'] || '';
-                const qty = item['zaloga'] !== undefined ? item['zaloga'] : (item['Zaloga'] !== undefined ? item['Zaloga'] : 0);
+                const qty = item['trenutna zaloga'] !== undefined ? item['trenutna zaloga'] : (item['zaloga'] !== undefined ? item['zaloga'] : (item['Zaloga'] !== undefined ? item['Zaloga'] : 0));
                 const gram = item['gramatura'] || '';
                 const qtyNum = parseFloat(qty) || 0;
                 const qtyColor = qtyNum > 0 ? '#34d399' : '#f87171';
@@ -10145,7 +10170,7 @@
                         <th style="padding: 10px 8px;">Šifra</th>
                         <th style="padding: 10px 8px;">Naziv materiala</th>
                         <th style="padding: 10px 8px;">Format</th>
-                        <th style="padding: 10px 8px; text-align: right;">Zaloga (pol)</th>
+                        <th style="padding: 10px 8px; text-align: right;">Trenutna zaloga (pol)</th>
                         <th style="padding: 10px 8px; text-align: center;">Akcija</th>
                     </tr>
                 </thead>
@@ -10154,11 +10179,19 @@
             results.slice(0, 100).forEach(item => {
                 const title = item['naziv'] || item['opis'] || item['material'] || item['Naziv'] || 'Neznan material';
                 const code = item['šifra materiala'] || item['sifra'] || item['šifra'] || item['Šifra materiala'] || '-';
-                const qty = item['zaloga'] !== undefined ? item['zaloga'] : (item['Zaloga'] !== undefined ? item['Zaloga'] : 0);
+                const qty = item['trenutna zaloga'] !== undefined ? item['trenutna zaloga'] : (item['zaloga'] !== undefined ? item['zaloga'] : (item['Zaloga'] !== undefined ? item['Zaloga'] : 0));
                 const gram = item['gramatura'] || '';
                 const qtyNum = parseFloat(qty) || 0;
                 const qtyColor = qtyNum > 0 ? '#34d399' : '#f87171';
                 const formatStr = item['format'] || (item['širina'] && item['višina'] ? `${item['širina']}x${item['višina']}` : '-');
+
+                const zacZ = item['začetna zaloga'] !== undefined ? parseFloat(item['začetna zaloga']) : null;
+                const priZ = item['prispelo'] !== undefined ? parseFloat(item['prispelo']) : null;
+                const odpZ = item['odpis'] !== undefined ? parseFloat(item['odpis']) : null;
+                let tipStr = '';
+                if (zacZ !== null || priZ !== null || odpZ !== null) {
+                    tipStr = `Začetna zaloga: ${(zacZ || 0).toLocaleString('de-DE')} pol | Prispelo: ${(priZ || 0).toLocaleString('de-DE')} pol | Odpis: ${(odpZ || 0).toLocaleString('de-DE')} pol`;
+                }
 
                 const safeTitle = escapeJsStr(title);
                 const safeCode = escapeJsStr(code === '-' ? '' : code);
@@ -10170,9 +10203,12 @@
                         <td style="padding: 8px; font-family: monospace; color: #38bdf8; font-weight: bold;">${escapeHtml(code)}</td>
                         <td style="padding: 8px; font-weight: bold; color: #f8fafc;">${escapeHtml(title)} ${gram ? `<span style="color:#a7f3d0; font-size:0.78rem;">(${gram}g)</span>` : ''}</td>
                         <td style="padding: 8px; color: #fbbf24;">${escapeHtml(formatStr)}</td>
-                        <td style="padding: 8px; text-align: right; font-weight: bold; color: ${qtyColor};">📦 ${qtyNum.toLocaleString('de-DE')} pol</td>
+                        <td style="padding: 8px; text-align: right; font-weight: bold; color: ${qtyColor};" title="${escapeHtml(tipStr)}">
+                            📦 ${qtyNum.toLocaleString('de-DE')} pol
+                            ${(zacZ !== null && !isNaN(zacZ) && Math.round(zacZ) !== Math.round(qtyNum)) ? `<div style="font-size:0.7rem; color:#94a3b8; font-weight:normal;" title="Začetna zaloga">zač: ${zacZ.toLocaleString('de-DE')}</div>` : ''}
+                        </td>
                         <td style="padding: 8px; text-align: center;">
-                            <button type="button" onclick="selectStockItem('${safeTitle}', '${safeCode}', '${safeGram}', '${safeFmt}')" style="padding: 4px 10px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">Izberi</button>
+                            <button type="button" onclick="selectStockItem('${safeTitle}', '${safeCode}', '${safeGram}', '${safeFmt}', ${qtyNum})" style="padding: 4px 10px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">Izberi</button>
                         </td>
                     </tr>
                 `;
