@@ -3337,6 +3337,16 @@
 
                                 </div>
 
+                                <!-- Druga vrstica: Obseg plastifikacije -->
+                                <div></div>
+                                <div class="form-group" style="margin:0; grid-column: span 2;">
+                                    <label><small>Obseg plastifikacije</small></label>
+                                    <select id="f-lam-scope" onchange="calculate()" style="padding:0.2rem; font-size:0.75rem; width:100%;">
+                                        <option value="all">Vsi listi (celotna brošura)</option>
+                                        <option value="cover">Samo zunanja pola (ovitek)</option>
+                                    </select>
+                                </div>
+
                             </div>
 
 
@@ -6225,40 +6235,51 @@
 
 
                     if (drawWC === undefined || drawHC === undefined || drawWC === 0 || drawHC === 0) {
-
                         let cText = document.getElementById('res-size-cover-val') ? document.getElementById('res-size-cover-val').textContent : "";
-
                         if (cText && cText.includes('x')) {
-
                             let cStr = cText.split('x');
-
                             drawWC = parseFloat(cStr[0]);
-
                             drawHC = parseFloat(cStr[1]);
-
+                        } else {
+                            let sizeText = document.getElementById('res-size') ? document.getElementById('res-size').innerText : '';
+                            if (sizeText && sizeText.includes('/')) {
+                                let coverPart = sizeText.split('/')[1]?.trim();
+                                if (coverPart && coverPart.includes('x')) {
+                                    let cStr = coverPart.split('x');
+                                    drawWC = parseFloat(cStr[0]) || 0;
+                                    drawHC = parseFloat(cStr[1]) || 0;
+                                }
+                            }
                         }
-
                     }
 
+                    // Posodobi ceno plastifikacije glede na format tiskovne pole (ovitka ali listov, če ovitka ni ali če je izbran obseg 'all')
+                    const lamScope = document.getElementById('f-lam-scope')?.value || 'all';
+                    let lamFormatW = 700;
+                    let lamFormatH = 500;
+                    if (lamScope === 'cover' && drawWC > 0 && drawHC > 0) {
+                        lamFormatW = drawWC;
+                        lamFormatH = drawHC;
+                    } else if (drawW > 0 && drawH > 0) {
+                        lamFormatW = drawW;
+                        lamFormatH = drawH;
+                    } else if (drawWC > 0 && drawHC > 0) {
+                        lamFormatW = drawWC;
+                        lamFormatH = drawHC;
+                    }
 
-
-                    // Posodobi ceno plastifikacije glede na format tiskovne pole (ovitka)
-
-                    const lamType = document.getElementById('f-lam-type').value;
-
+                    const lamTypeEl = document.getElementById('f-lam-type');
+                    const lamType = lamTypeEl ? lamTypeEl.value : "mat";
                     let lamPer1Input = document.getElementById('f-lam-per1000');
+                    let lamPer1 = lamPer1Input ? (parseFloat(lamPer1Input.value.toString().replace(',', '.')) || 0) : 0;
 
-                    let lamPer1 = parseFloat(lamPer1Input.value) || 0;
-
-
-
-                    if (drawWC > 0 && drawHC > 0) {
-                        const calculatedPrice = getLaminationPricePerSheet(drawWC, drawHC, lamType);
-                        if (calculatedPrice > 0) {
+                    if (lamFormatW > 0 && lamFormatH > 0) {
+                        const calculatedPrice = typeof getLaminationPricePerSheet === 'function' ? getLaminationPricePerSheet(lamFormatW, lamFormatH, lamType) : 0;
+                        if (calculatedPrice > 0 && lamPer1Input) {
                             lamPer1Input.value = calculatedPrice.toFixed(4);
                             lamPer1 = calculatedPrice;
                         }
-                        updateUVLakPrice();
+                        if (typeof updateUVLakPrice === 'function') updateUVLakPrice();
                     }
 
 
@@ -7185,29 +7206,36 @@
 
 
                     // Plastifikacija
-
                     if (document.getElementById('f-lam-active').checked) {
-
                         let lamSides = parseInt(document.getElementById('f-lam-sides').value) || 1;
+                        let lamScope = document.getElementById('f-lam-scope')?.value || 'all';
+                        let lamSheets = 0;
+                        let lamBreakdownLabel = "";
 
-                        // Uporabimo lamPer1, ki smo ga izračunali na začetku calculatePrice
+                        if (lamScope === 'all') {
+                            lamSheets = (sheetsNeededLeaves || 0) + (sheetsNeededCover > 0 ? sheetsNeededCover : 0);
+                            lamBreakdownLabel = `${lamSheets} pol (vsi listi${sheetsNeededCover > 0 ? ' + ovitek' : ''})`;
+                        } else {
+                            // 'cover' - samo zunanja pola / ovitek
+                            if (sheetsNeededCover > 0) {
+                                lamSheets = sheetsNeededCover;
+                                lamBreakdownLabel = `${sheetsNeededCover} kos ovitka`;
+                            } else {
+                                // Brez ločenega ovitka (samozalivna brošura): zunanja pola za naklado brošur
+                                lamSheets = Math.min(sheetsNeededLeaves || 0, totalItemsForm || 0);
+                                if (lamSheets <= 0) lamSheets = sheetsNeededLeaves || 0;
+                                lamBreakdownLabel = `${lamSheets} pol (zunanja pola / ovitek)`;
+                            }
+                        }
 
-                        let lamWork = sheetsNeededCover * lamPer1 * lamSides;
-
+                        let lamWork = lamSheets * lamPer1 * lamSides;
                         let lamCost = lamWork;
-
                         totalFinishCost += lamCost;
-
                         finishItems.push({
-
                             name: 'Plastifikacija',
-
                             cost: lamCost,
-
-                            breakdown: `Delo (${sheetsNeededCover} kos ovitka, ${lamSides}x) | Cena: ${lamPer1.toFixed(3)} €/polo: ${formatPrice(lamWork)}`
-
+                            breakdown: `Delo (${lamBreakdownLabel}, ${lamSides}x) | Cena: ${lamPer1.toFixed(3)} €/polo: ${formatPrice(lamWork)}`
                         });
-
                     }
 
 
@@ -8152,7 +8180,7 @@
                 }
                 if (!cDrawW) {
                     let cSizeEl = document.getElementById('res-size-cover-val');
-                    let cSizeText = cSizeEl ? cSizeEl.innerText : '';
+                    let cSizeText = cSizeEl ? (cSizeEl.textContent || cSizeEl.innerText || '') : '';
                     let cSizeStr = cSizeText.split('x');
                     if (cSizeStr.length === 2) {
                         cDrawW = parseFloat(cSizeStr[0]) || 0;
@@ -10345,6 +10373,7 @@
                         if (lm.type !== undefined) setV('f-lam-type', lm.type);
                         if (lm.sides !== undefined) setV('f-lam-sides', lm.sides);
                         if (lm.per1000 !== undefined) setV('f-lam-per1000', lm.per1000);
+                        if (lm.scope !== undefined) setV('f-lam-scope', lm.scope);
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('lam');
                     }
 
@@ -10782,7 +10811,7 @@
                                 uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type'), format: gv('f-uv-format'), extraWaste: gv('f-uv-extra-waste') },
                                 uv2: { active: gc('f-uv2-active'), prep: gv('f-uv2-prep'), per1000: gv('f-uv2-per1000'), sides: gv('f-uv2-sides'), type: gv('f-uv2-type'), format: gv('f-uv2-format'), extraWaste: gv('f-uv2-extra-waste') },
 
-                                lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000') },
+                                lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), scope: gv('f-lam-scope') },
 
                                 delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
 
@@ -10826,7 +10855,7 @@
                             uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type'), format: gv('f-uv-format'), extraWaste: gv('f-uv-extra-waste') },
                             uv2: { active: gc('f-uv2-active'), prep: gv('f-uv2-prep'), per1000: gv('f-uv2-per1000'), sides: gv('f-uv2-sides'), type: gv('f-uv2-type'), format: gv('f-uv2-format'), extraWaste: gv('f-uv2-extra-waste') },
 
-                            lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000') },
+                            lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), scope: gv('f-lam-scope') },
 
                             delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
 
@@ -10988,8 +11017,10 @@
                 if (gC('f-lam-active')) {
 
                     let type = gV('f-lam-type');
+                    let scope = gV('f-lam-scope') || 'all';
+                    let scopeText = scope === 'cover' ? 'ovitek' : 'vsi listi';
 
-                    desc.push("plastifikacija (" + type + ")");
+                    desc.push("plastifikacija (" + type + ", " + scopeText + ")");
 
                 }
 
