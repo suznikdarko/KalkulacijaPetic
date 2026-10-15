@@ -1170,7 +1170,7 @@
                         naročila</label>
 
                     <input type="text" id="calc-order-type" list="order-types-list"
-                        oninput="g_editedQuoteHTML=''; g_editedWorkOrderHTML=''; calculatePrice();"
+                        oninput="g_editedQuoteHTML=''; g_editedQuoteATHTML=''; g_editedWorkOrderHTML=''; calculatePrice();"
                         style="width: 100%; border-radius: 6px; padding: 6px; font-size: 11pt; background: #475569; color: white; border: 1px solid var(--glass-border);"
                         placeholder="Izberi ali vpiši...">
 
@@ -2834,6 +2834,7 @@
         // g_diskProjects declared at top
         // g_serverProjects declared at top
         var g_editedQuoteHTML = '';
+        var g_editedQuoteATHTML = '';
         var g_editedWorkOrderHTML = '';
         var g_loadingProject = false;
 
@@ -3007,6 +3008,7 @@
         document.addEventListener('change', (e) => updateInputStyles(e.target));
 
         var g_editedQuoteHTML = '';
+        var g_editedQuoteATHTML = '';
 
         var g_editedWorkOrderHTML = '';
 
@@ -3411,6 +3413,7 @@
             localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
 
             g_editedQuoteHTML = '';
+            g_editedQuoteATHTML = '';
 
             renderBasket();
 
@@ -3427,6 +3430,7 @@
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
 
                 g_editedQuoteHTML = '';
+                g_editedQuoteATHTML = '';
 
                 renderBasket();
 
@@ -4674,7 +4678,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
             if (!window.g_loadingProject) {
 
                 g_editedQuoteHTML = '';
-
+                g_editedQuoteATHTML = '';
                 g_editedWorkOrderHTML = '';
 
                 updateNotesAutomatically();
@@ -9767,14 +9771,31 @@ function loadProject(id) {
                 setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
 
             } catch (err) { alert("Napaka pri shranjevanju: " + err.message); }
-
         }
 
-
+        // --- FORMATIRANJE BARV ZA PONUDBO ---
+        function formatQuoteColor(val, isAT = false) {
+            if (!val || val === '/' || val === 'Brez tiska' || val === '0/0' || val === '0 / 0') {
+                return (isAT && val === 'Brez tiska') ? 'Ohne Druck' : (val || '/');
+            }
+            let cleaned = String(val).replace(/\s*\b(color|skala)\b/gi, '').trim();
+            let res = cleaned.replace(/(\d+)\s*\/\s*(\d+)/g, function(match, fStr, bStr) {
+                let f = parseInt(fStr, 10);
+                let b = parseInt(bStr, 10);
+                let base = f + '/' + b;
+                if (f === 4 || b === 4) {
+                    return base + ' ' + (isAT ? 'Skala' : 'color');
+                }
+                return base;
+            });
+            if (isAT) {
+                res = res.replace(/\s*\b(ŠV|OB)\b/g, '').replace(/\bmutacija\b/gi, 'Mutation').trim();
+            }
+            return res;
+        }
 
         // --- TISKANJE PONUDBE ---
-
-        function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false) {
+        function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT = false) {
 
             const preparedBy = document.getElementById('calc-prepared-by')?.value || 'Darko Sužnik';
 
@@ -9971,12 +9992,29 @@ function loadProject(id) {
             // GENERATE MULTI-ITEM QUOTE
 
             let itemsHtml = itemsToPrint.map(item => {
+                let specFinishing = item.spec && item.spec.finishing ? item.spec.finishing : '';
+                if (isAT && specFinishing) {
+                    specFinishing = specFinishing
+                        .replace(/izsek z orodjem/g, 'Stanzen mit Werkzeug')
+                        .replace(/Ril - rilmašina/g, 'Rillen')
+                        .replace(/x zgibano/g, 'x gefalzt')
+                        .replace(/razrez na format/g, 'Zuschnitt auf Format')
+                        .replace(/šivanje/g, 'Heftung')
+                        .replace(/lepljenje/g, 'Kleben')
+                        .replace(/špiraljenje/g, 'Spiralbindung')
+                        .replace(/plastifikacija/g, 'Cellophanierung')
+                        .replace(/UV lak/g, 'UV-Lack')
+                        .replace(/\(mat\)/gi, '(matt)')
+                        .replace(/\(sijaj\)/gi, '(glänzend)')
+                        .replace(/\(soft\)/gi, '(Soft-Touch)')
+                        .replace(/\(anti\)/gi, '(kratzfest)');
+                }
 
                 let priceRowsHTML = (item.quantities && Array.isArray(item.quantities)) ? item.quantities.map(q => `
 
                     <tr>
 
-                        <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} kos</td>
+                        <td style="font-weight: bold; padding: 4px;">${formatQty(q.qty)} ${isAT ? 'Stk.' : 'kos'}</td>
 
                         <td style="padding: 4px;">${formatPrice(q.pricePerUnit !== undefined ? q.pricePerUnit : (q.perItem || 0), 4)}</td>
 
@@ -9998,7 +10036,7 @@ function loadProject(id) {
 
                                 <td style="width: 15%; vertical-align: top; border-right: 1px solid #ddd; padding-right: 5px;">
 
-                                    <span style="font-size: 8pt; color: #555; text-transform: uppercase;">Šifra izdelka:</span><br>
+                                    <span style="font-size: 8pt; color: #555; text-transform: uppercase;">${isAT ? 'Artikel Nr.:' : 'Šifra izdelka:'}</span><br>
 
                                     <span style="font-family: Arial, sans-serif; font-size: 11pt; font-weight: bold; margin-top: 5px; display: block;">${item.materialCode || '/'}</span>
 
@@ -10008,17 +10046,17 @@ function loadProject(id) {
 
                                     <table style="width: 100%; border-collapse: collapse;">
 
-                                        <tr><td style="width: 90px; font-weight: bold;">Izdelek:</td><td>${item.name || '/'}</td></tr>
+                                        <tr><td style="width: 90px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td>${item.name || '/'}</td></tr>
 
-                                        ${item.version ? `<tr><td style="font-weight: bold;">Verzija:</td><td>${item.version}</td></tr>` : ''}
+                                        ${item.version ? `<tr><td style="font-weight: bold;">${isAT ? 'Version:' : 'Verzija:'}</td><td>${item.version}</td></tr>` : ''}
 
-                                        ${(item.spec && item.spec.format) ? (typeof item.spec.format === 'object' ? `<tr><td style="font-weight: bold; vertical-align: top;">Format:</td><td>${item.spec.format.open} (odprt)` + (item.spec.format.closed ? `<br>${item.spec.format.closed} (zaprt)` : '') + `</td></tr>` : `<tr><td style="font-weight: bold; vertical-align: top;">Format:</td><td>${item.spec.format}</td></tr>`) : `<tr><td style="font-weight: bold; vertical-align: top;">Format:</td><td>/</td></tr>`}
+                                        ${(item.spec && item.spec.format) ? (typeof item.spec.format === 'object' ? `<tr><td style="font-weight: bold; vertical-align: top;">Format:</td><td>${item.spec.format.open} ${isAT ? '(offen)' : '(odprt)'}` + (item.spec.format.closed ? `<br>${item.spec.format.closed} ${isAT ? '(geschlossen)' : '(zaprt)'}` : '') + `</td></tr>` : `<tr><td style="font-weight: bold; vertical-align: top;">Format:</td><td>${item.spec.format}</td></tr>`) : `<tr><td style="font-weight: bold; vertical-align: top;">Format:</td><td>/</td></tr>`}
 
-                                        ${(item.spec && item.spec.paper) ? `<tr><td style="font-weight: bold;">Papir:</td><td>${item.spec.paper}</td></tr>` : ''}
+                                        ${(item.spec && item.spec.paper) ? `<tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.spec.paper}</td></tr>` : ''}
 
-                                        <tr><td style="font-weight: bold;">Tisk:</td><td>${(item.spec && item.spec.colors) ? item.spec.colors : '/'}</td></tr>
+                                        <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${(item.spec && item.spec.colors) ? formatQuoteColor(item.spec.colors, isAT) : '/'}</td></tr>
 
-                                        ${(item.spec && item.spec.finishing) ? `<tr><td style="font-weight: bold;">Dodel.:</td><td>${item.spec.finishing}</td></tr>` : ''}
+                                        ${specFinishing ? `<tr><td style="font-weight: bold;">${isAT ? 'Verarbeitung:' : 'Dodel.:'}</td><td>${specFinishing}</td></tr>` : ''}
 
                                     </table>
 
@@ -10030,7 +10068,7 @@ function loadProject(id) {
 
                         <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000;">
 
-                            <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11pt; font-family: Arial, sans-serif;">Naklada</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11pt; font-family: Arial, sans-serif;">Cena/Kom.</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11pt; font-family: Arial, sans-serif; text-align: right;">Cena skupno:</th></tr>
+                            <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11pt; font-family: Arial, sans-serif;">${isAT ? 'Auflage' : 'Naklada'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11pt; font-family: Arial, sans-serif;">${isAT ? 'Preis/ Stk.' : 'Cena/Kom.'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11pt; font-family: Arial, sans-serif; text-align: right;">${isAT ? 'Gesamtpreis:' : 'Cena skupno:'}</th></tr>
 
                             ${priceRowsHTML}
 
@@ -10072,29 +10110,31 @@ function loadProject(id) {
 
                         <tr>
 
-                            <td style="width: 50%; vertical-align: top;"><span style="font-size: 11pt;"><strong>${customer}</strong></span><br>${custAddress ? custAddress.replace(/\n/g, '<br>') + '<br>' : ''}${custEmail ? custEmail + '<br>' : ''}${deliveryAddress ? '<br><strong>Dostava na naslov:</strong><br>' + deliveryAddress.replace(/\n/g, '<br>') : ''}</td>
+                            <td style="width: 50%; vertical-align: top;"><span style="font-size: 11pt;"><strong>${customer}</strong></span><br>${custAddress ? custAddress.replace(/\n/g, '<br>') + '<br>' : ''}${custEmail ? custEmail + '<br>' : ''}${deliveryAddress ? '<br><strong>' + (isAT ? 'Lieferadresse:' : 'Dostava na naslov:') + '</strong><br>' + deliveryAddress.replace(/\n/g, '<br>') : ''}</td>
 
-                            <td style="width: 50%; vertical-align: top;" align="right"><table class="info-table" cellpadding="0" cellspacing="0"><tr><td>Datum</td><td>${date}</td></tr><tr><td>Šifra stranke</td><td>${customerCode}</td></tr><tr><td>Ponudba</td><td>${quoteNum}</td></tr></table></td>
+                            <td style="width: 50%; vertical-align: top;" align="right"><table class="info-table" cellpadding="0" cellspacing="0"><tr><td>Datum</td><td>${date}</td></tr><tr><td>${isAT ? 'Kunde' : 'Šifra stranke'}</td><td>${customerCode}</td></tr><tr><td>${isAT ? 'Angebot' : 'Ponudba'}</td><td>${quoteNum}</td></tr></table></td>
 
                         </tr>
 
                     </table>
 
-                    <h1>PONUDBA</h1>
+                    <h1>${isAT ? 'ANGEBOT' : 'PONUDBA'}</h1>
 
-                    <p style="margin: 5px 0;">Zahvaljujemo se Vam za Vaše povpraševanje in Vam ponujamo naslednje:</p>
+                    <p style="margin: 5px 0;">${isAT ? 'Herzlichen Dank für Ihr Interesse. Wir können Ihnen folgendes anbieten:' : 'Zahvaljujemo se Vam za Vaše povpraševanje in Vam ponujamo naslednje:'}</p>
 
                     ${itemsHtml}
 
-                    <p style="margin: 5px 0;"><strong>Predloga:</strong> Naročnik dostavi visokoresolucijski PDF z dodatkom za obrez!</p>
+                    ${isAT ? '<p style="margin: 5px 0; font-weight: bold; text-decoration: underline; text-align: center;">Voraussetzung: Kunde liefert druckfertige Daten</p>' : '<p style="margin: 5px 0;"><strong>Predloga:</strong> Naročnik dostavi visokoresolucijski PDF z dodatkom za obrez!</p>'}
 
-                    <p class="notes">Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.</p>
+                    <p class="notes">${isAT ? 'Dieses Angebot ist gültig für 30 Tage. Zahlung erfolgt nach 30 Tagen ab Lieferung der Ware. Wir danken Ihnen für Ihre mögliche Bestellung, and wünschen Ihnen einen angenehmen Tag.' : 'Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.'}</p>
 
-                    <div style="margin-top: 10px; font-size: 10px; font-style: italic;">Kalkulacijo pripravil: ${preparedBy}</div>
+                    <div style="margin-top: 10px; font-size: 10px; font-style: italic;">${isAT ? 'Dieses Angebot hat für Sie erstellt:' : 'Kalkulacijo pripravil:'} ${preparedBy}</div>
 
             `;
 
-            var contentToRender = g_editedQuoteHTML ? g_editedQuoteHTML : defaultContent;
+            const editedHTMLVar = isAT ? 'g_editedQuoteATHTML' : 'g_editedQuoteHTML';
+            var contentToRender = (isAT && typeof g_editedQuoteATHTML !== 'undefined' && g_editedQuoteATHTML) ? g_editedQuoteATHTML :
+                (!isAT && typeof g_editedQuoteHTML !== 'undefined' && g_editedQuoteHTML) ? g_editedQuoteHTML : defaultContent;
 
 
 
@@ -10106,7 +10146,7 @@ function loadProject(id) {
 
                 ${htmlHeader}
 
-                <head><meta charset="utf-8"><title>Ponudba</title>
+                <head><meta charset="utf-8"><title>${isAT ? 'Angebot' : 'Ponudba'}</title>
 
                 <style>
 
@@ -10156,11 +10196,11 @@ function loadProject(id) {
 
                     <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 10px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
 
-                        <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">NATISNI PONUDBO</button>
+                        <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">${isAT ? 'ANGEBOT DRUCKEN' : 'NATISNI PONUDBO'}</button>
 
-                        <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">ZAPRI</button>
+                        <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">${isAT ? 'SCHLIEßEN' : 'ZAPRI'}</button>
 
-                        <button onclick="if(confirm('Ali želite ponastaviti ponudbo na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.g_editedQuoteHTML=''; const newHtml = window.opener.getQuoteHTML(false, '', false); document.open(); document.write(newHtml); document.close();} }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">PONASTAVI</button>
+                        <button onclick="if(confirm('Ali želite ponastaviti ponudbo na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.${editedHTMLVar}=''; const newHtml = window.opener.getQuoteHTML(false, '', false, ${isAT}); document.open(); document.write(newHtml); document.close();} }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">PONASTAVI</button>
 
                     <button id="btn-move-text" onclick="toggleMoveMode(this)" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;" title="Premakni označeno besedilo na drugo mesto. Označite besedilo, kliknite ta gumb in nato kliknite na novo mesto v besedilu.">PREMAKNI</button>
 
@@ -10247,7 +10287,7 @@ function loadProject(id) {
 
                                 if (window.opener && !window.opener.closed) {
 
-                                    window.opener.g_editedQuoteHTML = area.innerHTML;
+                                    window.opener[${JSON.stringify(editedHTMLVar)}] = area.innerHTML;
 
                                     if(typeof window.opener.updateCustomDocsPreview === 'function') {
 
