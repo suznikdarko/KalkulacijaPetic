@@ -7542,6 +7542,27 @@
                 setTimeout(() => { printWin.focus(); }, 200);
             } catch (e) { alert("Napaka pri pripravi naloga: " + e.message); }
         }
+
+        function formatQuoteColor(val, isAT = false) {
+            if (!val || val === '/' || val === 'Brez tiska' || val === '0/0' || val === '0 / 0') {
+                return (isAT && val === 'Brez tiska') ? 'Ohne Druck' : (val || '/');
+            }
+            let cleaned = String(val).replace(/\s*\b(color|skala)\b/gi, '').trim();
+            let res = cleaned.replace(/(\d+)\s*\/\s*(\d+)/g, function(match, fStr, bStr) {
+                let f = parseInt(fStr, 10);
+                let b = parseInt(bStr, 10);
+                let base = f + '/' + b;
+                if (f === 4 || b === 4) {
+                    return base + ' ' + (isAT ? 'Skala' : 'color');
+                }
+                return base;
+            });
+            if (isAT) {
+                res = res.replace(/\s*\b(ŠV|OB)\b/g, '').replace(/\bmutacija\b/gi, 'Mutation').trim();
+            }
+            return res;
+        }
+
         function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT = false) {
             const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
             const date = new Date().toLocaleDateString('sl-SI');
@@ -7680,7 +7701,7 @@
                                         <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${item.name || '/'}</td></tr>
                                         <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">Format:</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${(item.spec && item.spec.format) ? item.spec.format : '/'}</td></tr>
                                         ${(item.spec && item.spec.paper) ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Papier:' : 'Papir:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${item.spec.paper}</td></tr>` : ''}
-                                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Druck:' : 'Tisk:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${(item.spec && item.spec.colors) ? item.spec.colors : '/'}</td></tr>
+                                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Druck:' : 'Tisk:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${(item.spec && item.spec.colors) ? formatQuoteColor(item.spec.colors, isAT) : '/'}</td></tr>
                                         ${specFinishing ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Verarbeitung:' : 'Dodel.:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${specFinishing}</td></tr>` : ''}
                                         ${deliveryAddress ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Lieferung:' : 'Dostava:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${deliveryAddress.replace(/\n/g, '<br>')}</td></tr>` : ''}
                                     </table>

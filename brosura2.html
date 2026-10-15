@@ -11041,9 +11041,25 @@
 
             }
 
-
-
-
+            function formatQuoteColor(val, isAT = false) {
+                if (!val || val === '/' || val === 'Brez tiska' || val === '0/0' || val === '0 / 0') {
+                    return (isAT && val === 'Brez tiska') ? 'Ohne Druck' : (val || '/');
+                }
+                let cleaned = String(val).replace(/\s*\b(color|skala)\b/gi, '').trim();
+                let res = cleaned.replace(/(\d+)\s*\/\s*(\d+)/g, function(match, fStr, bStr) {
+                    let f = parseInt(fStr, 10);
+                    let b = parseInt(bStr, 10);
+                    let base = f + '/' + b;
+                    if (f === 4 || b === 4) {
+                        return base + ' ' + (isAT ? 'Skala' : 'color');
+                    }
+                    return base;
+                });
+                if (isAT) {
+                    res = res.replace(/\s*\b(ŠV|OB)\b/g, '').replace(/\bmutacija\b/gi, 'Mutation').trim();
+                }
+                return res;
+            }
 
             function getQuoteHTML(isWord = false, canvasImages = null, isInternal = false, isAT = false, isDN = false, printBasket = false) {
 
@@ -11406,8 +11422,8 @@
                     let eText = item.extentText || '/';
                     let pText = item.paperLeaves || item.material || '/';
                     let cText = item.paperCover || '/';
-                    let printText = item.tiskLeaves || '/';
-                    let printCoverText = item.tiskCover || '/';
+                    let printText = formatQuoteColor(item.tiskLeaves || '/', isAT);
+                    let printCoverText = formatQuoteColor(item.tiskCover || '/', isAT);
                     let finText = item.finishingText || (item.options ? item.options.join(', ') : '/');
                     if (isAT && finText !== '/') {
                         finText = finText

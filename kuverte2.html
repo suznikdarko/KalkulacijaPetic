@@ -1339,6 +1339,26 @@
             list.innerHTML = html;
         }
 
+        function formatQuoteColor(val, isAT = false) {
+            if (!val || val === '/' || val === 'Brez tiska' || val === '0/0' || val === '0 / 0') {
+                return (isAT && val === 'Brez tiska') ? 'Ohne Druck' : (val || '/');
+            }
+            let cleaned = String(val).replace(/\s*\b(color|skala)\b/gi, '').trim();
+            let res = cleaned.replace(/(\d+)\s*\/\s*(\d+)/g, function(match, fStr, bStr) {
+                let f = parseInt(fStr, 10);
+                let b = parseInt(bStr, 10);
+                let base = f + '/' + b;
+                if (f === 4 || b === 4) {
+                    return base + ' ' + (isAT ? 'Skala' : 'color');
+                }
+                return base;
+            });
+            if (isAT) {
+                res = res.replace(/\s*\b(ŠV|OB)\b/g, '').replace(/\bmutacija\b/gi, 'Mutation').trim();
+            }
+            return res;
+        }
+
         function getQuoteHTML(isWord = false, isAT = false) {
             const quoteNum = document.getElementById('calc-quote-number').value || '/';
             const customer = document.getElementById('calc-customer').value || '';
@@ -1406,7 +1426,7 @@
                                     <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
                                         <tr><td style="width: 90px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td>${item.name || '/'}</td></tr>
                                         <tr><td style="font-weight: bold;">Format:</td><td>${(item.spec && item.spec.format) ? item.spec.format : '/'}</td></tr>
-                                        <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${(item.spec && item.spec.colors) ? item.spec.colors : '/'}</td></tr>
+                                        <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${(item.spec && item.spec.colors) ? formatQuoteColor(item.spec.colors, isAT) : '/'}</td></tr>
                                         ${(item.spec && item.spec.paper) ? `<tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.spec.paper}</td></tr>` : ''}
                                         ${(item.spec && item.spec.finishing) ? `<tr><td style="font-weight: bold;">${isAT ? 'Verarbeitung:' : 'Dodel.:'}</td><td>${item.spec.finishing}</td></tr>` : ''}
                                     </table>

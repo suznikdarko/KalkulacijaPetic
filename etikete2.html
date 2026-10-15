@@ -7666,6 +7666,25 @@
                 return desc.join(", ") || "/";
             }
 
+            function formatQuoteColor(val, isAT = false) {
+                if (!val || val === '/' || val === 'Brez tiska' || val === '0/0' || val === '0 / 0') {
+                    return (isAT && val === 'Brez tiska') ? 'Ohne Druck' : (val || '/');
+                }
+                let cleaned = String(val).replace(/\s*\b(color|skala)\b/gi, '').trim();
+                let res = cleaned.replace(/(\d+)\s*\/\s*(\d+)/g, function(match, fStr, bStr) {
+                    let f = parseInt(fStr, 10);
+                    let b = parseInt(bStr, 10);
+                    let base = f + '/' + b;
+                    if (f === 4 || b === 4) {
+                        return base + ' ' + (isAT ? 'Skala' : 'color');
+                    }
+                    return base;
+                });
+                if (isAT) {
+                    res = res.replace(/\s*\b(ŠV|OB)\b/g, '').replace(/\bmutacija\b/gi, 'Mutation').trim();
+                }
+                return res;
+            }
 
             function getQuoteHTML(isWord = false, canvasImages = null, isInternal = false, isAT = false) {
                 const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
@@ -7857,8 +7876,8 @@
                                             <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${eText}</td></tr>
                                             <tr><td style="font-weight: bold;">${isAT ? 'Papier Blätter:' : 'Papir listov:'}</td><td>${item.paperLeaves || pText}</td></tr>
                                             <tr><td style="font-weight: bold;">${isAT ? 'Papier Umschlag:' : 'Papir ovitka:'}</td><td>${item.paperCover || cText}</td></tr>
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck Blätter:' : 'Tisk listov:'}</td><td>${item.tiskLeaves || printText}</td></tr>
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck Umschlag:' : 'Tisk ovitka:'}</td><td>${item.tiskCover || '/'}</td></tr>
+                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck Blätter:' : 'Tisk listov:'}</td><td>${formatQuoteColor(item.tiskLeaves || printText, isAT)}</td></tr>
+                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck Umschlag:' : 'Tisk ovitka:'}</td><td>${formatQuoteColor(item.tiskCover || '/', isAT)}</td></tr>
                                             <tr><td style="font-weight: bold;">${isAT ? 'Verarbeitung:' : 'Dodelava:'}</td><td>${finText}</td></tr>
                                         </table>
                                     </td>
