@@ -9,6 +9,7 @@
     <title>Kalkulator Koledarjev - Petrič Kalkulacije</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="tarife_prevozov.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root {
@@ -525,6 +526,9 @@
                     <button class="btn btn-secondary" onclick="exportToWord()" style="padding: 8px 4px; font-size: 0.72rem; flex: 1; text-align: center; border: 1px dashed var(--glass-border);">
                         D. NALOG
                     </button>
+            <button class="btn btn-secondary" type="button" onclick="odpriCenikPDF()" style="padding: 8px 4px; font-size: 0.72rem; flex: 1; text-align: center; border: 1px dashed var(--glass-border); color: #38bdf8;" title="Odpri cenik prevozov (PDF)">
+              🚚 PREVOZI
+            </button>
                 </div>
                 <div>
                     <label for="calc-order-type">Tip naročila</label>
@@ -988,6 +992,25 @@
                         </div>
                     </div>
                 </div>
+
+            <!-- DOSTAVA IN PREVOZ -->
+            <div class="sub-card" id="row-finish-del-fixed" style="margin-top: 1rem;">
+              <div class="sub-card-title">
+                <span>🚚 Dostava in Prevoz</span>
+                <span class="badge">Logistika</span>
+              </div>
+              <div class="grid-2">
+                <div class="form-group" style="display:flex; align-items:center; gap:0.5rem;">
+                  <input type="checkbox" id="f-del-fixed-active" onchange="calculate()" style="width: auto; transform: scale(1.2); cursor: pointer;" />
+                  <label for="f-del-fixed-active" style="margin: 0; font-weight: bold; cursor: pointer;">Vključi fiksni prevoz</label>
+                </div>
+                <div class="form-group">
+                  <label for="f-del-fixed-cost">Cena prevoza (€)</label>
+                  <input type="number" id="f-del-fixed-cost" value="0.00" step="0.50" oninput="calculate()" />
+                </div>
+              </div>
+              <div id="tarife-prevoz-container" style="margin-top: 10px;"></div>
+            </div>
             </div>
         </div>
 
@@ -1046,6 +1069,9 @@
             <button class="btn btn-secondary" onclick="exportToPDF()">
                 <span>📄</span> Izvozi PDF
             </button>
+        <button class="btn btn-secondary" type="button" onclick="odpriCenikPDF()" style="background: #0284c7; color: white; border: none; font-weight: bold;" title="Odpri cenik prevozov (PDF)">
+          <span>🚚</span> Cenik Prevozov
+        </button>
         </div>
         <div id="quick-total-display" style="font-size: 1.1rem; font-weight: 800; color: #60a5fa;">
             <!-- Quick price preview -->
@@ -1563,6 +1589,9 @@
             summaryCardsDiv.innerHTML = '';
 
             let firstTotalPreview = '';
+        const totalOrderWeightKg = totalLeavesPaperKg + (podkartonType !== 'brez' ? totalPodkartonKg : 0) + (qty * 0.02);
+        window.g_currentTotalWeightKg = totalOrderWeightKg;
+        if (typeof window.syncTariffWeightExternal === "function") window.syncTariffWeightExternal();
 
             quantities.forEach((qty, idx) => {
                 const totalPrintSheets = Math.ceil((qty * numSheets / sheetsPerForm) * (1 + wastePercent / 100));
@@ -1613,7 +1642,8 @@
 
                 const totalManualCost = (qty * (vezicaPrice + manualLaborPrice + packagingPrice)) + precutPrep;
 
-                const netProductionCost = totalLeavesPaperCost + totalPodkartonCost + totalPrintCost + totalZnasanjeCost + totalSpiralaCost + totalManualCost;
+                const deliveryCost = (document.getElementById('f-del-fixed-active')?.checked ? (parseFloat(document.getElementById('f-del-fixed-cost')?.value) || 0) : 0);
+      const netProductionCost = totalLeavesPaperCost + totalPodkartonCost + totalPrintCost + totalZnasanjeCost + totalSpiralaCost + totalManualCost + deliveryCost;
                 
                 const sellingPriceBrezDDV = netProductionCost * (1 + margin / 100);
 
@@ -1737,7 +1767,9 @@
                 customerEmailDate: document.getElementById('calc-email-date') ? document.getElementById('calc-email-date').value : '',
                         attachedPdf: (typeof serializeSingleAttachedPdf === 'function') ? serializeSingleAttachedPdf() : (g_attachedPdf ? { name: g_attachedPdf.name, dataUrl: g_attachedPdf.dataUrl, text: g_attachedPdf.text } : null),
                         attachedPdfs: (typeof serializeAttachedPdfs === 'function') ? serializeAttachedPdfs() : [],
-                timestamp: new Date().toISOString()
+                delFixedActive: document.getElementById('f-del-fixed-active') ? document.getElementById('f-del-fixed-active').checked : false,
+      delFixedCost: document.getElementById('f-del-fixed-cost') ? document.getElementById('f-del-fixed-cost').value : '0.00',
+      timestamp: new Date().toISOString()
             };
         }
 
@@ -1761,6 +1793,8 @@
             if (data.custEmail && document.getElementById('calc-cust-email')) document.getElementById('calc-cust-email').value = data.custEmail;
             if (data.quantities && document.getElementById('proj-quantities')) document.getElementById('proj-quantities').value = data.quantities;
             if (data.margin && document.getElementById('proj-margin')) document.getElementById('proj-margin').value = data.margin;
+    if (data.delFixedActive !== undefined && document.getElementById('f-del-fixed-active')) document.getElementById('f-del-fixed-active').checked = data.delFixedActive;
+    if (data.delFixedCost !== undefined && document.getElementById('f-del-fixed-cost')) document.getElementById('f-del-fixed-cost').value = data.delFixedCost;
 
             if (data.preset) document.getElementById('cal-preset').value = data.preset;
             if (data.sheets) document.getElementById('cal-sheets').value = data.sheets;
