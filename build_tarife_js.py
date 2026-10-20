@@ -78,7 +78,7 @@ for pno, page in enumerate(doc):
         'rates': rates
     }
 
-preferred_order = ['Slovenija', 'Avstrija', 'Nemčija', 'Italija', 'Francija', 'Nizozemska', 'Belgija', 'Češka', 'Danska', 'Madžarska', 'Švedska', 'Irska', 'Estonija']
+preferred_order = ['Avstrija', 'Slovenija', 'Nemčija', 'Italija', 'Francija', 'Nizozemska', 'Belgija', 'Češka', 'Danska', 'Madžarska', 'Švedska', 'Irska', 'Estonija']
 ordered_data = {k: data[k] for k in preferred_order if k in data}
 
 header_part = """/**
@@ -94,10 +94,10 @@ window.TARIFE_PREVOZOV = """ + json.dumps(ordered_data, ensure_ascii=False, inde
  */
 window.izracunajCenoPrevoza = function(drzava, cona, tezaKg) {
     if (!drzava || !window.TARIFE_PREVOZOV[drzava]) {
-        drzava = 'Slovenija';
+        drzava = 'Avstrija';
     }
     const dData = window.TARIFE_PREVOZOV[drzava];
-    const cNum = parseInt(cona, 10) || 1;
+    const cNum = parseInt(cona, 10) || 6;
     const kg = Math.max(0, parseFloat(tezaKg) || 0);
 
     let matchedRate = null;
@@ -254,24 +254,32 @@ window.initPrevozUI = function(containerId, opts) {
     const applyBtn = container.querySelector('#tariff-apply-btn');
     const infoText = container.querySelector('#tariff-info-text');
 
-    countrySelect.innerHTML = Object.keys(window.TARIFE_PREVOZOV).map(c => 
-        '<option value="' + c + '">' + c + '</option>'
+    const countries = Object.keys(window.TARIFE_PREVOZOV);
+    const sortedCountries = ['Avstrija'].concat(countries.filter(c => c !== 'Avstrija'));
+    countrySelect.innerHTML = sortedCountries.map(c => 
+        '<option value="' + c + '"' + (c === 'Avstrija' ? ' selected' : '') + '>' + c + '</option>'
     ).join('');
+    countrySelect.value = 'Avstrija';
 
     function updateZones() {
         const cname = countrySelect.value;
         const dData = window.TARIFE_PREVOZOV[cname];
         if (!dData) return;
-        zoneSelect.innerHTML = dData.zones.map(z => {
+        // Pustimo samo Cono 6 (če cona 6 v določeni državi ne obstaja, vzamemo zadnjo/najvišjo cono)
+        let relevantZones = dData.zones.filter(z => z.zone === 6);
+        if (relevantZones.length === 0) {
+            relevantZones = [dData.zones[dData.zones.length - 1]];
+        }
+        zoneSelect.innerHTML = relevantZones.map(z => {
             const shortDesc = z.desc.length > 30 ? (z.desc.substring(0, 30) + '...') : z.desc;
-            return '<option value="' + z.zone + '" title="' + z.desc + '">' + z.name + (shortDesc ? ' (' + shortDesc + ')' : '') + '</option>';
+            return '<option value="' + z.zone + '" title="' + z.desc + '" selected>' + z.name + (shortDesc ? ' (' + shortDesc + ')' : '') + '</option>';
         }).join('');
         recalcTariff();
     }
 
     function recalcTariff() {
         const cname = countrySelect.value;
-        const zone = parseInt(zoneSelect.value, 10) || 1;
+        const zone = parseInt(zoneSelect.value, 10) || 6;
         const w = parseFloat(weightInput.value) || 0;
         const res = window.izracunajCenoPrevoza(cname, zone, w);
 
@@ -300,7 +308,7 @@ window.initPrevozUI = function(containerId, opts) {
 
     applyBtn.addEventListener('click', function() {
         const cname = countrySelect.value;
-        const zone = parseInt(zoneSelect.value, 10) || 1;
+        const zone = parseInt(zoneSelect.value, 10) || 6;
         const w = parseFloat(weightInput.value) || 0;
         const res = window.izracunajCenoPrevoza(cname, zone, w);
 

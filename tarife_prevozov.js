@@ -5,249 +5,6 @@
  */
 
 window.TARIFE_PREVOZOV = {
-  "Slovenija": {
-    "country": "Slovenija",
-    "page": 13,
-    "numZones": 2,
-    "zones": [
-      {
-        "zone": 1,
-        "name": "Cona 1",
-        "desc": "20, 22 23, 30 32, 33 90, 92"
-      },
-      {
-        "zone": 2,
-        "name": "Cona 2",
-        "desc": "10, 12 - 14 40, 42, 50 52, 60, 62 63, 80 82, 83"
-      }
-    ],
-    "rates": [
-      {
-        "minKg": 0,
-        "maxKg": 50,
-        "prices": {
-          "1": 31.5,
-          "2": 36.9
-        }
-      },
-      {
-        "minKg": 51,
-        "maxKg": 100,
-        "prices": {
-          "1": 36.9,
-          "2": 44.0
-        }
-      },
-      {
-        "minKg": 101,
-        "maxKg": 150,
-        "prices": {
-          "1": 41.1,
-          "2": 52.4
-        }
-      },
-      {
-        "minKg": 151,
-        "maxKg": 200,
-        "prices": {
-          "1": 52.4,
-          "2": 64.2
-        }
-      },
-      {
-        "minKg": 201,
-        "maxKg": 250,
-        "prices": {
-          "1": 59.3,
-          "2": 75.2
-        }
-      },
-      {
-        "minKg": 251,
-        "maxKg": 300,
-        "prices": {
-          "1": 67.7,
-          "2": 85.8
-        }
-      },
-      {
-        "minKg": 301,
-        "maxKg": 400,
-        "prices": {
-          "1": 83.7,
-          "2": 106.6
-        }
-      },
-      {
-        "minKg": 401,
-        "maxKg": 500,
-        "prices": {
-          "1": 102.5,
-          "2": 128.9
-        }
-      },
-      {
-        "minKg": 501,
-        "maxKg": 600,
-        "prices": {
-          "1": 112.8,
-          "2": 141.5
-        }
-      },
-      {
-        "minKg": 601,
-        "maxKg": 700,
-        "prices": {
-          "1": 120.5,
-          "2": 152.6
-        }
-      },
-      {
-        "minKg": 701,
-        "maxKg": 800,
-        "prices": {
-          "1": 135.2,
-          "2": 170.0
-        }
-      },
-      {
-        "minKg": 801,
-        "maxKg": 900,
-        "prices": {
-          "1": 150.6,
-          "2": 189.7
-        }
-      },
-      {
-        "minKg": 901,
-        "maxKg": 1000,
-        "prices": {
-          "1": 158.9,
-          "2": 202.7
-        }
-      },
-      {
-        "minKg": 1001,
-        "maxKg": 1100,
-        "prices": {
-          "1": 165.1,
-          "2": 213.3
-        }
-      },
-      {
-        "minKg": 1101,
-        "maxKg": 1200,
-        "prices": {
-          "1": 175.6,
-          "2": 226.5
-        }
-      },
-      {
-        "minKg": 1201,
-        "maxKg": 1300,
-        "prices": {
-          "1": 186.8,
-          "2": 241.1
-        }
-      },
-      {
-        "minKg": 1301,
-        "maxKg": 1400,
-        "prices": {
-          "1": 199.3,
-          "2": 255.7
-        }
-      },
-      {
-        "minKg": 1401,
-        "maxKg": 1500,
-        "prices": {
-          "1": 207.7,
-          "2": 266.3
-        }
-      },
-      {
-        "minKg": 1501,
-        "maxKg": 1600,
-        "prices": {
-          "1": 217.5,
-          "2": 278.1
-        }
-      },
-      {
-        "minKg": 1601,
-        "maxKg": 1700,
-        "prices": {
-          "1": 226.5,
-          "2": 290.0
-        }
-      },
-      {
-        "minKg": 1701,
-        "maxKg": 1800,
-        "prices": {
-          "1": 234.2,
-          "2": 301.1
-        }
-      },
-      {
-        "minKg": 1801,
-        "maxKg": 1900,
-        "prices": {
-          "1": 241.7,
-          "2": 311.4
-        }
-      },
-      {
-        "minKg": 1901,
-        "maxKg": 2000,
-        "prices": {
-          "1": 250.1,
-          "2": 321.9
-        }
-      },
-      {
-        "minKg": 2001,
-        "maxKg": 2100,
-        "prices": {
-          "1": 259.9,
-          "2": 334.4
-        }
-      },
-      {
-        "minKg": 2101,
-        "maxKg": 2200,
-        "prices": {
-          "1": 269.0,
-          "2": 346.3
-        }
-      },
-      {
-        "minKg": 2201,
-        "maxKg": 2300,
-        "prices": {
-          "1": 276.0,
-          "2": 356.0
-        }
-      },
-      {
-        "minKg": 2301,
-        "maxKg": 2400,
-        "prices": {
-          "1": 287.1,
-          "2": 370.1
-        }
-      },
-      {
-        "minKg": 2401,
-        "maxKg": 2500,
-        "prices": {
-          "1": 291.2,
-          "2": 378.3
-        }
-      }
-    ]
-  },
   "Avstrija": {
     "country": "Avstrija",
     "page": 1,
@@ -619,6 +376,249 @@ window.TARIFE_PREVOZOV = {
           "4": 366.2,
           "5": 404.6,
           "6": 442.1
+        }
+      }
+    ]
+  },
+  "Slovenija": {
+    "country": "Slovenija",
+    "page": 13,
+    "numZones": 2,
+    "zones": [
+      {
+        "zone": 1,
+        "name": "Cona 1",
+        "desc": "20, 22 23, 30 32, 33 90, 92"
+      },
+      {
+        "zone": 2,
+        "name": "Cona 2",
+        "desc": "10, 12 - 14 40, 42, 50 52, 60, 62 63, 80 82, 83"
+      }
+    ],
+    "rates": [
+      {
+        "minKg": 0,
+        "maxKg": 50,
+        "prices": {
+          "1": 31.5,
+          "2": 36.9
+        }
+      },
+      {
+        "minKg": 51,
+        "maxKg": 100,
+        "prices": {
+          "1": 36.9,
+          "2": 44.0
+        }
+      },
+      {
+        "minKg": 101,
+        "maxKg": 150,
+        "prices": {
+          "1": 41.1,
+          "2": 52.4
+        }
+      },
+      {
+        "minKg": 151,
+        "maxKg": 200,
+        "prices": {
+          "1": 52.4,
+          "2": 64.2
+        }
+      },
+      {
+        "minKg": 201,
+        "maxKg": 250,
+        "prices": {
+          "1": 59.3,
+          "2": 75.2
+        }
+      },
+      {
+        "minKg": 251,
+        "maxKg": 300,
+        "prices": {
+          "1": 67.7,
+          "2": 85.8
+        }
+      },
+      {
+        "minKg": 301,
+        "maxKg": 400,
+        "prices": {
+          "1": 83.7,
+          "2": 106.6
+        }
+      },
+      {
+        "minKg": 401,
+        "maxKg": 500,
+        "prices": {
+          "1": 102.5,
+          "2": 128.9
+        }
+      },
+      {
+        "minKg": 501,
+        "maxKg": 600,
+        "prices": {
+          "1": 112.8,
+          "2": 141.5
+        }
+      },
+      {
+        "minKg": 601,
+        "maxKg": 700,
+        "prices": {
+          "1": 120.5,
+          "2": 152.6
+        }
+      },
+      {
+        "minKg": 701,
+        "maxKg": 800,
+        "prices": {
+          "1": 135.2,
+          "2": 170.0
+        }
+      },
+      {
+        "minKg": 801,
+        "maxKg": 900,
+        "prices": {
+          "1": 150.6,
+          "2": 189.7
+        }
+      },
+      {
+        "minKg": 901,
+        "maxKg": 1000,
+        "prices": {
+          "1": 158.9,
+          "2": 202.7
+        }
+      },
+      {
+        "minKg": 1001,
+        "maxKg": 1100,
+        "prices": {
+          "1": 165.1,
+          "2": 213.3
+        }
+      },
+      {
+        "minKg": 1101,
+        "maxKg": 1200,
+        "prices": {
+          "1": 175.6,
+          "2": 226.5
+        }
+      },
+      {
+        "minKg": 1201,
+        "maxKg": 1300,
+        "prices": {
+          "1": 186.8,
+          "2": 241.1
+        }
+      },
+      {
+        "minKg": 1301,
+        "maxKg": 1400,
+        "prices": {
+          "1": 199.3,
+          "2": 255.7
+        }
+      },
+      {
+        "minKg": 1401,
+        "maxKg": 1500,
+        "prices": {
+          "1": 207.7,
+          "2": 266.3
+        }
+      },
+      {
+        "minKg": 1501,
+        "maxKg": 1600,
+        "prices": {
+          "1": 217.5,
+          "2": 278.1
+        }
+      },
+      {
+        "minKg": 1601,
+        "maxKg": 1700,
+        "prices": {
+          "1": 226.5,
+          "2": 290.0
+        }
+      },
+      {
+        "minKg": 1701,
+        "maxKg": 1800,
+        "prices": {
+          "1": 234.2,
+          "2": 301.1
+        }
+      },
+      {
+        "minKg": 1801,
+        "maxKg": 1900,
+        "prices": {
+          "1": 241.7,
+          "2": 311.4
+        }
+      },
+      {
+        "minKg": 1901,
+        "maxKg": 2000,
+        "prices": {
+          "1": 250.1,
+          "2": 321.9
+        }
+      },
+      {
+        "minKg": 2001,
+        "maxKg": 2100,
+        "prices": {
+          "1": 259.9,
+          "2": 334.4
+        }
+      },
+      {
+        "minKg": 2101,
+        "maxKg": 2200,
+        "prices": {
+          "1": 269.0,
+          "2": 346.3
+        }
+      },
+      {
+        "minKg": 2201,
+        "maxKg": 2300,
+        "prices": {
+          "1": 276.0,
+          "2": 356.0
+        }
+      },
+      {
+        "minKg": 2301,
+        "maxKg": 2400,
+        "prices": {
+          "1": 287.1,
+          "2": 370.1
+        }
+      },
+      {
+        "minKg": 2401,
+        "maxKg": 2500,
+        "prices": {
+          "1": 291.2,
+          "2": 378.3
         }
       }
     ]
@@ -4227,10 +4227,10 @@ window.TARIFE_PREVOZOV = {
  */
 window.izracunajCenoPrevoza = function(drzava, cona, tezaKg) {
     if (!drzava || !window.TARIFE_PREVOZOV[drzava]) {
-        drzava = 'Slovenija';
+        drzava = 'Avstrija';
     }
     const dData = window.TARIFE_PREVOZOV[drzava];
-    const cNum = parseInt(cona, 10) || 1;
+    const cNum = parseInt(cona, 10) || 6;
     const kg = Math.max(0, parseFloat(tezaKg) || 0);
 
     let matchedRate = null;
@@ -4387,24 +4387,32 @@ window.initPrevozUI = function(containerId, opts) {
     const applyBtn = container.querySelector('#tariff-apply-btn');
     const infoText = container.querySelector('#tariff-info-text');
 
-    countrySelect.innerHTML = Object.keys(window.TARIFE_PREVOZOV).map(c => 
-        '<option value="' + c + '">' + c + '</option>'
+    const countries = Object.keys(window.TARIFE_PREVOZOV);
+    const sortedCountries = ['Avstrija'].concat(countries.filter(c => c !== 'Avstrija'));
+    countrySelect.innerHTML = sortedCountries.map(c => 
+        '<option value="' + c + '"' + (c === 'Avstrija' ? ' selected' : '') + '>' + c + '</option>'
     ).join('');
+    countrySelect.value = 'Avstrija';
 
     function updateZones() {
         const cname = countrySelect.value;
         const dData = window.TARIFE_PREVOZOV[cname];
         if (!dData) return;
-        zoneSelect.innerHTML = dData.zones.map(z => {
+        // Pustimo samo Cono 6 (če cona 6 v določeni državi ne obstaja, vzamemo zadnjo/najvišjo cono)
+        let relevantZones = dData.zones.filter(z => z.zone === 6);
+        if (relevantZones.length === 0) {
+            relevantZones = [dData.zones[dData.zones.length - 1]];
+        }
+        zoneSelect.innerHTML = relevantZones.map(z => {
             const shortDesc = z.desc.length > 30 ? (z.desc.substring(0, 30) + '...') : z.desc;
-            return '<option value="' + z.zone + '" title="' + z.desc + '">' + z.name + (shortDesc ? ' (' + shortDesc + ')' : '') + '</option>';
+            return '<option value="' + z.zone + '" title="' + z.desc + '" selected>' + z.name + (shortDesc ? ' (' + shortDesc + ')' : '') + '</option>';
         }).join('');
         recalcTariff();
     }
 
     function recalcTariff() {
         const cname = countrySelect.value;
-        const zone = parseInt(zoneSelect.value, 10) || 1;
+        const zone = parseInt(zoneSelect.value, 10) || 6;
         const w = parseFloat(weightInput.value) || 0;
         const res = window.izracunajCenoPrevoza(cname, zone, w);
 
@@ -4433,7 +4441,7 @@ window.initPrevozUI = function(containerId, opts) {
 
     applyBtn.addEventListener('click', function() {
         const cname = countrySelect.value;
-        const zone = parseInt(zoneSelect.value, 10) || 1;
+        const zone = parseInt(zoneSelect.value, 10) || 6;
         const w = parseFloat(weightInput.value) || 0;
         const res = window.izracunajCenoPrevoza(cname, zone, w);
 
