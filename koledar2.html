@@ -708,13 +708,13 @@
                     <div class="grid-2" style="margin-top: 0.8rem;">
                         <div class="form-group" style="background: rgba(245, 158, 11, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3);">
                             <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0; font-size: 0.85rem;">
-                                <input type="checkbox" id="calc-is-obrat-leaves" onchange="calculate()" style="width: auto; margin: 0;" />
+                                <input type="checkbox" id="calc-is-obrat-leaves" onchange="if(this.checked){ let sv = document.getElementById('calc-is-sv-leaves'); if(sv) sv.checked = false; } calculate()" style="width: auto; margin: 0;" />
                                 Tisk "na obrat" (OB)
                             </label>
                         </div>
                         <div class="form-group" style="background: rgba(59, 130, 246, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
                             <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #60a5fa; margin: 0; font-size: 0.85rem;">
-                                <input type="checkbox" id="calc-is-sv-leaves" onchange="calculate()" style="width: auto; margin: 0;" />
+                                <input type="checkbox" id="calc-is-sv-leaves" onchange="if(this.checked){ let ob = document.getElementById('calc-is-obrat-leaves'); if(ob) ob.checked = false; } calculate()" style="width: auto; margin: 0;" />
                                 Šen Vider (ŠV)
                             </label>
                         </div>
@@ -1583,10 +1583,12 @@
 
             // Precise Plate Calculation for Leaves & Podkarton based on Lice/Hrbet colors
             const isObratLeaves = document.getElementById('calc-is-obrat-leaves') ? document.getElementById('calc-is-obrat-leaves').checked : false;
+            const isSVLeaves = document.getElementById('calc-is-sv-leaves') ? document.getElementById('calc-is-sv-leaves').checked : false;
             let platesPerFormLeaves = colorsFrontLeaves + colorsBackLeaves;
             if (isObratLeaves && colorsFrontLeaves === colorsBackLeaves && colorsFrontLeaves > 0) {
-                platesPerFormLeaves = colorsFrontLeaves; // 1 forma pri obračanju
+                platesPerFormLeaves = colorsFrontLeaves; // 1 forma pri obračanju (4 plošče)
             }
+            // Pri ŠV (Šen Vider) sta sprednja in zadnja stran ločeni (8 plošč), tiska pa se v 1 prehodu
 
             let numPlatesPodkarton = (podkartonType !== 'samo_razrez' && podkartonType !== 'brez') ? totalPodkartonColors : (podkartonColorsFront + podkartonColorsBack);
             const totalPlatesLeaves = (printTech !== 'digital' && printTech !== 'cooperation') ? (numForms * platesPerFormLeaves) : 0;
@@ -1643,7 +1645,7 @@
                 let totalPrintCost = 0;
                 if (printTech !== 'digital') {
                     const setupCost = numForms * setupCostPerForm;
-                    const passesCount = totalPrintSheets * ((printType === '4/4' || printType === '1/1') ? 2 : 1);
+                    const passesCount = totalPrintSheets * (isSVLeaves ? 1 : ((printType === '4/4' || printType === '1/1') ? 2 : 1));
                     const runCost = (passesCount / 1000) * 15.0; // 15 € / 1000 passes
                     totalPrintCost = totalPlatesCost + setupCost + runCost;
                 } else {
