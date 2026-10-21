@@ -1020,15 +1020,25 @@
                                 </select>
                             </div>
                         </div>
-                        <div style="flex: 0.8; min-width: min-content; display: flex; align-items: flex-end;">
+                        <div style="flex: 0.8; min-width: min-content; display: flex; align-items: flex-end; flex-direction: column; justify-content: flex-end;">
                             <div class="form-group" id="obrat-container-cover"
                                 style="background: rgba(245, 158, 11, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3); margin-bottom: 0; width: 100%;">
                                 <label
                                     style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0; font-size: 0.85rem;">
                                     <input id="calc-is-obrat-cover"
-                                        onchange="if(!this.checked) { document.getElementById('items-per-sheet-cover').value = ''; } updateWasteAndPrice('cover', true);"
+                                        onchange="if(this.checked) { let sv = document.getElementById('calc-is-sv-cover'); if(sv) sv.checked = false; } else { document.getElementById('items-per-sheet-cover').value = ''; } updateWasteAndPrice('cover', true);"
                                         style="width: auto; margin: 0;" type="checkbox" />
                                     Tisk "na obrat"
+                                </label>
+                            </div>
+                            <div class="form-group" id="sv-container-cover"
+                                style="background: rgba(59, 130, 246, 0.1); padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); margin-bottom: 0; width: 100%; margin-top: 5px; display: none;">
+                                <label
+                                    style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #60a5fa; margin: 0; font-size: 0.85rem;">
+                                    <input id="calc-is-sv-cover"
+                                        onchange="if(this.checked) { let ob = document.getElementById('calc-is-obrat-cover'); if(ob) { ob.checked = false; document.getElementById('items-per-sheet-cover').value = ''; } } updateWasteAndPrice('cover', true);"
+                                        style="width: auto; margin: 0;" type="checkbox" />
+                                    Šen Vider (ŠV)
                                 </label>
                             </div>
                         </div>
@@ -4824,6 +4834,7 @@ window.addEventListener('error', function (e) {
                     let frontC = parseInt(document.getElementById('calc-color-front-cover')?.value || 0) || 0;
                     let backC = parseInt(document.getElementById('calc-color-back-cover')?.value || 0) || 0;
                     let isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
+                    let isSVC = document.getElementById('calc-is-sv-cover')?.checked || false;
                     let wasteC = parseInt(document.getElementById('calc-paper-waste-cover')?.value || 0) || 0;
                     let mutPlatesC = parseInt(document.getElementById('calc-mut-plates-cover')?.value || 0) || 0;
 
@@ -4851,7 +4862,7 @@ window.addEventListener('error', function (e) {
 
                     let mTypeC = document.getElementById('calc-machine-type-cover')?.value || 'S4';
                     let pwC = parseFloat(document.getElementById('calc-cardboard-weight')?.value) || 250;
-                    let bossC = getBossLogic(frontC, backC, isObratC, false, totalItemsForm, mutPlatesC, mTypeC, pwC);
+                    let bossC = getBossLogic(frontC, backC, isObratC, isSVC, totalItemsForm, mutPlatesC, mTypeC, pwC);
                     let manualWasteC = parseFloat(document.getElementById('calc-paper-waste-cover-manual')?.value);
                     if (!isNaN(manualWasteC) && manualWasteC >= 0) {
                         wasteC = manualWasteC;
@@ -5094,7 +5105,7 @@ window.addEventListener('error', function (e) {
                         if (isObratC) mPassesC = Math.ceil(frontC / 4) * 2;
                         if (isSVC) mPassesC = 1; // Šen Vider obojestranski tisk v 1 prehodu
 
-                        let printHoursC = (sheetsNeededCover + wasteC) * mPassesC / mSpeedC;
+                        printHoursC = (sheetsNeededCover + wasteC) * mPassesC / mSpeedC;
 
                         let washesNumC = parseInt(document.getElementById('calc-color-washes-cover') ? document.getElementById('calc-color-washes-cover').value : 0) || 0;
                         let washPriceC = parseFloat(document.getElementById('calc-wash-price-cover') ? document.getElementById('calc-wash-price-cover').value : 0) || 25;
@@ -7562,6 +7573,7 @@ async function saveCurrentProject(btn = null) {
                             frontC: gv('calc-color-front-cover'),
                             backC: gv('calc-color-back-cover'),
                             obratC: gc('calc-is-obrat-cover'),
+                            svC: gc('calc-is-sv-cover'),
                             platesNumC: gv('calc-plates-num-cover'),
                             platesPriceC: gv('calc-plates-price-cover'),
                             prepPriceC: gv('calc-prep-price-cover'),
@@ -7962,6 +7974,7 @@ async function saveCurrentProject(btn = null) {
                     setV('calc-color-front-cover', inp.frontC !== undefined ? inp.frontC : inp.front);
                     setV('calc-color-back-cover', inp.backC !== undefined ? inp.backC : inp.back);
                     setV('calc-is-obrat-cover', inp.obratC !== undefined ? inp.obratC : inp.obrat, true);
+                    if (document.getElementById('calc-is-sv-cover')) document.getElementById('calc-is-sv-cover').checked = (inp.svC !== undefined ? inp.svC : (inp.isSVC || false));
                     setV('calc-plates-num-cover', inp.platesNumC !== undefined ? inp.platesNumC : inp.platesNum);
                     setV('calc-plates-price-cover', inp.platesPriceC !== undefined ? inp.platesPriceC : inp.platesPrice);
                     setV('calc-prep-price-cover', inp.prepPriceC !== undefined ? inp.prepPriceC : (inp.prepPrice || 25.00));
@@ -8318,6 +8331,7 @@ async function saveCurrentProject(btn = null) {
                             frontC: gv('calc-color-front-cover'),
                             backC: gv('calc-color-back-cover'),
                             obratC: gc('calc-is-obrat-cover'),
+                            svC: gc('calc-is-sv-cover'),
                             platesNumC: gv('calc-plates-num-cover'),
                             platesPriceC: gv('calc-plates-price-cover'),
                             prepPriceC: gv('calc-prep-price-cover'),
@@ -9395,7 +9409,8 @@ async function saveCurrentProject(btn = null) {
                 let frontC = parseInt(document.getElementById('calc-color-front-cover')?.value || 0) || 0;
                 let backC = parseInt(document.getElementById('calc-color-back-cover')?.value || 0) || 0;
                 let isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
-                let colorsC = (isObratC) ? (frontC + '/' + frontC) : (frontC + '/' + backC);
+                let isSVC = document.getElementById('calc-is-sv-cover')?.checked || false;
+                let colorsC = (isObratC || isSVC) ? (frontC + '/' + frontC) : (frontC + '/' + backC);
                 let isNoPrintC = (frontC + backC === 0);
                 let coverQty = parseFloat(document.getElementById('calc-cover-qty')?.value);
                 let effectiveCoverQty = (!isNaN(coverQty) && coverQty > 0) ? coverQty : q;
@@ -9421,6 +9436,7 @@ async function saveCurrentProject(btn = null) {
                 let mutPlatesL = parseInt(document.getElementById('calc-mut-plates-leaves')?.value || 0) || 0;
                 let mPassesL = frontL > 0 ? (Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0)) : 1;
                 if (isObratL) mPassesL = Math.ceil(frontL / 4) * 2;
+                if (isSVL) mPassesL = 1;
                 let dnPrintHoursL = (totalSheetsL * mPassesL) / 6000;
 
                 if (mutPlatesL === 0) {
@@ -9521,6 +9537,7 @@ async function saveCurrentProject(btn = null) {
                 let mutPlatesC = parseInt(document.getElementById('calc-mut-plates-cover')?.value || 0) || 0;
                 let mPassesC = frontC > 0 ? (Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0)) : 1;
                 if (isObratC) mPassesC = Math.ceil(frontC / 4) * 2;
+                if (isSVC) mPassesC = 1;
                 let dnPrintHoursC = (totalSheetsC * mPassesC) / 6000;
 
                 if (mutPlatesC === 0) {
