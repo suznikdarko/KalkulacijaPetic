@@ -132,6 +132,13 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
+### K. Napaka `Cannot access 'isSV' before initialization` (`TENOVIS2.html`)
+- **Težava:** Ob vnosu ali spreminjanju podatkov v zavihku `TENOVIS2.html` se je pojavilo opozorilo `Napaka pri izračunu: Cannot access 'isSV' before initialization`, izračun pa se je prekinil.
+- **Vzrok:** V funkciji za izračun se je spremenljivka `mPasses` računala kot `isSV ? 1 : rule.passes` na vrstici 5986, medtem ko je bila deklaracija `let isSV = ...` navedena šele nekaj vrstic nižje (vrstica 5992). Ker imajo `let` deklaracije blokovni obseg in se nahajajo v časovni mrtvi coni (TDZ) pred svojo vrstico, je brskalnik ob vsakem klicu funkcije `calculate()` sprožil `ReferenceError`.
+- **Rešitev:** Deklaracija `let isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv')?.checked : false;` je bila premaknjena pred uporabo spremenljivke v `mPasses`.
+
+---
+
 ## 2. Hitri Diagnostični Protokol (Če se zavihek spet ne odziva)
 
 Ko uporabnik sporoči, da se zavihek ne odziva, izvedi naslednje korake:
