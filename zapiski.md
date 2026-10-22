@@ -120,6 +120,18 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
+### J. Shranjevanje Ponudbe (Word) na Strežnik Srečko (`kuverte2.html`)
+- **Težava:** V modulu Kuverte se ponudba ni shranila na strežnik Srečko v mapo `PONUDBE 2026`.
+- **Vzroki:**
+  1. Gumb `SHRANI PONUDBO NA DISK` v predogledu ponudbe je shranjeval le surovo `.html` datoteko namesto Word formata ter ni klical strežnika.
+  2. Gumb `SHRANI V WORD` je poskušal izvajati `fetch('http://127.0.0.1:8095')` neposredno iz pojavnega okna (`about:blank` / `origin: null`), kar brskalnik (Chrome/Edge) blokira zaradi varnostne politike Private Network Access (PNA).
+  3. Glavna funkcija `downloadWordDoc()` v `kuverte2.html` ni vsebovala kode za klic strežnika na vratih 8095.
+- **Rešitev:**
+  1. V `kuverte2.html` je bila posodobljena funkcija `downloadWordDoc()`, ki se sedaj poveže na lokalni strežnik `http://127.0.0.1:8095` in samodejno shrani ponudbo na strežnik Srečko v `\\server-2012\Srecko\NALOGI\A PONUDBE\PONUDBE [leto]` (oziroma `S:\NALOGI\A PONUDBE\PONUDBE [leto]`) ter hkrati sproži lokalni prenos datoteke `.doc`.
+  2. V pojavnem oknu predogleda ponudbe oba gumba (`SHRANI V WORD` in `SHRANI PONUDBO (WORD)`) shranjevanje delegirata krovnemu oknu prek `window.opener.downloadWordDoc()`, s čimer se izogne blokadam PNA/CORS v pojavnem oknu.
+
+---
+
 ## 2. Hitri Diagnostični Protokol (Če se zavihek spet ne odziva)
 
 Ko uporabnik sporoči, da se zavihek ne odziva, izvedi naslednje korake:
