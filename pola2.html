@@ -2299,9 +2299,11 @@
                     id: Date.now(),
                     type: 'Tiskovna pola',
                     name: projectName,
+                    projectName: projectName,
                     customer: (document.getElementById('calc-customer') ? document.getElementById('calc-customer').value : '') || '',
                     productCode: (document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : '') || '/',
                     materialCode: (document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '') || '/',
+                    deliveryAddress: (document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '') || '',
                     spec: {
                         usePersonalization: document.getElementById('calc-use-personalization') ? document.getElementById('calc-use-personalization').checked : false,
                         useManualWork: document.getElementById('calc-use-manual-work') ? document.getElementById('calc-use-manual-work').checked : false,
@@ -7977,7 +7979,7 @@
             }
             // GENERATE MULTI-ITEM QUOTE
             let itemsHtml = itemsToPrint.map(item => {
-                let specFinishing = (item.spec && item.spec.finishing) ? item.spec.finishing : '';
+                let specFinishing = (item.spec && item.spec.finishing) ? item.spec.finishing : (item.finishingText || (item.options ? item.options.join(', ') : ''));
                 if (isAT && specFinishing) {
                     specFinishing = specFinishing
                         .replace(/Cilinder/gi, 'Zylinder')
@@ -7989,8 +7991,13 @@
                         .replace(/x zgibano/gi, 'x gefalzt')
                         .replace(/Zgibanje/gi, 'Falzen')
                         .replace(/Razrez/gi, 'Zuschnitt')
+                        .replace(/razrez na format/gi, 'Zuschnitt auf Format')
                         .replace(/Lepljenje/gi, 'Kleben')
+                        .replace(/lepljenje blokov/gi, 'Blockleimung')
+                        .replace(/šivanje/gi, 'Heftung')
                         .replace(/Špiraljenje \/ Vrvice/gi, 'Spiralbindung / Schnüre')
+                        .replace(/Špiraljenje/gi, 'Spiralbindung')
+                        .replace(/Vrvice/gi, 'Schnüre')
                         .replace(/Ročno delo/gi, 'Handarbeit')
                         .replace(/Orodje/gi, 'Stanzen mit Werkzeug')
                         .replace(/UV lak/gi, 'UV-Lack')
@@ -8008,22 +8015,65 @@
                         <td style="font-weight: bold; text-align: right; padding: 4px;">${formatPrice(q.priceTotal !== undefined ? q.priceTotal : (q.total || 0), 2)}</td>
                     </tr>`;
                 }).join('') : '<tr><td colspan="4" style="padding:4px; color:red;">Manjkajoči podatki o ceni</td></tr>';
+
+                let itemDelivery = item.deliveryAddress || deliveryAddress;
+                let deliveryRowHtml = itemDelivery ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Lieferung:' : 'Dostava:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${itemDelivery.replace(/\n/g, '<br>')}</td></tr>` : '';
+                let finishingRowHtml = specFinishing ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Verarbeitung:' : 'Dodel.:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${specFinishing}</td></tr>` : '';
+
+                const isBlockType = !!(item.formatLeaves || item.extentText || item.paperLeaves || (item.type && item.type.toLowerCase().includes('blok')));
+                let specRowsHtml = '';
+
+                if (isBlockType) {
+                    let projName = item.projectName || item.name || 'Blok';
+                    let fLeaves = item.formatLeaves || item.size || '/';
+                    if (fLeaves !== '/' && !fLeaves.includes('mm') && !fLeaves.includes('x')) fLeaves += ' mm';
+                    let fCover = (item.formatCover && item.formatCover !== '/' && item.formatCover !== '0x0' && item.formatCover !== 'Brez ovitka') ? item.formatCover : '';
+                    if (fCover && !fCover.includes('mm') && !fCover.includes('x')) fCover += ' mm';
+                    let eText = item.extentText || '';
+                    let pLeaves = item.paperLeaves || (item.spec && item.spec.paper ? item.spec.paper : (item.paper || ''));
+                    let pCover = (item.paperCover && item.paperCover !== '/' && item.paperCover !== 'Brez ovitka') ? item.paperCover : '';
+                    let tLeaves = item.tiskLeaves ? formatQuoteColor(item.tiskLeaves, isAT) : '';
+                    let tCover = (item.tiskCover && item.tiskCover !== '/' && item.tiskCover !== '0/0' && item.tiskCover !== 'Brez tiska') ? formatQuoteColor(item.tiskCover, isAT) : '';
+
+                    specRowsHtml = `
+                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${projName}</td></tr>
+                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Format Blätter:' : 'Format listov:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${fLeaves}</td></tr>
+                        ${fCover ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Format Umschlag:' : 'Format ovitka:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${fCover}</td></tr>` : ''}
+                        ${eText ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${eText}</td></tr>` : ''}
+                        ${pLeaves ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Papier Blätter:' : 'Papir listov:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${pLeaves}</td></tr>` : ''}
+                        ${pCover ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Papier Umschlag:' : 'Papir ovitka:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${pCover}</td></tr>` : ''}
+                        ${tLeaves ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Druck Blätter:' : 'Tisk listov:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${tLeaves}</td></tr>` : ''}
+                        ${tCover ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Druck Umschlag:' : 'Tisk ovitka:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${tCover}</td></tr>` : ''}
+                        ${finishingRowHtml}
+                        ${deliveryRowHtml}
+                    `;
+                } else {
+                    let projName = item.name || item.projectName || '/';
+                    let fText = (item.spec && item.spec.format) ? item.spec.format : (item.format || '/');
+                    let pText = (item.spec && item.spec.paper) ? item.spec.paper : (item.paper || '');
+                    let tText = (item.spec && item.spec.colors) ? formatQuoteColor(item.spec.colors, isAT) : (item.colors || item.tisk ? formatQuoteColor(item.colors || item.tisk, isAT) : '/');
+
+                    specRowsHtml = `
+                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${projName}</td></tr>
+                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">Format:</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${fText}</td></tr>
+                        ${pText ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Papier:' : 'Papir:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${pText}</td></tr>` : ''}
+                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Druck:' : 'Tisk:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${tText}</td></tr>
+                        ${finishingRowHtml}
+                        ${deliveryRowHtml}
+                    `;
+                }
+
                 return `
                     <div style="font-family: Arial, sans-serif; font-size: 11pt; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px;">
                         <table style="width: 100%; border-collapse: collapse;" cellpadding="0" cellspacing="0">
                             <tr>
                                 <td style="width: 15%; vertical-align: top; border-right: 1px solid #ddd; padding-right: 5px;">
                                     <span style="font-size: 8pt; color: #555; text-transform: uppercase;">${isAT ? 'Številka artikla:' : 'Šifra izdelka:'}</span><br>
-                                    <span style="font-family: Arial, sans-serif; font-size: 11pt; font-weight: bold; margin-top: 5px; display: block;">${item.productCode || item.materialCode || '/'}</span>
+                                    <span style="font-family: Arial, sans-serif; font-size: 11pt; font-weight: bold; margin-top: 5px; display: block;">${item.productCode || item.materialCode || item.coverMaterialCode || '/'}</span>
                                 </td>
                                 <td style="width: 85%; vertical-align: top; padding-left: 10px;">
                                     <table style="width: 100%; border-collapse: collapse;">
-                                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${item.name || '/'}</td></tr>
-                                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">Format:</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${(item.spec && item.spec.format) ? item.spec.format : '/'}</td></tr>
-                                        ${(item.spec && item.spec.paper) ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Papier:' : 'Papir:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${item.spec.paper}</td></tr>` : ''}
-                                        <tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Druck:' : 'Tisk:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${(item.spec && item.spec.colors) ? formatQuoteColor(item.spec.colors, isAT) : '/'}</td></tr>
-                                        ${specFinishing ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Verarbeitung:' : 'Dodel.:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${specFinishing}</td></tr>` : ''}
-                                        ${deliveryAddress ? `<tr><td style="width: 100px; font-weight: bold; font-size: 15px; vertical-align: top;">${isAT ? 'Lieferung:' : 'Dostava:'}</td><td style="font-size: 15px; font-weight: bold; vertical-align: top;">${deliveryAddress.replace(/\n/g, '<br>')}</td></tr>` : ''}
+                                        ${specRowsHtml}
                                     </table>
                                 </td>
                             </tr>

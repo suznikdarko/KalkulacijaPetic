@@ -6080,10 +6080,13 @@ window.addEventListener('error', function (e) {
 
                     const item = {
                         id: Date.now(),
+                        type: 'blok',
+                        name: projectName,
                         projectName: projectName,
                         productCode: productCode,
                         materialCode: materialCode,
                         coverMaterialCode: coverMaterialCode,
+                        deliveryAddress: (document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '') || '',
                         formatLeaves: `${document.getElementById('width').value}x${document.getElementById('height').value}`,
                         formatCover: `${document.getElementById('calc-cover-w').value}x${document.getElementById('calc-cover-h').value}`,
                         extentText: extentText,
@@ -8567,6 +8570,7 @@ async function saveCurrentProject(btn = null) {
                 const customerCode = document.getElementById('calc-customer-code') ? document.getElementById('calc-customer-code').value : '/';
                 const custAddress = document.getElementById('calc-cust-address').value || '';
                 const custEmail = document.getElementById('calc-cust-email').value || '';
+                const deliveryAddress = (document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '') || '';
 
                 let itemsToRender = [];
 
@@ -8713,14 +8717,17 @@ async function saveCurrentProject(btn = null) {
                     });
 
                     // Prilagoditev za elemente iz košarice, ki imajo malo drugačno strukturo kot tisti ustvarjeni ad-hoc zgoraj
-                    let projName = item.projectName || 'Bloki';
-                    let matCode = item.materialCode || '/';
+                    let projName = item.projectName || item.name || 'Izdelek';
+                    let matCode = item.materialCode || item.productCode || '/';
+                    if (item.coverMaterialCode && item.coverMaterialCode !== '/' && item.coverMaterialCode !== matCode) {
+                        matCode += ' / ' + item.coverMaterialCode;
+                    }
                     let fText = item.formatText || item.size || '/';
                     let eText = item.extentText || '/';
                     let pText = item.paperText || item.material || '/';
                     let cText = item.coverText || '/';
                     let printText = item.tiskText || '/';
-                    let finText = item.finishingText || (item.options ? item.options.join(', ') : '/');
+                    let finText = item.finishingText || (item.spec && item.spec.finishing ? item.spec.finishing : (item.options ? item.options.join(', ') : '/'));
                     if (isAT && finText !== '/') {
                         finText = finText
                             .replace(/izsek z orodjem/g, 'Stanzen mit Werkzeug')
@@ -8735,13 +8742,59 @@ async function saveCurrentProject(btn = null) {
                             .replace(/lepljenje blokov/g, 'Blockleimung')
                             .replace(/lepljenje/g, 'Kleben')
                             .replace(/broširanje \(tuja\)/g, 'Broschurfertigung (extern)')
+                            .replace(/Špiraljenje \/ Vrvice/gi, 'Spiralbindung / Schnüre')
                             .replace(/špiraljenje/g, 'Spiralbindung')
+                            .replace(/vrvice/gi, 'Schnüre')
                             .replace(/plastifikacija/g, 'Cellophanierung')
                             .replace(/UV lak/g, 'UV-Lack')
                             .replace(/\(mat\)/gi, '(matt)')
                             .replace(/\(sijaj\)/gi, '(glänzend)')
                             .replace(/\(soft\)/gi, '(Soft-Touch)')
                             .replace(/\(anti\)/gi, '(kratzfest)');
+                    }
+
+                    let itemDelivery = item.deliveryAddress || deliveryAddress;
+                    let deliveryRowHtml = itemDelivery ? `<tr><td style="font-weight: bold;">${isAT ? 'Lieferung:' : 'Dostava:'}</td><td>${itemDelivery.replace(/\n/g, '<br>')}</td></tr>` : '';
+                    let finishingRowHtml = (finText && finText !== '/') ? `<tr><td style="font-weight: bold;">${isAT ? 'Verarbeitung:' : 'Dodelava:'}</td><td>${finText}</td></tr>` : '';
+
+                    const isBlockType = !!(item.formatLeaves || item.extentText || item.paperLeaves || (item.type && item.type.toLowerCase().includes('blok')));
+                    let specTableRowsHtml = '';
+
+                    if (isBlockType) {
+                        let fLeaves = item.formatLeaves || fText;
+                        if (fLeaves !== '/' && !fLeaves.includes('mm') && !fLeaves.includes('x')) fLeaves += ' mm';
+                        let fCover = (item.formatCover && item.formatCover !== '/' && item.formatCover !== '0x0' && item.formatCover !== 'Brez ovitka') ? item.formatCover : '';
+                        if (fCover && !fCover.includes('mm') && !fCover.includes('x')) fCover += ' mm';
+                        let pLeaves = item.paperLeaves || pText;
+                        let pCover = (item.paperCover && item.paperCover !== '/' && item.paperCover !== 'Brez ovitka') ? item.paperCover : '';
+                        let printCoverText = (item.tiskCover && item.tiskCover !== '/' && item.tiskCover !== '0/0' && item.tiskCover !== 'Brez tiska') ? formatQuoteColor(item.tiskCover, isAT) : '';
+
+                        specTableRowsHtml = `
+                            <tr><td style="width: 110px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td>${projName}</td></tr>
+                            <tr><td style="font-weight: bold;">${isAT ? 'Format Blätter:' : 'Format listov:'}</td><td>${fLeaves}</td></tr>
+                            ${fCover ? `<tr><td style="font-weight: bold;">${isAT ? 'Format Umschlag:' : 'Format ovitka:'}</td><td>${fCover}</td></tr>` : ''}
+                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${eText}</td></tr>
+                            <tr><td style="font-weight: bold;">${isAT ? 'Papier Blätter:' : 'Papir listov:'}</td><td>${pLeaves}</td></tr>
+                            ${pCover ? `<tr><td style="font-weight: bold;">${isAT ? 'Papier Umschlag:' : 'Papir ovitka:'}</td><td>${pCover}</td></tr>` : ''}
+                            <tr><td style="font-weight: bold;">${isAT ? 'Druck Blätter:' : 'Tisk listov:'}</td><td>${formatQuoteColor(item.tiskLeaves || printText, isAT)}</td></tr>
+                            ${printCoverText ? `<tr><td style="font-weight: bold;">${isAT ? 'Druck Umschlag:' : 'Tisk ovitka:'}</td><td>${printCoverText}</td></tr>` : ''}
+                            ${finishingRowHtml}
+                            ${deliveryRowHtml}
+                        `;
+                    } else {
+                        // Enolistna tiskovina (Pola, letaki, plakati...)
+                        let fPola = (item.spec && item.spec.format) ? item.spec.format : (item.format || fText);
+                        let pPola = (item.spec && item.spec.paper) ? item.spec.paper : (item.paper || pText);
+                        let tPola = (item.spec && item.spec.colors) ? formatQuoteColor(item.spec.colors, isAT) : (item.colors || item.tisk ? formatQuoteColor(item.colors || item.tisk, isAT) : formatQuoteColor(printText, isAT));
+
+                        specTableRowsHtml = `
+                            <tr><td style="width: 110px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td>${projName}</td></tr>
+                            <tr><td style="font-weight: bold;">Format:</td><td>${fPola}</td></tr>
+                            ${pPola && pPola !== '/' ? `<tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${pPola}</td></tr>` : ''}
+                            <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${tPola}</td></tr>
+                            ${finishingRowHtml}
+                            ${deliveryRowHtml}
+                        `;
                     }
 
                     itemsHtml += `
@@ -8754,15 +8807,7 @@ async function saveCurrentProject(btn = null) {
                                     </td>
                                     <td style="width: 85%; vertical-align: top; padding-left: 10px;">
                                         <table style="width: 100%; border-collapse: collapse; font-size: 11pt; font-family: Arial, sans-serif;">
-                                            <tr><td style="width: 110px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td>${projName}</td></tr>
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Format Blätter:' : 'Format listov:'}</td><td>${item.formatLeaves || fText}</td></tr>
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Format Umschlag:' : 'Format ovitka:'}</td><td>${item.formatCover || '/'}</td></tr>
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Umfang:' : 'Obseg:'}</td><td>${eText}</td></tr>
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier Blätter:' : 'Papir listov:'}</td><td>${item.paperLeaves || pText}</td></tr>
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Papier Umschlag:' : 'Papir ovitka:'}</td><td>${item.paperCover || cText}</td></tr>
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck Blätter:' : 'Tisk listov:'}</td><td>${formatQuoteColor(item.tiskLeaves || printText, isAT)}</td></tr>
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Druck Umschlag:' : 'Tisk ovitka:'}</td><td>${formatQuoteColor(item.tiskCover || '/', isAT)}</td></tr>
-                                            <tr><td style="font-weight: bold;">${isAT ? 'Verarbeitung:' : 'Dodelava:'}</td><td>${finText}</td></tr>
+                                            ${specTableRowsHtml}
                                         </table>
                                     </td>
                                 </tr>
