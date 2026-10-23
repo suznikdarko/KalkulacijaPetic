@@ -794,6 +794,7 @@
                             <option value="318x223">318x223 (318 x 223 mm)</option>
                             <option value="Digital (480x320)">Digital (480 x 320 mm)</option>
                             <option value="Digital (448x318)">Digital (448 x 318 mm)</option>
+                            <option value="Roll Up (850x2000)">Roll Up (850 x 2000 mm)</option>
                         </select>
                     </div>
                     <div style="flex: 1;">
@@ -817,6 +818,7 @@
                             <option value="CD UV">CD UV</option>
                             <option value="digital">Digitalni stroj</option>
                             <option value="digital-plakat">Digitalni tisk - plakat (B1, B2, A1)</option>
+                            <option value="digital-rollup">Digitalni ROLL UP</option>
                             <option value="cooperation">Kooperacija (B1/A1)</option>
                         </select>
                     </div>
@@ -1314,6 +1316,18 @@
                                 </div>
                             </div>
                             <div id="digital-plakat-price-info" style="font-size: 0.85rem; color: #93c5fd; font-weight: 500;"></div>
+                        </div>
+                        <div id="digital-rollup-inputs-group"
+                            style="display: none; background: rgba(59, 130, 246, 0.08); padding: 12px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); margin-top: 10px; flex-direction: column; gap: 0.75rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: #60a5fa; font-weight: bold; font-size: 0.95rem;">🚩 Digitalni ROLL UP</span>
+                                <span style="font-size: 0.8rem; color: #94a3b8;">Format: 850 x 2000 mm</span>
+                            </div>
+                            <div id="digital-rollup-price-info" style="font-size: 0.85rem; color: #93c5fd; font-weight: 500;"></div>
+                            <div style="font-size: 0.78rem; color: #cbd5e1; line-height: 1.4;">
+                                Cenik po komadu: <strong>1 kom = 118 €</strong> | <strong>2–5 kom = 110 €/kom</strong> | <strong>nad 5 kom = 100 €/kom</strong><br>
+                                <span style="color: #94a3b8;">* Drugi stroški (papir, priprava, tisk, dodelava) se ne upoštevajo.</span>
+                            </div>
                         </div>
                         <div id="machine-efficiency-warning"
                             style="display: none; margin-top: 10px; padding: 10px 14px; border-radius: 8px; font-size: 0.88rem; font-weight: bold; transition: all 0.3s ease;"></div>
@@ -2833,9 +2847,9 @@
             return false;
         }
         function isSheetFamilyMatching(rawFamily, sheetFamily, mType = '', sheetName = '') {
-            if (sheetFamily === 'DIGITAL') return (mType === 'digital' || mType === 'digital-plakat');
+            if (sheetFamily === 'DIGITAL') return (mType === 'digital' || mType === 'digital-plakat' || mType === 'digital-rollup');
             if (rawFamily === 'OTHER') return true;
-            if (mType === 'digital-plakat') return true;
+            if (mType === 'digital-plakat' || mType === 'digital-rollup') return true;
             if (rawFamily === 'N') {
                 return sheetFamily === 'N' || sheetName === '638x448' || sheetName === 'SRA3';
             }
@@ -2860,7 +2874,8 @@
             { name: "318x298", w: 318, h: 298, family: "N" },
             { name: "318x223", w: 318, h: 223, family: "N" },
             { name: "Digital (480x320)", w: 480, h: 320, family: "DIGITAL" },
-            { name: "Digital (448x318)", w: 448, h: 318, family: "DIGITAL" }
+            { name: "Digital (448x318)", w: 448, h: 318, family: "DIGITAL" },
+            { name: "Roll Up (850x2000)", w: 850, h: 2000, family: "DIGITAL" }
         ];
         const prepRules = {
             '0/0': { passes: 0, wasteImpressions: 0 },
@@ -2888,6 +2903,7 @@
             'CD UV': { rate: 280, speed: 6900, prep: 10, useDynamic: true, maxW: 720, maxH: 520, defaultFormat: 'B2' },
             'digital': { rate: 40, speed: 1800, prep: 10, useDynamic: false, defaultFormat: 'Digital (480x320)', maxW: 480, maxH: 320 },
             'digital-plakat': { rate: 0, speed: 500, prep: 0, useDynamic: false, defaultFormat: 'B1', maxW: 1000, maxH: 707 },
+            'digital-rollup': { rate: 0, speed: 500, prep: 0, useDynamic: false, defaultFormat: 'Roll Up (850x2000)', maxW: 2500, maxH: 2500 },
             'cooperation': { rate: 0, speed: 6000, prep: 0, useDynamic: false, defaultFormat: 'B1', maxW: 1000, maxH: 707 }
         };
         let g_lastBestLayout = null;
@@ -2945,9 +2961,25 @@
             }
             return 0;
         }
+        function getDigitalRollUpUnitPrice(qty) {
+            qty = parseInt(qty) || 1;
+            if (qty <= 1) return 118;
+            if (qty <= 5) return 110;
+            return 100;
+        }
         function updateMachineEfficiencyWarning(mType, qty, totalPrintCost, totalPrepCost, totalSheetsNeeded) {
             const warnEl = document.getElementById('machine-efficiency-warning');
             if (!warnEl) return;
+            if (mType === 'digital-rollup') {
+                warnEl.style.display = 'block';
+                warnEl.style.background = 'rgba(59, 130, 246, 0.12)';
+                warnEl.style.border = '1px solid #3b82f6';
+                warnEl.style.color = '#93c5fd';
+                let uPrice = getDigitalRollUpUnitPrice(qty);
+                let tot = qty * uPrice;
+                warnEl.innerHTML = `🚩 <strong>Digitalni ROLL UP:</strong> Cena po ceniku: <strong>${uPrice} € / kom</strong> (skupaj za ${qty} kos: <strong>${tot.toFixed(2).replace('.', ',')} €</strong>). Brez dodatnih stroškov papirja, priprave ali dodelave.`;
+                return;
+            }
             if (mType === 'digital-plakat') {
                 const posterFormat = document.getElementById('calc-poster-format') ? document.getElementById('calc-poster-format').value : 'B1';
                 if (qty >= 40) {
@@ -3022,14 +3054,70 @@
             const profile = machineProfiles[mType];
             const isCoop = (mType === 'cooperation');
             const isPlakat = (mType === 'digital-plakat');
+            const isRollup = (mType === 'digital-rollup');
             const machineInputs = document.getElementById('machine-inputs-group');
             const coopInputs = document.getElementById('cooperation-inputs-group');
             const plakatInputs = document.getElementById('digital-plakat-inputs-group');
-            if (machineInputs) machineInputs.style.display = (isCoop || isPlakat) ? 'none' : 'block';
+            const rollupInputs = document.getElementById('digital-rollup-inputs-group');
+            if (machineInputs) machineInputs.style.display = (isCoop || isPlakat || isRollup) ? 'none' : 'block';
             if (coopInputs) coopInputs.style.display = isCoop ? 'flex' : 'none';
             if (plakatInputs) plakatInputs.style.display = isPlakat ? 'flex' : 'none';
+            if (rollupInputs) rollupInputs.style.display = isRollup ? 'flex' : 'none';
             if (isPlakat) {
                 onPosterFormatChange();
+                return;
+            }
+            if (isRollup) {
+                const projNameEl = document.getElementById('calc-project-name');
+                if (projNameEl && (!projNameEl.value || projNameEl.value === 'Tiskovina')) {
+                    projNameEl.value = 'Digitalni ROLL UP';
+                }
+                const widthEl = document.getElementById('width');
+                const heightEl = document.getElementById('height');
+                if (widthEl && (!widthEl.value || widthEl.value === "0" || widthEl.value === "700" || widthEl.value === "500" || widthEl.value === "594")) {
+                    widthEl.value = "850";
+                }
+                if (heightEl && (!heightEl.value || heightEl.value === "0" || heightEl.value === "1000" || heightEl.value === "700" || heightEl.value === "841")) {
+                    heightEl.value = "2000";
+                }
+                const mFormatSelect = document.getElementById('machine-format');
+                if (mFormatSelect) {
+                    mFormatSelect.value = 'Roll Up (850x2000)';
+                }
+                const pTypeEl = document.getElementById('calc-paper-type');
+                if (pTypeEl && (!pTypeEl.value || pTypeEl.value === 'Premazni' || pTypeEl.value === 'Brezlesni')) {
+                    pTypeEl.value = 'Roll Up platno / film';
+                }
+                const pWeightEl = document.getElementById('calc-paper-weight');
+                if (pWeightEl && (!pWeightEl.value || pWeightEl.value === '0' || pWeightEl.value === '135' || pWeightEl.value === '150')) {
+                    pWeightEl.value = '220';
+                }
+                const platesInp = document.getElementById('calc-plates-num');
+                if (platesInp) platesInp.value = "0";
+                const prepInp = document.getElementById('calc-prep-price');
+                if (prepInp) prepInp.value = "0";
+                const mutInp = document.getElementById('calc-mut-plates');
+                if (mutInp) mutInp.value = "0";
+                const precutPrepInp = document.getElementById('f-precut-prep');
+                if (precutPrepInp) precutPrepInp.value = "0";
+                const bleedEl = document.getElementById('bleed');
+                if (bleedEl) bleedEl.value = "0";
+                const gripEl = document.getElementById('gripper');
+                if (gripEl) gripEl.value = "0";
+                const marginEl = document.getElementById('calc-margin');
+                if (marginEl) marginEl.value = "0";
+                const colF = document.getElementById('calc-color-front');
+                if (colF) colF.value = "4";
+                const colB = document.getElementById('calc-color-back');
+                if (colB) colB.value = "0";
+                const obratEl = document.getElementById('calc-is-obrat');
+                if (obratEl) obratEl.checked = false;
+                filterAvailableFormats();
+                if (typeof calculate === 'function') {
+                    calculate();
+                } else {
+                    calculatePrice();
+                }
                 return;
             }
             if (profile) {
@@ -3100,7 +3188,7 @@
                 if (val === 'auto') continue;
                 const sheet = sheets.find(s => s.name === val);
                 if (sheet) {
-                    let fitsSource = (sw >= sheet.w && sh >= sheet.h) || (sw >= sheet.h && sh >= sheet.w);
+                    let fitsSource = (mType === 'digital-rollup' || mType === 'digital-plakat') ? true : ((sw >= sheet.w && sh >= sheet.h) || (sw >= sheet.h && sh >= sheet.w));
                     let fitsMachine = true;
                     if (profile && profile.maxW) {
                         fitsMachine = (sheet.w <= profile.maxW && sheet.h <= profile.maxH) || (sheet.h <= profile.maxW && sheet.w <= profile.maxH);
@@ -3429,8 +3517,8 @@
                 let w = parseFloat(document.getElementById('width').value) || 0;
                 let h = parseFloat(document.getElementById('height').value) || 0;
                 const mType = document.getElementById('calc-machine-type').value;
-                const b = (mType === 'digital-plakat') ? 0 : (parseFloat(document.getElementById('bleed').value) || 0);
-                const g = (mType === 'digital-plakat') ? 0 : (parseFloat(document.getElementById('gripper').value) || 0);
+                const b = (mType === 'digital-plakat' || mType === 'digital-rollup') ? 0 : (parseFloat(document.getElementById('bleed').value) || 0);
+                const g = (mType === 'digital-plakat' || mType === 'digital-rollup') ? 0 : (parseFloat(document.getElementById('gripper').value) || 0);
                 const qStr = document.getElementById('quantity').value || "0";
                 const qArr = qStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
                 const q = qArr[0] || 0;
@@ -3462,6 +3550,18 @@
                 if (mType === 'digital-plakat') {
                     const posterFmt = document.getElementById('calc-poster-format') ? document.getElementById('calc-poster-format').value : 'B1';
                     bestSheet = sheets.find(s => s.name === posterFmt) || sheets.find(s => s.name === 'B1') || sheets[0];
+                    bestLayout = {
+                        count: 1,
+                        cols: 1,
+                        rows: 1,
+                        rot: false,
+                        gripEdge: 'H',
+                        itemW: w,
+                        itemH: h,
+                        items: [{ id: 1, x: 0, y: 0, w: w, h: h, bleed: 0, rot: false }]
+                    };
+                } else if (mType === 'digital-rollup') {
+                    bestSheet = sheets.find(s => s.name === 'Roll Up (850x2000)') || { name: "Roll Up (850x2000)", w: w || 850, h: h || 2000, family: "DIGITAL" };
                     bestLayout = {
                         count: 1,
                         cols: 1,
@@ -3968,7 +4068,13 @@
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
                         ${d.print.mType === 'digital'
                     ? `<span>Cena tiska (${d.paper.totalSheets} pol${d.print.perSheetCost ? ` po ${d.print.perSheetCost.toFixed(2).replace('.', ',')} €` : ''}):</span> <span>${formatPrice(d.print.cost)}</span>`
-                    : `<span>Neto čas tiska (${(d.print.hours * 60).toFixed(0)} min pri hitrosti <b>${d.print.mSpeed} pol/h</b>):</span> <span>${formatPrice(d.print.hours * d.print.mRate)}</span>`
+                    : (d.print.mType === 'digital-rollup'
+                        ? `<span>Digitalni ROLL UP (${r.qty} kos po ${formatPrice(d.print.cost / (r.qty || 1))}):</span> <span>${formatPrice(d.print.cost)}</span>`
+                        : (d.print.mType === 'digital-plakat'
+                            ? `<span>Digitalni tisk plakatov (${r.qty} kos):</span> <span>${formatPrice(d.print.cost)}</span>`
+                            : `<span>Neto čas tiska (${(d.print.hours * 60).toFixed(0)} min pri hitrosti <b>${d.print.mSpeed} pol/h</b>):</span> <span>${formatPrice(d.print.hours * d.print.mRate)}</span>`
+                          )
+                      )
                 }
                         <span>Prijemalec (gripper):</span> <span style="color: #fbbf24; font-weight: bold;">${d.print.gripper} mm</span>
                         <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
@@ -4265,8 +4371,8 @@
             let paperWasteSheets = 320;
             if (!isNaN(manualWaste)) {
                 paperWasteSheets = manualWaste;
-            } else if (mTypeForWaste === 'digital' || mTypeForWaste === 'digital-plakat') {
-                paperWasteSheets = 50;
+            } else if (mTypeForWaste === 'digital' || mTypeForWaste === 'digital-plakat' || mTypeForWaste === 'digital-rollup') {
+                paperWasteSheets = (mTypeForWaste === 'digital-rollup') ? 0 : 50;
             } else {
                 let _front = parseInt(document.getElementById('calc-color-front').value) || 0;
                 let _back = parseInt(document.getElementById('calc-color-back').value) || 0;
@@ -4593,6 +4699,25 @@
                         infoEl.innerHTML = `📌 <strong>Cenik ${posterFormat}</strong> za ${qty} kos: <strong>${unitPriceStr} € / kos</strong> (skupaj tisk plakatov: <strong>${printCostStr} €</strong>)${numTubes > 0 ? ` | 📦 Tulci (${numTubes}x 1,42 €): <strong>${tubeCostStr} €</strong>` : ''}`;
                     }
                 }
+            } else if (mType === 'digital-rollup') {
+                platesNum = 0;
+                numberOfChanges = 0;
+                washesNum = 0;
+                washCost = 0;
+                totalPrepCost = 0;
+                paperCost = 0; // Roll up cenik zajema tisk, material in mehanizem
+                let rollUpUnitPrice = getDigitalRollUpUnitPrice(qty);
+                totalPrintCost = qty * rollUpUnitPrice;
+                printHours = 0;
+
+                if (qty === q) {
+                    let infoEl = document.getElementById('digital-rollup-price-info');
+                    if (infoEl) {
+                        let unitPriceStr = rollUpUnitPrice.toFixed(2).replace('.', ',');
+                        let printCostStr = totalPrintCost.toFixed(2).replace('.', ',');
+                        infoEl.innerHTML = `📌 <strong>Cena Digitalni ROLL UP</strong> za ${qty} kos: <strong>${unitPriceStr} € / kos</strong> (skupaj: <strong>${printCostStr} €</strong>)`;
+                    }
+                }
             }
             if (mType === 'cooperation') {
                 totalPrepCost = 0;
@@ -4777,14 +4902,31 @@
             if (qty === q) {
                 updateMachineEfficiencyWarning(mType, qty, totalPrintCost, totalPrepCost, totalSheetsNeeded);
             }
+            if (mType === 'digital-rollup') {
+                paperCost = 0;
+                totalPrepCost = 0;
+                totalFinishCost = 0;
+                deliveryCost = 0;
+                commercialCost = 0;
+            }
             let subtotalWithoutDelivery = paperCost + totalPrepCost + totalPrintCost + (totalFinishCost - deliveryCost) + commercialCost;
-            if (document.getElementById('calc-minus-price').checked) {
+            if (mType === 'digital-rollup') {
+                subtotalWithoutDelivery = totalPrintCost;
+            } else if (document.getElementById('calc-minus-price').checked) {
                 subtotalWithoutDelivery = subtotalWithoutDelivery * 0.952; // -4.8%
             }
             let subtotal = subtotalWithoutDelivery + deliveryCost;
             let marginPercent = parseFloat(document.getElementById('calc-margin').value) || 0;
             let totalPrice = subtotal;
-            if (marginPercent > 0 && marginPercent < 100) {
+            if (mType === 'digital-rollup') {
+                if (marginPercent > 0 && marginPercent < 100) {
+                    totalPrice = subtotal / (1 - (marginPercent / 100)); // RVC izračun če je ročno vnešen
+                } else if (marginPercent >= 100 || marginPercent < 0) {
+                    totalPrice = subtotal * (1 + marginPercent / 100);
+                } else {
+                    totalPrice = totalPrintCost;
+                }
+            } else if (marginPercent > 0 && marginPercent < 100) {
                 totalPrice = subtotal / (1 - (marginPercent / 100)); // RVC izračun
             } else if (marginPercent >= 100) {
                 totalPrice = subtotal * (1 + marginPercent / 100); // Standardna marža
@@ -5209,6 +5351,14 @@
                     cost: fPrice,
                     breakdown: `Fiksna cena dostave`
                 });
+            }
+            if (mType === 'digital-rollup') {
+                details.paper.cost = 0;
+                details.paper.totalSheets = 0;
+                details.paper.sourceSheets = 0;
+                details.prep.cost = 0;
+                details.finish.cost = 0;
+                details.finish.items = [];
             }
             // MULTI-ITEM BREAKDOWN (for manual layout)
             let itemBreakdown = null;
@@ -9519,7 +9669,13 @@
                             ${d.print ? `
                             ${d.print.mType === 'digital'
                                 ? `<tr><td>Cena tiska (${d.paper ? d.paper.totalSheets : ''} pol${d.print.perSheetCost ? ` po ${d.print.perSheetCost.toFixed(2).replace('.', ',')} €` : ''}):</td><td style="text-align: right;">${formatPrice(d.print.cost || 0)}</td></tr>`
-                                : `<tr><td>Neto čas tiska (${((d.print.hours || 0) * 60).toFixed(0)} min):</td><td style="text-align: right;">${formatPrice(d.print.cost || 0)}</td></tr>`
+                                : (d.print.mType === 'digital-rollup'
+                                    ? `<tr><td>Digitalni ROLL UP:</td><td style="text-align: right;">${formatPrice(d.print.cost || 0)}</td></tr>`
+                                    : (d.print.mType === 'digital-plakat'
+                                        ? `<tr><td>Digitalni tisk plakatov:</td><td style="text-align: right;">${formatPrice(d.print.cost || 0)}</td></tr>`
+                                        : `<tr><td>Neto čas tiska (${((d.print.hours || 0) * 60).toFixed(0)} min):</td><td style="text-align: right;">${formatPrice(d.print.cost || 0)}</td></tr>`
+                                      )
+                                  )
                             }
                             ${d.print.gripper ? `<tr><td>Prijemalec (gripper):</td><td style="text-align: right; font-weight: bold;">${d.print.gripper} mm</td></tr>` : ''}
                             ` : ''}
