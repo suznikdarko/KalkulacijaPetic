@@ -999,10 +999,18 @@
             <div id="basket-container"
                 style="display: none; margin-bottom: 2rem; background: rgba(30, 41, 59, 0.5); border: 1px solid var(--glass-border); border-radius: 12px; overflow: hidden;">
                 <div
-                    style="padding: 10px 15px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa;">= KOŠARICA ZA PONUDBO</h3>
-                    <button onclick="clearBasket()"
-                        style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.7rem;">Počisti</button>
+                    style="padding: 10px 15px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa; display: flex; align-items: center; gap: 6px;">📁 KOŠARICA ZA PONUDBO</h3>
+                        <div id="basket-quote-subtext" style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;"></div>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <button type="button" onclick="toggleProjectsDropdown()" style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;" title="Preklopi med drugimi shranjenimi ponudbami">
+                            📂 Druge ponudbe
+                        </button>
+                        <button onclick="clearBasket()"
+                            style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.7rem;">Počisti vse</button>
+                    </div>
                 </div>
                 <div id="basket-items-list" style="padding: 10px; max-height: 400px; overflow-y: auto;">
                     <!-- Items here -->
@@ -2271,6 +2279,182 @@
             if (isChecked('f-delivery-active') || isChecked('f-del-fixed-active')) list.push('Dostava');
             return list.join(', ');
         }
+        var g_activeBasketItemId = null;
+
+        function collectPolaProjectSnapshot() {
+            function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+            function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
+            return {
+                name: (document.getElementById('calc-project-name') ? document.getElementById('calc-project-name').value.trim() : '') || 'Brez imena',
+                _source: 'pola',
+                date: new Date().toLocaleDateString('sl-SI'),
+                timestamp: Date.now(),
+                customer: gv('calc-customer'),
+                custAddress: gv('calc-cust-address'),
+                deliveryAddress: gv('calc-delivery-address'),
+                custEmail: gv('calc-cust-email'),
+                custId: gv('calc-cust-id'),
+                quoteNum: gv('calc-quote-number'),
+                dnNum: gv('calc-dn-number'),
+                dnOld: gv('calc-dn-old'),
+                deadline: gv('calc-dn-deadline'),
+                packaging: gv('calc-dn-packaging'),
+                givenSheets: gv('calc-given-sheets'),
+                customerCode: gv('calc-customer-code'),
+                productCode: gv('calc-product-code'),
+                preparedBy: gv('calc-prepared-by'),
+                materialCode: gv('calc-material-code'),
+                notes: gv('calc-notes'),
+                mutType: gv('calc-mut-type'),
+                mutQty: gv('calc-mut-qty'),
+                mutPlates: gv('calc-mut-plates'),
+                mutBreakdown: gv('calc-mut-breakdown'),
+                mutDodatek: gv('calc-mut-dodatek'),
+                orderType: gv('calc-order-type'),
+                isUrgent: gc('calc-dn-urgent'),
+                inputs: {
+                    emailBody: gv('calc-email-content'),
+                    emailSubject: gv('calc-email-subject'),
+                    emailSender: gv('calc-email-sender'),
+                    emailDate: gv('calc-email-date'),
+                    givenSheets: gv('calc-given-sheets'),
+                    dnNum: gv('calc-dn-number'),
+                    dnOld: gv('calc-dn-old'),
+                    deadline: gv('calc-dn-deadline'),
+                    packaging: gv('calc-dn-packaging'),
+                    orderedSheets: gv('calc-ordered-sheets'),
+                    machine_format: gv('machine-format'),
+                    sourcePreset: gv('calc-source-presets'),
+                    sourceW: gv('calc-source-w'),
+                    sourceH: gv('calc-source-h'),
+                    sourceYield: gv('calc-source-yield'),
+                    item_w: gv('width'),
+                    item_h: gv('height'),
+                    quantity: gv('quantity'),
+                    bleed: gv('bleed'),
+                    pPrice: gv('calc-paper-price'),
+                    pUnit: gv('calc-paper-unit'),
+                    pWeight: gv('calc-paper-weight'),
+                    paperWeight: gv('calc-paper-weight'),
+                    pType: gv('calc-paper-type'),
+                    pWaste: gv('calc-paper-waste'),
+                    wasteManual: gv('calc-paper-waste-manual'),
+                    mutPlates: gv('calc-mut-plates'),
+                    platesPrice: gv('calc-plates-price'),
+                    prepPrice: gv('calc-prep-price'),
+                    changePrice: gv('calc-change-price'),
+                    machineType: gv('calc-machine-type'),
+                    machineRate: gv('calc-machine-rate'),
+                    machineSpeed: gv('calc-machine-speed'),
+                    machinePrepTime: gv('calc-machine-prep-time'),
+                    machinePasses: gv('calc-machine-passes'),
+                    colorFront: gv('calc-color-front'),
+                    colorBack: gv('calc-color-back'),
+                    isObrat: gc('calc-is-obrat'),
+                    isSV: gc('calc-is-sv'),
+                    commercial: gv('calc-commercial'),
+                    margin: gv('calc-margin'),
+                    itemsPerSheet: gv('items-per-sheet'),
+                    itemOrientation: gv('item-orientation'),
+                    minusPrice: gc('calc-minus-price'),
+                    finish: {
+                        cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), hours: gv('f-cilinder-hours'), rate: gv('f-cilinder-rate'), dodatek: gv('f-cilinder-dodatek'), zasek: gc('f-cilinder-zasek'), izsek: gc('f-cilinder-izsek'), perforacija: gc('f-cilinder-perforacija'), zleb: gc('f-cilinder-zleb') },
+                        ril: { active: gc('f-ril-active'), speed: gv('f-ril-speed'), rate: gv('f-ril-rate'), hours: gv('f-ril-hours') },
+                        zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
+                        razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
+                        razrez: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
+                        precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
+                        lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
+                        spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
+                        spiraljenje: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
+                        extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate'), qty: gv('f-extra-qty') },
+                        dodatnaDela: { active: gc('f-dodatna-dela-active'), desc: gv('f-dodatna-dela-desc'), sheets: gv('f-dodatna-dela-sheets'), kom: gv('f-dodatna-dela-kom'), price: gv('f-dodatna-dela-price') },
+                        tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
+                        zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
+                        zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
+                        uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type'), format: gv('f-uv-format'), extraWaste: gv('f-uv-extra-waste') },
+                        uv2: { active: gc('f-uv2-active'), prep: gv('f-uv2-prep'), per1000: gv('f-uv2-per1000'), sides: gv('f-uv2-sides'), type: gv('f-uv2-type'), format: gv('f-uv2-format'), extraWaste: gv('f-uv2-extra-waste') },
+                        personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price'), qty: gv('f-personalization-qty'), split: gv('f-personalization-split') },
+                        lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
+                        delivery: { active: gc('f-delivery-active'), count: gv('f-post-count'), pricePer: gv('f-post-price-per') },
+                        delFixed: { active: gc('f-del-fixed-active'), price: gv('f-del-fixed-price') },
+                        deliveryFixed: { active: gc('f-del-fixed-active'), price: gv('f-del-fixed-price') }
+                    }
+                }
+            };
+        }
+
+        function loadBasketCalculation(id) {
+            try {
+                var item = quoteBasket.find(x => x.id === id);
+                if (!item) return;
+                g_activeBasketItemId = id;
+
+                quoteBasket.forEach(it => {
+                    it.isSelected = (it.id === id);
+                });
+                localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+
+                window.g_loadingProject = true;
+
+                if (item.snapshot && item.snapshot.inputs) {
+                    var snap = JSON.parse(JSON.stringify(item.snapshot));
+                    snap.quoteBasket = quoteBasket;
+                    loadProjectData(snap);
+                } else {
+                    function setV(elemId, val, isChk) {
+                        var el = document.getElementById(elemId);
+                        if (!el) return;
+                        if (isChk) el.checked = !!val;
+                        else el.value = (val !== undefined && val !== null) ? val : '';
+                        if (typeof updateInputStyles === 'function') updateInputStyles(el);
+                    }
+                    if (item.name || item.projectName) setV('calc-project-name', item.name || item.projectName);
+                    if (item.customer) setV('calc-customer', item.customer);
+                    if (item.productCode && item.productCode !== '/') setV('calc-product-code', item.productCode);
+                    if (item.materialCode && item.materialCode !== '/') setV('calc-material-code', item.materialCode);
+                    if (item.deliveryAddress) setV('calc-delivery-address', item.deliveryAddress);
+
+                    if (item.spec && item.spec.format) {
+                        var fParts = item.spec.format.replace(/mm/gi, '').split('x').map(s => s.trim());
+                        if (fParts.length === 2) {
+                            setV('width', fParts[0]);
+                            setV('height', fParts[1]);
+                        }
+                    }
+                    if (item.spec && item.spec.paper) {
+                        var pMatch = item.spec.paper.match(/^(\d+)g\s*(.*)$/);
+                        if (pMatch) {
+                            setV('calc-paper-weight', pMatch[1]);
+                            setV('calc-paper-type', pMatch[2].replace(/\+.*$/, '').trim());
+                        }
+                    }
+                    if (item.quantities && item.quantities.length > 0) {
+                        setV('quantity', item.quantities.map(q => q.qty).join(', '));
+                    }
+                    if (typeof calculate === 'function') calculate();
+                }
+
+                window.g_loadingProject = false;
+
+                if (item.quantities && item.quantities.length > 0) {
+                    var ordEl = document.getElementById('ordered-quantity');
+                    if (ordEl) {
+                        ordEl.value = item.quantities[0].qty;
+                    }
+                }
+
+                g_editedWorkOrderHTML = '';
+                if (typeof calculatePrice === 'function') calculatePrice();
+                else if (typeof calculate === 'function') calculate();
+                if (typeof updateCustomDocsPreview === 'function') updateCustomDocsPreview();
+
+                renderBasket();
+            } catch (err) {
+                console.error("loadBasketCalculation error:", err);
+                alert("Napaka pri nalaganju izračuna: " + err.message);
+            }
+        }
         function addToBasket() {
             try {
                 // Prepričaj se, da je izračun posodobljen
@@ -2304,6 +2488,7 @@
                     productCode: (document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : '') || '/',
                     materialCode: (document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '') || '/',
                     deliveryAddress: (document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '') || '',
+                    quoteNum: (document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '') || '',
                     spec: {
                         usePersonalization: document.getElementById('calc-use-personalization') ? document.getElementById('calc-use-personalization').checked : false,
                         useManualWork: document.getElementById('calc-use-manual-work') ? document.getElementById('calc-use-manual-work').checked : false,
@@ -2323,8 +2508,13 @@
                             priceTotal: r.totalPrice,
                             pricePerUnit: r.perItemFinal
                         };
-                    })
+                    }),
+                    snapshot: collectPolaProjectSnapshot()
                 };
+
+                quoteBasket.forEach(it => { it.isSelected = false; });
+                basketItem.isSelected = true;
+                g_activeBasketItemId = basketItem.id;
                 quoteBasket.push(basketItem);
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
                 renderBasket();
@@ -2332,7 +2522,7 @@
                 const btn = document.querySelector('button[onclick="addToBasket()"]');
                 if (btn) {
                     const originalText = btn.innerHTML;
-                    btn.innerHTML = " ' DODANO";
+                    btn.innerHTML = "✅ DODANO";
                     setTimeout(() => { btn.innerHTML = originalText; }, 1500);
                 } else {
                     alert("Dodano v košarico!");
@@ -2345,6 +2535,9 @@
         }
         function removeFromBasket(id) {
             quoteBasket = quoteBasket.filter(item => item.id !== id);
+            if (g_activeBasketItemId === id) {
+                g_activeBasketItemId = quoteBasket.length > 0 ? quoteBasket[0].id : null;
+            }
             localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
             g_editedQuoteHTML = '';
             g_editedQuoteATHTML = '';
@@ -2353,6 +2546,7 @@
         function clearBasket() {
             if (confirm("Izbrišem vse elemente iz košarice?")) {
                 quoteBasket = [];
+                g_activeBasketItemId = null;
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
                 g_editedQuoteHTML = '';
                 g_editedQuoteATHTML = '';
@@ -2370,6 +2564,13 @@
                 const container = document.getElementById('basket-items-list');
                 const basketContainer = document.getElementById('basket-container');
                 if (!container || !basketContainer) return;
+
+                const qNum = (document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '') || '';
+                const subtextEl = document.getElementById('basket-quote-subtext');
+                if (subtextEl) {
+                    subtextEl.innerHTML = (qNum ? `Št. ponudbe: <strong style="color: #60a5fa;">${escapeHtml(qNum)}</strong> | ` : '') + `${count} ${count === 1 ? 'shranjen izračun' : (count === 2 ? 'shranjena izračuna' : 'shranjenih izračunov')}`;
+                }
+
                 if (!quoteBasket || quoteBasket.length === 0) {
                     container.innerHTML = '<div style="padding: 10px; color: #94a3b8; font-size: 0.8rem; text-align: center;">Košarica je prazna.</div>';
                     basketContainer.style.display = 'none';
@@ -2378,16 +2579,25 @@
                 basketContainer.style.display = 'block';
                 container.innerHTML = quoteBasket.map(item => {
                     if (!item || !item.spec || !item.quantities) return '';
+                    var isActive = (item.id === g_activeBasketItemId) || (item.isSelected === true);
                     return `
-                    <div style="padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-start; border-left: 3px solid #3b82f6;">
-                        <div style="flex: 1;">
-                            <div style="font-weight: bold; color: white; font-size: 0.9rem;">${item.name}</div>
-                            <div style="font-size: 0.75rem; color: #94a3b8;">${item.type} | ${item.spec.format}</div>
-                            <div style="margin-top: 4px;">
-                                ${item.quantities.map(q => `<span style="font-size: 0.7rem; background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 5px; border-radius: 4px; margin-right: 4px;">${formatQty(q.qty)}: ${formatPrice(q.priceTotal)}</span>`).join('')}
+                    <div style="padding: 10px; background: ${isActive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.05)'}; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-start; border-left: ${isActive ? '4px solid #10b981' : '3px solid #3b82f6'}; border: ${isActive ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255,255,255,0.05)'};">
+                        <div style="flex: 1; cursor: pointer;" onclick="loadBasketCalculation(${item.id})">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <div style="font-weight: bold; color: white; font-size: 0.9rem;">${item.name}</div>
+                                ${isActive ? `<span style="background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: bold; letter-spacing: 0.5px;">✓ IZDELANO PO PONUDBI</span>` : ''}
+                            </div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px;">${item.type} | ${item.spec.format} | ${item.spec.paper || ''}</div>
+                            <div style="margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap;">
+                                ${item.quantities.map(q => `<span style="font-size: 0.7rem; background: ${isActive ? 'rgba(16, 185, 129, 0.25)' : 'rgba(59, 130, 246, 0.2)'}; color: ${isActive ? '#a7f3d0' : '#60a5fa'}; padding: 2px 6px; border-radius: 4px; font-weight: 500;">${formatQty(q.qty)}: ${formatPrice(q.priceTotal)}</span>`).join('')}
                             </div>
                         </div>
-                        <button onclick="removeFromBasket(${item.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 5px; font-size: 1rem;"> '</button>
+                        <div style="display: flex; align-items: center; gap: 4px; margin-left: 8px;">
+                            <button type="button" onclick="loadBasketCalculation(${item.id})" style="background: ${isActive ? '#10b981' : 'rgba(16, 185, 129, 0.2)'}; border: 1px solid #10b981; color: ${isActive ? '#ffffff' : '#34d399'}; border-radius: 6px; cursor: pointer; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;" title="Preklopi na ta izračun / izberi kot izdelano po ponudbi za DN">
+                                📁 ${isActive ? 'Naloženo' : 'Izberi'}
+                            </button>
+                            <button type="button" onclick="removeFromBasket(${item.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px 6px; font-size: 1rem;" title="Odstrani iz ponudbe">✕</button>
+                        </div>
                     </div>
                     `;
                 }).join('');
@@ -6665,7 +6875,8 @@
                         perItem: (document.getElementById('res-price-per-item-stat-final') || {}).innerText || '',
                                                 sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
                     },
-                    quoteBasket: (typeof quoteBasket !== 'undefined') ? quoteBasket : []
+                    quoteBasket: (typeof quoteBasket !== 'undefined') ? quoteBasket : [],
+                    activeBasketItemId: g_activeBasketItemId
                 };
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
                 arhiv = arhiv.filter(proj => isPolaProject(proj));
@@ -7255,6 +7466,7 @@
             } else {
                 quoteBasket = [];
             }
+            g_activeBasketItemId = (proj && proj.activeBasketItemId) ? proj.activeBasketItemId : (quoteBasket.length > 0 ? quoteBasket[0].id : null);
             localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
             if (typeof renderBasket === 'function') renderBasket();
 

@@ -3643,12 +3643,20 @@
                     style="display: none; margin-bottom: 2rem; background: rgba(30, 41, 59, 0.5); border: 1px solid var(--glass-border); border-radius: 12px; overflow: hidden;">
 
                     <div
-                        style="padding: 10px 15px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+                        style="padding: 10px 15px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
 
-                        <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa;">🛒 KOŠARICA ZA PONUDBO</h3>
+                        <div>
+                            <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa; display: flex; align-items: center; gap: 6px;">📁 KOŠARICA ZA PONUDBO</h3>
+                            <div id="basket-quote-subtext" style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;"></div>
+                        </div>
 
-                        <button onclick="clearBasket()"
-                            style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.7rem;">Počisti</button>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <button type="button" onclick="toggleProjectsDropdown()" style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;" title="Preklopi med drugimi shranjenimi ponudbami">
+                                📂 Druge ponudbe
+                            </button>
+                            <button onclick="clearBasket()"
+                                style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.7rem;">Počisti vse</button>
+                        </div>
 
                     </div>
 
@@ -8247,6 +8255,174 @@
 
 
 
+            var g_activeBasketItemId = null;
+
+            function collectBrosuraProjectSnapshot() {
+                function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+                function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
+                return {
+                    id: Date.now(),
+                    name: gv('calc-project-name').trim() || "Brosura",
+                    _source: 'darko-brosura',
+                    date: new Date().toLocaleString('sl-SI'),
+                    customer: gv('calc-customer'),
+                    custEmail: gv('calc-cust-email'),
+                    custAddress: gv('calc-cust-address'),
+                    deliveryAddress: gv('calc-delivery-address'),
+                    custId: gv('calc-cust-id'),
+                    quoteNum: gv('calc-quote-number'),
+                    customerCode: gv('calc-customer-code'),
+                    productCode: gv('calc-product-code'),
+                    materialCode: gv('calc-material-code'),
+                    coverMaterialCode: gv('calc-cover-material-code'),
+                    orderType: gv('calc-order-type'),
+                    notes: gv('calc-notes'),
+                    inputs: {
+                        emailBody: gv('calc-email-content'),
+                        emailSubject: gv('calc-email-subject'),
+                        emailSender: gv('calc-email-sender'),
+                        emailDate: gv('calc-email-date'),
+                        machine_format: gv('machine-format'),
+                        machine_format_cover: gv('machine-format-cover'),
+                        item_w: gv('width'),
+                        item_h: gv('height'),
+                        closedW: gv('closed-width'),
+                        closedH: gv('closed-height'),
+                        quantity: gv('quantity'),
+                        bleed: gv('bleed'),
+                        gripper: gv('gripper'),
+                        orientation: gv('item-orientation'),
+                        orientationCover: gv('item-orientation-cover'),
+                        itemsPerSheet: gv('items-per-sheet'),
+                        itemsPerSheetCover: gv('items-per-sheet-cover'),
+                        sourceW: gv('calc-source-w'),
+                        sourceH: gv('calc-source-h'),
+                        sourceYield: gv('calc-source-yield'),
+                        leaves: gv('calc-leaves'),
+                        coverW: gv('calc-cover-w'),
+                        coverH: gv('calc-cover-h'),
+                        closedCoverW: gv('closed-calc-cover-w'),
+                        closedCoverH: gv('closed-calc-cover-h'),
+                        coverBleed: gv('calc-cover-bleed'),
+                        coverGripper: gv('calc-cover-gripper'),
+                        coverQty: gv('calc-cover-qty'),
+                        coverPages: gv('calc-cover-pages'),
+                        coverDesc: gv('calc-cover-desc'),
+                        sourceCoverW: gv('calc-source-cover-w'),
+                        sourceCoverH: gv('calc-source-cover-h'),
+                        sourceCoverYield: gv('calc-source-cover-yield'),
+                        pActive: gc('calc-paper-active'),
+                        pPrice: gv('calc-paper-price'),
+                        pUnit: gv('calc-paper-unit'),
+                        pWeight: gv('calc-paper-weight'),
+                        pSupplyType: gv('calc-paper-supply-type'),
+                        pSupplyW: gv('calc-paper-supply-w'),
+                        pSupplyH: gv('calc-paper-supply-h'),
+                        pWaste: gv('calc-paper-waste-leaves'),
+                        givenSheetsL: gv('calc-given-sheets-leaves'),
+                        givenSheetsC: gv('calc-given-sheets-cover'),
+                        cbActive: gc('calc-cardboard-active'),
+                        cbPrice: gv('calc-cardboard-price'),
+                        cbUnit: gv('calc-cardboard-unit'),
+                        cbWeight: gv('calc-cardboard-weight'),
+                        cbSupplyType: gv('calc-cb-supply-type'),
+                        cbSupplyW: gv('calc-cb-supply-w'),
+                        cbSupplyH: gv('calc-cb-supply-h'),
+                        mTypeL: gv('calc-machine-type-leaves'),
+                        mRateL: gv('calc-machine-rate-leaves'),
+                        mSpeedL: gv('calc-machine-speed-leaves'),
+                        mPrepL: gv('calc-machine-prep-time-leaves'),
+                        frontL: gv('calc-color-front-leaves'),
+                        backL: gv('calc-color-back-leaves'),
+                        obratL: gc('calc-is-obrat-leaves'),
+                        svL: gc('calc-is-sv-leaves'),
+                        washesL: gv('calc-color-washes-leaves'),
+                        washPriceL: gv('calc-wash-price-leaves'),
+                        platesNumL: gv('calc-plates-num-leaves'),
+                        platesPriceL: gv('calc-plates-price-leaves'),
+                        changePriceL: gv('calc-change-price-leaves'),
+                        platesActiveL: gc('calc-plates-active-leaves'),
+                        mutNumL: gv('calc-mut-num-leaves'),
+                        mutPlatesL: gv('calc-mut-plates-leaves'),
+                        mutChangeL: gv('calc-mut-change-price-leaves'),
+                        prepPriceL: gv('calc-prep-price-leaves'),
+                        wasteL: gv('calc-paper-waste-leaves'),
+                        wasteManualL: gv('calc-paper-waste-leaves-manual'),
+                        mTypeC: gv('calc-machine-type-cover'),
+                        mRateC: gv('calc-machine-rate-cover'),
+                        mSpeedC: gv('calc-machine-speed-cover'),
+                        mPrepC: gv('calc-machine-prep-time-cover'),
+                        frontC: gv('calc-color-front-cover'),
+                        backC: gv('calc-color-back-cover'),
+                        obratC: gc('calc-is-obrat-cover'),
+                        svC: gc('calc-is-sv-cover'),
+                        washesC: gv('calc-color-washes-cover'),
+                        washPriceC: gv('calc-wash-price-cover'),
+                        platesNumC: gv('calc-plates-num-cover'),
+                        platesPriceC: gv('calc-plates-price-cover'),
+                        changePriceC: gv('calc-change-price-cover'),
+                        platesActiveC: gc('calc-plates-active-cover'),
+                        mutNumC: gv('calc-mut-num-cover'),
+                        mutPlatesC: gv('calc-mut-plates-cover'),
+                        mutChangeC: gv('calc-mut-change-price-cover'),
+                        prepPriceC: gv('calc-prep-price-cover'),
+                        wasteC: gv('calc-paper-waste-cover'),
+                        wasteManualC: gv('calc-paper-waste-cover-manual'),
+                        commercial: gv('calc-commercial'),
+                        margin: gv('calc-margin'),
+                        minusPrice: gc('calc-minus-price'),
+                        orderType: gv('calc-order-type'),
+                        dnNumber: gv('calc-dn-number'),
+                        dnOld: gv('calc-dn-old'),
+                        dnDeadline: gv('calc-dn-deadline'),
+                        dnUrgent: gc('calc-dn-urgent'),
+                        dnPackaging: gv('calc-dn-packaging')
+                    }
+                };
+            }
+
+            function loadBasketCalculation(id) {
+                try {
+                    var item = quoteBasket.find(x => x.id === id);
+                    if (!item) return;
+                    g_activeBasketItemId = id;
+                    quoteBasket.forEach(it => { it.isSelected = (it.id === id); });
+                    localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+                    window.g_loadingProject = true;
+                    if (item.snapshot && item.snapshot.inputs) {
+                        var snap = JSON.parse(JSON.stringify(item.snapshot));
+                        snap.quoteBasket = quoteBasket;
+                        loadProjectData(snap);
+                    } else {
+                        function setV(elemId, val, isChk) {
+                            var el = document.getElementById(elemId);
+                            if (!el) return;
+                            if (isChk) el.checked = !!val;
+                            else el.value = (val !== undefined && val !== null) ? val : '';
+                        }
+                        if (item.name || item.projectName) setV('calc-project-name', item.name || item.projectName);
+                        if (item.customer) setV('calc-customer', item.customer);
+                        if (item.productCode && item.productCode !== '/') setV('calc-product-code', item.productCode);
+                        if (item.materialCode && item.materialCode !== '/') setV('calc-material-code', item.materialCode);
+                        if (item.coverMaterialCode && item.coverMaterialCode !== '/') setV('calc-cover-material-code', item.coverMaterialCode);
+                        if (item.quantities && item.quantities.length > 0) {
+                            setV('quantity', item.quantities.map(q => q.qty).join(', '));
+                        }
+                        if (typeof calculatePrice === 'function') calculatePrice();
+                    }
+                    window.g_loadingProject = false;
+                    if (item.quantities && item.quantities.length > 0) {
+                        var ordEl = document.getElementById('ordered-quantity');
+                        if (ordEl) ordEl.value = item.quantities[0].qty;
+                    }
+                    g_editedWorkOrderHTML = '';
+                    if (typeof calculatePrice === 'function') calculatePrice();
+                    if (typeof renderDetailedSpec === 'function') renderDetailedSpec();
+                    renderBasket();
+                } catch(err) {
+                    console.error("loadBasketCalculation error:", err);
+                }
+            }
             function addToBasket() {
                 try {
                     const qtyStr = document.getElementById('quantity').value || "";
@@ -8267,10 +8443,14 @@
 
                     const item = {
                         id: Date.now(),
+                        type: 'brošura',
+                        name: projectName,
                         projectName: projectName,
                         productCode: productCode,
                         materialCode: materialCode,
                         coverMaterialCode: coverMaterialCode,
+                        deliveryAddress: (document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '') || '',
+                        quoteNum: (document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '') || '',
                         formatLeaves: `${document.getElementById('width').value}x${document.getElementById('height').value}`,
                         formatCover: `${document.getElementById('calc-cover-w').value}x${document.getElementById('calc-cover-h').value}`,
                         closedFormatLeaves: `${document.getElementById('closed-width') ? document.getElementById('closed-width').value : ''}x${document.getElementById('closed-height') ? document.getElementById('closed-height').value : ''}`,
@@ -8284,7 +8464,8 @@
                         mTypeL: document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : 'S4',
                         mTypeC: document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : 'S4',
                         options: [],
-                        quantities: []
+                        quantities: [],
+                        snapshot: collectBrosuraProjectSnapshot()
                     };
 
                     item.finishingText = getFinishingDesc();
@@ -8299,10 +8480,14 @@
                         });
                     });
 
+                    quoteBasket.forEach(it => { it.isSelected = false; });
+                    item.isSelected = true;
+                    g_activeBasketItemId = item.id;
                     quoteBasket.push(item);
                     localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
                     g_editedQuoteHTML = '';
                     g_editedQuoteATHTML = '';
+                    if (typeof switchCalcTab === 'function') switchCalcTab('povzetek');
                     renderBasket();
 
                     const btn = document.querySelector('button[onclick="addToBasket()"]');
@@ -8335,6 +8520,12 @@
 
                     if (!listDiv || !basketContainer) return;
 
+                    const qNum = (document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '') || '';
+                    const subtextEl = document.getElementById('basket-quote-subtext');
+                    if (subtextEl) {
+                        subtextEl.innerHTML = (qNum ? `Št. ponudbe: <strong style="color: #60a5fa;">${escapeHtml(qNum)}</strong> | ` : '') + `${count} ${count === 1 ? 'shranjen izračun' : (count === 2 ? 'shranjena izračuna' : 'shranjenih izračunov')}`;
+                    }
+
                     if (!quoteBasket || quoteBasket.length === 0) {
                         listDiv.innerHTML = '<div style="padding: 15px; text-align: center; color: #94a3b8; font-size: 0.85rem;">Vaša košarica je prazna.</div>';
                         basketContainer.style.display = 'none';
@@ -8345,17 +8536,19 @@
                     listDiv.innerHTML = "";
 
                     quoteBasket.forEach((item, index) => {
+                        const itemIdOrIndex = item.id ? item.id : index;
+                        const isActive = (item.id === g_activeBasketItemId) || (item.isSelected === true);
                         const row = document.createElement('div');
                         row.className = 'basket-item-card';
-                        row.style.cssText = "background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 12px; margin-bottom: 10px; border-left: 4px solid #3b82f6;";
+                        row.style.cssText = `background: ${isActive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.05)'}; border-radius: 8px; padding: 12px; margin-bottom: 10px; border-left: ${isActive ? '4px solid #10b981' : '4px solid #3b82f6'}; border: ${isActive ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255,255,255,0.05)'};`;
 
                         let qHtml = "";
                         if (item.quantities && Array.isArray(item.quantities)) {
                             item.quantities.forEach(q => {
                                 const priceTotal = q.total !== undefined ? q.total : (q.priceTotal !== undefined ? q.priceTotal : 0);
-                                qHtml += `<div style="background: rgba(59, 130, 246, 0.15); padding: 4px 8px; border-radius: 6px; margin-right: 5px; display:inline-block; margin-top:5px; font-size:0.8rem;">
-                                            <span style="color:#94a3b8;">${formatQty(q.qty)} kos:</span> 
-                                            <strong style="color:#60a5fa;">${formatPrice(priceTotal)}</strong>
+                                qHtml += `<div style="background: ${isActive ? 'rgba(16, 185, 129, 0.25)' : 'rgba(59, 130, 246, 0.15)'}; padding: 4px 8px; border-radius: 6px; margin-right: 5px; display:inline-block; margin-top:5px; font-size:0.8rem;">
+                                            <span style="color:${isActive ? '#cbd5e1' : '#94a3b8'};">${formatQty(q.qty)} kos:</span> 
+                                            <strong style="color:${isActive ? '#a7f3d0' : '#60a5fa'};">${formatPrice(priceTotal)}</strong>
                                          </div>`;
                             });
                         }
@@ -8384,17 +8577,25 @@
                             descHtml = `<div><span style="color:#94a3b8;">Pozicija kalkulacije</span></div>`;
                         }
 
-                        const itemIdOrIndex = item.id ? item.id : index;
-
                         row.innerHTML = `
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
-                                <div style="font-weight: bold; color: #f8fafc; font-size: 0.95rem;">${projName}</div>
-                                <button onclick="removeFromBasket(${itemIdOrIndex})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 0 5px;" title="Odstrani iz košarice">✕</button>
+                                <div style="flex: 1; cursor: pointer;" onclick="loadBasketCalculation(${item.id})">
+                                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                        <div style="font-weight: bold; color: #f8fafc; font-size: 0.95rem;">${projName}</div>
+                                        ${isActive ? `<span style="background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: bold; letter-spacing: 0.5px;">✓ IZDELANO PO PONUDBI</span>` : ''}
+                                    </div>
+                                    <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px; line-height: 1.4;">
+                                        ${descHtml}
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px;">
+                                    <button type="button" onclick="loadBasketCalculation(${item.id})" style="background: ${isActive ? '#10b981' : 'rgba(16, 185, 129, 0.2)'}; border: 1px solid #10b981; color: ${isActive ? '#ffffff' : '#34d399'}; border-radius: 6px; cursor: pointer; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;" title="Preklopi na ta izračun / izberi kot izdelano po ponudbi za DN">
+                                        📁 ${isActive ? 'Naloženo' : 'Izberi'}
+                                    </button>
+                                    <button type="button" onclick="removeFromBasket(${itemIdOrIndex})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 0 5px;" title="Odstrani iz košarice">✕</button>
+                                </div>
                             </div>
-                            <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px; line-height: 1.4;">
-                                ${descHtml}
-                            </div>
-                            <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px;">
+                            <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px; cursor: pointer;" onclick="loadBasketCalculation(${item.id})">
                                 ${qHtml}
                             </div>
                         `;
@@ -8406,10 +8607,14 @@
             }
 
             function removeFromBasket(idOrIndex) {
-                if (typeof idOrIndex === 'number' && idOrIndex > 1000000) {
-                    quoteBasket = quoteBasket.filter(item => item.id !== idOrIndex);
+                const targetId = (typeof idOrIndex === 'object' && idOrIndex !== null) ? idOrIndex.id : idOrIndex;
+                if (typeof targetId === 'number' && targetId > 1000000) {
+                    quoteBasket = quoteBasket.filter(item => item.id !== targetId);
                 } else {
-                    quoteBasket.splice(idOrIndex, 1);
+                    quoteBasket.splice(targetId, 1);
+                }
+                if (g_activeBasketItemId === targetId) {
+                    g_activeBasketItemId = quoteBasket.length > 0 ? quoteBasket[0].id : null;
                 }
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
                 g_editedQuoteHTML = '';
@@ -8420,6 +8625,7 @@
             function clearBasket() {
                 if (confirm("Ali res želite izprazniti celotno košarico?")) {
                     quoteBasket = [];
+                    g_activeBasketItemId = null;
                     localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
                     g_editedQuoteHTML = '';
                     g_editedQuoteATHTML = '';
@@ -9904,7 +10110,8 @@
                         perItem: (document.getElementById('res-price-per-item') || {}).innerText || '',
                         sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
                     },
-                    quoteBasket: (typeof quoteBasket !== 'undefined' && Array.isArray(quoteBasket)) ? quoteBasket : []
+                    quoteBasket: (typeof quoteBasket !== 'undefined' && Array.isArray(quoteBasket)) ? quoteBasket : [],
+                    activeBasketItemId: g_activeBasketItemId
                 };
 
                 const STORAGE_KEY_BROSURA = 'darko_brosura_arhiv';
@@ -10278,6 +10485,7 @@
                 } else {
                     quoteBasket = [];
                 }
+                g_activeBasketItemId = (proj && proj.activeBasketItemId) ? proj.activeBasketItemId : (quoteBasket.length > 0 ? quoteBasket[0].id : null);
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
                 if (typeof renderBasket === 'function') renderBasket();
                 if (!proj || !proj.inputs) return;

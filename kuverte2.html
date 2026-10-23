@@ -1029,12 +1029,18 @@
     <div id="basket-container" style="display: none; margin: 20px auto; max-width: 1400px; padding: 0 20px;">
         <div class="card"
             style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1.5rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h3 style="margin: 0; color: #f99c26; display: flex; align-items: center; gap: 10px;">🛒 Izdelki v
-                    ponudbi</h3>
-                <button onclick="clearBasket()"
-                    style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">Izprazni
-                    vse</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <h3 style="margin: 0; color: #f99c26; display: flex; align-items: center; gap: 10px;">📁 KOŠARICA ZA PONUDBO</h3>
+                    <div id="basket-quote-subtext" style="font-size: 0.75rem; color: #94a3b8; margin-top: 3px;"></div>
+                </div>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <button type="button" onclick="toggleProjectsDropdown()" style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer;" title="Preklopi med drugimi shranjenimi ponudbami">
+                        📂 Druge ponudbe
+                    </button>
+                    <button onclick="clearBasket()"
+                        style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">Izprazni vse</button>
+                </div>
             </div>
             <div id="basket-items-list" style="display: flex; flex-direction: column; gap: 10px;">
                 <!-- Items will be injected here -->
@@ -1258,6 +1264,110 @@
             }
         });
 
+        var g_activeBasketItemId = null;
+
+        function collectKuverteProjectSnapshot() {
+            function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+            function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
+            return {
+                id: Date.now(),
+                name: (gv('calc-project-name').trim() || "Kuverta"),
+                _source: 'darko-kuverte',
+                date: new Date().toLocaleString('sl-SI'),
+                customer: gv('calc-customer'),
+                custAddress: gv('calc-cust-address'),
+                deliveryAddress: gv('calc-delivery-address'),
+                custEmail: gv('calc-cust-email'),
+                quoteNum: gv('calc-quote-number'),
+                customerCode: gv('calc-customer-code'),
+                preparedBy: gv('calc-prepared-by'),
+                materialCode: gv('calc-material-code'),
+                notes: gv('calc-notes'),
+                customerEmailBody: gv('calc-email-content'),
+                inputs: {
+                    emailBody: gv('calc-email-content'),
+                    emailSubject: gv('calc-email-subject'),
+                    emailSender: gv('calc-email-sender'),
+                    emailDate: gv('calc-email-date'),
+                    item_w: gv('width'),
+                    item_h: gv('height'),
+                    envelopePreset: gv('envelope-preset'),
+                    quantities: gv('calc-quantities'),
+                    qtyOrdered: gv('calc-qty-ordered'),
+                    mPrice: gv('calc-material-price'),
+                    packaging: gv('calc-packaging'),
+                    margin: gv('calc-margin'),
+                    colorsFront: gv('calc-colors-front'),
+                    colorsBack: gv('calc-colors-back'),
+                    mRate: gv('calc-machine-rate'),
+                    mSpeed: gv('calc-machine-speed'),
+                    autoSpeed: gc('calc-auto-speed'),
+                    plateDod: gv('calc-plate-price'),
+                    plateCount: gv('calc-plate-count'),
+                    colorChangePrice: gv('calc-color-change-price'),
+                    persCount: gv('calc-personalization'),
+                    manualWork: gv('calc-manual-work'),
+                    usePers: gc('calc-use-personalization'),
+                    useManual: gc('calc-use-manual-work'),
+                    isObrat: gc('calc-is-obrat'),
+                    wasteManual: gv('calc-waste-manual'),
+                    commercial: gv('calc-commercial'),
+                    dodatnaDela: {
+                        active: gc('f-dodatna-dela-active'),
+                        desc: gv('f-dodatna-dela-desc'),
+                        sheets: gv('f-dodatna-dela-sheets'),
+                        kom: gv('f-dodatna-dela-kom'),
+                        price: gv('f-dodatna-dela-price')
+                    },
+                    deliveryActive: gc('f-delivery-active'),
+                    postCount: gv('f-post-count'),
+                    postPricePer: gv('f-post-price-per'),
+                    delFixedActive: gc('f-del-fixed-active'),
+                    delFixedPrice: gv('f-del-fixed-price'),
+                    minusPrice: gc('calc-minus-price')
+                }
+            };
+        }
+
+        function loadBasketCalculation(id) {
+            try {
+                var item = quoteBasket.find(x => x.id === id);
+                if (!item) return;
+                g_activeBasketItemId = id;
+                quoteBasket.forEach(it => { it.isSelected = (it.id === id); });
+                localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+                window.g_loadingProject = true;
+                if (item.snapshot && item.snapshot.inputs) {
+                    var snap = JSON.parse(JSON.stringify(item.snapshot));
+                    snap.quoteBasket = quoteBasket;
+                    loadProjectData(snap);
+                } else {
+                    function setV(elemId, val, isChk) {
+                        var el = document.getElementById(elemId);
+                        if (!el) return;
+                        if (isChk) el.checked = !!val;
+                        else el.value = (val !== undefined && val !== null) ? val : '';
+                    }
+                    if (item.name) setV('calc-project-name', item.name);
+                    if (item.customer) setV('calc-customer', item.customer);
+                    if (item.materialCode && item.materialCode !== '/') setV('calc-material-code', item.materialCode);
+                    if (item.quantities && item.quantities.length > 0) {
+                        setV('calc-quantities', item.quantities.map(q => q.qty).join(', '));
+                    }
+                    if (typeof calculate === 'function') calculate();
+                }
+                window.g_loadingProject = false;
+                if (item.quantities && item.quantities.length > 0) {
+                    var ordEl = document.getElementById('calc-qty-ordered');
+                    if (ordEl) ordEl.value = item.quantities[0].qty;
+                }
+                g_editedWorkOrderHTML = '';
+                if (typeof calculate === 'function') calculate();
+                renderBasket();
+            } catch(err) {
+                console.error("loadBasketCalculation error:", err);
+            }
+        }
         function addToBasket() {
             const projectName = document.getElementById('calc-project-name').value || 'Tisk Kuvert';
             const materialCode = document.getElementById('calc-material-code').value || '/';
@@ -1295,6 +1405,7 @@
                 name: projectName,
                 customer: document.getElementById('calc-customer').value || '',
                 materialCode: materialCode,
+                quoteNum: (document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '') || '',
                 spec: {
                     format: envType + ' (' + w + ' x ' + h + ' mm)',
                     colors: cFront + ' / ' + cBack,
@@ -1311,9 +1422,13 @@
                         total: res.finalTotal,
                         finalTotal: res.finalTotal
                     };
-                })
+                }),
+                snapshot: collectKuverteProjectSnapshot()
             };
 
+            quoteBasket.forEach(it => { it.isSelected = false; });
+            item.isSelected = true;
+            g_activeBasketItemId = item.id;
             quoteBasket.push(item);
             localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
             renderBasket();
@@ -1329,6 +1444,9 @@
 
         function removeFromBasket(id) {
             quoteBasket = quoteBasket.filter(item => item.id !== id);
+            if (g_activeBasketItemId === id) {
+                g_activeBasketItemId = quoteBasket.length > 0 ? quoteBasket[0].id : null;
+            }
             localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
             renderBasket();
         }
@@ -1336,6 +1454,7 @@
         function clearBasket() {
             if (confirm("Ali ste prepričani, da želite izprazniti celotno ponudbo?")) {
                 quoteBasket = [];
+                g_activeBasketItemId = null;
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
                 renderBasket();
             }
@@ -1346,33 +1465,53 @@
             const list = document.getElementById('basket-items-list');
             const badge = document.getElementById('basket-count-badge');
 
-            if (quoteBasket.length === 0) {
-                container.style.display = 'none';
-                badge.style.display = 'none';
+            if (!quoteBasket || quoteBasket.length === 0) {
+                if (container) container.style.display = 'none';
+                if (badge) badge.style.display = 'none';
                 return;
             }
 
-            container.style.display = 'block';
-            badge.style.display = 'inline-block';
-            badge.innerText = quoteBasket.length;
+            if (container) container.style.display = 'block';
+            if (badge) {
+                badge.style.display = 'inline-block';
+                badge.innerText = quoteBasket.length;
+            }
+
+            const count = quoteBasket.length;
+            const qNum = (document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '') || '';
+            const subtextEl = document.getElementById('basket-quote-subtext');
+            if (subtextEl) {
+                subtextEl.innerHTML = (qNum ? `Št. ponudbe: <strong style="color: #60a5fa;">${escapeHtml(qNum)}</strong> | ` : '') + `${count} ${count === 1 ? 'shranjen izračun' : (count === 2 ? 'shranjena izračuna' : 'shranjenih izračunov')}`;
+            }
 
             let html = "";
             quoteBasket.forEach(item => {
+                const isActive = (item.id === g_activeBasketItemId) || (item.isSelected === true);
                 html += `
-                    <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: center;">
-                        <div>
-                            <div style="font-weight: bold; color: #f8fafc; font-size: 0.95rem;">${item.name} <span style="font-weight: normal; color: #94a3b8; font-size: 0.8rem; margin-left: 10px;">[${item.materialCode}]</span></div>
-                            <div style="font-size: 0.8rem; color: #cbd5e1; margin-top: 3px;">
-                                ${item.type} | ${item.spec.format} | ${item.spec.colors} ${item.spec.finishing ? ' | ' + item.spec.finishing : ''}
+                    <div style="background: ${isActive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.05)'}; padding: 12px; border-radius: 8px; border-left: ${isActive ? '4px solid #10b981' : '3px solid #3b82f6'}; border: ${isActive ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255,255,255,0.1)'}; display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: center;">
+                        <div style="cursor: pointer;" onclick="loadBasketCalculation(${item.id})">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <div style="font-weight: bold; color: #f8fafc; font-size: 0.95rem;">${item.name} <span style="font-weight: normal; color: #94a3b8; font-size: 0.8rem; margin-left: 10px;">[${item.materialCode || '/'}]</span></div>
+                                ${isActive ? `<span style="background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: bold; letter-spacing: 0.5px;">✓ IZDELANO PO PONUDBI</span>` : ''}
                             </div>
-<div style="display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;">
+                            <div style="font-size: 0.8rem; color: #cbd5e1; margin-top: 3px;">
+                                ${item.type || 'Kuverte'} | ${item.spec ? item.spec.format : ''} | ${item.spec ? item.spec.colors : ''} ${item.spec && item.spec.finishing ? ' | ' + item.spec.finishing : ''}
+                            </div>
+                            <div style="display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap;">
                                 ${item.quantities.map(q => {
                                     const pTot = q.priceTotal !== undefined ? q.priceTotal : (q.total !== undefined ? q.total : (q.finalTotal !== undefined ? q.finalTotal : 0));
-                                    const fQty = typeof formatQty === 'function' ? formatQty(q.qty) : (q.qty ? Number(q.qty).toLocaleString('de-DE') : '0'); const fPrc = typeof formatPrice === 'function' ? formatPrice(pTot) : (pTot ? Number(pTot).toFixed(2).replace('.', ',') + ' €' : '0,00 €'); return `<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${fQty}: ${fPrc}</span>`;
+                                    const fQty = typeof formatQty === 'function' ? formatQty(q.qty) : (q.qty ? Number(q.qty).toLocaleString('de-DE') : '0'); 
+                                    const fPrc = typeof formatPrice === 'function' ? formatPrice(pTot) : (pTot ? Number(pTot).toFixed(2).replace('.', ',') + ' €' : '0,00 €'); 
+                                    return `<span style="background: ${isActive ? 'rgba(16, 185, 129, 0.25)' : 'rgba(59, 130, 246, 0.2)'}; color: ${isActive ? '#a7f3d0' : '#60a5fa'}; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${fQty}: ${fPrc}</span>`;
                                 }).join('')}
                             </div>
                         </div>
-                        <button onclick="removeFromBasket(${item.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.2rem; padding: 5px;" title="Odstrani">✕</button>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button type="button" onclick="loadBasketCalculation(${item.id})" style="background: ${isActive ? '#10b981' : 'rgba(16, 185, 129, 0.2)'}; border: 1px solid #10b981; color: ${isActive ? '#ffffff' : '#34d399'}; border-radius: 6px; cursor: pointer; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;" title="Preklopi na ta izračun / izberi kot izdelano po ponudbi za DN">
+                                📁 ${isActive ? 'Naloženo' : 'Izberi'}
+                            </button>
+                            <button onclick="removeFromBasket(${item.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.2rem; padding: 5px;" title="Odstrani">✕</button>
+                        </div>
                     </div>
                 `;
             });
@@ -5456,7 +5595,9 @@ function printQuote() {
                         delFixedActive: gc('f-del-fixed-active'),
                         delFixedPrice: gv('f-del-fixed-price'),
                         minusPrice: gc('calc-minus-price')
-                    }
+                    },
+                    quoteBasket: (typeof quoteBasket !== 'undefined' && Array.isArray(quoteBasket)) ? quoteBasket : [],
+                    activeBasketItemId: g_activeBasketItemId
                 };
 
                 const STORAGE_KEY_KUVERTE = 'kuverte_arhiv';
@@ -5699,6 +5840,7 @@ function printQuote() {
             } else {
                 quoteBasket = [];
             }
+            g_activeBasketItemId = (proj && proj.activeBasketItemId) ? proj.activeBasketItemId : (quoteBasket.length > 0 ? quoteBasket[0].id : null);
             localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
             if (typeof renderBasket === 'function') renderBasket();
             if (!proj || !proj.inputs) return;

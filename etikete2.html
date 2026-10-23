@@ -2130,10 +2130,18 @@
                 <div id="basket-container"
                     style="display: none; margin-bottom: 2rem; background: rgba(30, 41, 59, 0.5); border: 1px solid var(--glass-border); border-radius: 12px; overflow: hidden;">
                     <div
-                        style="padding: 10px 15px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
-                        <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa;">🛒 KOŠARICA ZA PONUDBO</h3>
-                        <button onclick="clearBasket()"
-                            style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.7rem;">Počisti</button>
+                        style="padding: 10px 15px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa; display: flex; align-items: center; gap: 6px;">📁 KOŠARICA ZA PONUDBO</h3>
+                            <div id="basket-quote-subtext" style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;"></div>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <button type="button" onclick="toggleProjectsDropdown()" style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;" title="Preklopi med drugimi shranjenimi ponudbami">
+                                📂 Druge ponudbe
+                            </button>
+                            <button onclick="clearBasket()"
+                                style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.7rem;">Počisti vse</button>
+                        </div>
                     </div>
                     <div id="basket-items-list" style="padding: 10px; max-height: 400px; overflow-y: auto;">
                         <!-- Items here -->
@@ -5675,11 +5683,190 @@
                 return calculatePrice(sheetsNeededL, sheetsNeededC, q, drawW, drawH);
             }
 
+            var g_activeBasketItemId = null;
+
+            function collectEtiketeProjectSnapshot() {
+                function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+                function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
+                return {
+                    id: Date.now(),
+                    name: gv('calc-project-name').trim() || "Brez imena",
+                    _source: 'darko-blok',
+                    date: new Date().toLocaleString('sl-SI'),
+                    customer: gv('calc-customer'),
+                    custEmail: gv('calc-cust-email'),
+                    custAddress: gv('calc-cust-address'),
+                    deliveryAddress: gv('calc-delivery-address'),
+                    custId: gv('calc-cust-id'),
+                    quoteNum: gv('calc-quote-number'),
+                    customerCode: gv('calc-customer-code'),
+                    productCode: gv('calc-product-code'),
+                    preparedBy: gv('calc-prepared-by'),
+                    materialCode: gv('calc-material-code'),
+                    coverMaterialCode: gv('calc-cover-material-code'),
+                    orderType: gv('calc-order-type'),
+                    dnNumber: gv('calc-dn-number'),
+                    dnOld: gv('calc-dn-old'),
+                    dnDeadline: gv('calc-dn-deadline'),
+                    dnUrgent: gc('calc-dn-urgent'),
+                    dnPackaging: gv('calc-dn-packaging'),
+                    leavesMaterial: gv('calc-leaves-material'),
+                    notes: gv('calc-notes'),
+                    inputs: {
+                        emailBody: gv('calc-email-content'),
+                        emailSubject: gv('calc-email-subject'),
+                        emailSender: gv('calc-email-sender'),
+                        emailDate: gv('calc-email-date'),
+                        isMultiLabelMode: typeof isMultiLabelMode !== 'undefined' ? isMultiLabelMode : false,
+                        sheetGrain: gv('calc-sheet-grain'),
+                        multiLabelItems: typeof multiLabelItems !== 'undefined' ? multiLabelItems : [],
+                        machine_format: gv('machine-format'),
+                        item_w: gv('width'),
+                        item_h: gv('height'),
+                        quantity: gv('quantity'),
+                        bleed: gv('bleed'),
+                        gripper: gv('gripper'),
+                        orientation: gv('item-orientation'),
+                        itemsPerSheet: gv('items-per-sheet'),
+                        sourceW: gv('calc-source-w'),
+                        sourceH: gv('calc-source-h'),
+                        sourceYield: gv('calc-source-yield'),
+                        leaves: gv('calc-leaves'),
+                        ncrActive: gc('calc-ncr-active'),
+                        ncrParts: gv('calc-ncr-parts'),
+                        ncrSetsPerBlock: gv('calc-ncr-sets-per-block'),
+                        coverW: gv('calc-cover-w'),
+                        coverH: gv('calc-cover-h'),
+                        coverBleed: gv('calc-cover-bleed'),
+                        coverGripper: gv('calc-cover-gripper'),
+                        coverQty: gv('calc-cover-qty'),
+                        coverDesc: gv('calc-cover-desc'),
+                        sourceCoverW: gv('calc-source-cover-w'),
+                        sourceCoverH: gv('calc-source-cover-h'),
+                        sourceCoverYield: gv('calc-source-cover-yield'),
+                        pActive: gc('calc-paper-active'),
+                        pPrice: gv('calc-paper-price'),
+                        pUnit: gv('calc-paper-unit'),
+                        pWeight: gv('calc-paper-weight'),
+                        pSupplyType: gv('calc-paper-supply-type'),
+                        pSupplyW: gv('calc-paper-supply-w'),
+                        pSupplyH: gv('calc-paper-supply-h'),
+                        pWaste: gv('calc-paper-waste-leaves'),
+                        cbActive: gc('calc-cardboard-active'),
+                        cbPrice: gv('calc-cardboard-price'),
+                        cbUnit: gv('calc-cardboard-unit'),
+                        cbWeight: gv('calc-cardboard-weight'),
+                        cbSupplyType: gv('calc-cb-supply-type'),
+                        cbSupplyW: gv('calc-cb-supply-w'),
+                        cbSupplyH: gv('calc-cb-supply-h'),
+                        mTypeL: gv('calc-machine-type-leaves'),
+                        mRateL: gv('calc-machine-rate-leaves'),
+                        mSpeedL: gv('calc-machine-speed-leaves'),
+                        mSpeedMaxL: gv('calc-machine-speed-max-leaves'),
+                        mPrepL: gv('calc-machine-prep-time-leaves'),
+                        frontL: gv('calc-color-front-leaves'),
+                        backL: gv('calc-color-back-leaves'),
+                        obratL: gc('calc-is-obrat-leaves'),
+                        svL: gc('calc-is-sv-leaves'),
+                        platesNumL: gv('calc-plates-num-leaves'),
+                        platesPriceL: gv('calc-plates-price-leaves'),
+                        prepPriceL: gv('calc-prep-price-leaves'),
+                        changePriceL: gv('calc-change-price-leaves'),
+                        wasteL: gv('calc-paper-waste-leaves'),
+                        colorWashesLeaves: gv('calc-color-washes-leaves'),
+                        washPriceLeaves: gv('calc-wash-price-leaves'),
+                        mTypeC: gv('calc-machine-type-cover'),
+                        mRateC: gv('calc-machine-rate-cover'),
+                        mSpeedC: gv('calc-machine-speed-cover'),
+                        mSpeedMaxC: gv('calc-machine-speed-max-cover'),
+                        mPrepC: gv('calc-machine-prep-time-cover'),
+                        frontC: gv('calc-color-front-cover'),
+                        backC: gv('calc-color-back-cover'),
+                        obratC: gc('calc-is-obrat-cover'),
+                        platesNumC: gv('calc-plates-num-cover'),
+                        platesPriceC: gv('calc-plates-price-cover'),
+                        prepPriceC: gv('calc-prep-price-cover'),
+                        changePriceC: gv('calc-change-price-cover'),
+                        wasteC: gv('calc-paper-waste-cover'),
+                        colorWashesCover: gv('calc-color-washes-cover'),
+                        washPriceCover: gv('calc-wash-price-cover'),
+                        printAllowanceL: gv('calc-print-allowance-leaves'),
+                        printAllowanceC: gv('calc-print-allowance-cover'),
+                        commercial: gv('calc-commercial'),
+                        margin: gv('calc-margin'),
+                        minusPrice: gc('calc-minus-price'),
+                        finish: {
+                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover'), dodatek: gv('f-cilinder-dodatek'), toolNum: (document.getElementById('f-cilinder-tool-num') ? document.getElementById('f-cilinder-tool-num').value : "") },
+                            ril: { active: gc('f-ril-active'), speed: gv('f-ril-speed'), rate: gv('f-ril-rate'), hours: gv('f-ril-hours') },
+                            zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
+                            razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
+                            znasanje: { active: gc('f-znasanje-active'), prep: gv('f-znasanje-prep'), per1000: gv('f-znasanje-per1000') },
+                            zbiranjeNcr: { active: gc('f-zbiranje-ncr-active'), prep: gv('f-zbiranje-ncr-prep'), per1000: gv('f-zbiranje-ncr-per1000') },
+                            deserta: { active: gc('f-deserta-active'), prep: gv('f-deserta-prep'), per1000: gv('f-deserta-per1000') },
+                            lepljenjeblokov: { active: gc('f-lepljenjeblokov-active'), prep: gv('f-lepljenjeblokov-prep'), kos: gv('f-lepljenjeblokov-kos') },
+                            spiraljenje: { active: gc('f-spiraljenje-active'), prep: gv('f-spiraljenje-prep'), kos: gv('f-spiraljenje-kos') },
+                            sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
+                            numeracija: { active: gc('f-numeracija-active'), kos: gv('f-numeracija-kos') },
+                            extra: { active: gc('f-extra-active'), manual: gv('f-extra-manual'), external: gv('f-extra-external') },
+                            dodatnaDela: { active: gc('f-dodatna-dela-active'), desc: gv('f-dodatna-dela-desc'), sheets: gv('f-dodatna-dela-sheets'), kom: gv('f-dodatna-dela-kom'), price: gv('f-dodatna-dela-price') },
+                            tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
+                            uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type'), format: gv('f-uv-format'), extraWaste: gv('f-uv-extra-waste') },
+                            uv2: { active: gc('f-uv2-active'), prep: gv('f-uv2-prep'), per1000: gv('f-uv2-per1000'), sides: gv('f-uv2-sides'), type: gv('f-uv2-type'), format: gv('f-uv2-format'), extraWaste: gv('f-uv2-extra-waste') },
+                            personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price') },
+                            lam: { active: gc('f-lam-active'), type: gv('f-lam-type'), sides: gv('f-lam-sides'), per1000: gv('f-lam-per1000'), prep: gv('f-lam-prep') },
+                            delivery: { active: gc('f-delivery-active'), km: gv('f-delivery-km'), rate: gv('f-delivery-rate') },
+                            delFixed: { active: gc('f-del-fixed-active'), cost: gv('f-del-fixed-cost') }
+                        }
+                    }
+                };
+            }
+
+            function loadBasketCalculation(id) {
+                try {
+                    var item = quoteBasket.find(x => x.id === id);
+                    if (!item) return;
+                    g_activeBasketItemId = id;
+                    quoteBasket.forEach(it => { it.isSelected = (it.id === id); });
+                    localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+                    window.g_loadingProject = true;
+                    if (item.snapshot && item.snapshot.inputs) {
+                        var snap = JSON.parse(JSON.stringify(item.snapshot));
+                        snap.quoteBasket = quoteBasket;
+                        loadProjectData(snap);
+                    } else {
+                        function setV(elemId, val, isChk) {
+                            var el = document.getElementById(elemId);
+                            if (!el) return;
+                            if (isChk) el.checked = !!val;
+                            else el.value = (val !== undefined && val !== null) ? val : '';
+                        }
+                        if (item.name || item.projectName) setV('calc-project-name', item.name || item.projectName);
+                        if (item.customer) setV('calc-customer', item.customer);
+                        if (item.productCode && item.productCode !== '/') setV('calc-product-code', item.productCode);
+                        if (item.materialCode && item.materialCode !== '/') setV('calc-material-code', item.materialCode);
+                        if (item.coverMaterialCode && item.coverMaterialCode !== '/') setV('calc-cover-material-code', item.coverMaterialCode);
+                        if (item.quantities && item.quantities.length > 0) {
+                            setV('quantity', item.quantities.map(q => q.qty).join(', '));
+                        }
+                        if (typeof calculatePrice === 'function') calculatePrice();
+                    }
+                    window.g_loadingProject = false;
+                    if (item.quantities && item.quantities.length > 0) {
+                        var ordEl = document.getElementById('ordered-quantity');
+                        if (ordEl) ordEl.value = item.quantities[0].qty;
+                    }
+                    g_editedWorkOrderHTML = '';
+                    if (typeof calculatePrice === 'function') calculatePrice();
+                    if (typeof renderDetailedSpec === 'function') renderDetailedSpec();
+                    renderBasket();
+                } catch(err) {
+                    console.error("loadBasketCalculation error:", err);
+                }
+            }
             function addToBasket() {
                 const qtyStr = document.getElementById('quantity').value || "";
                 const qList = qtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, ''))).filter(n => !isNaN(n) && n >= 0);
 
-                // Če ni naklade, dodaj vsaj 0, da omogočiš shranjevanje v košarico
                 if (qList.length === 0) {
                     qList.push(0);
                 }
@@ -5694,10 +5881,14 @@
 
                 const item = {
                     id: Date.now(),
+                    type: 'etikete',
+                    name: projectName,
                     projectName: projectName,
                     productCode: productCode,
                     materialCode: materialCode,
                     coverMaterialCode: coverMaterialCode,
+                    deliveryAddress: (document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '') || '',
+                    quoteNum: (document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '') || '',
                     formatLeaves: `${document.getElementById('width').value}x${document.getElementById('height').value}`,
                     formatCover: `${document.getElementById('calc-cover-w').value}x${document.getElementById('calc-cover-h').value}`,
                     extentText: extentText,
@@ -5708,12 +5899,12 @@
                     mTypeL: document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : 'S4',
                     mTypeC: document.getElementById('calc-machine-type-cover') ? document.getElementById('calc-machine-type-cover').value : 'S4',
                     options: [],
-                    quantities: []
+                    quantities: [],
+                    snapshot: collectEtiketeProjectSnapshot()
                 };
 
                 item.finishingText = getFinishingDesc();
 
-                // Izračunaj za vsako naklado
                 qList.forEach(q => {
                     const res = calculateForSingleQty(q);
                     item.quantities.push({
@@ -5723,11 +5914,14 @@
                     });
                 });
 
+                quoteBasket.forEach(it => { it.isSelected = false; });
+                item.isSelected = true;
+                g_activeBasketItemId = item.id;
                 quoteBasket.push(item);
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+                if (typeof switchCalcTab === 'function') switchCalcTab('povzetek');
                 renderBasket();
 
-                // Vizualna potrditev
                 const btn = document.querySelector('.sticky-footer button[onclick="addToBasket()"]');
                 if (btn) {
                     const oldText = btn.innerHTML;
@@ -5742,61 +5936,91 @@
 
             function renderBasket() {
                 const listDivModal = document.getElementById('basket-items-list-modal');
-                if (!listDivModal) return;
+                const listDivOld = document.getElementById('basket-items-list');
+                const basketContainer = document.getElementById('basket-container');
+                const badges = document.querySelectorAll('.basket-count-badge');
 
-                if (quoteBasket.length === 0) {
-                    listDivModal.innerHTML = '<div style="padding: 40px; text-align: center; color: #94a3b8;">Vaša košarica je prazna.</div>';
-                    const badges = document.querySelectorAll('.basket-count-badge');
-                    badges.forEach(b => { b.style.display = 'none'; b.innerText = '0'; });
+                const count = (quoteBasket && quoteBasket.length) ? quoteBasket.length : 0;
+                badges.forEach(b => {
+                    b.innerText = count;
+                    b.style.display = count > 0 ? 'inline-block' : 'none';
+                });
+
+                if (basketContainer) basketContainer.style.display = count > 0 ? 'block' : 'none';
+
+                const qNum = (document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '') || '';
+                const subtextEl = document.getElementById('basket-quote-subtext');
+                if (subtextEl) {
+                    subtextEl.innerHTML = (qNum ? `Št. ponudbe: <strong style="color: #60a5fa;">${escapeHtml(qNum)}</strong> | ` : '') + `${count} ${count === 1 ? 'shranjen izračun' : (count === 2 ? 'shranjena izračuna' : 'shranjenih izračunov')}`;
+                }
+
+                if (!quoteBasket || quoteBasket.length === 0) {
+                    if (listDivModal) listDivModal.innerHTML = '<div style="padding: 40px; text-align: center; color: #94a3b8;">Vaša košarica je prazna.</div>';
+                    if (listDivOld) listDivOld.innerHTML = '<div style="padding: 15px; text-align: center; color: #94a3b8; font-size: 0.85rem;">Vaša košarica je prazna.</div>';
                     return;
                 }
 
-                listDivModal.innerHTML = "";
-
-                quoteBasket.forEach((item, index) => {
-                    const row = document.createElement('div');
-                    row.className = 'basket-item-card';
-
+                let itemsHtml = quoteBasket.map((item, index) => {
+                    const itemIdOrIndex = item.id ? item.id : index;
+                    const isActive = (item.id === g_activeBasketItemId) || (item.isSelected === true);
                     let qHtml = "";
-                    item.quantities.forEach(q => {
-                        qHtml += `<div style="background: rgba(59, 130, 246, 0.1); padding: 4px 8px; border-radius: 6px; margin-right: 5px; display:inline-block; margin-top:5px;">
-                                    <span style="color:#94a3b8; font-size:0.75rem;">${formatQty(q.qty)} kos:</span> 
-                                    <strong style="color:#60a5fa;">${formatPrice(q.total)}</strong>
-                                 </div>`;
-                    });
+                    if (item.quantities && Array.isArray(item.quantities)) {
+                        item.quantities.forEach(q => {
+                            const priceTotal = q.total !== undefined ? q.total : (q.priceTotal !== undefined ? q.priceTotal : 0);
+                            qHtml += `<div style="background: ${isActive ? 'rgba(16, 185, 129, 0.25)' : 'rgba(59, 130, 246, 0.15)'}; padding: 4px 8px; border-radius: 6px; margin-right: 5px; display:inline-block; margin-top:5px; font-size:0.8rem;">
+                                        <span style="color:${isActive ? '#cbd5e1' : '#94a3b8'};">${formatQty(q.qty)} kos:</span> 
+                                        <strong style="color:${isActive ? '#a7f3d0' : '#60a5fa'};">${formatPrice(priceTotal)}</strong>
+                                     </div>`;
+                        });
+                    }
 
-                    row.innerHTML = `
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                            <div style="font-weight: bold; color: #f8fafc; font-size: 1rem;">${item.projectName}</div>
-                            <button onclick="removeFromBasket(${index})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 0 5px;">✕</button>
+                    const projName = item.projectName || item.name || 'Brez imena';
+                    let descHtml = "";
+                    if (item.spec) {
+                        descHtml = `<div><span style="color:#64748b;">Format:</span> ${item.spec.format || ''}, <span style="color:#64748b;">Papir:</span> ${item.spec.paper || ''}</div>`;
+                    } else {
+                        descHtml = `<div><span style="color:#64748b;">Format:</span> ${item.formatLeaves || item.formatText || ''}, <span style="color:#64748b;">Papir:</span> ${item.paperLeaves || item.paperText || ''}</div>`;
+                    }
+
+                    return `
+                    <div class="basket-item-card" style="background: ${isActive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.05)'}; border-radius: 8px; padding: 12px; margin-bottom: 10px; border-left: ${isActive ? '4px solid #10b981' : '4px solid #3b82f6'}; border: ${isActive ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255,255,255,0.05)'};">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                            <div style="flex: 1; cursor: pointer;" onclick="loadBasketCalculation(${item.id})">
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                    <div style="font-weight: bold; color: #f8fafc; font-size: 0.95rem;">${projName}</div>
+                                    ${isActive ? `<span style="background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: bold; letter-spacing: 0.5px;">✓ IZDELANO PO PONUDBI</span>` : ''}
+                                </div>
+                                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px; line-height: 1.4;">
+                                    ${descHtml}
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px;">
+                                <button type="button" onclick="loadBasketCalculation(${item.id})" style="background: ${isActive ? '#10b981' : 'rgba(16, 185, 129, 0.2)'}; border: 1px solid #10b981; color: ${isActive ? '#ffffff' : '#34d399'}; border-radius: 6px; cursor: pointer; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;" title="Preklopi na ta izračun / izberi kot izdelano po ponudbi za DN">
+                                    📁 ${isActive ? 'Naloženo' : 'Izberi'}
+                                </button>
+                                <button type="button" onclick="removeFromBasket(${itemIdOrIndex})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 0 5px;" title="Odstrani iz košarice">✕</button>
+                            </div>
                         </div>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px;">
-                            <div><span style="color:#64748b;">Format:</span> ${item.formatText}</div>
-                            <div><span style="color:#64748b;">Papir:</span> ${item.paperText}</div>
-                            <div><span style="color:#64748b;">Tisk:</span> ${item.tiskText}</div>
-                            <div><span style="color:#64748b;">Dodelava:</span> ${item.finishingText}</div>
-                        </div>
-                        <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
+                        <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px; cursor: pointer;" onclick="loadBasketCalculation(${item.id})">
                             ${qHtml}
                         </div>
-                    `;
-                    listDivModal.appendChild(row);
-                });
+                    </div>`;
+                }).join('');
 
-                // Posodobi števce
-                const badges = document.querySelectorAll('.basket-count-badge');
-                badges.forEach(b => {
-                    b.innerText = quoteBasket.length;
-                    b.style.display = quoteBasket.length > 0 ? 'flex' : 'none';
-                });
-
-                // Posodobi tudi staro listo (če obstaja)
-                const listDivOld = document.getElementById('basket-items-list');
-                if (listDivOld) listDivOld.innerHTML = listDivModal.innerHTML;
+                if (listDivModal) listDivModal.innerHTML = itemsHtml;
+                if (listDivOld) listDivOld.innerHTML = itemsHtml;
             }
 
-            function removeFromBasket(index) {
-                quoteBasket.splice(index, 1);
+            function removeFromBasket(idOrIndex) {
+                const targetId = (typeof idOrIndex === 'object' && idOrIndex !== null) ? idOrIndex.id : idOrIndex;
+                if (typeof targetId === 'number' && targetId > 1000000) {
+                    quoteBasket = quoteBasket.filter(item => item.id !== targetId);
+                } else {
+                    quoteBasket.splice(targetId, 1);
+                }
+                if (g_activeBasketItemId === targetId) {
+                    g_activeBasketItemId = quoteBasket.length > 0 ? quoteBasket[0].id : null;
+                }
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
                 g_editedQuoteHTML = '';
                 g_editedQuoteATHTML = '';
@@ -5806,11 +6030,12 @@
             function clearBasket() {
                 if (confirm("Ali res želite izprazniti celotno košarico?")) {
                     quoteBasket = [];
+                    g_activeBasketItemId = null;
                     localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
                     g_editedQuoteHTML = '';
                     g_editedQuoteATHTML = '';
                     renderBasket();
-                    toggleBasketModal(false);
+                    if (typeof toggleBasketModal === 'function') toggleBasketModal(false);
                 }
             }
 
@@ -7112,7 +7337,8 @@
                             perItem: (document.getElementById('res-price-per-item') || {}).innerText || '',
                             sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
                         },
-                        quoteBasket: (typeof quoteBasket !== 'undefined' && Array.isArray(quoteBasket)) ? quoteBasket : []
+                        quoteBasket: (typeof quoteBasket !== 'undefined' && Array.isArray(quoteBasket)) ? quoteBasket : [],
+                        activeBasketItemId: g_activeBasketItemId
                     };
 
                     let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -7301,6 +7527,7 @@
                 } else {
                     quoteBasket = [];
                 }
+                g_activeBasketItemId = (proj && proj.activeBasketItemId) ? proj.activeBasketItemId : (quoteBasket.length > 0 ? quoteBasket[0].id : null);
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
                 if (typeof renderBasket === 'function') renderBasket();
                 const inp = proj.inputs || {};
