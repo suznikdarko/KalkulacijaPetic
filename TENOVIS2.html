@@ -2482,17 +2482,38 @@
 
                             </div>
 
-
-
-
-
-
-
-
-
-
-
-
+                            <!-- Dodatna dela -->
+                            <div class="finish-item" id="row-finish-dodatna-dela"
+                                style="display: grid !important; grid-template-columns: 140px 1fr 1fr !important; gap: 0.5rem; align-items: start; padding: 0.6rem 0.8rem; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; background: rgba(16, 185, 129, 0.05);">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; cursor:pointer; margin-top: 0.4rem;">
+                                    <input type="checkbox" id="f-dodatna-dela-active" onchange="toggleFinishRow('dodatna-dela')">
+                                    Dodatna dela
+                                </label>
+                                <div style="grid-column: 2 / span 2; display: flex; flex-direction: column; gap: 0.4rem;">
+                                    <div class="form-group" style="margin:0; width:100%;">
+                                        <label><small>Opis del</small></label>
+                                        <input type="text" id="f-dodatna-dela-desc" placeholder="Opis dodatnih del..."
+                                            onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                    </div>
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.5rem; width:100%;">
+                                        <div class="form-group" style="margin:0;">
+                                            <label><small>Število pol</small></label>
+                                            <input type="number" id="f-dodatna-dela-sheets" placeholder="0" min="0" step="1"
+                                                onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                        </div>
+                                        <div class="form-group" style="margin:0;">
+                                            <label><small>Število komadov</small></label>
+                                            <input type="number" id="f-dodatna-dela-kom" placeholder="0" min="0" step="1"
+                                                onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                        </div>
+                                        <div class="form-group" style="margin:0;">
+                                            <label><small>Cena polo/kom (€)</small></label>
+                                            <input type="number" id="f-dodatna-dela-price" value="0.00" step="0.001" min="0"
+                                                onchange="calculatePrice()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             <!-- Dostava (Fiksno) -->
 
@@ -3255,6 +3276,11 @@
             safeCheck('f-kasiranje-active', 'Kaširanje');
 
             safeCheck('f-rocnodelo-active', 'Ročno delo');
+
+            if (document.getElementById('f-dodatna-dela-active')?.checked) {
+                const desc = document.getElementById('f-dodatna-dela-desc')?.value.trim();
+                list.push(desc ? `Dodatna dela (${desc})` : 'Dodatna dela');
+            }
 
             safeCheck('f-perforacija-active', 'Perforacija');
 
@@ -6173,6 +6199,13 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
             }
 
+            if (document.getElementById('f-dodatna-dela-active') && document.getElementById('f-dodatna-dela-active')?.checked) {
+                let dSheets = getFloatValue('f-dodatna-dela-sheets', 0);
+                let dKom = getFloatValue('f-dodatna-dela-kom', 0);
+                let dPrice = getFloatValue('f-dodatna-dela-price', 0);
+                totalFinishCost += (dSheets + dKom) * dPrice;
+            }
+
             if (document.getElementById('f-tool-active')?.checked) {
 
                 totalFinishCost += getFloatValue('f-tool-cost');
@@ -6479,6 +6512,24 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
                 });
 
+            }
+
+            if (document.getElementById('f-dodatna-dela-active') && document.getElementById('f-dodatna-dela-active')?.checked) {
+                let dDesc = document.getElementById('f-dodatna-dela-desc') ? document.getElementById('f-dodatna-dela-desc').value.trim() : '';
+                let dSheets = getFloatValue('f-dodatna-dela-sheets', 0);
+                let dKom = getFloatValue('f-dodatna-dela-kom', 0);
+                let dPrice = getFloatValue('f-dodatna-dela-price', 0);
+                let dCost = (dSheets + dKom) * dPrice;
+                let title = dDesc ? `Dodatna dela (${dDesc})` : 'Dodatna dela';
+                let parts = [];
+                if (dSheets > 0) parts.push(`${dSheets} pol`);
+                if (dKom > 0) parts.push(`${dKom} kom`);
+                let qtyStr = parts.length > 0 ? parts.join(', ') : '0 unit';
+                details.finish.items.push({
+                    name: title,
+                    cost: dCost,
+                    breakdown: `${qtyStr} x ${formatPrice(dPrice)}`
+                });
             }
 
             if (document.getElementById('f-tool-active')?.checked) {
@@ -8391,6 +8442,8 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
 
+                            dodatnaDela: { active: gc('f-dodatna-dela-active'), desc: gv('f-dodatna-dela-desc'), sheets: gv('f-dodatna-dela-sheets'), kom: gv('f-dodatna-dela-kom'), price: gv('f-dodatna-dela-price') },
+
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost'), number: gv('tool-number') },
 
                             deliveryFixed: { active: gc('f-del-fixed-active'), price: gv('f-del-fixed-price') },
@@ -8698,6 +8751,8 @@ async function saveProjectToFile() {
                             razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
 
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate') },
+
+                            dodatnaDela: { active: gc('f-dodatna-dela-active'), desc: gv('f-dodatna-dela-desc'), sheets: gv('f-dodatna-dela-sheets'), kom: gv('f-dodatna-dela-kom'), price: gv('f-dodatna-dela-price') },
 
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost'), number: gv('tool-number') },
 
@@ -9474,6 +9529,13 @@ async function saveProjectToFile() {
             sv('f-extra-speed', inp.finish.extra.speed);
             sv('f-extra-rate', inp.finish.extra.rate);
         }
+        if (inp.finish.dodatnaDela) {
+            sc('f-dodatna-dela-active', inp.finish.dodatnaDela.active);
+            sv('f-dodatna-dela-desc', inp.finish.dodatnaDela.desc);
+            sv('f-dodatna-dela-sheets', inp.finish.dodatnaDela.sheets);
+            sv('f-dodatna-dela-kom', inp.finish.dodatnaDela.kom);
+            sv('f-dodatna-dela-price', inp.finish.dodatnaDela.price);
+        }
         if (inp.finish.tool) {
             sc('f-tool-active', inp.finish.tool.active);
             sv('f-tool-cost', inp.finish.tool.cost);
@@ -9663,6 +9725,8 @@ function loadProject(id) {
                             zgibanje: { active: document.getElementById('f-zgibanje-active')?.checked, folds: document.getElementById('f-zgibanje-folds')?.value, speed: document.getElementById('f-zgibanje-speed')?.value },
 
                             extra: { active: document.getElementById('f-extra-active')?.checked, speed: document.getElementById('f-extra-speed')?.value, rate: document.getElementById('f-extra-rate')?.value },
+
+                            dodatnaDela: { active: document.getElementById('f-dodatna-dela-active')?.checked, desc: document.getElementById('f-dodatna-dela-desc')?.value, sheets: document.getElementById('f-dodatna-dela-sheets')?.value, kom: document.getElementById('f-dodatna-dela-kom')?.value, price: document.getElementById('f-dodatna-dela-price')?.value },
 
                             precut: { active: document.getElementById('f-precut-active') ? document.getElementById('f-precut-active')?.checked : false, prep: document.getElementById('f-precut-prep') ? document.getElementById('f-precut-prep')?.value : 5.00, per1000: document.getElementById('f-precut-per1000') ? document.getElementById('f-precut-per1000')?.value : 3.60 },
 
@@ -10150,7 +10214,7 @@ function loadProject(id) {
 
                     </table>
 
-                    <h1>${isAT ? 'ANGEBOT' : 'PONUDBA'}</h1>
+                    <h1 style="font-size: 18pt; font-weight: bold; margin-top: 10px; margin-bottom: 5px; letter-spacing: 1px; border-bottom: 1px solid #000; padding-bottom: 3px; line-height: 1.1; mso-margin-top-alt: 6pt; mso-margin-bottom-alt: 3pt;">${isAT ? 'ANGEBOT' : 'PONUDBA'}</h1>
 
                     <p style="margin: 5px 0;">${isAT ? 'Herzlichen Dank für Ihr Interesse. Wir können Ihnen folgendes anbieten:' : 'Zahvaljujemo se Vam za Vaše povpraševanje in Vam ponujamo naslednje:'}</p>
 
@@ -10187,71 +10251,47 @@ function loadProject(id) {
                 <head><meta charset="utf-8"><title>${isAT ? 'Angebot' : 'Ponudba'}</title>
 
                 <style>
-
-                    body { font-family: 'Arial', sans-serif; padding: ${isWord ? '10px' : '0'}; color: #000; line-height: 1.1; font-size: 11pt; font-family: Arial, sans-serif; margin: 0; }
-
+                    @page { size: A4 portrait; margin: 10mm; }
+                    body, table, td, p, h1, h2, h3 { font-family: 'Arial', sans-serif; line-height: 1.15; font-size: 11pt; color: #000; }
+                    body { font-family: 'Arial', sans-serif; padding: ${isWord ? '10px' : '0'}; color: #000; line-height: 1.15; font-size: 11pt; margin: 0; }
+                    p, div, td, th { mso-margin-top-alt: 0pt; mso-margin-bottom-alt: 0pt; }
+                    p { margin: 3px 0; }
                     .info-table { border-collapse: collapse; margin-left: auto; margin-right: 0; }
-
                     .info-table td { padding: 1px 0 1px 15px; text-align: right; }
-
                     .info-table td:first-child { font-weight: normal; color: #555; }
-
                     .info-table td:last-child { font-weight: bold; }
-
-                    h1 { font-size: 11pt; font-weight: bold; margin-top: 10px; margin-bottom: 5px; letter-spacing: 1px; border-bottom: 1px solid #000; padding-bottom: 3px; }
-
-                    .notes { margin-top: 10px; text-align: justify; font-size: 9px; line-height: 1.1; color: #444; }
-
-                    @media print { .no-print { display: none !important; } }
-
+                    h1 { font-size: 18pt; font-weight: bold; margin-top: 10px; margin-bottom: 5px; letter-spacing: 1px; border-bottom: 1px solid #000; padding-bottom: 3px; line-height: 1.1; mso-margin-top-alt: 6pt; mso-margin-bottom-alt: 3pt; }
+                    .notes { margin-top: 8px; text-align: justify; font-size: 9px; line-height: 1.15; color: #444; }
+                    @media print {
+                        .no-print { display: none !important; }
+                        html, body { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+                        .editable-area { width: 100% !important; max-width: 210mm !important; box-sizing: border-box !important; padding: 0 !important; height: auto !important; overflow: visible !important; }
+                    }
+                    .editable-area { max-width: 210mm; width: 100%; margin: 0 auto; box-sizing: border-box; height: auto; overflow: visible; }
                     .editable-area:focus { outline: 2px dashed #f99c26; background-color: #fffbeb; }
-
                     .editable-area p, .editable-area div:not(.header-top) { margin: 0; padding: 0; }
-
                     .editable-area.waiting-for-paste { cursor: cell !important; outline: 3px dashed #eab308 !important; background-color: #fffbeb !important; }
-
                 
-
         .input-group {
-
             display: flex;
-
             flex-direction: column;
-
             gap: 0.5rem;
-
         }
 
-
-
     </style>
-
             </head>
-
                 <body>
-
                     ${!isWord ? `
-
                     <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 10px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%;">
-
                         <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">${isAT ? 'ANGEBOT DRUCKEN' : 'NATISNI PONUDBO'}</button>
-
                         <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">${isAT ? 'SCHLIEßEN' : 'ZAPRI'}</button>
-
                         <button onclick="if(confirm('Ali želite ponastaviti ponudbo na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){window.opener.${editedHTMLVar}=''; const newHtml = window.opener.getQuoteHTML(false, '', false, ${isAT}); document.open(); document.write(newHtml); document.close();} }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">PONASTAVI</button>
-
                     <button id="btn-move-text" onclick="toggleMoveMode(this)" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;" title="Premakni označeno besedilo na drugo mesto. Označite besedilo, kliknite ta gumb in nato kliknite na novo mesto v besedilu.">PREMAKNI</button>
-
                     <button onclick="saveQuoteToDisk()" style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;" title="Shrani to ponudbo v Word (.doc) formatu na računalnik">SHRANI PONUDBO (WORD)</button>
-
                         <div style="font-size: 12px; color: #475569; margin-left: 10px;">💾 Spremembe besedila se samodejno shranjujejo v kalkulacijo.</div>
-
                     </div>
-
                     ` : ''}
-
-                    <div class="editable-area" ${!isWord ? 'contenteditable="true"' : ''} style="padding: ${isWord ? '10px' : '30px'};">
-
+                    <div class="editable-area" ${!isWord ? 'contenteditable="true"' : ''} style="max-width: 210mm; margin: 0 auto; padding: ${isWord ? '10px' : '20px 30px'};">
                         ${contentToRender}
 
                     </div>
@@ -11333,6 +11373,23 @@ function loadProject(id) {
 
                     </tr>`;
 
+            }
+
+            if (document.getElementById('f-dodatna-dela-active') && document.getElementById('f-dodatna-dela-active')?.checked) {
+                let dDesc = document.getElementById('f-dodatna-dela-desc') ? document.getElementById('f-dodatna-dela-desc').value.trim() : '';
+                let dSheets = getFloatValue('f-dodatna-dela-sheets', 0);
+                let dKom = getFloatValue('f-dodatna-dela-kom', 0);
+                let parts = [];
+                if (dSheets > 0) parts.push(`${dSheets.toLocaleString('de-DE')} pol`);
+                if (dKom > 0) parts.push(`${dKom.toLocaleString('de-DE')} kos`);
+                let infoStr = parts.length > 0 ? parts.join(', ') : '';
+                let labelText = dDesc ? `Dodatna dela (${dDesc}):` : 'Dodatna dela:';
+                finishingRowsHtml += `
+                    <tr>
+                        <td style="width: 15%;">${labelText}</td>
+                        <td style="width: 35%;" class="bold">${infoStr}</td>
+                        <td style="width: 50%; text-align: right;" class="bold">/</td>
+                    </tr>`;
             }
 
 

@@ -907,6 +907,39 @@
                                 (€)</label>
                             <input type="number" id="calc-commercial" value="10.00" step="0.5" onchange="calculate()">
                         </div>
+
+                        <!-- Dodatna dela -->
+                        <div class="finish-item" id="row-finish-dodatna-dela"
+                            style="grid-column: span 2; display: grid !important; grid-template-columns: 140px 1fr 1fr !important; gap: 0.5rem; align-items: start; padding: 0.6rem 0.8rem; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; background: rgba(16, 185, 129, 0.05); margin-top: 0.5rem;">
+                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; cursor:pointer; margin-top: 0.4rem;">
+                                <input type="checkbox" id="f-dodatna-dela-active" onchange="calculate()">
+                                Dodatna dela
+                            </label>
+                            <div style="grid-column: 2 / span 2; display: flex; flex-direction: column; gap: 0.4rem;">
+                                <div class="form-group" style="margin:0; width:100%;">
+                                    <label><small>Opis del</small></label>
+                                    <input type="text" id="f-dodatna-dela-desc" placeholder="Opis dodatnih del..."
+                                        onchange="calculate()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                </div>
+                                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.5rem; width:100%;">
+                                    <div class="form-group" style="margin:0;">
+                                        <label><small>Število pol</small></label>
+                                        <input type="number" id="f-dodatna-dela-sheets" placeholder="0" min="0" step="1"
+                                            onchange="calculate()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                    </div>
+                                    <div class="form-group" style="margin:0;">
+                                        <label><small>Število komadov</small></label>
+                                        <input type="number" id="f-dodatna-dela-kom" placeholder="0" min="0" step="1"
+                                            onchange="calculate()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                    </div>
+                                    <div class="form-group" style="margin:0;">
+                                        <label><small>Cena polo/kom (€)</small></label>
+                                        <input type="number" id="f-dodatna-dela-price" value="0.00" step="0.001" min="0"
+                                            onchange="calculate()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div id="tarife-prevoz-container" style="margin-top: 15px;"></div>
                 </div>
@@ -1248,6 +1281,10 @@
             if (usePers && persCount > 0) finishingParts.push('Personalizacija (' + formatQty(persCount) + ' kos)');
             const useManual = document.getElementById('calc-use-manual-work').checked;
             if (useManual) finishingParts.push('Ročna dela');
+            if (document.getElementById('f-dodatna-dela-active') && document.getElementById('f-dodatna-dela-active').checked) {
+                const desc = document.getElementById('f-dodatna-dela-desc') ? document.getElementById('f-dodatna-dela-desc').value.trim() : '';
+                finishingParts.push(desc ? `Dodatna dela (${desc})` : 'Dodatna dela');
+            }
 
             if (document.getElementById('f-delivery-active') && document.getElementById('f-delivery-active').checked) finishingParts.push('Dostava pošti');
             if (document.getElementById('f-del-fixed-active') && document.getElementById('f-del-fixed-active').checked) finishingParts.push('Fiksna dostava');
@@ -1395,6 +1432,10 @@
                 if (usePers && persCount > 0) finishingParts.push('Personalizacija (' + formatQty(persCount) + ' kos)');
                 const useManual = document.getElementById('calc-use-manual-work').checked;
                 if (useManual) finishingParts.push('Ročna dela');
+                if (document.getElementById('f-dodatna-dela-active') && document.getElementById('f-dodatna-dela-active').checked) {
+                    const desc = document.getElementById('f-dodatna-dela-desc') ? document.getElementById('f-dodatna-dela-desc').value.trim() : '';
+                    finishingParts.push(desc ? `Dodatna dela (${desc})` : 'Dodatna dela');
+                }
 
                 if (document.getElementById('f-delivery-active') && document.getElementById('f-delivery-active').checked) finishingParts.push('Dostava pošti');
                 if (document.getElementById('f-del-fixed-active') && document.getElementById('f-del-fixed-active').checked) finishingParts.push('Fiksna dostava');
@@ -1418,16 +1459,16 @@
             let allItemsHTML = '';
             itemsToRender.forEach((item, idx) => {
                 allItemsHTML += `
-                    <div style="margin-bottom: 15px; ${idx < itemsToRender.length - 1 ? 'border-bottom: 2px dashed #e2e8f0; padding-bottom: 15px;' : ''}">
-                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;" cellpadding="0" cellspacing="0">
+                    <div style="font-family: Arial, sans-serif; font-size: 11pt; margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+                        <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11pt;" cellpadding="0" cellspacing="0">
                             <tr>
-                                <td style="width: 15%; vertical-align: top; border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                                    <div style="font-size: 9px; color: #1e293b; font-weight: bold; margin-bottom: 5px;">${isAT ? 'Številka artikla:' : 'Šifra izdelka:'}</div>
-                                    <div style="font-size: 16px; font-weight: bold; color: #1e293b; border: 1px solid #e2e8f0; padding: 10px; background: #f8fafc; text-align: center; border-radius: 4px;">${item.materialCode}</div>
+                                <td style="width: 15%; vertical-align: top; border-right: 1px solid #ddd; padding-right: 5px;">
+                                    <span style="font-size: 8pt; color: #555; text-transform: uppercase;">${isAT ? 'Artikel Nr.:' : 'Šifra izdelka:'}</span><br>
+                                    <span style="font-family: Arial, sans-serif; font-size: 11pt; font-weight: bold; margin-top: 5px; display: block;">${item.materialCode}</span>
                                 </td>
-                                <td style="width: 85%; vertical-align: top; padding-left: 20px;">
-                                    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                                        <tr><td style="width: 90px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td>${item.name || '/'}</td></tr>
+                                <td style="width: 85%; vertical-align: top; padding-left: 10px;">
+                                    <table style="width: 100%; border-collapse: collapse; font-size: 11pt; font-family: Arial, sans-serif;">
+                                        <tr><td style="width: 110px; font-weight: bold;">${isAT ? 'Produkt:' : 'Izdelek:'}</td><td>${item.name || '/'}</td></tr>
                                         <tr><td style="font-weight: bold;">Format:</td><td>${(item.spec && item.spec.format) ? item.spec.format : '/'}</td></tr>
                                         <tr><td style="font-weight: bold;">${isAT ? 'Druck:' : 'Tisk:'}</td><td>${(item.spec && item.spec.colors) ? formatQuoteColor(item.spec.colors, isAT) : '/'}</td></tr>
                                         ${(item.spec && item.spec.paper) ? `<tr><td style="font-weight: bold;">${isAT ? 'Papier:' : 'Papir:'}</td><td>${item.spec.paper}</td></tr>` : ''}
@@ -1436,8 +1477,8 @@
                                 </td>
                             </tr>
                         </table>
-                        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000;">
-                            <tr><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">${isAT ? 'Auflage' : 'Naklada'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">${isAT ? 'Preis/ Stk.' : 'Cena/Kom.'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px;">${isAT ? 'Preis/ 1000 Stk.' : 'Cena/1000 Kom.'}</th><th style="padding: 4px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">${isAT ? 'Gesamt Preis:' : 'Cena skupno:'}</th></tr>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; border-top: 1px solid #000; border-bottom: 1px solid #000; font-family: Arial, sans-serif; font-size: 11pt;">
+                            <tr><th style="padding: 4px; border-bottom: 1px solid #000;">${isAT ? 'Auflage' : 'Naklada'}</th><th style="padding: 4px; border-bottom: 1px solid #000;">${isAT ? 'Preis/ Stk.' : 'Cena/Kom.'}</th><th style="padding: 4px; border-bottom: 1px solid #000;">${isAT ? 'Preis/ 1000 Stk.' : 'Cena/1000 Kom.'}</th><th style="padding: 4px; border-bottom: 1px solid #000; text-align: right;">${isAT ? 'Gesamtpreis:' : 'Cena skupno:'}</th></tr>
                             ${(item.quantities && Array.isArray(item.quantities)) ? item.quantities.map(q => {
                                 const pUnit = q.pricePerUnit !== undefined ? q.pricePerUnit : (q.perItem !== undefined ? q.perItem : (q.pricePerItem !== undefined ? q.pricePerItem : 0));
                                 const pTot = q.priceTotal !== undefined ? q.priceTotal : (q.total !== undefined ? q.total : (q.finalTotal !== undefined ? q.finalTotal : 0));
@@ -1456,67 +1497,41 @@
             });
 
             const defaultContent = `
-                    <div class="header-line">
-                        <table style="width: 100%;">
-                            <tr>
-                                <td style="width: 35%; vertical-align: middle;">
-                                    <table cellpadding="0" cellspacing="0" style="border: none; margin: 0; padding: 0; font-family: Arial, sans-serif; border-collapse: collapse;"><tr><td style="color: #8c8f91; font-size: 20px; font-style: italic; font-weight: normal; margin: 0; padding: 0; line-height: 1.1; border: none;">tiskarna</td></tr><tr><td style="color: #f99c26; font-size: 36px; font-style: italic; font-weight: bold; margin: 0; padding: 0; padding-left: 15px; line-height: 1.1; border: none;">petrič</td></tr></table>
-                                </td>
-                                <td style="width: 25%; border-left: 1px solid #f99c26; padding-left: 15px; font-size: 11px; color: #475569; font-style: italic; vertical-align: middle; line-height: 1.3;">
-                                    <strong>Tiskarna Petrič d.o.o.</strong><br>
-                                    Tovarniška cesta 8<br>
-                                    3210 Slovenske Konjice<br>
-                                    ID za DDV: SI50694014
-                                </td>
-                                <td style="width: 25%; border-left: 1px solid #f99c26; padding-left: 15px; font-size: 11px; color: #475569; font-style: italic; vertical-align: middle; line-height: 1.3;">
-                                    T: 03 757 25 56<br>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;03 757 25 50<br>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;03 757 25 64<br>
-                                    F: 03 757 25 63<br>
-                                    Mat. št.: 6889433
-                                </td>
-                                <td style="width: 15%; border-left: 1px solid #f99c26; padding-left: 15px; color: #f99c26; font-weight: 900; font-style: italic; font-size: 16px; text-align: center; vertical-align: bottom; padding-bottom: 5px;">
-                                    vse stiska
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-
-                    <div class="info-grid">
-                        <div class="customer-box">
-                            <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 5px;">${isAT ? '' : 'Prejemnik:'}</div>
-                            <div style="font-size: 16px; font-weight: bold; color: #1e293b;">${customer}</div>
-                            <div style="font-size: 13px; color: #475569; margin-top: 5px;">${custAddress ? custAddress.replace(/\\n/g, '<br>') : ''}</div>
-                        </div>
-                        <div class="meta-box">
-                            <table class="meta-table">
-                                <tr><td>Datum:</td><td>${date}</td></tr>
-                                <tr><td>${isAT ? 'Kunde' : 'Šifra stranke:'}</td><td>${customerCode}</td></tr>
-                                <tr><td><strong style="font-size: 14px;">${isAT ? 'Angebot' : 'Ponudba št.:'}</strong></td><td><strong style="font-size: 14px;">${quoteNum}</strong></td></tr>
-                            </table>
-                        </div>
-                    </div>
-
-                    <h1 style="text-decoration: underline; margin-bottom: 10px; border: none; padding: 0;">${isAT ? 'Angebot' : 'Ponudba za tisk'}</h1>
-                    <p style="color: #1e293b; font-weight: bold; margin-bottom: 20px;">${isAT ? 'Herzlichen Dank für Ihr Interesse. Wir können Ihnen folgendes anbieten:' : 'Zahvaljujemo se Vam za povpraševanje. Na podlagi vaših zahtev vam posredujemo naslednjo ponudbo:'}</p>
-
+                    <div style="font-family: Arial, sans-serif; font-size: 11pt; color: #000;">
+                    <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #f99c26; padding-bottom: 5px;" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="width: 32%; vertical-align: top;">
+                                <table cellpadding="0" cellspacing="0" style="border: none; margin: 0; padding: 0; font-family: Arial, sans-serif; border-collapse: collapse;"><tr><td style="color: #8c8f91; font-size: 20px; font-style: italic; font-weight: normal; margin: 0; padding: 0; line-height: 1.1; border: none;">tiskarna</td></tr><tr><td style="color: #f99c26; font-size: 36px; font-style: italic; font-weight: bold; margin: 0; padding: 0; padding-left: 15px; line-height: 1.1; border: none;">petrič</td></tr></table>
+                            </td>
+                            <td style="width: 25%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 9px; color: #8c8f91; font-style: italic;"><strong>Tiskarna Petrič d.o.o.</strong><br>Tovarniška cesta 8<br>3210 Slovenske Konjice<br>ID za DDV: SI50694014</td>
+                            <td style="width: 20%; vertical-align: middle; border-left: 2px solid #f99c26; padding-left: 15px; font-size: 9px; color: #8c8f91; font-style: italic;">T: 03 757 25 56<br>F: 03 757 25 63<br>Mat. št.: 6889433</td>
+                            <td style="width: 23%; vertical-align: bottom; border-left: 2px solid #f99c26; padding-left: 15px; padding-bottom: 5px; font-size: 18px; font-weight: bold; color: #f99c26; font-style: italic;">vse stiska</td>
+                        </tr>
+                    </table>
+                    <table style="width: 100%; margin-bottom: 5px;" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="width: 50%; vertical-align: top;">
+                                <span style="font-size: 11pt;"><strong>${customer}</strong></span><br>
+                                <div style="margin-top: 5px; line-height: 1.2;">
+                                    ${custAddress ? custAddress.replace(/\n/g, '<br>') : ''}
+                                </div>
+                                ${custEmail ? '<div style="margin-top: 3px; color: #444;">' + custEmail + '</div>' : ''}
+                            </td>
+                            <td style="width: 50%; vertical-align: top;" align="right">
+                                <table class="info-table" cellpadding="0" cellspacing="0">
+                                    <tr><td>Datum</td><td>${date}</td></tr>
+                                    <tr><td>${isAT ? 'Kunde Nr.' : 'Šifra stranke'}</td><td>${customerCode}</td></tr>
+                                    <tr><td>${isAT ? 'Angebot' : 'Ponudba'}</td><td>${quoteNum}</td></tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                    <h1 style="font-size: 18pt; font-weight: bold; margin-top: 10px; margin-bottom: 5px; letter-spacing: 1px; border-bottom: 1px solid #000; padding-bottom: 3px; line-height: 1.1; mso-margin-top-alt: 6pt; mso-margin-bottom-alt: 3pt;">${isAT ? 'ANGEBOT' : 'PONUDBA'}</h1>
+                    <p style="margin: 5px 0;">${isAT ? 'Herzlichen Dank für Ihre Anfrage. Wir bieten Ihnen gerne Folgendes an:' : 'Zahvaljujemo se Vam za Vaše povpraševanje in Vam ponujamo naslednje:'}</p>
                     ${allItemsHTML}
-                    
-                    ${isAT ? '<div style="text-align: center; font-weight: bold; font-size: 12px; margin-top: -5px; margin-bottom: 20px; text-decoration: underline;">Voraussetzung: Kunde liefert druckfertige Daten</div>' : ''}
-
-
-                    <div class="footer-notes" style="color: #1e293b; font-size: 11px;">
-                        ${isAT ? 'Dieses Angebot ist gültig für 30 Tage. Zahlung erfolgt nach 30 Tagen ab Lieferung der Ware.<br>Wir danken Ihnen für Ihre mögliche Bestellung, und wünschen Ihnen einen angenehmen Tag.'
-                    : 'Ponudba velja 30 dni od dneva izdaje. Vse cene so v EUR in ne vključujejo DDV (22%).<br>Rok izdelave po dogovoru, običajno 3-5 delovnih dni od potrditve predogleda.<br>Rok plačila je 30 dni po prejemu računa, razen če je dogovorjeno drugače.<br>Tiskarna Petrič d.o.o. si pridržuje pravico do spremembe cen v primeru bistvenih sprememb cen surovin na trgu.'}
-                    </div>
-
-                    <div class="signature-section">
-                        <div style="color: #64748b; font-size: 10px;">
-                            ${isAT ? '' : 'Žig podjetja (ni obvezen pri elektronskem pošiljanju)'}
-                        </div>
-                        <div class="prepared-by" style="font-weight: normal; font-size: 11px; color: #1e293b;">
-                            ${isAT ? 'Dieses Angebot hat für Sie erstellt:' : 'Kalkulacijo pripravil:'} ${preparedBy}
-                        </div>
+                    <p style="margin: 5px 0;">${isAT ? '<strong>Voraussetzung:</strong> Kunde liefert druckfertige PDF-Daten mit Beschnitt!' : '<strong>Predloga:</strong> Naročnik dostavi visokoresolucijski PDF z dodatkom za obrez!'}</p>
+                    <p class="notes">${isAT ? 'Gültigkeit des Angebots: 30 Tage. Preise verstehen sich netto (exkl. MwSt.). Zahlungsziel: 30 Tage nach Lieferung. Das Angebot basiert on den uns bekannten technischen Daten und Rohstoffpreisen. Bei Abweichungen behalten wir uns eine Preisanpassung vor.' : 'Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.'}</p>
+                    <div style="margin-top: 10px; font-size: 10px; font-style: italic;">${isAT ? 'Angebot erstellt von:' : 'Kalkulacijo pripravil:'} ${preparedBy}</div>
                     </div>
             `;
 
@@ -1530,53 +1545,57 @@
                 });
             }
 
-            
-            
-if (isWord) {
-                return `<html><body>${contentToRender}</body></html>`;
+            if (isWord) {
+                contentToRender = contentToRender.replace(
+                    /<div[^>]*style="[^"]*color:\s*(#8c8f91|#475569);[^"]*"[^>]*>\s*tiskarna\s*<\/div>\s*<div[^>]*style="[^"]*color:\s*#f99c26;[^"]*"[^>]*>\s*petrič\s*<\/div>/gi,
+                    `<table cellpadding="0" cellspacing="0" style="border: none; margin: 0; padding: 0; font-family: Arial, sans-serif;">
+                    <tr><td style="color: $1; font-size: 20px; font-style: italic; font-weight: normal; margin: 0; padding: 0; line-height: 1.1;">tiskarna</td></tr>
+                    <tr><td style="color: #f99c26; font-size: 36px; font-style: italic; font-weight: bold; margin: 0; padding: 0; padding-left: 15px; line-height: 1.1;">petrič</td></tr>
+                 </table>`
+                );
             }
 
             return `
-                <html>
+                ${htmlHeader}
                 <head>
                     <meta charset="utf-8">
                     <title>${isAT ? 'ang_ponudba' : 'pon_ponudba'}</title>
                     <style>
-                        body { font-family: 'Arial', sans-serif; padding: ${isWord ? '10px' : '0'}; color: #000; line-height: 1.1; font-size: 11px; margin: 0; }
-                        h1 { color: #1e293b; font-size: 14px; font-weight: bold; margin-top: 10px; margin-bottom: 5px; letter-spacing: 1px; border-bottom: 1px solid #000; padding-bottom: 3px; }
-                        .header-line { border-bottom: 2px solid #f99c26; margin-bottom: 20px; padding-bottom: 10px; }
-                        .brand-name { font-size: 32px; font-weight: bold; color: #f99c26; text-transform: uppercase; }
-                        .brand-sub { font-size: 12px; color: #64748b; letter-spacing: 2px; }
-                        .info-grid { display: flex; justify-content: space-between; margin-bottom: 30px; }
-                        .customer-box { width: 60%; }
-                        .meta-box { width: 30%; font-size: 12px; }
-                        .meta-table { width: 100%; border-collapse: collapse; }
-                        .meta-table td { padding: 2px 5px; }
-                        .footer-notes { font-size: 9px; color: #64748b; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-                        .signature-section { margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; }
-                        .prepared-by { font-weight: bold; }
+                        @page { size: A4 portrait; margin: 10mm; }
+                        body, table, td, p, h1, h2, h3 { font-family: 'Arial', sans-serif; line-height: 1.15; font-size: 11pt; color: #000; }
+                        body { font-family: 'Arial', sans-serif; padding: ${isWord ? '10px' : '0'}; color: #000; line-height: 1.15; font-size: 11pt; margin: 0; }
+                        p, div, td, th { mso-margin-top-alt: 0pt; mso-margin-bottom-alt: 0pt; }
+                        p { margin: 3px 0; }
+                        .info-table { border-collapse: collapse; margin-left: auto; margin-right: 0; }
+                        .info-table td { padding: 1px 0 1px 15px; text-align: right; }
+                        .info-table td:first-child { font-weight: normal; color: #555; }
+                        .info-table td:last-child { font-weight: bold; }
+                        h1 { font-size: 18pt; font-weight: bold; margin-top: 10px; margin-bottom: 5px; letter-spacing: 1px; border-bottom: 1px solid #000; padding-bottom: 3px; line-height: 1.1; mso-margin-top-alt: 6pt; mso-margin-bottom-alt: 3pt; }
+                        .notes { margin-top: 8px; text-align: justify; font-size: 9px; line-height: 1.15; color: #444; }
                         @media print {
                             .no-print { display: none !important; }
+                            html, body { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+                            .editable-area { width: 100% !important; max-width: 210mm !important; box-sizing: border-box !important; padding: 0 !important; height: auto !important; overflow: visible !important; }
                         }
+                        .editable-area { max-width: 210mm; width: 100%; margin: 0 auto; box-sizing: border-box; height: auto; overflow: visible; }
                         .editable-area:focus { outline: 2px dashed #f99c26; background-color: #fffbeb; }
                         .editable-area p, .editable-area div:not(.header-top) { margin: 0; padding: 0; }
-                        .editable-area { word-wrap: break-word; overflow-wrap: break-word; }
                         .editable-area.waiting-for-paste { cursor: cell !important; outline: 3px dashed #eab308 !important; background-color: #fffbeb !important; }
-                </style>
-            </head>
+                    </style>
+                </head>
                 <body>
+                    ${!isWord ? `
                     <div class="no-print" contenteditable="false" style="background: #f1f5f9; padding: 10px; border-bottom: 1px solid #cbd5e1; display: flex; gap: 15px; align-items: center; justify-content: start; font-family: sans-serif; box-sizing: border-box; width: 100%; flex-wrap: wrap;">
-                        <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">NATISNI PONUDBO</button>
-                        <button onclick="saveQuoteToDisk()" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;" title="Shrani to ponudbo v Word (.doc) formatu na računalnik in server Srečko">SHRANI V WORD</button>
-                        <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">ZAPRI</button>
-                        <button onclick="if(confirm('Ali želite ponastaviti ponudbo na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){ if(${isAT}) { window.opener.g_editedQuoteATHTML=''; } else { window.opener.g_editedQuoteHTML=''; } } window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">PONASTAVI</button>
-                    <button id="btn-move-text" onclick="toggleMoveMode(this)" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;" title="Premakni označeno besedilo na drugo mesto. Označite besedilo, kliknite ta gumb in nato kliknite na novo mesto v besedilu.">PREMAKNI</button>
-                    <button onclick="saveQuoteToDisk()" style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;" title="Shrani to ponudbo v Word (.doc) formatu na računalnik in server Srečko">SHRANI PONUDBO (WORD)</button>
+                        <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">NATISNI PONUDBO</button>
+                        <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">ZAPRI</button>
+                        <button onclick="if(confirm('Ali želite ponastaviti ponudbo na privzete vrednosti? (Spremembe besedila bodo izgubljene)')){ if(window.opener){ if(${isAT}) { window.opener.g_editedQuoteATHTML=''; } else { window.opener.g_editedQuoteHTML=''; } } window.location.reload(); }" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;">PONASTAVI</button>
+                        <button id="btn-move-text" onclick="toggleMoveMode(this)" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;" title="Premakni označeno besedilo na drugo mesto. Označite besedilo, kliknite ta gumb in nato kliknite na novo mesto v besedilu.">PREMAKNI</button>
+                        <button onclick="saveQuoteToDisk()" style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11pt;" title="Shrani to ponudbo kot datoteko na računalnik">SHRANI PONUDBO (WORD)</button>
                         
                         <div style="display: flex; gap: 4px; align-items: center; background: #cbd5e1; padding: 3px; border-radius: 6px;">
-                            <button onclick="document.execCommand('bold', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-weight: bold; cursor: pointer; color: #000; font-size: 14px;" title="Krepko (Bold)">B</button>
-                            <button onclick="document.execCommand('italic', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-style: italic; cursor: pointer; color: #000; font-size: 14px; font-family: Georgia, serif;" title="Ležeče (Italic)">I</button>
-                            <button onclick="document.execCommand('underline', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; text-decoration: underline; cursor: pointer; color: #000; font-size: 14px;" title="Podčrtano (Underline)">U</button>
+                            <button onclick="document.execCommand('bold', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-weight: bold; cursor: pointer; color: #000; font-size: 11pt;" title="Krepko (Bold)">B</button>
+                            <button onclick="document.execCommand('italic', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; font-style: italic; cursor: pointer; color: #000; font-size: 11pt; font-family: Georgia, serif;" title="Ležeče (Italic)">I</button>
+                            <button onclick="document.execCommand('underline', false, null)" style="background: white; border: none; border-radius: 4px; width: 28px; height: 28px; text-decoration: underline; cursor: pointer; color: #000; font-size: 11pt;" title="Podčrtano (Underline)">U</button>
                             <select onchange="const sel = window.getSelection(); if (sel.rangeCount) { const range = sel.getRangeAt(0); if (range.toString().length > 0) { const span = document.createElement('span'); span.style.fontSize = this.value; span.appendChild(range.extractContents()); range.insertNode(span); } }; this.value='';" style="background: white; border: none; border-radius: 4px; height: 28px; padding: 0 5px; font-size: 12px; cursor: pointer; color: #000; width: 90px;" title="Velikost pisave">
                                 <option value="" disabled selected>Velikost</option>
                                 <option value="9px">9 px</option>
@@ -1595,7 +1614,8 @@ if (isWord) {
                         </div>
                         <div style="font-size: 12px; color: #475569; margin-left: 5px;">💾 Spremembe besedila se samodejno shranjujejo v kalkulacijo.</div>
                     </div>
-                    <div class="editable-area" contenteditable="true" style="padding: 30px;">
+                    ` : ''}
+                    <div class="editable-area" ${!isWord ? 'contenteditable="true"' : ''} style="max-width: 210mm; margin: 0 auto; padding: ${isWord ? '10px' : '20px 30px'};">
                         ${contentToRender}
                     </div>
                     <script>
@@ -3811,6 +3831,10 @@ function printQuote() {
             if (document.getElementById('calc-use-manual-work').checked) {
                 list.push("Ročna dela");
             }
+            if (document.getElementById('f-dodatna-dela-active') && document.getElementById('f-dodatna-dela-active').checked) {
+                const desc = document.getElementById('f-dodatna-dela-desc') ? document.getElementById('f-dodatna-dela-desc').value.trim() : '';
+                list.push(desc ? `Dodatna dela (${desc})` : 'Dodatna dela');
+            }
             if (document.getElementById('f-delivery-active') && document.getElementById('f-delivery-active').checked) {
                 list.push("Dostava pošta");
             }
@@ -4405,7 +4429,14 @@ function printQuote() {
             if (useManual && manualWork > 0) {
                 manualCost = (totalQ / manualWork) * 20;
             }
-            const additionalCost = persCost + manualCost;
+            let dodatnaDelaCost = 0;
+            if (document.getElementById('f-dodatna-dela-active') && document.getElementById('f-dodatna-dela-active').checked) {
+                let dSheets = parseFloat((document.getElementById('f-dodatna-dela-sheets')?.value || '').replace(',', '.')) || 0;
+                let dKom = parseFloat((document.getElementById('f-dodatna-dela-kom')?.value || '').replace(',', '.')) || 0;
+                let dPrice = parseFloat((document.getElementById('f-dodatna-dela-price')?.value || '').replace(',', '.')) || 0;
+                dodatnaDelaCost = (dSheets + dKom) * dPrice;
+            }
+            const additionalCost = persCost + manualCost + dodatnaDelaCost;
 
             let subtotalWithoutDelivery = materialCost + totalPlatePrepCost + colorChangeCost + printCost + additionalCost + commercialCost;
 
@@ -4441,7 +4472,7 @@ function printQuote() {
                     },
                     colorChange: { cost: colorChangeCost, autoCost: autoColorChangeCost, autoCount: autoColorChangeCount, manualCost: manualColorChangeCost, manualCount: colorChangeCount, priceBase: changePriceBase },
                     print: { cost: printCost, speed: mSpeed, rate: mRate },
-                    additional: { cost: additionalCost, persCost, manualCost },
+                    additional: { cost: additionalCost, persCost, manualCost, dodatnaDelaCost },
                     commercial: { cost: commercialCost },
                     delivery: { cost: deliveryCost },
                     margin: { amount: marginAmount, percent: margin },
@@ -4489,6 +4520,7 @@ function printQuote() {
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
                         ${details.additional.persCost > 0 ? `<span>Personalizacija:</span> <span>${formatPrice(details.additional.persCost)}</span>` : ''}
                         ${details.additional.manualCost > 0 ? `<span>Ročno delo:</span> <span>${formatPrice(details.additional.manualCost)}</span>` : ''}
+                        ${details.additional.dodatnaDelaCost > 0 ? `<span>Dodatna dela${document.getElementById('f-dodatna-dela-desc')?.value.trim() ? ' (' + document.getElementById('f-dodatna-dela-desc').value.trim() + ')' : ''}:</span> <span>${formatPrice(details.additional.dodatnaDelaCost)}</span>` : ''}
                     </div>
                 </div>
                 ` : ''}
@@ -5411,6 +5443,13 @@ function printQuote() {
                         isObrat: gc('calc-is-obrat'),
                         wasteManual: gv('calc-waste-manual'),
                         commercial: gv('calc-commercial'),
+                        dodatnaDela: {
+                            active: gc('f-dodatna-dela-active'),
+                            desc: gv('f-dodatna-dela-desc'),
+                            sheets: gv('f-dodatna-dela-sheets'),
+                            kom: gv('f-dodatna-dela-kom'),
+                            price: gv('f-dodatna-dela-price')
+                        },
                         deliveryActive: gc('f-delivery-active'),
                         postCount: gv('f-post-count'),
                         postPricePer: gv('f-post-price-per'),
@@ -5571,6 +5610,13 @@ function printQuote() {
                         isObrat: document.getElementById('calc-is-obrat').checked,
                         wasteManual: document.getElementById('calc-waste-manual').value,
                         commercial: document.getElementById('calc-commercial').value,
+                        dodatnaDela: {
+                            active: document.getElementById('f-dodatna-dela-active') ? document.getElementById('f-dodatna-dela-active').checked : false,
+                            desc: document.getElementById('f-dodatna-dela-desc') ? document.getElementById('f-dodatna-dela-desc').value : '',
+                            sheets: document.getElementById('f-dodatna-dela-sheets') ? document.getElementById('f-dodatna-dela-sheets').value : '',
+                            kom: document.getElementById('f-dodatna-dela-kom') ? document.getElementById('f-dodatna-dela-kom').value : '',
+                            price: document.getElementById('f-dodatna-dela-price') ? document.getElementById('f-dodatna-dela-price').value : ''
+                        },
                         deliveryActive: document.getElementById('f-delivery-active') ? document.getElementById('f-delivery-active').checked : false,
                         postCount: document.getElementById('f-post-count') ? document.getElementById('f-post-count').value : '',
                         postPricePer: document.getElementById('f-post-price-per') ? document.getElementById('f-post-price-per').value : '',
@@ -5703,6 +5749,13 @@ function printQuote() {
             setV('calc-is-obrat', inp.isObrat, true);
             setV('calc-waste-manual', inp.wasteManual);
             setV('calc-commercial', inp.commercial);
+            if (inp.dodatnaDela) {
+                if (document.getElementById('f-dodatna-dela-active')) document.getElementById('f-dodatna-dela-active').checked = !!inp.dodatnaDela.active;
+                setV('f-dodatna-dela-desc', inp.dodatnaDela.desc);
+                setV('f-dodatna-dela-sheets', inp.dodatnaDela.sheets);
+                setV('f-dodatna-dela-kom', inp.dodatnaDela.kom);
+                setV('f-dodatna-dela-price', inp.dodatnaDela.price);
+            }
             if (document.getElementById('f-delivery-active')) document.getElementById('f-delivery-active').checked = inp.deliveryActive || false;
             setV('f-post-count', inp.postCount);
             setV('f-post-price-per', inp.postPricePer);

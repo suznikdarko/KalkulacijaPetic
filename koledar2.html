@@ -1006,6 +1006,38 @@
                             <input type="number" id="packaging-price" value="0.08" step="0.01" oninput="calculate()" />
                         </div>
                     </div>
+                    <!-- Dodatna dela -->
+                    <div class="finish-item" id="row-finish-dodatna-dela"
+                        style="display: grid !important; grid-template-columns: 140px 1fr 1fr !important; gap: 0.5rem; align-items: start; padding: 0.6rem 0.8rem; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; background: rgba(16, 185, 129, 0.05); margin-top: 0.8rem;">
+                        <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold; cursor:pointer; margin-top: 0.4rem;">
+                            <input type="checkbox" id="f-dodatna-dela-active" onchange="calculate()">
+                            Dodatna dela
+                        </label>
+                        <div style="grid-column: 2 / span 2; display: flex; flex-direction: column; gap: 0.4rem;">
+                            <div class="form-group" style="margin:0; width:100%;">
+                                <label><small>Opis del</small></label>
+                                <input type="text" id="f-dodatna-dela-desc" placeholder="Opis dodatnih del..."
+                                    onchange="calculate()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                            </div>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.5rem; width:100%;">
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Število pol</small></label>
+                                    <input type="number" id="f-dodatna-dela-sheets" placeholder="0" min="0" step="1"
+                                        onchange="calculate()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Število komadov</small></label>
+                                    <input type="number" id="f-dodatna-dela-kom" placeholder="0" min="0" step="1"
+                                        onchange="calculate()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena polo/kom (€)</small></label>
+                                    <input type="number" id="f-dodatna-dela-price" value="0.00" step="0.001" min="0"
+                                        onchange="calculate()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:100%; box-sizing:border-box;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
             <!-- DOSTAVA IN PREVOZ -->
@@ -1657,7 +1689,15 @@
                 const totalZnasanjeCost = qty * (totalSheetsToCollate * znasanjePerSheet);
                 const totalSpiralaCost = qty * (spiralaPriceBase + vesalcekPrice);
 
-                const totalManualCost = (qty * (vezicaPrice + manualLaborPrice + packagingPrice)) + precutPrep;
+                let dodatnaDelaCost = 0;
+                if (document.getElementById('f-dodatna-dela-active')?.checked) {
+                    let dSheets = parseFloat((document.getElementById('f-dodatna-dela-sheets')?.value || '').replace(',', '.')) || 0;
+                    let dKom = parseFloat((document.getElementById('f-dodatna-dela-kom')?.value || '').replace(',', '.')) || 0;
+                    let dPrice = parseFloat((document.getElementById('f-dodatna-dela-price')?.value || '').replace(',', '.')) || 0;
+                    dodatnaDelaCost = (dSheets + dKom) * dPrice;
+                }
+
+                const totalManualCost = (qty * (vezicaPrice + manualLaborPrice + packagingPrice)) + precutPrep + dodatnaDelaCost;
 
                 const deliveryCost = (document.getElementById('f-del-fixed-active')?.checked ? (parseFloat(document.getElementById('f-del-fixed-cost')?.value) || 0) : 0);
       const netProductionCost = totalLeavesPaperCost + totalPodkartonCost + totalPrintCost + totalZnasanjeCost + totalSpiralaCost + totalManualCost + deliveryCost;
@@ -1776,6 +1816,11 @@
                 hasVesalcek: document.getElementById('has-vesalcek').value,
                 hasVezica: document.getElementById('has-vezica').value,
                 manualLaborPrice: document.getElementById('manual-labor-price').value,
+                dodatnaDelaActive: document.getElementById('f-dodatna-dela-active') ? document.getElementById('f-dodatna-dela-active').checked : false,
+                dodatnaDelaDesc: document.getElementById('f-dodatna-dela-desc') ? document.getElementById('f-dodatna-dela-desc').value : '',
+                dodatnaDelaSheets: document.getElementById('f-dodatna-dela-sheets') ? document.getElementById('f-dodatna-dela-sheets').value : '',
+                dodatnaDelaKom: document.getElementById('f-dodatna-dela-kom') ? document.getElementById('f-dodatna-dela-kom').value : '',
+                dodatnaDelaPrice: document.getElementById('f-dodatna-dela-price') ? document.getElementById('f-dodatna-dela-price').value : '',
                 customerEmailBody: document.getElementById('calc-email-content') ? document.getElementById('calc-email-content').value : '',
                         attachedPdf: (typeof serializeSingleAttachedPdf === 'function') ? serializeSingleAttachedPdf() : (g_attachedPdf ? { name: g_attachedPdf.name, dataUrl: g_attachedPdf.dataUrl, text: g_attachedPdf.text } : null),
                         attachedPdfs: (typeof serializeAttachedPdfs === 'function') ? serializeAttachedPdfs() : [],
@@ -1832,6 +1877,11 @@
             if (data.hasVesalcek) document.getElementById('has-vesalcek').value = data.hasVesalcek;
             if (data.hasVezica) document.getElementById('has-vezica').value = data.hasVezica;
             if (data.manualLaborPrice) document.getElementById('manual-labor-price').value = data.manualLaborPrice;
+            if (data.dodatnaDelaActive !== undefined && document.getElementById('f-dodatna-dela-active')) document.getElementById('f-dodatna-dela-active').checked = data.dodatnaDelaActive;
+            if (data.dodatnaDelaDesc !== undefined && document.getElementById('f-dodatna-dela-desc')) document.getElementById('f-dodatna-dela-desc').value = data.dodatnaDelaDesc;
+            if (data.dodatnaDelaSheets !== undefined && document.getElementById('f-dodatna-dela-sheets')) document.getElementById('f-dodatna-dela-sheets').value = data.dodatnaDelaSheets;
+            if (data.dodatnaDelaKom !== undefined && document.getElementById('f-dodatna-dela-kom')) document.getElementById('f-dodatna-dela-kom').value = data.dodatnaDelaKom;
+            if (data.dodatnaDelaPrice !== undefined && document.getElementById('f-dodatna-dela-price')) document.getElementById('f-dodatna-dela-price').value = data.dodatnaDelaPrice;
 
             if (data.customerEmailBody !== undefined || data.customerEmailSubject !== undefined || (data.inputs && data.inputs.emailBody !== undefined)) {
                 const body = data.customerEmailBody || (data.inputs && data.inputs.emailBody) || '';
