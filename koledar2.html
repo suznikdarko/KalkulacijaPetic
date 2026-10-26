@@ -426,7 +426,7 @@
                 <label for="calc-project-name">Izdelek</label>
                 <div style="display: flex; gap: 0.2rem; position: relative;">
                     <input id="calc-project-name" placeholder="Vnesite izdelek" style="flex: 1;" type="text" value="Stenski koledar A3" />
-                    <button onclick="toggleProjectsDropdown()" style="width: auto; background: #64748b; border: none; border-radius: 8px; color: white; cursor: pointer; padding: 0 10px; font-size: 0.8rem; font-weight: bold;">
+                    <button id="btn-my-projects" onclick="toggleProjectsDropdown()" style="width: auto; background: #64748b; border: none; border-radius: 8px; color: white; cursor: pointer; padding: 0 10px; font-size: 0.8rem; font-weight: bold;">
                         MOJI PROJEKTI ▼
                     </button>
                     <!-- DROPDOWN ZA PROJEKTE -->
@@ -1638,9 +1638,6 @@
             summaryCardsDiv.innerHTML = '';
 
             let firstTotalPreview = '';
-        const totalOrderWeightKg = totalLeavesPaperKg + (podkartonType !== 'brez' ? totalPodkartonKg : 0) + (qty * 0.02);
-        window.g_currentTotalWeightKg = totalOrderWeightKg;
-        if (typeof window.syncTariffWeightExternal === "function") window.syncTariffWeightExternal();
 
             quantities.forEach((qty, idx) => {
                 const totalPrintSheets = Math.ceil((qty * numSheets / sheetsPerForm) * (1 + wastePercent / 100));
@@ -1672,6 +1669,13 @@
                         kasiranjeCost = (qty * podkartonKasiranjePrice) + 15.0; // 15€ prep
                     }
                     totalPodkartonCost = podkartonMaterialCost + cuttingCost + kasiranjeCost;
+                }
+
+                if (idx === 0) {
+                    const podkKg = (podkartonType !== 'brez' && typeof totalPodkartonKg !== 'undefined') ? totalPodkartonKg : 0;
+                    const totalOrderWeightKg = totalLeavesPaperKg + podkKg + (qty * 0.02);
+                    window.g_currentTotalWeightKg = totalOrderWeightKg;
+                    if (typeof window.syncTariffWeightExternal === "function") window.syncTariffWeightExternal();
                 }
 
                 let totalPrintCost = 0;
@@ -1919,36 +1923,316 @@
             if (archive.length > 50) archive = archive.slice(0, 50);
             localStorage.setItem(STORAGE_KEY_KOLEDAR, JSON.stringify(archive));
             refreshProjectsDropdown();
+
+            (async () => {
+                data._source = 'darko-koledar';
+                data.isKoledar = true;
+                const jsonStr = JSON.stringify(data, null, 2);
+                let s_pon = (data.quoteNumber || '').replace(/[\/\\]/g, '-').trim();
+                if (s_pon) s_pon = 'pon.' + s_pon;
+                let s_cust = (data.client || '').trim();
+                let s_title = (data.title || 'koledar').trim();
+                let parts = [s_pon, s_cust, s_title].filter(Boolean);
+                const suggestedName = (parts.length > 0 ? parts.join('_') : 'koledar').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.koledar.json';
+
+                // Server save
+                try {
+                    await fetch('http://127.0.0.1:8095', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
+                    });
+                } catch(e) {}
+
+                // Folder handle save
+                if (g_projectsDirHandle) {
+                    try {
+                        const fileHandle = await g_projectsDirHandle.getFileHandle(suggestedName, { create: true });
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(jsonStr);
+                        await writable.close();
+                    } catch(e) {}
+                }
+
+                if (typeof updateIndexWithProject === 'function') {
+                    await updateIndexWithProject({
+                        name: suggestedName,
+                        customer: (data.client || '').trim(),
+                        quoteNum: (data.quoteNumber || '').trim(),
+                        date: new Date().toLocaleDateString('sl-SI'),
+                        total: '',
+                        sourceFormat: 'Koledar',
+                        isKoledar: true,
+                        mtime: Date.now()
+                    });
+                    renderSavedProjects();
+                }
+            })();
+
             alert('Projekt "' + (data.title || 'Koledar') + '" uspešno shranjen!');
         }
 
-        function toggleProjectsDropdown() {
-            const dropdown = document.getElementById('projectsDropdown');
-            dropdown.style.display = (dropdown.style.display === 'none' || !dropdown.style.display) ? 'block' : 'none';
+        var g_projectsDirHandle = null;
+        var g_diskProjects = [];
+        var g_diskProjectsMetadata = {};
+
+        function getHandleFromIndexedDB(key) {
+            return new Promise((resolve) => {
+                try {
+                    const req = indexedDB.open('KalkulacijePetricDB', 2);
+                    req.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
+                    };
+                    req.onsuccess = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('handles')) { resolve(null); return; }
+                        const tx = db.transaction('handles', 'readonly');
+                        const store = tx.objectStore('handles');
+                        const getReq = store.get(key);
+                        getReq.onsuccess = () => resolve(getReq.result || null);
+                        getReq.onerror = () => resolve(null);
+                    };
+                    req.onerror = () => resolve(null);
+                } catch (e) { resolve(null); }
+            });
         }
 
-        function refreshProjectsDropdown() {
-            const dropdown = document.getElementById('projectsDropdown');
+        function setHandleInIndexedDB(handle, key) {
+            return new Promise((resolve) => {
+                try {
+                    const req = indexedDB.open('KalkulacijePetricDB', 2);
+                    req.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
+                    };
+                    req.onsuccess = (e) => {
+                        const db = e.target.result;
+                        const tx = db.transaction('handles', 'readwrite');
+                        const store = tx.objectStore('handles');
+                        store.put(handle, key);
+                        tx.oncomplete = () => resolve(true);
+                        tx.onerror = () => resolve(false);
+                    };
+                    req.onerror = () => resolve(false);
+                } catch (e) { resolve(false); }
+            });
+        }
+
+        async function syncWithFolder() {
+            try {
+                g_projectsDirHandle = await window.showDirectoryPicker();
+                await setHandleInIndexedDB(g_projectsDirHandle, 'kalkulacije_shared_dir_handle');
+                await refreshDiskProjects();
+                renderSavedProjects();
+                alert("Mapa uspešno povezana in shranjena!");
+            } catch (err) {
+                if (err.name !== 'AbortError') alert("Napaka: " + err.message);
+            }
+        }
+
+        async function loadFolderIndex() {
+            if (!g_projectsDirHandle) return null;
+            try {
+                const fileHandle = await g_projectsDirHandle.getFileHandle('index_projektov.json');
+                const file = await fileHandle.getFile();
+                const text = await file.text();
+                const data = JSON.parse(text);
+                if (data && Array.isArray(data.projects)) {
+                    return data;
+                }
+            } catch (e) { }
+            return null;
+        }
+
+        async function saveFolderIndex(indexData) {
+            if (!g_projectsDirHandle || !indexData) return;
+            try {
+                indexData.updatedAt = new Date().toISOString();
+                const fileHandle = await g_projectsDirHandle.getFileHandle('index_projektov.json', { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(JSON.stringify(indexData, null, 2));
+                await writable.close();
+            } catch (e) {
+                console.warn("Ne morem shraniti index_projektov.json:", e);
+            }
+        }
+
+        async function updateIndexWithProject(meta) {
+            if (!g_projectsDirHandle || !meta || !meta.name) return;
+            try {
+                let indexData = await loadFolderIndex();
+                if (!indexData) {
+                    indexData = { version: 1, updatedAt: new Date().toISOString(), projects: [] };
+                }
+                indexData.projects = indexData.projects.filter(p => p.name !== meta.name);
+                indexData.projects.unshift(meta);
+                await saveFolderIndex(indexData);
+
+                g_diskProjectsMetadata[meta.name] = meta;
+                if (!g_diskProjects.some(p => p.name === meta.name)) {
+                    g_diskProjects.unshift({ name: meta.name });
+                }
+            } catch (e) {
+                console.warn("Napaka pri posodabljanju indeksa:", e);
+            }
+        }
+
+        async function refreshDiskProjects(forceReindex = false) {
+            if (!g_projectsDirHandle) return;
+            try {
+                let indexData = null;
+                if (!forceReindex) {
+                    indexData = await loadFolderIndex();
+                }
+
+                if (!indexData) {
+                    indexData = await loadFolderIndex();
+                }
+
+                if (indexData && Array.isArray(indexData.projects)) {
+                    g_diskProjectsMetadata = {};
+                    g_diskProjects = [];
+                    indexData.projects.forEach(p => {
+                        const name = (p.name || '').toLowerCase();
+                        if (p.isKoledar || name.includes('koledar') || (p.sourceFormat && p.sourceFormat.toLowerCase().includes('koledar'))) {
+                            g_diskProjects.push({ name: p.name });
+                            g_diskProjectsMetadata[p.name] = p;
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("refreshDiskProjects napaka:", err);
+            }
+        }
+
+        async function loadProjectFromDisk(fileName) {
+            if (!g_projectsDirHandle) return;
+            try {
+                const fileHandle = await g_projectsDirHandle.getFileHandle(fileName);
+                const file = await fileHandle.getFile();
+                const content = await file.text();
+                const data = JSON.parse(content);
+                loadProjectData(data);
+                alert("Datoteka '" + fileName + "' naložena!");
+            } catch (err) {
+                console.error("loadProjectFromDisk error:", err);
+                alert("Napaka pri branju datoteke: " + err.message);
+            }
+        }
+
+        function toggleProjectsDropdown() {
+            const list = document.getElementById('projects-dropdown-list');
+            const bottomDropdown = document.getElementById('projectsDropdown');
+            const target = list || bottomDropdown;
+            if (!target) return;
+
+            const isVisible = target.style.display === 'flex' || target.style.display === 'block';
+            if (isVisible) {
+                target.style.display = 'none';
+                return;
+            }
+
+            target.style.display = 'flex';
+            renderSavedProjects();
+
+            (async () => {
+                if (!g_projectsDirHandle) {
+                    try {
+                        const handle = await getHandleFromIndexedDB('kalkulacije_shared_dir_handle');
+                        if (handle) {
+                            if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') {
+                                g_projectsDirHandle = handle;
+                            } else if ((await handle.requestPermission({ mode: 'readwrite' })) === 'granted') {
+                                g_projectsDirHandle = handle;
+                            }
+                        }
+                    } catch (e) { }
+                }
+                if (g_projectsDirHandle) {
+                    await refreshDiskProjects();
+                    renderSavedProjects();
+                }
+            })();
+        }
+
+        function renderSavedProjects() {
+            const listContent = document.getElementById('projects-list-content') || document.getElementById('projectsDropdown');
+            if (!listContent) return;
+
+            const searchInput = document.getElementById('project-search-input');
+            const filter = searchInput ? searchInput.value.toLowerCase().trim() : "";
+
             let archive = [];
             try {
                 const stored = localStorage.getItem(STORAGE_KEY_KOLEDAR);
                 if (stored) archive = JSON.parse(stored);
             } catch (e) {}
 
-            if (archive.length === 0) {
-                dropdown.innerHTML = '<div style="padding:10px; font-size:0.82rem; color:var(--text-muted);">Ni shranjenih projektov.</div>';
-                return;
+            let html = "";
+            if (g_projectsDirHandle) {
+                html += '<div style="padding: 6px 10px; background: rgba(16, 185, 129, 0.15); border-bottom: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.75rem; font-weight: bold; color: #10b981; display: flex; justify-content: space-between; align-items: center;">' +
+                    '<span>📁 Povezana: [' + g_projectsDirHandle.name + ']</span>' +
+                    '<div style="display:flex; gap:4px;">' +
+                    '<button onclick="refreshDiskProjects(true).then(() => renderSavedProjects())" style="background:#0284c7; color:white; border:none; padding:2px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer;" title="Osveži indeks">🔄 Osveži</button>' +
+                    '<button onclick="syncWithFolder()" style="background:#10b981; color:white; border:none; padding:2px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer;">Spremeni</button>' +
+                    '</div>' +
+                    '</div>';
             }
 
-            dropdown.innerHTML = archive.map((proj, idx) => `
-                <div style="padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; color: var(--text-main); margin-bottom: 4px; background: rgba(255,255,255,0.03);" onclick="loadProjectFromArchive(${idx})">
-                    <div>
-                        <strong>${proj.title || 'Neimenovan projekt'}</strong><br/>
-                        <small style="color:var(--text-muted);">${proj.client || ''} | ${new Date(proj.timestamp).toLocaleDateString('sl-SI')}</small>
+            if (g_diskProjects.length > 0) {
+                html += '<div style="padding: 5px 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(16, 185, 129, 0.2);">📁 DATOTEKE NA DISKU (KOLEDAR)</div>';
+                let diskFiltered = g_diskProjects;
+                if (filter) diskFiltered = g_diskProjects.filter(e => e.name.toLowerCase().includes(filter));
+                diskFiltered.forEach(entry => {
+                    const safeName = String(entry.name).replace(/'/g, "\\'");
+                    let meta = g_diskProjectsMetadata[entry.name] || {};
+                    let metaCust = meta.customer || '';
+                    let metaQuote = meta.quoteNum ? (' | ' + meta.quoteNum) : '';
+                    let metaDate = meta.date || 'Lokalna datoteka';
+                    let metaTotal = meta.total || '';
+
+                    html += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #334155; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                            <div style="flex: 1; min-width: 0;" onclick="loadProjectFromDisk('${safeName}'); toggleProjectsDropdown();">
+                                <div style="font-weight: bold; color: #10b981; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.82rem;" title="${safeName}">
+                                    📄 ${entry.name}
+                                </div>
+                                ${metaCust ? `<div style="font-size: 0.72rem; color: #e2e8f0; font-weight: 600; margin-top: 1px;">👤 ${metaCust}${metaQuote}</div>` : ''}
+                                <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 1px;">${metaDate}</div>
+                            </div>
+                            ${metaTotal ? `<div style="text-align: right; margin-left: 6px;"><div style="color: #10b981; font-weight: bold; font-size: 0.8rem;">${metaTotal}</div></div>` : ''}
+                        </div>`;
+                });
+            }
+
+            let filtered = filter ? archive.filter(p => {
+                const str = `${p.title || ''} ${p.client || ''}`.toLowerCase();
+                return str.includes(filter);
+            }) : archive;
+
+            if (filtered.length > 0) {
+                html += '<div style="padding: 5px 12px; background: rgba(59, 130, 246, 0.1); color: #60a5fa; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(59, 130, 246, 0.2);">⭐ ARHIV (Baza)</div>';
+                html += filtered.map((proj, idx) => `
+                    <div style="padding: 8px 12px; border-bottom: 1px solid #334155; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; color: var(--text-main); background: rgba(255,255,255,0.02);" onclick="loadProjectFromArchive(${idx}); toggleProjectsDropdown();">
+                        <div>
+                            <strong>${proj.title || 'Neimenovan projekt'}</strong><br/>
+                            <small style="color:var(--text-muted);">${proj.client || ''} | ${new Date(proj.timestamp).toLocaleDateString('sl-SI')}</small>
+                        </div>
+                        <span style="color: #ef4444; font-weight: bold; padding: 2px 6px;" onclick="event.stopPropagation(); deleteProjectFromArchive(event, ${idx})">✕</span>
                     </div>
-                    <span style="color: #ef4444; font-weight: bold; padding: 2px 6px;" onclick="deleteProjectFromArchive(event, ${idx})">✕</span>
-                </div>
-            `).join('');
+                `).join('');
+            }
+
+            if (!html || html.trim() === '') {
+                html = '<div style="padding: 15px; font-size: 0.8rem; text-align: center; color: #94a3b8;">Ni shranjenih projektov.</div>';
+            }
+
+            listContent.innerHTML = html;
+        }
+
+        function refreshProjectsDropdown() {
+            renderSavedProjects();
         }
 
         function loadProjectFromArchive(idx) {
