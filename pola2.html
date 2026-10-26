@@ -968,11 +968,25 @@
                     </div>
                     <div class="stat-card full-width"
                         style="margin-top: 5px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
-                        <input type="number" id="calc-ordered-sheets" placeholder="Naročene osnovne pole..."
+                        <input type="text" id="calc-ordered-sheets" placeholder="Naročene osnovne pole..."
                             oninput="g_editedWorkOrderHTML = ''; calculatePrice()"
                             onchange="g_editedWorkOrderHTML = ''; calculatePrice()"
                             style="width: 100%; text-align: center; font-size: 1.25rem; font-weight: bold; border: none; background: transparent; padding: 5px; color: #ffffff;">
                         <div class="label" style="text-align: center;">Naročeno število osnovnih pol (za razrez)</div>
+
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(16, 185, 129, 0.3); font-size: 0.8rem; color: #a7f3d0; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin: 0; font-weight: 500;" title="Naročilo po celih paketih pol (avtomatsko zaokroževanje navzgor)">
+                                <input type="checkbox" id="calc-paper-pack-enabled" onchange="onPaperPackToggle()" style="cursor: pointer; accent-color: #10b981;">
+                                Paket:
+                            </label>
+                            <select id="calc-paper-pack-size" onchange="onPaperPackSizeChange()" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(16, 185, 129, 0.5); color: #fff; border-radius: 4px; padding: 2px 6px; font-size: 0.78rem; cursor: pointer; opacity: 0.5;" disabled>
+                                <option value="100" selected>100 pol</option>
+                                <option value="250">250 pol</option>
+                                <option value="500">500 pol</option>
+                                <option value="custom">Poljubno...</option>
+                            </select>
+                            <input type="number" id="calc-paper-pack-custom" placeholder="Št." min="1" step="1" value="100" style="display: none; width: 55px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(16, 185, 129, 0.5); color: #fff; border-radius: 4px; padding: 2px 4px; font-size: 0.78rem; text-align: center;" oninput="calculatePrice()">
+                        </div>
                     </div>
                     <div class="stat-card full-width"
                         style="margin-top: 5px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3);">
@@ -2337,6 +2351,9 @@
                     deadline: gv('calc-dn-deadline'),
                     packaging: gv('calc-dn-packaging'),
                     orderedSheets: gv('calc-ordered-sheets'),
+                    paperPackEnabled: gc('calc-paper-pack-enabled'),
+                    paperPackSize: gv('calc-paper-pack-size'),
+                    paperPackCustom: gv('calc-paper-pack-custom'),
                     machine_format: gv('machine-format'),
                     sourcePreset: gv('calc-source-presets'),
                     sourceW: gv('calc-source-w'),
@@ -2486,7 +2503,7 @@
                 const results = [];
                 qtyArr.forEach((q, idx) => {
                     const oqVal = oqArr[idx] || q;
-                    const res = calculateForSingleQty(q, undefined, undefined, undefined, oqVal);
+                    const res = calculateForSingleQty(q, undefined, undefined, undefined, oqVal, idx);
                     if (res) results.push(res);
                 });
                 if (results.length === 0) {
@@ -2900,7 +2917,7 @@
             'S8': { rate: 150, speed: 6900, prep: 10, useDynamic: true, maxW: 720, maxH: 520, defaultFormat: 'B2' },
             'CD': { rate: 180, speed: 6900, prep: 10, useDynamic: true, maxW: 720, maxH: 520, defaultFormat: 'B2' },
             'SM4+lak': { rate: 160, speed: 6900, prep: 10, useDynamic: true, maxW: 720, maxH: 520, defaultFormat: 'B2' },
-            'CD UV': { rate: 280, speed: 6900, prep: 10, useDynamic: true, maxW: 720, maxH: 520, defaultFormat: 'B2' },
+            'CD UV': { rate: 280, speed: 6600, prep: 10, useDynamic: true, maxW: 720, maxH: 520, defaultFormat: 'B2', platePrice: 14.00, prepPrice: 70.00, changePrice: 70.00 },
             'digital': { rate: 40, speed: 1800, prep: 10, useDynamic: false, defaultFormat: 'Digital (480x320)', maxW: 480, maxH: 320 },
             'digital-plakat': { rate: 0, speed: 500, prep: 0, useDynamic: false, defaultFormat: 'B1', maxW: 1000, maxH: 707 },
             'digital-rollup': { rate: 0, speed: 500, prep: 0, useDynamic: false, defaultFormat: 'Roll Up (850x2000)', maxW: 2500, maxH: 2500 },
@@ -3094,8 +3111,12 @@
                 }
                 const platesInp = document.getElementById('calc-plates-num');
                 if (platesInp) platesInp.value = "0";
+                const platesPriceInp = document.getElementById('calc-plates-price');
+                if (platesPriceInp) platesPriceInp.value = "0";
                 const prepInp = document.getElementById('calc-prep-price');
                 if (prepInp) prepInp.value = "0";
+                const changeInp = document.getElementById('calc-change-price');
+                if (changeInp) changeInp.value = "0";
                 const mutInp = document.getElementById('calc-mut-plates');
                 if (mutInp) mutInp.value = "0";
                 const precutPrepInp = document.getElementById('f-precut-prep');
@@ -3140,8 +3161,12 @@
                 if (mType === 'digital') {
                     const platesInp = document.getElementById('calc-plates-num');
                     if (platesInp) platesInp.value = "0";
+                    const platesPriceInp = document.getElementById('calc-plates-price');
+                    if (platesPriceInp) platesPriceInp.value = "0";
                     const prepInp = document.getElementById('calc-prep-price');
                     if (prepInp) prepInp.value = "30";
+                    const changeInp = document.getElementById('calc-change-price');
+                    if (changeInp) changeInp.value = "0";
                     const mutInp = document.getElementById('calc-mut-plates');
                     if (mutInp) mutInp.value = "0";
                     const precutPrepInp = document.getElementById('f-precut-prep');
@@ -3149,8 +3174,12 @@
                 } else if (mType === 'digital-plakat') {
                     const platesInp = document.getElementById('calc-plates-num');
                     if (platesInp) platesInp.value = "0";
+                    const platesPriceInp = document.getElementById('calc-plates-price');
+                    if (platesPriceInp) platesPriceInp.value = "0";
                     const prepInp = document.getElementById('calc-prep-price');
                     if (prepInp) prepInp.value = "0";
+                    const changeInp = document.getElementById('calc-change-price');
+                    if (changeInp) changeInp.value = "0";
                     const mutInp = document.getElementById('calc-mut-plates');
                     if (mutInp) mutInp.value = "0";
                     const precutPrepInp = document.getElementById('f-precut-prep');
@@ -3158,6 +3187,10 @@
                 } else if (mType === 'CD UV') {
                     const prepInp = document.getElementById('calc-prep-price');
                     if (prepInp) prepInp.value = "70";
+                    const platesPriceInp = document.getElementById('calc-plates-price');
+                    if (platesPriceInp) platesPriceInp.value = "14";
+                    const changeInp = document.getElementById('calc-change-price');
+                    if (changeInp) changeInp.value = "70";
                     const platesInp = document.getElementById('calc-plates-num');
                     if (platesInp) platesInp.value = "4";
                     const mutInp = document.getElementById('calc-mut-plates');
@@ -3165,6 +3198,8 @@
                     const precutPrepInp = document.getElementById('f-precut-prep');
                     if (precutPrepInp) precutPrepInp.value = "15";
                 } else {
+                    const platesPriceInp = document.getElementById('calc-plates-price');
+                    if (platesPriceInp) platesPriceInp.value = "10";
                     const prepInp = document.getElementById('calc-prep-price');
                     if (prepInp) prepInp.value = "25";
                     const changeInp = document.getElementById('calc-change-price');
@@ -3946,7 +3981,7 @@
             totalItemsFormArr.forEach((qty, idx) => {
                 let currentNeeded = Math.ceil(qty / (parseInt(document.getElementById('items-per-sheet').value) || 1));
                 let orderedQty = oqArr[idx] || qty;
-                let res = calculateForSingleQty(qty, currentNeeded, dw, dh, orderedQty);
+                let res = calculateForSingleQty(qty, currentNeeded, dw, dh, orderedQty, idx);
                 results.push(res);
                 if (qty === q) r = res;
             });
@@ -3974,7 +4009,25 @@
             }
             document.getElementById('res-count').innerText = r.itemsPerSheet;
             document.getElementById('res-count-mini').innerText = r.itemsPerSheet;
-            document.getElementById('res-sheets-needed').innerText = r.sheetsNeeded;
+            if (totalItemsFormArr.length > 1) {
+                document.getElementById('res-sheets-needed').innerText = results.map(x => x.sheetsNeeded).join(', ');
+                if (document.getElementById('res-source-sheets-needed')) {
+                    document.getElementById('res-source-sheets-needed').innerText = results.map(x => x.details.paper.rawSourceSheetsNeeded).join(', ');
+                }
+                const ordEl = document.getElementById('calc-ordered-sheets');
+                if (ordEl) {
+                    ordEl.placeholder = results.map(x => x.details.paper.sourceSheets).join(', ');
+                }
+            } else {
+                document.getElementById('res-sheets-needed').innerText = r.sheetsNeeded;
+                if (document.getElementById('res-source-sheets-needed')) {
+                    document.getElementById('res-source-sheets-needed').innerText = r.details.paper.rawSourceSheetsNeeded;
+                }
+                const ordEl = document.getElementById('calc-ordered-sheets');
+                if (ordEl) {
+                    ordEl.placeholder = r.details.paper.sourceSheets;
+                }
+            }
             document.getElementById('res-price-paper').innerText = formatPrice(r.paperCost);
             document.getElementById('res-price-prep').innerText = formatPrice(r.totalPrepCost);
             document.getElementById('res-price-print').innerText = formatPrice(r.totalPrintCost);
@@ -4233,6 +4286,54 @@
                         { q: 500000, waste: 9700, s150: 7140, s250: 6600, s350: 6050 }
                     ]
                 };
+            } else if (mType === 'CD UV') {
+                return {
+                    "8/0": [
+                        { q: 1000, waste: 720, s150: 3460, s250: 3200, s350: 3100 },
+                        { q: 5000, waste: 720, s150: 6350, s250: 5960, s350: 5300 },
+                        { q: 10000, waste: 720, s150: 6400, s250: 5960, s350: 5450 },
+                        { q: 50000, waste: 1250, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 1250, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 300000, waste: 1500, s150: 7100, s250: 6600, s350: 6000 },
+                        { q: 500000, waste: 1500, s150: 7100, s250: 6600, s350: 6000 }
+                    ],
+                    "4/0": [
+                        { q: 1000, waste: 320, s150: 4000, s250: 4000, s350: 3100 },
+                        { q: 5000, waste: 320, s150: 5960, s250: 5960, s350: 4600 },
+                        { q: 10000, waste: 320, s150: 6400, s250: 6300, s350: 4800 },
+                        { q: 50000, waste: 320, s150: 6600, s250: 6600, s350: 5100 },
+                        { q: 100000, waste: 1000, s150: 6600, s250: 6600, s350: 5100 },
+                        { q: 300000, waste: 3000, s150: 6600, s250: 6600, s350: 5100 },
+                        { q: 500000, waste: 5000, s150: 6600, s250: 6600, s350: 5100 }
+                    ],
+                    "4/4": [
+                        { q: 1000, waste: 640, s150: 4800, s250: 4800, s350: 4100 },
+                        { q: 5000, waste: 640, s150: 6300, s250: 6300, s350: 5200 },
+                        { q: 10000, waste: 640, s150: 6300, s250: 6300, s350: 4800 },
+                        { q: 50000, waste: 640, s150: 6600, s250: 6600, s350: 5100 },
+                        { q: 100000, waste: 1000, s150: 6600, s250: 6600, s350: 5500 },
+                        { q: 300000, waste: 3000, s150: 6600, s250: 6600, s350: 5500 },
+                        { q: 500000, waste: 5000, s150: 6600, s250: 6600, s350: 5500 }
+                    ],
+                    "4/1": [
+                        { q: 1000, waste: 480, s150: 2900, s250: 2900, s350: 2700 },
+                        { q: 5000, waste: 480, s150: 5600, s250: 5200, s350: 4800 },
+                        { q: 10000, waste: 480, s150: 6400, s250: 6000, s350: 5450 },
+                        { q: 50000, waste: 480, s150: 6800, s250: 6300, s350: 5700 },
+                        { q: 100000, waste: 480, s150: 7140, s250: 6600, s350: 6060 },
+                        { q: 300000, waste: 1000, s150: 7140, s250: 6600, s350: 6060 },
+                        { q: 500000, waste: 1800, s150: 7140, s250: 6600, s350: 6060 }
+                    ],
+                    "4/OB": [
+                        { q: 1000, waste: 640, s150: 4800, s250: 4800, s350: 4100 },
+                        { q: 5000, waste: 640, s150: 6300, s250: 6300, s350: 5200 },
+                        { q: 10000, waste: 640, s150: 6300, s250: 6300, s350: 4800 },
+                        { q: 50000, waste: 640, s150: 6600, s250: 6600, s350: 5100 },
+                        { q: 100000, waste: 1000, s150: 6600, s250: 6600, s350: 5500 },
+                        { q: 300000, waste: 3000, s150: 6600, s250: 6600, s350: 5500 },
+                        { q: 500000, waste: 5000, s150: 6600, s250: 6600, s350: 5500 }
+                    ]
+                };
             } else {
                 return {
                     "8/0": [
@@ -4337,7 +4438,43 @@
                 };
             }
         }
-        function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH, orderedQty) {
+        function onPaperPackToggle() {
+            const enabled = document.getElementById('calc-paper-pack-enabled')?.checked;
+            const packSelect = document.getElementById('calc-paper-pack-size');
+            const packCustom = document.getElementById('calc-paper-pack-custom');
+            if (packSelect) {
+                packSelect.disabled = !enabled;
+                packSelect.style.opacity = enabled ? '1' : '0.5';
+            }
+            if (packCustom) {
+                packCustom.style.display = (enabled && packSelect && packSelect.value === 'custom') ? 'inline-block' : 'none';
+            }
+            const ordInput = document.getElementById('calc-ordered-sheets');
+            if (ordInput) {
+                if (enabled) {
+                    if (ordInput.value.trim() !== '') {
+                        ordInput.dataset.prevVal = ordInput.value;
+                        ordInput.value = '';
+                    }
+                } else if (ordInput.dataset.prevVal && ordInput.value.trim() === '') {
+                    ordInput.value = ordInput.dataset.prevVal;
+                }
+            }
+            g_editedWorkOrderHTML = '';
+            calculatePrice();
+        }
+
+        function onPaperPackSizeChange() {
+            const packSelect = document.getElementById('calc-paper-pack-size');
+            const packCustom = document.getElementById('calc-paper-pack-custom');
+            if (packCustom) {
+                packCustom.style.display = (packSelect && packSelect.value === 'custom') ? 'inline-block' : 'none';
+            }
+            g_editedWorkOrderHTML = '';
+            calculatePrice();
+        }
+
+        function calculateForSingleQty(qty, sheetsNeededIn, drawW, drawH, orderedQty, qtyIndex, customOrderedSheets) {
             const qStr_local = document.getElementById('quantity').value || "0";
             const qArr_local = qStr_local.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
             const q = qArr_local[0] || 0;
@@ -4436,21 +4573,46 @@
             let _isDoubleSidedForMat = (_calcColorBack > 0 || _calcIsObrat) && !_isSV;
             let physicalWasteSheets = paperWasteSheets;
 
-            const orderedSheetsInput = document.getElementById('calc-ordered-sheets');
-            const orderedSheetsVal = orderedSheetsInput ? (parseInt(orderedSheetsInput.value) || 0) : 0;
             let sourceYield = parseFloat(document.getElementById('calc-source-yield').value) || 1;
-            let totalSheetsNeeded = sheetsNeeded + physicalWasteSheets;
-            let totalSourceSheetsNeeded = Math.ceil(totalSheetsNeeded / sourceYield);
+            let rawTotalSheetsNeeded = sheetsNeeded + physicalWasteSheets;
+            let rawSourceSheetsNeeded = Math.ceil(rawTotalSheetsNeeded / sourceYield);
+            let totalSheetsNeeded = rawTotalSheetsNeeded;
+            let totalSourceSheetsNeeded = rawSourceSheetsNeeded;
 
-            if (qty === q) {
-                if (document.getElementById('res-source-sheets-needed')) {
-                    document.getElementById('res-source-sheets-needed').innerText = totalSourceSheetsNeeded;
+            const packEnabled = document.getElementById('calc-paper-pack-enabled') ? document.getElementById('calc-paper-pack-enabled').checked : false;
+            let packSize = 100;
+            if (packEnabled) {
+                const packSelect = document.getElementById('calc-paper-pack-size');
+                if (packSelect && packSelect.value === 'custom') {
+                    packSize = parseInt(document.getElementById('calc-paper-pack-custom')?.value) || 100;
+                } else if (packSelect) {
+                    packSize = parseInt(packSelect.value) || 100;
                 }
+                if (packSize <= 0) packSize = 100;
             }
 
-            if (orderedSheetsVal > 0) {
-                totalSourceSheetsNeeded = orderedSheetsVal;
-                totalSheetsNeeded = orderedSheetsVal * sourceYield;
+            const orderedSheetsInput = document.getElementById('calc-ordered-sheets');
+            const osRaw = (customOrderedSheets !== undefined && customOrderedSheets !== null) ? String(customOrderedSheets) : (orderedSheetsInput ? orderedSheetsInput.value.trim() : '');
+            const osArr = osRaw ? osRaw.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0) : [];
+            const curIdx = (typeof qtyIndex === 'number' && qtyIndex >= 0) ? qtyIndex : 0;
+            let manualOrderedVal = osArr[curIdx] || (osArr.length === 1 && curIdx === 0 ? osArr[0] : 0);
+
+            let orderedSheetsVal = 0;
+            if (manualOrderedVal > 0) {
+                orderedSheetsVal = manualOrderedVal;
+                totalSourceSheetsNeeded = manualOrderedVal;
+                totalSheetsNeeded = manualOrderedVal * sourceYield;
+            } else if (packEnabled) {
+                let roundedPackSheets = Math.ceil(rawSourceSheetsNeeded / packSize) * packSize;
+                orderedSheetsVal = roundedPackSheets;
+                totalSourceSheetsNeeded = roundedPackSheets;
+                totalSheetsNeeded = roundedPackSheets * sourceYield;
+            }
+
+            if (qty === q && curIdx === 0) {
+                if (document.getElementById('res-source-sheets-needed')) {
+                    document.getElementById('res-source-sheets-needed').innerText = rawSourceSheetsNeeded;
+                }
             }
 
             let paperCost = 0;
@@ -4497,10 +4659,15 @@
                 }
                 
                 totalPaper2SheetsNeeded = sheetsNeeded + paper2WasteSheets;
-                totalSourcePaper2SheetsNeeded = Math.ceil(totalPaper2SheetsNeeded / sourceYield);
-                if (orderedSheetsVal > 0) {
-                    totalSourcePaper2SheetsNeeded = orderedSheetsVal;
-                    totalPaper2SheetsNeeded = orderedSheetsVal * sourceYield;
+                let rawSourcePaper2SheetsNeeded = Math.ceil(totalPaper2SheetsNeeded / sourceYield);
+                totalSourcePaper2SheetsNeeded = rawSourcePaper2SheetsNeeded;
+                if (manualOrderedVal > 0) {
+                    totalSourcePaper2SheetsNeeded = manualOrderedVal;
+                    totalPaper2SheetsNeeded = manualOrderedVal * sourceYield;
+                } else if (packEnabled) {
+                    let roundedP2 = Math.ceil(rawSourcePaper2SheetsNeeded / packSize) * packSize;
+                    totalSourcePaper2SheetsNeeded = roundedP2;
+                    totalPaper2SheetsNeeded = roundedP2 * sourceYield;
                 }
 
                 if (paper2Unit === 'ton') {
@@ -4968,6 +5135,8 @@
                     effectiveQty: effectiveQty
                 },
                 paper: {
+                    rawTotalSheetsNeeded: rawTotalSheetsNeeded,
+                    rawSourceSheetsNeeded: rawSourceSheetsNeeded,
                     totalSheets: totalSheetsNeeded,
                     sourceSheets: totalSourceSheetsNeeded,
                     sourceYield: sourceYield,
@@ -6963,6 +7132,9 @@
                         deadline: gv('calc-dn-deadline'),
                         packaging: gv('calc-dn-packaging'),
                         orderedSheets: gv('calc-ordered-sheets'),
+                        paperPackEnabled: gc('calc-paper-pack-enabled'),
+                        paperPackSize: gv('calc-paper-pack-size'),
+                        paperPackCustom: gv('calc-paper-pack-custom'),
                         machine_format: gv('machine-format'),
                         sourcePreset: gv('calc-source-presets'),
                         sourceW: gv('calc-source-w'),
@@ -7095,6 +7267,9 @@
                         deadline: gv('calc-dn-deadline'),
                         packaging: gv('calc-dn-packaging'),
                         orderedSheets: gv('calc-ordered-sheets'),
+                        paperPackEnabled: gc('calc-paper-pack-enabled'),
+                        paperPackSize: gv('calc-paper-pack-size'),
+                        paperPackCustom: gv('calc-paper-pack-custom'),
                         machine_format: gv('machine-format'),
                         sourcePreset: gv('calc-source-presets'),
                         sourceW: gv('calc-source-w'),
@@ -7668,6 +7843,10 @@
                 if (inp.sourceH !== undefined) setV('calc-source-h', inp.sourceH);
                 if (inp.sourceYield !== undefined) setV('calc-source-yield', inp.sourceYield);
                 if (inp.orderedSheets !== undefined) setV('calc-ordered-sheets', inp.orderedSheets);
+                if (inp.paperPackEnabled !== undefined) setV('calc-paper-pack-enabled', inp.paperPackEnabled, true);
+                if (inp.paperPackSize !== undefined) setV('calc-paper-pack-size', inp.paperPackSize);
+                if (inp.paperPackCustom !== undefined) setV('calc-paper-pack-custom', inp.paperPackCustom);
+                if (typeof onPaperPackToggle === 'function') onPaperPackToggle();
                 if (inp.item_w !== undefined) setV('width', inp.item_w);
                 if (inp.item_h !== undefined) setV('height', inp.item_h);
                 if (inp.quantity !== undefined) setV('quantity', inp.quantity);
@@ -8005,6 +8184,9 @@
                         orderType: gv('calc-order-type'),
                         isUrgent: gc('calc-dn-urgent'),
                         orderedSheets: document.getElementById('calc-ordered-sheets') ? document.getElementById('calc-ordered-sheets').value : '',
+                        paperPackEnabled: document.getElementById('calc-paper-pack-enabled') ? document.getElementById('calc-paper-pack-enabled').checked : false,
+                        paperPackSize: document.getElementById('calc-paper-pack-size') ? document.getElementById('calc-paper-pack-size').value : '100',
+                        paperPackCustom: document.getElementById('calc-paper-pack-custom') ? document.getElementById('calc-paper-pack-custom').value : '100',
                         machine_format: document.getElementById('machine-format').value,
                         sourcePreset: document.getElementById('calc-source-presets').value,
                         sourceW: document.getElementById('calc-source-w').value,
@@ -8267,7 +8449,7 @@
                 const results = [];
                 qtyArr.forEach((q, idx) => {
                     const oqVal = oqArr[idx] || q;
-                    results.push(calculateForSingleQty(q, undefined, undefined, undefined, oqVal));
+                    results.push(calculateForSingleQty(q, undefined, undefined, undefined, oqVal, idx));
                 });
                 const mutType = document.getElementById('calc-mut-type') ? document.getElementById('calc-mut-type').value : '';
                 const mutBreakdown = (mutType !== '' && document.getElementById('calc-mut-breakdown')) ? document.getElementById('calc-mut-breakdown').value.trim() : '';
@@ -9621,8 +9803,8 @@
 
             let specsHtml = '';
 
-            qtyArr.forEach((q) => {
-                let calcRes = calculateForSingleQty(q);
+            qtyArr.forEach((q, idx) => {
+                let calcRes = calculateForSingleQty(q, undefined, undefined, undefined, undefined, idx);
                 let d = calcRes ? (calcRes.details || calcRes) : null;
                 if (!d) return;
 
