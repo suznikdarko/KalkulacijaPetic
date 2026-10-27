@@ -551,10 +551,10 @@
 
                     <button type="button" onclick="document.getElementById('pdf-file-input').click()"
                         style="background: linear-gradient(135deg, #ec4899, #8b5cf6); border: none; border-radius: 8px; color: white; padding: 5px 12px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; box-shadow: 0 4px 12px rgba(236,72,153,0.3);"
-                        title="Naložite enega ali več PDF dokumentov naročila ali specifikacije">
-                        📄 UVOZI PDF
+                        title="Naložite PDF, Excel (.xlsx, .xls) ali Word (.docx, .doc) dokumente naročila ali razdelilnika">
+                        📎 PRIPNI DATOTEKO (PDF / Excel / Word / Slike)
                     </button>
-                    <input type="file" id="pdf-file-input" accept=".pdf" multiple style="display:none;" onchange="handlePdfFileUpload(event)">
+                    <input type="file" id="pdf-file-input" accept=".pdf,.xlsx,.xls,.docx,.doc,.jpg,.jpeg,.png,.webp" multiple style="display:none;" onchange="handlePdfFileUpload(event)">
                     <div id="attached-pdfs-container" style="display:inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;"></div>
                     <div id="attached-pdf-badge" style="display:none;"></div>
                 </div>
@@ -11215,8 +11215,13 @@
                     let detectedWidthMm = null;
                     let detectedHeightMm = null;
                     let numPages = 0;
+                    const lname = file.name.toLowerCase();
+                    const isPdf = lname.endsWith('.pdf');
+                    const isExcel = lname.endsWith('.xlsx') || lname.endsWith('.xls');
+                    const isWord = lname.endsWith('.docx') || lname.endsWith('.doc');
+                    const isImage = lname.endsWith('.jpg') || lname.endsWith('.jpeg') || lname.endsWith('.png') || lname.endsWith('.webp');
 
-                    if (typeof pdfjsLib !== 'undefined') {
+                    if (isPdf && typeof pdfjsLib !== 'undefined') {
                         try {
                             const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer.slice(0) });
                             const pdf = await loadingTask.promise;
@@ -11235,13 +11240,34 @@
                         } catch (eText) {
                             console.warn("PDF text extraction warning:", eText);
                         }
+                    } else if (isExcel && typeof XLSX !== 'undefined') {
+                        try {
+                            const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+                            wb.SheetNames.forEach(sName => {
+                                const ws = wb.Sheets[sName];
+                                const txt = XLSX.utils.sheet_to_txt(ws);
+                                fullText += `[List: ${sName}]\n` + txt + "\n\n";
+                            });
+                        } catch(eXls) {
+                            console.warn("Excel extraction warning:", eXls);
+                        }
+                    } else if (isImage) {
+                        try {
+                            const img = new Image();
+                            img.src = dataUrl;
+                            await new Promise(r => { img.onload = r; img.onerror = r; });
+                            detectedWidthMm = img.naturalWidth;
+                            detectedHeightMm = img.naturalHeight;
+                        } catch(eImg) {}
                     }
 
-                    const pdfObj = {
+                    const fileType = isPdf ? 'pdf' : (isExcel ? 'excel' : (isWord ? 'word' : (isImage ? 'image' : 'other')));
+                    const docObj = {
                         name: file.name,
                         dataUrl: dataUrl,
                         arrayBuffer: arrayBuffer,
                         text: fullText,
+                        fileType: fileType,
                         widthMm: detectedWidthMm,
                         heightMm: detectedHeightMm,
                         numPages: numPages,
@@ -11250,18 +11276,18 @@
 
                     const existingIdx = g_attachedPdfs.findIndex(p => p.name === file.name);
                     if (existingIdx >= 0) {
-                        g_attachedPdfs[existingIdx] = pdfObj;
+                        g_attachedPdfs[existingIdx] = docObj;
                         g_currentPdfIndex = existingIdx;
                     } else {
-                        g_attachedPdfs.push(pdfObj);
+                        g_attachedPdfs.push(docObj);
                         g_currentPdfIndex = g_attachedPdfs.length - 1;
                     }
                     syncActiveAttachedPdf();
-                    lastParsedDoc = pdfObj;
+                    lastParsedDoc = docObj;
                     addedCount++;
                 } catch (err) {
-                    console.error("Napaka pri branju PDF " + file.name + ":", err);
-                    alert("Napaka pri branju PDF datoteke " + file.name + ": " + err.message);
+                    console.error("Napaka pri branju datoteke " + file.name + ":", err);
+                    alert("Napaka pri branju datoteke " + file.name + ": " + err.message);
                 }
             }
 
@@ -11269,7 +11295,10 @@
             updatePdfBadge();
 
             if (lastParsedDoc) {
-                parsePdfAndShowDataModal(lastParsedDoc.text, lastParsedDoc.name, lastParsedDoc.widthMm, lastParsedDoc.heightMm);
+                const lname = (lastParsedDoc.name || '').toLowerCase();
+                if (lname.endsWith('.pdf') && typeof parsePdfAndShowDataModal === 'function') {
+                    parsePdfAndShowDataModal(lastParsedDoc.text, lastParsedDoc.name, lastParsedDoc.widthMm, lastParsedDoc.heightMm);
+                }
             }
         }
 
@@ -11287,12 +11316,22 @@
             }
 
             g_attachedPdfs.forEach((p, idx) => {
+                const lname = (p.name || '').toLowerCase();
+                const isPdf = lname.endsWith('.pdf');
+                const isExcel = lname.endsWith('.xlsx') || lname.endsWith('.xls');
+                const isWord = lname.endsWith('.docx') || lname.endsWith('.doc');
+                const isImage = lname.endsWith('.jpg') || lname.endsWith('.jpeg') || lname.endsWith('.png') || lname.endsWith('.webp');
+
+                let icon = isImage ? '🖼️' : (isExcel ? '📊' : (isWord ? '📝' : '📄'));
+                let badgeBorder = isImage ? '1px solid #f59e0b' : (isExcel ? '1px solid #059669' : (isWord ? '1px solid #2563eb' : (idx === g_currentPdfIndex ? '1.5px solid #60a5fa' : '1px solid #475569')));
+                let badgeBg = isImage ? 'rgba(245, 158, 11, 0.2)' : (isExcel ? 'rgba(5, 150, 105, 0.2)' : (isWord ? 'rgba(37, 99, 235, 0.2)' : ((idx === g_currentPdfIndex) ? 'rgba(59, 130, 246, 0.3)' : 'rgba(30, 41, 59, 0.8)')));
+
                 const item = document.createElement('div');
                 item.style.display = 'inline-flex';
                 item.style.alignItems = 'center';
                 item.style.gap = '6px';
-                item.style.background = (idx === g_currentPdfIndex) ? 'rgba(59, 130, 246, 0.3)' : 'rgba(30, 41, 59, 0.8)';
-                item.style.border = (idx === g_currentPdfIndex) ? '1.5px solid #60a5fa' : '1px solid #475569';
+                item.style.background = badgeBg;
+                item.style.border = badgeBorder;
                 item.style.borderRadius = '8px';
                 item.style.padding = '4px 8px';
                 item.style.fontSize = '0.78rem';
@@ -11304,48 +11343,80 @@
                 nameSpan.style.textOverflow = 'ellipsis';
                 nameSpan.style.whiteSpace = 'nowrap';
                 nameSpan.style.fontWeight = '600';
-                nameSpan.title = p.name || 'Dokument.pdf';
-                nameSpan.textContent = `📄 ${p.name || 'Dokument ' + (idx + 1)}`;
+                nameSpan.title = p.name || 'Dokument';
+                nameSpan.textContent = `${icon} ${p.name || 'Dokument ' + (idx + 1)}`;
                 item.appendChild(nameSpan);
 
-                // Gumb za ogled (stransko okno)
-                const viewBtn = document.createElement('button');
-                viewBtn.type = 'button';
-                viewBtn.onclick = () => openPdfViewerModal(idx);
-                viewBtn.style.cssText = 'background: #2563eb; color: white; border: none; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-weight: bold; font-size: 0.72rem;';
-                viewBtn.title = 'Odpri izvirni PDF v stranskem oknu ob kalkulaciji';
-                viewBtn.textContent = '👁️ Poglej';
-                item.appendChild(viewBtn);
+                if (isPdf) {
+                    const viewBtn = document.createElement('button');
+                    viewBtn.type = 'button';
+                    viewBtn.onclick = () => openPdfViewerModal(idx);
+                    viewBtn.style.cssText = 'background: #2563eb; color: white; border: none; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-weight: bold; font-size: 0.72rem;';
+                    viewBtn.title = 'Odpri izvirni PDF v stranskem oknu ob kalkulaciji';
+                    viewBtn.textContent = '👁️ Poglej';
+                    item.appendChild(viewBtn);
 
-                // Gumb za odprtje v novem zavihku
-                const tabBtn = document.createElement('button');
-                tabBtn.type = 'button';
-                tabBtn.onclick = () => {
-                    syncActiveAttachedPdf();
-                    g_currentPdfIndex = idx;
-                    g_attachedPdf = g_attachedPdfs[idx];
-                    openPdfInNewTab();
-                };
-                tabBtn.style.cssText = 'background: #4f46e5; color: white; border: none; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-weight: bold; font-size: 0.72rem;';
-                tabBtn.title = 'Odpri izvirni PDF v novem zavihku ali na drugem zaslonu';
-                tabBtn.textContent = '↗ Zavihek';
-                item.appendChild(tabBtn);
+                    const tabBtn = document.createElement('button');
+                    tabBtn.type = 'button';
+                    tabBtn.onclick = () => {
+                        syncActiveAttachedPdf();
+                        g_currentPdfIndex = idx;
+                        g_attachedPdf = g_attachedPdfs[idx];
+                        openPdfInNewTab();
+                    };
+                    tabBtn.style.cssText = 'background: #4f46e5; color: white; border: none; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-weight: bold; font-size: 0.72rem;';
+                    tabBtn.title = 'Odpri izvirni PDF v novem zavihku ali na drugem zaslonu';
+                    tabBtn.textContent = '↗ Zavihek';
+                    item.appendChild(tabBtn);
 
-                // Gumb za prenos podatkov
-                const dataBtn = document.createElement('button');
-                dataBtn.type = 'button';
-                dataBtn.onclick = () => reopenPdfDataModal(idx);
-                dataBtn.style.cssText = 'background: #8b5cf6; color: white; border: none; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-weight: bold; font-size: 0.72rem;';
-                dataBtn.title = 'Prenesi podatke iz tega PDF v kalkulacijo';
-                dataBtn.textContent = '⚡ Podatki';
-                item.appendChild(dataBtn);
+                    const dataBtn = document.createElement('button');
+                    dataBtn.type = 'button';
+                    dataBtn.onclick = () => reopenPdfDataModal(idx);
+                    dataBtn.style.cssText = 'background: #8b5cf6; color: white; border: none; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-weight: bold; font-size: 0.72rem;';
+                    dataBtn.title = 'Prenesi podatke iz tega PDF v kalkulacijo';
+                    dataBtn.textContent = '⚡ Podatki';
+                    item.appendChild(dataBtn);
+                } else if (isExcel) {
+                    const viewBtn = document.createElement('button');
+                    viewBtn.type = 'button';
+                    viewBtn.onclick = () => openDocPreviewModal(idx);
+                    viewBtn.style.cssText = 'background: #059669; color: white; border: none; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-weight: bold; font-size: 0.72rem;';
+                    viewBtn.title = 'Predogled tabele / razdelilnika';
+                    viewBtn.textContent = '👁️ Tabela';
+                    item.appendChild(viewBtn);
+                } else if (isWord) {
+                    const viewBtn = document.createElement('button');
+                    viewBtn.type = 'button';
+                    viewBtn.onclick = () => openDocPreviewModal(idx);
+                    viewBtn.style.cssText = 'background: #2563eb; color: white; border: none; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-weight: bold; font-size: 0.72rem;';
+                    viewBtn.title = 'Predogled dokumenta';
+                    viewBtn.textContent = '👁️ Vsebina';
+                    item.appendChild(viewBtn);
+                } else if (isImage) {
+                    const viewBtn = document.createElement('button');
+                    viewBtn.type = 'button';
+                    viewBtn.onclick = () => openDocPreviewModal(idx);
+                    viewBtn.style.cssText = 'background: #f59e0b; color: #1e293b; border: none; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-weight: bold; font-size: 0.72rem;';
+                    viewBtn.title = 'Predogled slike';
+                    viewBtn.textContent = '👁️ Slika';
+                    item.appendChild(viewBtn);
+                }
+
+                // Gumb za prenos / odpiranje datoteke (deluje za VSE: PDF, Excel, Word, Slike!)
+                const dlBtn = document.createElement('button');
+                dlBtn.type = 'button';
+                dlBtn.onclick = () => downloadAttachedPdf(idx);
+                dlBtn.style.cssText = 'background: #0284c7; color: white; border: none; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-weight: bold; font-size: 0.72rem;';
+                dlBtn.title = 'Prenesi / odpri izvirno datoteko na računalniku';
+                dlBtn.textContent = '💾 Prenesi';
+                item.appendChild(dlBtn);
 
                 // Gumb za odstranitev
                 const removeBtn = document.createElement('button');
                 removeBtn.type = 'button';
                 removeBtn.onclick = () => removeAttachedPdf(idx);
                 removeBtn.style.cssText = 'background: rgba(239, 68, 68, 0.3); color: #f87171; border: 1px solid #ef4444; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.72rem;';
-                removeBtn.title = 'Odstrani ta PDF iz kalkulacije';
+                removeBtn.title = 'Odstrani to priponko iz kalkulacije';
                 removeBtn.textContent = '✕';
                 item.appendChild(removeBtn);
 
@@ -11357,8 +11428,8 @@
             syncActiveAttachedPdf();
             const targetIdx = (typeof index === 'number') ? index : g_currentPdfIndex;
             const targetPdf = g_attachedPdfs[targetIdx] || g_attachedPdf;
-            const name = targetPdf ? targetPdf.name : 'PDF';
-            if (confirm(`Ali želite odstraniti pripet PDF "${name}" iz te kalkulacije?`)) {
+            const name = targetPdf ? targetPdf.name : 'dokument';
+            if (confirm(`Ali želite odstraniti pripet dokument "${name}" iz te kalkulacije?`)) {
                 if (typeof targetIdx === 'number' && targetIdx >= 0 && targetIdx < g_attachedPdfs.length) {
                     g_attachedPdfs.splice(targetIdx, 1);
                 } else {
@@ -11379,7 +11450,7 @@
                 }
             }
         }
-
+        
         function parsePdfAndShowDataModal(fullText, filename, detectedW, detectedH) {
             let customer = "";
             let quoteNum = "";
@@ -11902,21 +11973,185 @@
             }
         }
 
-        function downloadAttachedPdf() {
-            if (!g_attachedPdf) return;
+        function downloadAttachedPdf(index) {
+            syncActiveAttachedPdf();
+            const target = (typeof index === 'number' && g_attachedPdfs[index]) ? g_attachedPdfs[index] : g_attachedPdf;
+            if (!target) return;
+
             const a = document.createElement('a');
-            if (g_attachedPdf.dataUrl) {
-                a.href = g_attachedPdf.dataUrl;
-            } else if (g_attachedPdf.arrayBuffer) {
-                const blob = new Blob([g_attachedPdf.arrayBuffer], { type: 'application/pdf' });
+            const fname = target.name || 'Dokument';
+            const lname = fname.toLowerCase();
+
+            if (target.dataUrl) {
+                a.href = target.dataUrl;
+            } else if (target.arrayBuffer) {
+                let mime = 'application/octet-stream';
+                if (lname.endsWith('.pdf')) mime = 'application/pdf';
+                else if (lname.endsWith('.xlsx')) mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                else if (lname.endsWith('.xls')) mime = 'application/vnd.ms-excel';
+                else if (lname.endsWith('.docx')) mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                else if (lname.endsWith('.doc')) mime = 'application/msword';
+                else if (lname.endsWith('.jpg') || lname.endsWith('.jpeg')) mime = 'image/jpeg';
+                else if (lname.endsWith('.png')) mime = 'image/png';
+                else if (lname.endsWith('.webp')) mime = 'image/webp';
+
+                const blob = new Blob([target.arrayBuffer], { type: mime });
                 a.href = URL.createObjectURL(blob);
             }
-            a.download = g_attachedPdf.name || 'Dokument.pdf';
+            a.download = fname;
             document.body.appendChild(a);
             a.click();
             setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 300);
         }
 
+        function openDocPreviewModal(index) {
+            syncActiveAttachedPdf();
+            const target = (typeof index === 'number' && g_attachedPdfs[index]) ? g_attachedPdfs[index] : g_attachedPdf;
+            if (!target) return;
+
+            let modal = document.getElementById('modal-doc-preview');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modal-doc-preview';
+                modal.style.cssText = 'display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:1000010; justify-content:center; align-items:center; backdrop-filter:blur(4px);';
+                modal.innerHTML = `
+                    <div style="background:#0f172a; border:1px solid #334155; border-radius:12px; width:92%; max-width:1100px; height:85vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.7); overflow:hidden;">
+                        <div style="padding:12px 18px; background:#1e293b; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; color:white;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <span id="doc-preview-icon" style="font-size:1.3rem;">📊</span>
+                                <span id="doc-preview-title" style="font-size:1rem; font-weight:bold; color:#f1f5f9; max-width:500px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Predogled datoteke</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <button type="button" id="doc-preview-dl-btn" style="background:#0284c7; color:white; border:none; border-radius:6px; padding:6px 14px; font-size:0.8rem; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:6px;">💾 Prenesi / Odpri</button>
+                                <button type="button" onclick="document.getElementById('modal-doc-preview').style.display='none'" style="background:#ef4444; color:white; border:none; border-radius:6px; padding:6px 14px; font-size:0.85rem; font-weight:bold; cursor:pointer;">✕ Zapri</button>
+                            </div>
+                        </div>
+                        <div id="doc-preview-sheets-bar" style="display:none; padding:8px 16px; background:#1e293b; border-bottom:1px solid #334155; gap:6px; overflow-x:auto;"></div>
+                        <div id="doc-preview-body" style="flex:1; padding:16px; overflow:auto; background:#0b1120; color:#e2e8f0; font-family:Inter, sans-serif;"></div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+
+            const fname = target.name || 'Dokument';
+            const lname = fname.toLowerCase();
+            const isExcel = lname.endsWith('.xlsx') || lname.endsWith('.xls');
+            const isWord = lname.endsWith('.docx') || lname.endsWith('.doc');
+            const isImage = lname.endsWith('.jpg') || lname.endsWith('.jpeg') || lname.endsWith('.png') || lname.endsWith('.webp');
+
+            document.getElementById('doc-preview-icon').textContent = isImage ? '🖼️' : (isExcel ? '📊' : (isWord ? '📝' : '📄'));
+            document.getElementById('doc-preview-title').textContent = fname;
+            document.getElementById('doc-preview-dl-btn').onclick = () => downloadAttachedPdf(index);
+
+            const sheetsBar = document.getElementById('doc-preview-sheets-bar');
+            const bodyEl = document.getElementById('doc-preview-body');
+            sheetsBar.innerHTML = '';
+            bodyEl.innerHTML = '';
+
+            if (isImage) {
+                sheetsBar.style.display = 'none';
+                const imgSrc = target.dataUrl || (target.arrayBuffer ? URL.createObjectURL(new Blob([target.arrayBuffer], { type: (lname.endsWith('.png') ? 'image/png' : 'image/jpeg') })) : '');
+                const dims = (target.widthMm && target.heightMm) ? ` (${target.widthMm} × ${target.heightMm} px)` : '';
+                bodyEl.innerHTML = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; min-height:450px; padding:10px;">
+                        <img src="${imgSrc}" style="max-width:100%; max-height:72vh; object-fit:contain; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); border:1px solid #334155;" alt="${fname}">
+                        <div style="margin-top:12px; font-size:0.8rem; color:#94a3b8; font-weight:600;">🖼️ ${fname}${dims}</div>
+                    </div>
+                `;
+            } else if (isExcel && typeof XLSX !== 'undefined') {
+                try {
+                    let wb = null;
+                    if (target.arrayBuffer) {
+                        wb = XLSX.read(new Uint8Array(target.arrayBuffer), { type: 'array' });
+                    } else if (target.dataUrl) {
+                        const b64 = target.dataUrl.indexOf(',') >= 0 ? target.dataUrl.split(',')[1] : target.dataUrl;
+                        wb = XLSX.read(b64, { type: 'base64' });
+                    }
+
+                    if (wb && wb.SheetNames && wb.SheetNames.length > 0) {
+                        sheetsBar.style.display = wb.SheetNames.length > 1 ? 'flex' : 'none';
+                        
+                        function renderSheet(sheetName) {
+                            const ws = wb.Sheets[sheetName];
+                            if (!ws) return;
+                            const htmlTable = XLSX.utils.sheet_to_html(ws, { id: 'preview-table', editable: false });
+                            bodyEl.innerHTML = `
+                                <style>
+                                    #preview-table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+                                    #preview-table th, #preview-table td { border: 1px solid #334155; padding: 6px 10px; }
+                                    #preview-table tr:first-child td { background: #1e293b; color: #38bdf8; font-weight: bold; position: sticky; top: 0; }
+                                    #preview-table tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
+                                    #preview-table tr:hover { background: rgba(59, 130, 246, 0.1); }
+                                </style>
+                                ${htmlTable}
+                            `;
+                        }
+
+                        wb.SheetNames.forEach((sName, sIdx) => {
+                            const btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.textContent = sName;
+                            btn.style.cssText = (sIdx === 0) ? 'background:#059669; color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.75rem; font-weight:bold; cursor:pointer;' : 'background:#334155; color:#cbd5e1; border:none; border-radius:4px; padding:4px 10px; font-size:0.75rem; cursor:pointer;';
+                            btn.onclick = () => {
+                                Array.from(sheetsBar.children).forEach(c => {
+                                    c.style.background = '#334155';
+                                    c.style.color = '#cbd5e1';
+                                });
+                                btn.style.background = '#059669';
+                                btn.style.color = 'white';
+                                renderSheet(sName);
+                            };
+                            sheetsBar.appendChild(btn);
+                        });
+
+                        renderSheet(wb.SheetNames[0]);
+                    } else {
+                        bodyEl.innerHTML = '<div style="padding:20px; text-align:center; color:#94a3b8;">Ni najdenih delovnih listov v tem zvezku.</div>';
+                    }
+                } catch(e) {
+                    bodyEl.innerHTML = `<div style="padding:20px; color:#f87171;">Napaka pri branju Excel datoteke: ${e.message}</div>`;
+                }
+            } else if (target.text) {
+                sheetsBar.style.display = 'none';
+                bodyEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: monospace; font-size: 0.85rem; color: #cbd5e1; line-height: 1.5;">${target.text}</pre>`;
+            } else {
+                sheetsBar.style.display = 'none';
+                bodyEl.innerHTML = `
+                    <div style="padding:40px; text-align:center;">
+                        <div style="font-size:2rem; margin-bottom:10px;">📄</div>
+                        <div style="font-weight:bold; font-size:1.1rem; margin-bottom:8px;">${fname}</div>
+                        <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:16px;">Za ogled ali urejanje te datoteke kliknite spodnji gumb za prenos.</p>
+                        <button type="button" onclick="downloadAttachedPdf(${index})" style="background:#0284c7; color:white; border:none; border-radius:6px; padding:8px 18px; font-size:0.9rem; font-weight:bold; cursor:pointer;">💾 Prenesi in odpri v računalniku</button>
+                    </div>
+                `;
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        if (!window._pasteImageListenerAttached) {
+            window._pasteImageListenerAttached = true;
+            window.addEventListener('paste', function(e) {
+                const activeTag = (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName.toLowerCase() : '';
+                if (activeTag === 'input' || activeTag === 'textarea') return;
+                const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+                if (!items) return;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type && items[i].type.indexOf('image') !== -1) {
+                        const blob = items[i].getAsFile();
+                        if (blob) {
+                            const now = new Date();
+                            const timeStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + '_' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
+                            const ext = blob.type.includes('png') ? '.png' : '.jpg';
+                            const fakeFile = new File([blob], 'slika_' + timeStr + ext, { type: blob.type });
+                            handlePdfFileUpload({ target: { files: [fakeFile] } });
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+        
         function updatePdfViewerSelector() {
             const selector = document.getElementById('pdf-viewer-selector');
             const filenameEl = document.getElementById('pdf-viewer-filename');
