@@ -5963,8 +5963,45 @@ function printQuote() {
             });
         }
 
+        var g_serverProjects = [];
+
+        async function fetchServerProjects() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 2000);
+                const res = await fetch('http://127.0.0.1:8095/list', { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.status === 'success' && Array.isArray(data.projects)) {
+                        g_serverProjects = data.projects;
+                    }
+                }
+            } catch (e) {
+                console.log("Ne morem pridobiti ponudb s strežnika:", e);
+            }
+        }
+
+        async function loadProjectFromServer(fileName) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3000);
+                const res = await fetch('http://127.0.0.1:8095/read?file=' + encodeURIComponent(fileName), { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!res.ok) throw new Error('HTTP status ' + res.status);
+                const data = await res.json();
+                loadProjectData(data);
+                alert("Ponudba '" + fileName + "' naložena s strežnika!");
+            } catch (err) {
+                alert("Napaka pri nalaganju s strežnika: " + err.message);
+            }
+        }
+
         async function autoConnectFolder() {
             try {
+                fetchServerProjects().then(() => {
+                    if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                }).catch(e => {});
                 let handle = await getHandleFromIndexedDB('kuverte_dir_handle') || await getHandleFromIndexedDB('kalkulacije_shared_dir_handle');
                 if (handle) {
                     const status = await handle.queryPermission({ mode: 'readwrite' });
@@ -6274,26 +6311,10 @@ async function extractCustomersFromDisk() {
             const clist = document.getElementById('cust-dropdown-list');
             if (clist) clist.style.display = 'none';
 
-            // 2. V ozadju preveri povezavo in osveži indeks
-            (async () => {
-                if (!g_projectsDirHandle) {
-                    try {
-                        let handle = await getHandleFromIndexedDB('kuverte_dir_handle') || await getHandleFromIndexedDB('kalkulacije_shared_dir_handle');
-                        if (handle) {
-                            if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') {
-                                g_projectsDirHandle = handle;
-                            } else if ((await handle.requestPermission({ mode: 'readwrite' })) === 'granted') {
-                                g_projectsDirHandle = handle;
-                            }
-                        }
-                    } catch (e) { console.error("IndexedDB error:", e); }
-                }
-
-                if (g_projectsDirHandle) {
-                    await refreshDiskProjects();
-                    renderSavedProjects();
-                }
-            })();
+            // 2. V ozadju naloži iz strežnika in hitrega indeksa diska
+            fetchServerProjects().then(() => {
+                if (typeof renderSavedProjects === 'function') renderSavedProjects();
+            }).catch(e => {});
         }
 
         function isKuverteProject(proj) {
@@ -6307,6 +6328,15 @@ async function extractCustomersFromDisk() {
             if (inp.envelopePreset !== undefined || inp.postCount !== undefined || inp.postPricePer !== undefined) return true;
             // Exclude inputs specific to other calculation types
             if (inp.paperType || inp.cardboardWeight || inp.coverMaterialCode || inp.leavesMaterial) return false;
+            return false;
+        }
+
+        function isKuverteServerProject(p) {
+            if (!p) return false;
+            const src = (p.source || '').toLowerCase();
+            if (src.includes('kuvert')) return true;
+            const file = (p.file || '').toLowerCase();
+            if (file.includes('.kuverta.json') || file.includes('kuvert')) return true;
             return false;
         }
 
@@ -6345,6 +6375,37 @@ async function extractCustomersFromDisk() {
             }) : arhiv;
 
             let html = "";
+
+            // 0. DODAJ PONUDBE ZE STREŽNIKA (Srečko server 8095 -> PONUDBE TEST)
+            if (g_serverProjects && g_serverProjects.length > 0) {
+                let srvFiltered = g_serverProjects.filter(isKuverteServerProject);
+                if (filter) {
+                    const terms = filter.split(/\s+/).filter(Boolean);
+                    srvFiltered = srvFiltered.filter(p => {
+                        const str = `${p.file} ${p.name || ''} ${p.customer || ''} ${p.quoteNum || ''}`.toLowerCase();
+                        return terms.every(term => str.includes(term));
+                    });
+                }
+                if (srvFiltered.length > 0) {
+                    html += '<div style="padding: 5px 12px; background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(59, 130, 246, 0.3);">🖥️ PONUDBE NA STREŽNIKU (' + srvFiltered.length + ')</div>';
+                    srvFiltered.forEach(p => {
+                        const safeFile = p.file.replace(/'/g, "\\'");
+                        const custStr = p.customer ? `<div style="font-size: 0.7rem; color: #6ee7b7; font-weight: 500;">${p.customer}</div>` : '';
+                        const dateStr = p.date || 'Strežnik';
+                        const qNumStr = p.quoteNum ? `pon. ${p.quoteNum} | ` : '';
+                        html += `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='transparent'">
+                                <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProjectFromServer('${safeFile}'); toggleProjectsDropdown();">
+                                    <div style="font-weight: bold; color: #38bdf8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
+                                        📄 ${p.file}
+                                    </div>
+                                    ${custStr}
+                                    <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${qNumStr}${dateStr}</div>
+                                </div>
+                            </div>`;
+                    });
+                }
+            }
 
             if (g_diskProjects.length > 0) {
                 html += '<div style="padding: 5px 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(16, 185, 129, 0.2);">📁 DATOTEKE NA DISKU (KUVERTE)</div>';

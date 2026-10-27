@@ -9071,7 +9071,15 @@ async function saveProjectToFile() {
                         }
                     } catch (permErr) { console.log("Stored handle perm check:", permErr); }
                 }
-                g_projectsDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                let picker = (window.top && window.top !== window && typeof window.top.showDirectoryPicker === 'function') 
+                    ? window.top.showDirectoryPicker.bind(window.top) 
+                    : (window.showDirectoryPicker ? window.showDirectoryPicker.bind(window) : null);
+
+                if (!picker) {
+                    alert("Vaš brskalnik ne podpira izbire map.");
+                    return;
+                }
+                g_projectsDirHandle = await picker({ mode: 'readwrite' });
                 await saveDirHandle(g_projectsDirHandle);
                 await refreshDiskProjects();
                 renderSavedProjects();
@@ -9079,7 +9087,12 @@ async function saveProjectToFile() {
                 alert("Mapa [" + g_projectsDirHandle.name + "] uspešno povezana in shranjena!");
 
             } catch (err) {
-                if (err.name !== 'AbortError') alert("Napaka: " + err.message);
+                if (err.name === 'AbortError') return;
+                if (err.name === 'SecurityError' || (err.message && (err.message.includes('sub frames') || err.message.includes('Cross origin')))) {
+                    alert("⚠️ Brskalnik iz varnostnih razlogov onemogoča izbiro mape znotraj skupnega okna (iframe).\n\nPonudbe se že samodejno nalagajo s strežnika Srečko (8095).\nČe pa želite lokalno povezati mapo na disku, odprite 'TENOVIS2.html' neposredno v svojem zavihku.");
+                    return;
+                }
+                alert("Napaka: " + err.message);
             }
         }
 

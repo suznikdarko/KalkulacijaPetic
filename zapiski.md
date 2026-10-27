@@ -139,6 +139,16 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
+### L. Povezava s strežnikom 8095 in blokada `showDirectoryPicker` v `<iframe>`
+- **Težava:** Ob kliku na »Poveži z mapo« znotraj skupnega vmesnika `PETRIČ.KALKULACIJE2.html` je brskalnik javil: `Napaka: Failed to execute 'showDirectoryPicker' on 'Window': Cross origin sub frames aren't allowed to show a file picker.`
+- **Rešitev v vseh kalkulatorjih (`*2.html`):**
+  1. Vgrajeno samodejno pridobivanje in nalaganje ponudb prek lokalnega strežnika Srečko `http://127.0.0.1:8095/list` in `/read` (`fetchServerProjects()` in `loadProjectFromServer()`).
+  2. Ponudbe s strežnika (`S:\PONUDBE TEST`) se samodejno prikažejo v meniju »MOJI PROJEKTI«, tako da ročno povezovanje mape sploh ni več potrebno.
+  3. Klic `syncWithFolder()` sedaj elegantno prestreže varnostno napako brskalnika in prikaže prijazno pojasnilo namesto prekinitve.
+  4. V `exportToFile()` je vgrajen samodejni preklop na Blob prenos v primeru blokade `showSaveFilePicker`.
+
+---
+
 ## 2. Hitri Diagnostični Protokol (Če se zavihek spet ne odziva)
 
 Ko uporabnik sporoči, da se zavihek ne odziva, izvedi naslednje korake:

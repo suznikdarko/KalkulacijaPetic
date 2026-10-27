@@ -9462,7 +9462,45 @@
 
 
             async function autoConnectFolder() {
+            var g_serverProjects = [];
+
+            async function fetchServerProjects() {
                 try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 2000);
+                    const res = await fetch('http://127.0.0.1:8095/list', { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.status === 'success' && Array.isArray(data.projects)) {
+                            g_serverProjects = data.projects;
+                        }
+                    }
+                } catch (e) {
+                    console.log("Ne morem pridobiti ponudb s strežnika:", e);
+                }
+            }
+
+            async function loadProjectFromServer(fileName) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3000);
+                    const res = await fetch('http://127.0.0.1:8095/read?file=' + encodeURIComponent(fileName), { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (!res.ok) throw new Error('HTTP status ' + res.status);
+                    const data = await res.json();
+                    loadProjectData(data);
+                    alert("Ponudba '" + fileName + "' naložena s strežnika!");
+                } catch (err) {
+                    alert("Napaka pri nalaganju s strežnika: " + err.message);
+                }
+            }
+
+            async function autoConnectFolder() {
+                try {
+                    fetchServerProjects().then(() => {
+                        if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                    }).catch(e => {});
                     const handle = await getHandleFromIndexedDB('kalkulacije_shared_dir_handle');
                     if (handle) {
                         const status = await handle.queryPermission({ mode: 'readwrite' });
@@ -9476,27 +9514,29 @@
             }
 
             async function syncWithFolder() {
-
                 try {
-
-                    g_projectsDirHandle = await window.showDirectoryPicker();
-
+                    let picker = (window.top && window.top !== window && typeof window.top.showDirectoryPicker === 'function') 
+                        ? window.top.showDirectoryPicker.bind(window.top) 
+                        : (window.showDirectoryPicker ? window.showDirectoryPicker.bind(window) : null);
+                    
+                    if (!picker) {
+                        alert("Vaš brskalnik ne podpira izbire map.");
+                        return;
+                    }
+                    g_projectsDirHandle = await picker();
                     await setHandleInIndexedDB(g_projectsDirHandle, 'kalkulacije_shared_dir_handle');
-
                     await refreshDiskProjects();
-
                     renderSavedProjects();
-
                     alert("Mapa uspešno povezana in shranjena!");
-
                 } catch (err) {
-
-                    if (err.name !== 'AbortError') alert("Napaka: " + err.message);
-
+                    if (err.name === 'AbortError') return;
+                    if (err.name === 'SecurityError' || (err.message && (err.message.includes('sub frames') || err.message.includes('Cross origin')))) {
+                        alert("⚠️ Brskalnik iz varnostnih razlogov onemogoča izbiro mape znotraj skupnega okna (iframe).\n\nPonudbe se že samodejno nalagajo s strežnika Srečko (8095).\nČe pa želite lokalno povezati mapo na disku, odprite 'brosura2.html' neposredno v svojem zavihku.");
+                        return;
+                    }
+                    alert("Napaka: " + err.message);
                 }
-
             }
-
 
 
             
@@ -9508,6 +9548,15 @@
                 const inp = proj.inputs || {};
                 if (proj.name && proj.name.includes('.brosura.json')) return true;
                 if (inp.coverW || inp.coverPages || inp.itemsPerSheetCover || inp.machine_format_cover) return true;
+                return false;
+            }
+
+            function isBrosuraServerProject(p) {
+                if (!p) return false;
+                const src = (p.source || '').toLowerCase();
+                if (src === 'darko-brosura' || src === 'brosura') return true;
+                const file = (p.file || '').toLowerCase();
+                if (file.includes('.brosura.json') || file.includes('brosura') || file.includes('brošura')) return true;
                 return false;
             }
 
@@ -10543,7 +10592,21 @@ async function extractCustomersFromDisk() {
                         await writable.write(jsonStr);
                         await writable.close();
                         return;
-                    } catch (e) { if (e.name === 'AbortError') return; alert("Napaka pri shranjevanju: " + e.message); }
+                    } catch (e) {
+                        if (e.name === 'AbortError') return;
+                        if (e.name === 'SecurityError' || (e.message && (e.message.includes('sub frames') || e.message.includes('Cross origin')))) {
+                            // Samodejni fallback na Blob prenos brez opozorila o napaki
+                            const blob = new Blob([jsonStr], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = suggestedName;
+                            document.body.appendChild(a); a.click();
+                            setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
+                            return;
+                        }
+                        alert("Napaka pri shranjevanju: " + e.message);
+                    }
                 }
 
                 const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -10578,27 +10641,10 @@ async function extractCustomersFromDisk() {
                 const custDropdown = document.getElementById('customer-dropdown');
                 if (custDropdown) custDropdown.style.display = 'none';
 
-                // 2. V ozadju preveri povezavo in osveži indeks
-                (async () => {
-                    if (!g_projectsDirHandle) {
-                        try {
-                            const handle = await getHandleFromIndexedDB('kalkulacije_shared_dir_handle');
-                            if (handle) {
-                                try {
-                                    let status = await handle.queryPermission({ mode: 'readwrite' });
-                                    if (status === 'granted') {
-                                        g_projectsDirHandle = handle;
-                                    }
-                                } catch (pErr) {}
-                            }
-                        } catch (e) { console.error("IndexedDB error:", e); }
-                    }
-
-                    if (g_projectsDirHandle) {
-                        await refreshDiskProjects();
-                        renderSavedProjects();
-                    }
-                })();
+                // 2. V ozadju naloži iz strežnika in hitrega indeksa diska
+                fetchServerProjects().then(() => {
+                    if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                }).catch(e => {});
             }
             window.toggleProjectsDropdown = toggleProjectsDropdown;
 
@@ -10690,6 +10736,37 @@ async function extractCustomersFromDisk() {
                 }
 
 
+
+                // 0. DODAJ PONUDBE ZE STREŽNIKA (Srečko server 8095 -> PONUDBE TEST)
+                if (g_serverProjects && g_serverProjects.length > 0) {
+                    let srvFiltered = g_serverProjects.filter(isBrosuraServerProject);
+                    if (filter) {
+                        const terms = filter.split(/\s+/).filter(Boolean);
+                        srvFiltered = srvFiltered.filter(p => {
+                            const str = `${p.file} ${p.name || ''} ${p.customer || ''} ${p.quoteNum || ''}`.toLowerCase();
+                            return terms.every(term => str.includes(term));
+                        });
+                    }
+                    if (srvFiltered.length > 0) {
+                        html += '<div style="padding: 5px 12px; background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(59, 130, 246, 0.3);">🖥️ PONUDBE NA STREŽNIKU (' + srvFiltered.length + ')</div>';
+                        srvFiltered.forEach(p => {
+                            const safeFile = p.file.replace(/'/g, "\\'");
+                            const custStr = p.customer ? `<div style="font-size: 0.7rem; color: #6ee7b7; font-weight: 500;">${p.customer}</div>` : '';
+                            const dateStr = p.date || 'Strežnik';
+                            const qNumStr = p.quoteNum ? `pon. ${p.quoteNum} | ` : '';
+                            html += `
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='transparent'">
+                                    <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProjectFromServer('${safeFile}'); toggleProjectsDropdown();">
+                                        <div style="font-weight: bold; color: #38bdf8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
+                                            📄 ${p.file}
+                                        </div>
+                                        ${custStr}
+                                        <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${qNumStr}${dateStr}</div>
+                                    </div>
+                                </div>`;
+                        });
+                    }
+                }
 
                 // 1. DODAJ DATOTEKE Z DISKA (BROŠURA)
                 if (g_diskProjects.length > 0) {
