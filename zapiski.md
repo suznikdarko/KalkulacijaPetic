@@ -149,6 +149,16 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
+### M. Centralni Zagon Strežnika Ponudb (`server-2012:8095`) za Vse Računalnike
+- **Težava:** Na drugih računalnikih se v meniju »MOJI PROJEKTI« ni prikazalo nič, ker je bila koda vezana na lokalni `127.0.0.1:8095`, strežnik `save_server.py` pa je tekel samo na Darkovem računalniku (`PRODAJA-PC`).
+- **Rešitev:**
+  1. Na disku `S:\DARKO\KalkulacijaPetric\SERVER_APP\` je bil pripravljen celoten prenosni paket Python 3.11 s strežnikom `save_server.py`, ki ne potrebuje namestitve na strežniku `server-2012`.
+  2. Pripravljeni sta zagonski skripti `ZAGON_STREZNIK_2012.bat` in `ZAGON_V_OZADJU.vbs` v mapi `S:\DARKO\KalkulacijaPetric\`.
+  3. V vseh delovnih programih (`pola2.html`, `blok2.html`, `brosura2.html`, `kuverte2.html`, `etikete2.html`, `TENOVIS2.html`, `koledar2.html`) je bila povezava posodobljena s funkcijo `getServerBaseUrl()`, ki se najprej avtomatsko obrne na `http://server-2012:8095` (z varnostnimi rezervami `127.0.0.1:8095`, `Prodaja-pc:8095` in `192.168.0.154:8095`).
+  4. Vse posodobljene datoteke so bile usklajene na lokalnem disku `C:` in na skupnem omrežnem pogonu `S:\`.
+
+---
+
 ## 2. Hitri Diagnostični Protokol (Če se zavihek spet ne odziva)
 
 Ko uporabnik sporoči, da se zavihek ne odziva, izvedi naslednje korake:

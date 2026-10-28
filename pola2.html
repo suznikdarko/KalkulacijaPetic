@@ -7355,7 +7355,8 @@
                 const suggestedName = (tParts.length > 0 ? tParts.join('_') : name).replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.json';
 
                 try {
-                    const srvRes = await fetch('http://127.0.0.1:8095', {
+                    const srvUrl = await getServerBaseUrl();
+                    const srvRes = await fetch(srvUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
@@ -7436,12 +7437,38 @@
         var g_diskProjects = [];
         var g_diskProjectsMetadata = {};
         var g_serverProjects = [];
+        var g_serverBaseUrl = null;
+
+        async function getServerBaseUrl() {
+            if (g_serverBaseUrl) return g_serverBaseUrl;
+            const candidates = [
+                'http://server-2012:8095',
+                'http://127.0.0.1:8095',
+                'http://Prodaja-pc:8095',
+                'http://192.168.0.154:8095'
+            ];
+            for (let url of candidates) {
+                try {
+                    const c = new AbortController();
+                    const tid = setTimeout(() => c.abort(), 700);
+                    const r = await fetch(url + '/list', { signal: c.signal });
+                    clearTimeout(tid);
+                    if (r.ok) {
+                        g_serverBaseUrl = url;
+                        return url;
+                    }
+                } catch(e) {}
+            }
+            g_serverBaseUrl = 'http://server-2012:8095';
+            return g_serverBaseUrl;
+        }
 
         async function fetchServerProjects() {
             try {
+                const srvUrl = await getServerBaseUrl();
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2000);
-                const res = await fetch('http://127.0.0.1:8095/list', { signal: controller.signal });
+                const timeoutId = setTimeout(() => controller.abort(), 2500);
+                const res = await fetch(srvUrl + '/list', { signal: controller.signal });
                 clearTimeout(timeoutId);
                 if (res.ok) {
                     const data = await res.json();
@@ -7456,9 +7483,10 @@
 
         async function loadProjectFromServer(fileName) {
             try {
+                const srvUrl = await getServerBaseUrl();
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3000);
-                const res = await fetch('http://127.0.0.1:8095/read?file=' + encodeURIComponent(fileName), { signal: controller.signal });
+                const timeoutId = setTimeout(() => controller.abort(), 3500);
+                const res = await fetch(srvUrl + '/read?file=' + encodeURIComponent(fileName), { signal: controller.signal });
                 clearTimeout(timeoutId);
                 if (!res.ok) throw new Error('HTTP status ' + res.status);
                 const data = await res.json();
@@ -7920,7 +7948,8 @@
             const suggestedName = 'pon._' + tParts.join('_').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.json';
 
             try {
-                const srvRes = await fetch('http://127.0.0.1:8095', {
+                const srvUrl = await getServerBaseUrl();
+                const srvRes = await fetch(srvUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
@@ -8453,7 +8482,8 @@
                 const suggestedName = (tParts.length > 0 ? tParts.join('_') : name).replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.json';
 
                 try {
-                    const srvRes = await fetch('http://127.0.0.1:8095', {
+                    const srvUrl = await getServerBaseUrl();
+                    const srvRes = await fetch(srvUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
@@ -10338,7 +10368,7 @@
                 link.click();
                 setTimeout(() => { if (link.parentNode) link.parentNode.removeChild(link); URL.revokeObjectURL(url); }, 500);
 
-                fetch('http://127.0.0.1:8095', {
+                getServerBaseUrl().then(srvUrl => fetch(srvUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ type: 'word', filename: wordName, content: fullHtml })
@@ -10375,7 +10405,7 @@
                 a.click();
                 setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); URL.revokeObjectURL(url); }, 500);
 
-                fetch('http://127.0.0.1:8095', {
+                getServerBaseUrl().then(srvUrl => fetch(srvUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ type: 'word', filename: name, content: fullHtml })
@@ -12465,7 +12495,8 @@
 
             try {
                 // 1. Najprej poskusimo prek lokalnega strežnika na 8095
-                let url = 'http://127.0.0.1:8095/zaloga' + (userTriggered ? '?refresh=1' : '');
+                let srvUrl = typeof getServerBaseUrl === 'function' ? await getServerBaseUrl() : 'http://server-2012:8095';
+                let url = srvUrl + '/zaloga' + (userTriggered ? '?refresh=1' : '');
                 let response = null;
                 try {
                     const controller = new AbortController();
@@ -12517,7 +12548,7 @@
                 // 3. Če nobena samodejna pot ni uspela in je uporabnik eksplicitno kliknil gumb, ponudimo ročno izbiro
                 if (userTriggered) {
                     const confirmManual = confirm(
-                        "Povezava s strežnikom za zalogo (http://127.0.0.1:8095) ni bila vzpostavljena.\n\n" +
+                        "Povezava s strežnikom za zalogo (http://server-2012:8095) ni bila vzpostavljena.\n\n" +
                         "Ali želite ročno izbrati datoteko zalogaSimon.json ali Excel zvezek (.xlsx)?"
                     );
                     if (confirmManual) {

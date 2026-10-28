@@ -2545,7 +2545,8 @@ function initStockData() {
 
             try {
                 // 1. Najprej poskusimo prek lokalnega strežnika na 8095
-                let url = 'http://127.0.0.1:8095/zaloga' + (userTriggered ? '?refresh=1' : '');
+                let srvUrl = typeof getServerBaseUrl === 'function' ? await getServerBaseUrl() : 'http://server-2012:8095';
+                let url = srvUrl + '/zaloga' + (userTriggered ? '?refresh=1' : '');
                 let response = null;
                 try {
                     const controller = new AbortController();
@@ -2597,7 +2598,7 @@ function initStockData() {
                 // 3. Če nobena samodejna pot ni uspela in je uporabnik eksplicitno kliknil gumb, ponudimo ročno izbiro
                 if (userTriggered) {
                     const confirmManual = confirm(
-                        "Povezava s strežnikom za zalogo (http://127.0.0.1:8095) ni bila vzpostavljena.\n\n" +
+                        "Povezava s strežnikom za zalogo (http://server-2012:8095) ni bila vzpostavljena.\n\n" +
                         "Ali želite ročno izbrati datoteko zalogaSimon.json ali Excel zvezek (.xlsx)?"
                     );
                     if (confirmManual) {
@@ -7044,11 +7045,36 @@ window.addEventListener('error', function (e) {
 
             var g_serverProjects = [];
 
-            async function fetchServerProjects() {
+                    var g_serverBaseUrl = null;
+        async function getServerBaseUrl() {
+            if (g_serverBaseUrl) return g_serverBaseUrl;
+            const candidates = [
+                'http://server-2012:8095',
+                'http://127.0.0.1:8095',
+                'http://Prodaja-pc:8095',
+                'http://192.168.0.154:8095'
+            ];
+            for (let url of candidates) {
+                try {
+                    const c = new AbortController();
+                    const tid = setTimeout(() => c.abort(), 600);
+                    const r = await fetch(url + '/list', { signal: c.signal });
+                    clearTimeout(tid);
+                    if (r.ok) {
+                        g_serverBaseUrl = url;
+                        return url;
+                    }
+                } catch(e) {}
+            }
+            g_serverBaseUrl = 'http://server-2012:8095';
+            return g_serverBaseUrl;
+        }
+        async function fetchServerProjects() {
                 try {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 2000);
-                    const res = await fetch('http://127.0.0.1:8095/list', { signal: controller.signal });
+                    const srvUrl = await getServerBaseUrl();
+                    const res = await fetch(srvUrl + '/list', { signal: controller.signal });
                     clearTimeout(timeoutId);
                     if (res.ok) {
                         const data = await res.json();
@@ -7065,7 +7091,8 @@ window.addEventListener('error', function (e) {
                 try {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 3000);
-                    const res = await fetch('http://127.0.0.1:8095/read?file=' + encodeURIComponent(fileName), { signal: controller.signal });
+                    const srvUrl = await getServerBaseUrl();
+                    const res = await fetch(srvUrl + '/read?file=' + encodeURIComponent(fileName), { signal: controller.signal });
                     clearTimeout(timeoutId);
                     if (!res.ok) throw new Error('HTTP status ' + res.status);
                     const data = await res.json();
@@ -7959,7 +7986,8 @@ async function downloadWordDoc(filename, htmlContent) {
                     // 1. Poskusi shraniti na server Srecko (PONUDBE 2026)
                     let serverSaved = false;
                     try {
-                        const srvRes = await fetch('http://127.0.0.1:8095', {
+                        const srvUrl = await getServerBaseUrl();
+                    const srvRes = await fetch(srvUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ type: 'word', filename: wordName, content: fullHtml })
@@ -8181,12 +8209,13 @@ async function saveCurrentProject(btn = null) {
                         }, 2000);
                     }
 
-                    // SERVER SAVE (http://127.0.0.1:8095) -> \\server-2012\Srecko\PONUDBE TEST
+                    // SERVER SAVE (http://server-2012:8095) -> \\server-2012\Srecko\PONUDBE TEST
                     const jsonStr = JSON.stringify(data, null, 2);
                     const suggestedName = typeof buildSuggestedFilename === 'function' ? buildSuggestedFilename('.json') : ((name || 'projekt').replace(/[/\\?%*:|"<> \t]/g, '_') + '.json');
                     
                     try {
-                        const srvRes = await fetch('http://127.0.0.1:8095', {
+                        const srvUrl = await getServerBaseUrl();
+                    const srvRes = await fetch(srvUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
@@ -8253,7 +8282,8 @@ async function saveCurrentProject(btn = null) {
 
                 // Poskusi shraniti na server Srecko (PONUDBE TEST)
                 try {
-                    const srvRes = await fetch('http://127.0.0.1:8095', {
+                    const srvUrl = await getServerBaseUrl();
+                    const srvRes = await fetch(srvUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
@@ -8986,7 +9016,8 @@ async function saveCurrentProject(btn = null) {
                     const suggestedName = typeof buildSuggestedFilename === 'function' ? buildSuggestedFilename('.json') : (((s_ponudba || s_stranka || s_izdelek) ? [s_ponudba, s_stranka, s_izdelek, s_naklada].filter(Boolean).join('_') : name) + '.json');
 
                     try {
-                        const srvRes = await fetch('http://127.0.0.1:8095', {
+                        const srvUrl = await getServerBaseUrl();
+                    const srvRes = await fetch(srvUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })

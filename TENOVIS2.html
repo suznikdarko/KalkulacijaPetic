@@ -8827,7 +8827,8 @@ async function saveProjectToFile() {
                 const jsonStr = JSON.stringify(data, null, 2);
 
                 try {
-                    const srvRes = await fetch('http://127.0.0.1:8095', {
+                    const srvUrl = await getServerBaseUrl();
+                    const srvRes = await fetch(srvUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
@@ -9366,11 +9367,36 @@ async function extractCustomersFromDisk() {
 
         // g_serverProjects declared at top
 
+                var g_serverBaseUrl = null;
+        async function getServerBaseUrl() {
+            if (g_serverBaseUrl) return g_serverBaseUrl;
+            const candidates = [
+                'http://server-2012:8095',
+                'http://127.0.0.1:8095',
+                'http://Prodaja-pc:8095',
+                'http://192.168.0.154:8095'
+            ];
+            for (let url of candidates) {
+                try {
+                    const c = new AbortController();
+                    const tid = setTimeout(() => c.abort(), 600);
+                    const r = await fetch(url + '/list', { signal: c.signal });
+                    clearTimeout(tid);
+                    if (r.ok) {
+                        g_serverBaseUrl = url;
+                        return url;
+                    }
+                } catch(e) {}
+            }
+            g_serverBaseUrl = 'http://server-2012:8095';
+            return g_serverBaseUrl;
+        }
         async function fetchServerProjects() {
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 1500);
-                const res = await fetch('http://127.0.0.1:8095/list', { signal: controller.signal });
+                const srvUrl = await getServerBaseUrl();
+                    const res = await fetch(srvUrl + '/list', { signal: controller.signal });
                 clearTimeout(timeoutId);
                 if (res.ok) {
                     const data = await res.json();
@@ -9445,7 +9471,8 @@ async function extractCustomersFromDisk() {
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 2000);
-                const res = await fetch('http://127.0.0.1:8095/read?file=' + encodeURIComponent(fileName), { signal: controller.signal });
+                const srvUrl = await getServerBaseUrl();
+                    const res = await fetch(srvUrl + '/read?file=' + encodeURIComponent(fileName), { signal: controller.signal });
                 clearTimeout(timeoutId);
                 if (!res.ok) throw new Error('HTTP status ' + res.status);
                 const data = await res.json();
@@ -11156,7 +11183,8 @@ function loadProject(id) {
                 const fileName = buildStandardFileName('.doc');
 
                 try {
-                    const srvRes = await fetch('http://127.0.0.1:8095', {
+                    const srvUrl = await getServerBaseUrl();
+                    const srvRes = await fetch(srvUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ filename: fileName, content: htmlContent, type: 'word' })
@@ -11197,7 +11225,8 @@ function loadProject(id) {
                 let fullHtml = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + name + "</title><style>body { font-family: Arial, sans-serif; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + htmlContent + "</body></html>";
 
                 try {
-                    const srvRes = await fetch('http://127.0.0.1:8095', {
+                    const srvUrl = await getServerBaseUrl();
+                    const srvRes = await fetch(srvUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ filename: name, content: fullHtml, type: 'word' })
@@ -12286,7 +12315,8 @@ function loadProject(id) {
 
             try {
                 // 1. Najprej poskusimo prek lokalnega strežnika na 8095
-                let url = 'http://127.0.0.1:8095/zaloga' + (userTriggered ? '?refresh=1' : '');
+                let srvUrl = typeof getServerBaseUrl === 'function' ? await getServerBaseUrl() : 'http://server-2012:8095';
+                let url = srvUrl + '/zaloga' + (userTriggered ? '?refresh=1' : '');
                 let response = null;
                 try {
                     const controller = new AbortController();
@@ -12338,7 +12368,7 @@ function loadProject(id) {
                 // 3. Če nobena samodejna pot ni uspela in je uporabnik eksplicitno kliknil gumb, ponudimo ročno izbiro
                 if (userTriggered) {
                     const confirmManual = confirm(
-                        "Povezava s strežnikom za zalogo (http://127.0.0.1:8095) ni bila vzpostavljena.\n\n" +
+                        "Povezava s strežnikom za zalogo (http://server-2012:8095) ni bila vzpostavljena.\n\n" +
                         "Ali želite ročno izbrati datoteko zalogaSimon.json ali Excel zvezek (.xlsx)?"
                     );
                     if (confirmManual) {

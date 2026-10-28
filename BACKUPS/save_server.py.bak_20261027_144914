@@ -1,0 +1,239 @@
+import os
+import re
+import json
+import time
+import urllib.parse
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+PORT = 8095
+
+def get_calc_dir():
+    s_path = r"S:\PONUDBE TEST"
+    unc_path = r"\\server-2012\Srecko\PONUDBE TEST"
+    if os.path.exists(s_path):
+        return s_path
+    if os.path.exists(unc_path):
+        return unc_path
+    try:
+        os.makedirs(unc_path, exist_ok=True)
+        return unc_path
+    except Exception:
+        pass
+    return unc_path
+
+def get_word_dir():
+    year = time.strftime('%Y')
+    s_path = r"S:\NALOGI\A PONUDBE\PONUDBE " + year
+    unc_path = r"\\server-2012\Srecko\NALOGI\A PONUDBE\PONUDBE " + year
+    if os.path.exists(s_path):
+        return s_path
+    if os.path.exists(unc_path):
+        return unc_path
+    if os.path.exists(r"S:\NALOGI\A PONUDBE"):
+        try:
+            os.makedirs(s_path, exist_ok=True)
+            return s_path
+        except Exception:
+            pass
+    try:
+        os.makedirs(unc_path, exist_ok=True)
+    except Exception:
+        pass
+    return unc_path
+
+def parse_json_safely(fpath):
+    try:
+        with open(fpath, 'rb') as f:
+            raw = f.read()
+            for enc in ['utf-8', 'cp1250', 'latin-1']:
+                try:
+                    text = raw.decode(enc, errors='ignore')
+                    val = json.loads(text)
+                    if isinstance(val, dict):
+                        return val
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return {}
+
+class SaveHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
+
+    def send_cors_headers(self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Private-Network')
+        self.send_header('Access-Control-Allow-Private-Network', 'true')
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_cors_headers()
+        self.end_headers()
+
+    def do_GET(self):
+        try:
+            calc_dir = get_calc_dir()
+            word_dir = get_word_dir()
+
+            if 'list' in self.path:
+                items = []
+                if os.path.exists(calc_dir):
+                    for fname in os.listdir(calc_dir):
+                        if fname.lower().endswith('.json'):
+                            fpath = os.path.join(calc_dir, fname)
+                            try:
+                                mtime = os.path.getmtime(fpath)
+                                date_str = time.strftime('%d. %m. %Y %H:%M', time.localtime(mtime))
+                                data = parse_json_safely(fpath)
+                                inputs = data.get('inputs') if isinstance(data.get('inputs'), dict) else {}
+                                meta = {
+                                    'file': fname,
+                                    'name': str(data.get('name') or fname.replace('.json', '')),
+                                    'customer': str(data.get('customer') or ''),
+                                    'date': str(data.get('date') or date_str),
+                                    'mtime': mtime,
+                                    'source': str(data.get('_source') or ''),
+                                    'quoteNum': str(data.get('quoteNum') or inputs.get('quote_num') or '')
+                                }
+                                items.append(meta)
+                            except Exception:
+                                items.append({'file': fname, 'name': fname, 'date': 'Lokalna datoteka', 'mtime': 0})
+                
+                items.sort(key=lambda x: x.get('mtime', 0), reverse=True)
+                
+                self.send_response(200)
+                self.send_cors_headers()
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps({'status': 'success', 'projects': items}).encode('utf-8'))
+                return
+
+            elif 'read' in self.path:
+                parsed_path = urllib.parse.urlparse(self.path)
+                params = urllib.parse.parse_qs(parsed_path.query)
+                fname = params.get('file', [''])[0]
+                if not fname:
+                    raise Exception('Missing file parameter')
+                clean_name = os.path.basename(fname)
+                fpath = os.path.join(calc_dir, clean_name)
+                if not os.path.exists(fpath):
+                    raise Exception('File not found')
+                
+                data = parse_json_safely(fpath)
+                content = json.dumps(data)
+
+                self.send_response(200)
+                self.send_cors_headers()
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(content.encode('utf-8'))
+                return
+
+            elif 'zaloga' in self.path:
+                parsed_path = urllib.parse.urlparse(self.path)
+                params = urllib.parse.parse_qs(parsed_path.query)
+                do_fresh = 'refresh' in params or 'fresh' in params
+                
+                if do_fresh:
+                    try:
+                        import sys
+                        curr_dir = os.path.dirname(os.path.abspath(__file__))
+                        if curr_dir not in sys.path:
+                            sys.path.append(curr_dir)
+                        import export_zaloga_json
+                        export_zaloga_json.export_zaloga()
+                    except Exception as ex:
+                        print(f"Napaka pri export_zaloga: {ex}")
+
+                z_local = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zalogaSimon.json')
+                z_server = r'\\server-2012\SIMON\zalogaSimon.json'
+                content = None
+                if os.path.exists(z_local):
+                    with open(z_local, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                elif os.path.exists(z_server):
+                    with open(z_server, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                if content:
+                    self.send_response(200)
+                    self.send_cors_headers()
+                    self.send_header('Content-Type', 'application/json; charset=utf-8')
+                    self.end_headers()
+                    self.wfile.write(content.encode('utf-8'))
+                    return
+                else:
+                    raise Exception('Datoteka zalogaSimon.json ni bila najdena')
+
+            else:
+                self.send_response(200)
+                self.send_cors_headers()
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                res = {'status': 'active', 'calc_dir': calc_dir, 'word_dir': word_dir}
+                self.wfile.write(json.dumps(res).encode('utf-8'))
+        except Exception as e:
+            self.send_response(500)
+            self.send_cors_headers()
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps({'status': 'error', 'message': str(e)}).encode('utf-8'))
+
+    def do_POST(self):
+        try:
+            length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(length).decode('utf-8')
+            data = json.loads(body)
+
+            raw_name = data.get('filename', 'ponudba.doc')
+            file_content = data.get('content', '')
+            file_type = data.get('type', 'word')
+
+            clean_name = re.sub(r'[/\\?%*:|"<> \t]+', '_', raw_name)
+
+            if file_type == 'json' or clean_name.endswith('.json'):
+                target_dir = get_calc_dir()
+                if not clean_name.endswith('.json'):
+                    clean_name += '.json'
+            else:
+                target_dir = get_word_dir()
+                if not clean_name.endswith('.doc'):
+                    clean_name += '.doc'
+
+            os.makedirs(target_dir, exist_ok=True)
+            target_path = os.path.join(target_dir, clean_name)
+
+            if file_type == 'word' and not file_content.startswith('\ufeff'):
+                file_content = '\ufeff' + file_content
+
+            with open(target_path, 'w', encoding='utf-8') as f:
+                f.write(file_content)
+
+            res = {
+                'status': 'success',
+                'filename': clean_name,
+                'path': target_path,
+                'message': f"Uspešno shranjeno v: {target_path}"
+            }
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode('utf-8'))
+        except Exception as e:
+            res = {'status': 'error', 'message': str(e)}
+            self.send_response(500)
+            self.send_cors_headers()
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode('utf-8'))
+
+def run_server():
+    server = HTTPServer(('127.0.0.1', PORT), SaveHandler)
+    print(f"Save Server running on http://127.0.0.1:{PORT}")
+    server.serve_forever()
+
+if __name__ == '__main__':
+    run_server()
