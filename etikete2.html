@@ -1607,6 +1607,12 @@
                                         value="20.00" />
                                 </div>
                                 <div class="form-group" style="margin:0; align-self: center;">
+                                    <label><small>Ročno ur (h)</small></label>
+                                    <input id="f-cilinder-hours" onchange="calculatePrice()" type="number"
+                                        value="" placeholder="Avto" step="0.1" />
+                                </div>
+                                <div></div>
+                                <div class="form-group" style="margin:0; align-self: center;">
                                     <label><small>Urna post. (€/h)</small></label>
                                     <input id="f-cilinder-rate" onchange="calculatePrice()" type="number"
                                         value="40.00" />
@@ -1616,22 +1622,38 @@
                                     <input id="f-cilinder-dodatek" onchange="calculatePrice()" type="number"
                                         value="10" />
                                 </div>
+                                <div></div>
                                 <div class="form-group" style="margin:0; align-self: center;">
                                     <label><small>Št. orodja</small></label>
                                     <input id="f-cilinder-tool-num" onchange="calculatePrice()" type="text"
-                                        placeholder="št. orodja" style="width: 100px; padding: 4px;" />
+                                        placeholder="št. orodja" style="width: 100%; padding: 4px;" />
                                 </div>
                                 <div
-                                    style="grid-column: 1 / -1; display:flex; gap:2rem; margin-left: 2rem; margin-top: 0.2rem; padding-bottom: 0.5rem;">
+                                    style="display:flex; gap:1rem; align-items:center; align-self: end; padding-bottom: 0.3rem;">
                                     <label
-                                        style="display:flex; align-items:center; gap:0.4rem; font-size:0.9rem; font-weight:bold;">
+                                        style="display:flex; align-items:center; gap:0.35rem; font-size:0.85rem; font-weight:bold; margin:0;">
                                         <input id="f-cilinder-leaves" onchange="calculatePrice()" type="checkbox"
                                             checked /> LISTI
                                     </label>
                                     <label
-                                        style="display:flex; align-items:center; gap:0.4rem; font-size:0.9rem; font-weight:bold;">
+                                        style="display:flex; align-items:center; gap:0.35rem; font-size:0.85rem; font-weight:bold; margin:0;">
                                         <input id="f-cilinder-cover" onchange="calculatePrice()" type="checkbox" />
                                         OVITEK
+                                    </label>
+                                </div>
+                                <div style="grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; padding: 6px 10px; background: rgba(15, 23, 42, 0.4); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.08); margin-top: 4px;">
+                                    <span style="font-size: 0.8rem; font-weight: bold; color: #93c5fd;">Faza dela:</span>
+                                    <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer; color: #e2e8f0; margin: 0;">
+                                        <input type="checkbox" id="f-cilinder-zasek" onchange="onCilinderPhaseChange()"> Zasek
+                                    </label>
+                                    <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer; color: #e2e8f0; margin: 0;">
+                                        <input type="checkbox" id="f-cilinder-izsek" onchange="onCilinderPhaseChange()"> Izsek
+                                    </label>
+                                    <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer; color: #e2e8f0; margin: 0;">
+                                        <input type="checkbox" id="f-cilinder-perforacija" onchange="onCilinderPhaseChange()"> Perforacija
+                                    </label>
+                                    <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer; color: #e2e8f0; margin: 0;">
+                                        <input type="checkbox" id="f-cilinder-zleb" onchange="onCilinderPhaseChange()"> Žleb
                                     </label>
                                 </div>
                             </div>
@@ -4808,6 +4830,7 @@
                     if (document.getElementById('f-cilinder-active').checked) {
                         let cPrep = parseFloat(document.getElementById('f-cilinder-prep').value) || 20;
                         let cRate = parseFloat(document.getElementById('f-cilinder-rate').value) || 40;
+                        let manualHours = parseFloat((document.getElementById('f-cilinder-hours')?.value || '').replace(',', '.'));
                         let cilLeaves = document.getElementById('f-cilinder-leaves').checked;
                         let cilCover = document.getElementById('f-cilinder-cover').checked;
 
@@ -4824,7 +4847,15 @@
                         }
 
                         let cSpeed = maxWeight > 300 ? 1400 : 2000;
-                        let cWork = cilinderSheets > 0 ? (cilinderSheets / cSpeed) * cRate : 0;
+                        let workHours = 0;
+                        let isAuto = true;
+                        if (!isNaN(manualHours) && manualHours > 0) {
+                            workHours = manualHours;
+                            isAuto = false;
+                        } else {
+                            workHours = cilinderSheets > 0 ? (cilinderSheets / cSpeed) : 0;
+                        }
+                        let cWork = workHours * cRate;
                         let cCost = cPrep + cWork;
                         totalFinishCost += cCost;
 
@@ -4833,7 +4864,15 @@
                         if (cilCover) specArr.push('ovitek');
                         let specStr = specArr.length > 0 ? ` (${specArr.join(' in ')})` : '';
 
-                        finishItems.push({ name: `Cilinder (izsek)${specStr}`, cost: cCost, breakdown: `Priprava: ${formatPrice(cPrep)} | Delo: ${formatPrice(cWork)}` });
+                        let cilPhases = [];
+                        if (document.getElementById('f-cilinder-zasek')?.checked) cilPhases.push('zasek');
+                        if (document.getElementById('f-cilinder-izsek')?.checked) cilPhases.push('izsek');
+                        if (document.getElementById('f-cilinder-perforacija')?.checked) cilPhases.push('perforacija');
+                        if (document.getElementById('f-cilinder-zleb')?.checked) cilPhases.push('žleb');
+                        let phaseStr = cilPhases.length > 0 ? ` (${cilPhases.join(', ')})` : ' (izsek)';
+                        let hourText = isAuto ? `${workHours.toFixed(2)}h (avto)` : `${workHours.toFixed(2)}h (ročno)`;
+
+                        finishItems.push({ name: `Cilinder${phaseStr}${specStr}`, cost: cCost, breakdown: `Priprava: ${formatPrice(cPrep)} | Delo: ${hourText} (${formatPrice(cWork)})` });
                     }
 
                     // Ril - rilmašina
@@ -5844,7 +5883,7 @@
                         margin: gv('calc-margin'),
                         minusPrice: gc('calc-minus-price'),
                         finish: {
-                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover'), dodatek: gv('f-cilinder-dodatek'), toolNum: (document.getElementById('f-cilinder-tool-num') ? document.getElementById('f-cilinder-tool-num').value : "") },
+                            cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), hours: gv('f-cilinder-hours'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover'), dodatek: gv('f-cilinder-dodatek'), toolNum: (document.getElementById('f-cilinder-tool-num') ? document.getElementById('f-cilinder-tool-num').value : ""), zasek: gc('f-cilinder-zasek'), izsek: gc('f-cilinder-izsek'), perforacija: gc('f-cilinder-perforacija'), zleb: gc('f-cilinder-zleb') },
                             ril: { active: gc('f-ril-active'), speed: gv('f-ril-speed'), rate: gv('f-ril-rate'), hours: gv('f-ril-hours') },
                             zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
                             razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
@@ -7674,7 +7713,7 @@ async function extractCustomersFromDisk() {
                             margin: gv('calc-margin'),
                             minusPrice: gc('calc-minus-price'),
                             finish: {
-                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover'), dodatek: gv('f-cilinder-dodatek'), toolNum: (document.getElementById('f-cilinder-tool-num') ? document.getElementById('f-cilinder-tool-num').value : "") },
+                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), hours: gv('f-cilinder-hours'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover'), dodatek: gv('f-cilinder-dodatek'), toolNum: (document.getElementById('f-cilinder-tool-num') ? document.getElementById('f-cilinder-tool-num').value : ""), zasek: gc('f-cilinder-zasek'), izsek: gc('f-cilinder-izsek'), perforacija: gc('f-cilinder-perforacija'), zleb: gc('f-cilinder-zleb') },
                                 ril: { active: gc('f-ril-active'), speed: gv('f-ril-speed'), rate: gv('f-ril-rate'), hours: gv('f-ril-hours') },
                                 zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
 
@@ -8073,11 +8112,16 @@ async function extractCustomersFromDisk() {
                     if (f.cilinder) {
                         setV('f-cilinder-active', f.cilinder.active, true);
                         setV('f-cilinder-prep', f.cilinder.prep);
+                        if (f.cilinder.hours !== undefined) setV('f-cilinder-hours', f.cilinder.hours); else setV('f-cilinder-hours', '');
                         setV('f-cilinder-rate', f.cilinder.rate);
                         if (f.cilinder.leaves !== undefined) setV('f-cilinder-leaves', f.cilinder.leaves, true);
                         if (f.cilinder.cover !== undefined) setV('f-cilinder-cover', f.cilinder.cover, true);
                         if (f.cilinder.dodatek !== undefined) setV('f-cilinder-dodatek', f.cilinder.dodatek);
                         if (f.cilinder.toolNum !== undefined) setV('f-cilinder-tool-num', f.cilinder.toolNum);
+                        setV('f-cilinder-zasek', !!f.cilinder.zasek, true);
+                        setV('f-cilinder-izsek', !!f.cilinder.izsek, true);
+                        setV('f-cilinder-perforacija', !!f.cilinder.perforacija, true);
+                        setV('f-cilinder-zleb', !!f.cilinder.zleb, true);
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('cilinder');
                     }
                     if (f.ril) {
@@ -8364,7 +8408,7 @@ async function extractCustomersFromDisk() {
                             margin: gv('calc-margin'),
                             minusPrice: gc('calc-minus-price'),
                             finish: {
-                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover'), dodatek: gv('f-cilinder-dodatek'), toolNum: (document.getElementById('f-cilinder-tool-num') ? document.getElementById('f-cilinder-tool-num').value : "") },
+                                cilinder: { active: gc('f-cilinder-active'), prep: gv('f-cilinder-prep'), hours: gv('f-cilinder-hours'), rate: gv('f-cilinder-rate'), leaves: gc('f-cilinder-leaves'), cover: gc('f-cilinder-cover'), dodatek: gv('f-cilinder-dodatek'), toolNum: (document.getElementById('f-cilinder-tool-num') ? document.getElementById('f-cilinder-tool-num').value : ""), zasek: gc('f-cilinder-zasek'), izsek: gc('f-cilinder-izsek'), perforacija: gc('f-cilinder-perforacija'), zleb: gc('f-cilinder-zleb') },
                                 ril: { active: gc('f-ril-active'), speed: gv('f-ril-speed'), rate: gv('f-ril-rate'), hours: gv('f-ril-hours') },
                                 zgibanje: { active: gc('f-zgibanje-active'), folds: gv('f-zgibanje-folds'), speed: gv('f-zgibanje-speed') },
 
@@ -8477,13 +8521,32 @@ async function extractCustomersFromDisk() {
                 reader.readAsText(file);
             }
 
+            function onCilinderPhaseChange() {
+                const isAnyPhaseChecked = (document.getElementById('f-cilinder-zasek') && document.getElementById('f-cilinder-zasek').checked) ||
+                                          (document.getElementById('f-cilinder-izsek') && document.getElementById('f-cilinder-izsek').checked) ||
+                                          (document.getElementById('f-cilinder-perforacija') && document.getElementById('f-cilinder-perforacija').checked) ||
+                                          (document.getElementById('f-cilinder-zleb') && document.getElementById('f-cilinder-zleb').checked);
+                const activeChk = document.getElementById('f-cilinder-active');
+                if (isAnyPhaseChecked && activeChk && !activeChk.checked) {
+                    activeChk.checked = true;
+                    if (typeof toggleFinishRow === 'function') toggleFinishRow('cilinder');
+                }
+                calculatePrice();
+            }
+
             function getFinishingDesc() {
                 let desc = [];
                 if (gC('f-cilinder-active')) {
                     let specArr = [];
                     if (gC('f-cilinder-leaves')) specArr.push('listi');
                     if (gC('f-cilinder-cover')) specArr.push('ovitek');
-                    desc.push("izsek z orodjem" + (specArr.length > 0 ? ` (${specArr.join(' in ')})` : ''));
+                    let phases = [];
+                    if (gC('f-cilinder-zasek')) phases.push('Zasek');
+                    if (gC('f-cilinder-izsek')) phases.push('Izsek');
+                    if (gC('f-cilinder-perforacija')) phases.push('Perforacija');
+                    if (gC('f-cilinder-zleb')) phases.push('Žleb');
+                    let baseCil = phases.length > 0 ? phases.join(', ') : "izsek z orodjem";
+                    desc.push(baseCil + (specArr.length > 0 ? ` (${specArr.join(' in ')})` : ''));
                 }
                 if (gC('f-ril-active')) {
                     desc.push("Ril - rilmašina");
@@ -9667,21 +9730,26 @@ async function extractCustomersFromDisk() {
                 let cPrintHours = Math.ceil((cilTotalSheets / cSpeed) * 10) / 10;
 
                 let cilQtyStr = (cilDodatek > 0)
-
                     ? `${calcRes.sheetsNeeded.toLocaleString('de-DE')} pol + ${cilDodatek.toLocaleString('de-DE')} pol = ${cilTotalSheets.toLocaleString('de-DE')} pol`
-
                     : `${calcRes.sheetsNeeded.toLocaleString('de-DE')} pol`;
 
+                let manualCilH = parseFloat((document.getElementById('f-cilinder-hours')?.value || '').replace(',', '.'));
+                if (!isNaN(manualCilH) && manualCilH > 0) {
+                    cPrintHours = manualCilH;
+                }
+
+                let cilPhases = [];
+                if (document.getElementById('f-cilinder-zasek')?.checked) cilPhases.push('zasek');
+                if (document.getElementById('f-cilinder-izsek')?.checked) cilPhases.push('izsek');
+                if (document.getElementById('f-cilinder-perforacija')?.checked) cilPhases.push('perforacija');
+                if (document.getElementById('f-cilinder-zleb')?.checked) cilPhases.push('žleb');
+                let cilLabel = cilPhases.length > 0 ? `Cilinder (${cilPhases.join(', ')}):` : 'Cilinder:';
+
                 finishingRowsHtml += `
-
                     <tr>
-
-                        <td style="width: 15%;">Cilinder:</td>
-
+                        <td style="width: 15%;">${cilLabel}</td>
                         <td style="width: 35%;" class="bold">${cilQtyStr}</td>
-
                         <td style="width: 50%; text-align: right;" class="bold"><span class="bold">priprava:</span> ${cPrepStr} &nbsp;&nbsp;&nbsp;&nbsp; <span class="bold">tisk:</span> ${cPrintHours.toFixed(1).replace('.', ',')} h</td>
-
                     </tr>`;
 
             }
