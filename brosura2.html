@@ -9464,62 +9464,133 @@
             var g_serverProjects = [];
 
                     var g_serverBaseUrl = null;
+                        function loadJsBridgeScript(srcUrl, globalVar) {
+            return new Promise((resolve) => {
+                try {
+                    window[globalVar] = undefined;
+                    const s = document.createElement('script');
+                    s.src = srcUrl + (srcUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+                    s.onload = () => {
+                        const val = window[globalVar];
+                        if (s.parentNode) s.parentNode.removeChild(s);
+                        resolve(val !== undefined ? val : null);
+                    };
+                    s.onerror = () => {
+                        if (s.parentNode) s.parentNode.removeChild(s);
+                        resolve(null);
+                    };
+                    document.head.appendChild(s);
+                } catch (e) {
+                    resolve(null);
+                }
+            });
+        }
+
         async function getServerBaseUrl() {
             if (g_serverBaseUrl) return g_serverBaseUrl;
             const candidates = [
-                'http://server-2012:8095',
                 'http://127.0.0.1:8095',
-                'http://Prodaja-pc:8095',
-                'http://192.168.0.154:8095'
+                'http://192.168.0.154:8095',
+                'http://server-2012:8095',
+                'http://Prodaja-pc:8095'
             ];
-            for (let url of candidates) {
+            const probe = (url) => new Promise(async (resolve, reject) => {
                 try {
                     const c = new AbortController();
-                    const tid = setTimeout(() => c.abort(), 600);
-                    const r = await fetch(url + '/list', { signal: c.signal });
+                    const tid = setTimeout(() => c.abort(), 1500);
+                    const r = await fetch(url + '/', { signal: c.signal });
                     clearTimeout(tid);
-                    if (r.ok) {
-                        g_serverBaseUrl = url;
-                        return url;
-                    }
-                } catch(e) {}
-            }
-            g_serverBaseUrl = 'http://server-2012:8095';
-            return g_serverBaseUrl;
-        }
-        async function fetchServerProjects() {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 2000);
-                    const srvUrl = await getServerBaseUrl();
-                    const res = await fetch(srvUrl + '/list', { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.status === 'success' && Array.isArray(data.projects)) {
-                            g_serverProjects = data.projects;
-                        }
-                    }
+                    if (r.ok) resolve(url);
+                    else reject();
                 } catch (e) {
-                    console.log("Ne morem pridobiti ponudb s strežnika:", e);
+                    reject(e);
+                }
+            });
+            try {
+                const winner = await Promise.any(candidates.map(probe));
+                if (winner) {
+                    g_serverBaseUrl = winner;
+                    return winner;
+                }
+            } catch (e) {}
+            return 'http://127.0.0.1:8095';
+        }
+
+        async function fetchServerProjects() {
+            try {
+                const srvUrl = await getServerBaseUrl();
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 6000);
+                const res = await fetch(srvUrl + '/list', { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.status === 'success' && Array.isArray(data.projects)) {
+                        g_serverProjects = data.projects;
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.log("HTTP strežnik 8095 ni dosegljiv, preklapljam na neposredno branje S: pogona...");
+            }
+            const bridgePaths = [
+                '_projects_index.js',
+                'file:///S:/PONUDBE%20TEST/_projects_index.js',
+                '../../PONUDBE%20TEST/_projects_index.js',
+                '../PONUDBE%20TEST/_projects_index.js'
+            ];
+            for (const bp of bridgePaths) {
+                const list = await loadJsBridgeScript(bp, '__SERVER_PROJECTS_INDEX');
+                if (Array.isArray(list) && list.length > 0) {
+                    g_serverProjects = list;
+                    return;
                 }
             }
+        }
 
-            async function loadProjectFromServer(fileName) {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 3000);
-                    const srvUrl = await getServerBaseUrl();
-                    const res = await fetch(srvUrl + '/read?file=' + encodeURIComponent(fileName), { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    if (!res.ok) throw new Error('HTTP status ' + res.status);
+                            async function loadProjectFromServer(fileName) {
+            try {
+                const srvUrl = await getServerBaseUrl();
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 12000);
+                const res = await fetch(srvUrl + '/read?file=' + encodeURIComponent(fileName), { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (res.ok) {
                     const data = await res.json();
+                    window.g_currentLoadedFileName = fileName;
+                    if (data.id) window.g_currentLoadedId = data.id;
                     loadProjectData(data);
                     alert("Ponudba '" + fileName + "' naložena s strežnika!");
-                } catch (err) {
-                    alert("Napaka pri nalaganju s strežnika: " + err.message);
+                    return;
                 }
+            } catch (httpErr) {
+                console.log("HTTP branje ni uspelo, poskušam neposredno iz S: pogona...", httpErr);
             }
+            try {
+                const meta = (g_serverProjects || []).find(p => p.file === fileName);
+                const cacheFile = meta && meta.jsCache ? meta.jsCache : null;
+                if (cacheFile) {
+                    const cachePaths = [
+                        'file:///S:/PONUDBE%20TEST/_js_cache/' + cacheFile,
+                        '../../PONUDBE%20TEST/_js_cache/' + cacheFile,
+                        '../PONUDBE%20TEST/_js_cache/' + cacheFile
+                    ];
+                    for (const cp of cachePaths) {
+                        const data = await loadJsBridgeScript(cp, '__LOADED_SERVER_PROJECT');
+                        if (data && typeof data === 'object') {
+                            window.g_currentLoadedFileName = fileName;
+                            if (data.id) window.g_currentLoadedId = data.id;
+                            loadProjectData(data);
+                            alert("Ponudba '" + fileName + "' naložena s strežnika!");
+                            return;
+                        }
+                    }
+                }
+                alert("Napaka pri nalaganju ponudbe '" + fileName + "': strežnik ali pogon S: ni dosegljiv.");
+            } catch (err) {
+                alert("Napaka pri nalaganju s strežnika: " + err.message);
+            }
+        }
 
             async function autoConnectFolder() {
                 try {

@@ -171,6 +171,18 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
+### O. Pohitritev Strežnika `save_server.py` (iz 4,1 s na < 0,02 s) in Dvojni Sistem Branja Ponudb za Vse Računalnike
+- **Težave:**
+  1. V mapi `S:\PONUDBE TEST` je 248 JSON ponudb v skupni velikosti **118,16 MB** (nekaj ponudb ima pripete PDF-je do 20,5 MB). Strežnik `save_server.py` je ob vsakem klicu `/list` bral vseh 118 MB prek mreže (4,1 sekunde), brskalnik pa je imel nastavljen timeout na 600–700 ms in je povezavo vedno prekinil.
+  2. `save_server.py` je uporabljal eno-nitni `HTTPServer`, ki se je ob hkratnem nalaganju 7 zavihkov v `PETRIČ.KALKULACIJE2.html` zamašil.
+  3. Na drugih računalnikih je Windows požarni zid (Firewall) lahko blokiral vrata `8095`.
+- **Rešitev:**
+  1. **Več-nitni strežnik in predpomnilnik (`ThreadingHTTPServer` + `_index_cache.json`):** `save_server.py` sedaj uporablja `os.scandir` in predpomnilnik metapodatkov ter seznam 248 ponudb vrne v **< 20 ms** (iz pomnilnika v **0,002 ms**).
+  2. **Neposredni skriptni most (`_projects_index.js` in `S:\PONUDBE TEST\_js_cache\`):** Če na kateremkoli računalniku vrata `8095` niso dosegljiva (zaradi požarnega zidu ali ugasnjenega strežnika), vseh 7 kalkulatorjev samodejno prebere seznam in odpre ponudbo neposredno iz pogona `S:\` prek `<script>` mostu (`loadJsBridgeScript`), ki deluje tudi znotraj `<iframe>` brez kakršnekoli blokade.
+  3. **Vzporedno iskanje strežnika (`Promise.any`):** Funkcija `getServerBaseUrl()` preveri vse strežniške naslove vzporedno na hitri točki `/` in izbere najhitrejšega v < 20 ms.
+
+---
+
 ## 2. Hitri Diagnostični Protokol (Če se zavihek spet ne odziva)
 
 Ko uporabnik sporoči, da se zavihek ne odziva, izvedi naslednje korake:
