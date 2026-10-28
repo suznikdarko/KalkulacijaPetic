@@ -159,6 +159,18 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
+### N. Sintaktične Napake ob Posodobitvi Shranjevanja Word Ponudb (`pola2.html`, `brosura2.html`, `etikete2.html`)
+- **Težava:** Meni »MOJI PROJEKTI« se v zavihkih `pola2.html` in `brosura2.html` ni odprl, gumbi so bili neodzivni.
+- **Vzroka:**
+  1. V `pola2.html` in `etikete2.html` je bil pri klicu `getServerBaseUrl().then(srvUrl => fetch(srvUrl, ...))` izpuščen začetni zaviti oklepaj `{` za telo lambda funkcije, kar je povzročilo `SyntaxError: missing ) after argument list`.
+  2. V `brosura2.html` se je pred definicijo `g_serverProjects` pomotoma znašla podvojena vrstica `async function autoConnectFolder() {` brez zaključka, kar je sprožilo `SyntaxError: Unexpected end of input`.
+- **Rešitev:**
+  - V `pola2.html` in `etikete2.html` sta bili popravljeni funkciji za Word izvoz s pravilno zavitim telesom `getServerBaseUrl().then(srvUrl => { fetch(...); });`.
+  - V `brosura2.html` je bila odstranjena podvojena/stray deklaracija funkcije.
+  - Vsi moduli so bili preverjeni z orodjem Chrome Runtime Parser in se v celoti brezhibno prevedejo (0 napak). Datoteke so sinhronizirane na `C:` in `S:`.
+
+---
+
 ## 2. Hitri Diagnostični Protokol (Če se zavihek spet ne odziva)
 
 Ko uporabnik sporoči, da se zavihek ne odziva, izvedi naslednje korake:
