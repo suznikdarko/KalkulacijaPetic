@@ -4356,20 +4356,6 @@
 
                 if(document.getElementById('items-per-sheet')) document.getElementById('items-per-sheet').value = '';
 
-
-
-                // Če naklada ni vpisana, vpišemo 1000, da se izriše shema
-
-                const qInput = document.getElementById('quantity');
-
-                if (!qInput.value || qInput.value.trim() === "0") {
-
-                    qInput.value = "1.000";
-
-                }
-
-
-
                 calculate();
 
             }
@@ -4823,7 +4809,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
 
 
-                if (w <= 0 || h <= 0 || q <= 0) return;
+                if (w <= 0 || h <= 0) return;
 
 
 
@@ -5273,7 +5259,49 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
 
 
-                updateWasteAndPrice(Math.ceil(q / currentCount), q, bestSheet.w, bestSheet.h);
+                if (q > 0) {
+
+                    updateWasteAndPrice(Math.ceil(q / currentCount), q, bestSheet.w, bestSheet.h);
+
+                } else {
+
+                    if (document.getElementById('res-sheets-needed')) document.getElementById('res-sheets-needed').innerText = '-';
+
+                    if (document.getElementById('res-price-paper')) document.getElementById('res-price-paper').innerText = '0.00 €';
+
+                    if (document.getElementById('res-price-prep')) document.getElementById('res-price-prep').innerText = '0.00 €';
+
+                    if (document.getElementById('res-price-print')) document.getElementById('res-price-print').innerText = '0.00 €';
+
+                    if (document.getElementById('res-price-finish')) document.getElementById('res-price-finish').innerText = '0.00 €';
+
+                    if (document.getElementById('res-price-total')) document.getElementById('res-price-total').innerText = '0.00 €';
+
+                    if (document.getElementById('res-price-per-item-stat-quick')) document.getElementById('res-price-per-item-stat-quick').innerText = '0.0000 €';
+
+                    if (document.getElementById('res-price-per-item-stat-final')) document.getElementById('res-price-per-item-stat-final').innerText = '0.0000 €';
+
+                    if (document.getElementById('res-price-1000-stat')) document.getElementById('res-price-1000-stat').innerText = '0.00 €';
+
+
+
+                    const stickyTotal = document.getElementById('sticky-price-total');
+
+                    const stickyPerItem = document.getElementById('sticky-price-per-item');
+
+                    const sticky1000 = document.getElementById('sticky-price-1000');
+
+                    const stickyQty = document.getElementById('sticky-qty');
+
+                    if (stickyQty) stickyQty.innerText = '-';
+
+                    if (stickyTotal) stickyTotal.innerText = '0.00 €';
+
+                    if (stickyPerItem) stickyPerItem.innerText = '0.000 €';
+
+                    if (sticky1000) sticky1000.innerText = '0.00 €';
+
+                }
 
 
 
@@ -5445,7 +5473,9 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
             const qArr = qStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
 
-            const totalItemsFormArr = qArr.length ? qArr : [q || 1000];
+            const totalItemsFormArr = qArr.length ? qArr : (q > 0 ? [q] : []);
+
+            if (!totalItemsFormArr.length) return;
 
 
 
@@ -8836,7 +8866,9 @@ async function saveProjectToFile() {
                         total: (document.getElementById('res-price-total') || {}).innerText || '',
                         perItem: (document.getElementById('res-price-per-item-stat-final') || {}).innerText || '',
                         sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
-                    }
+                    },
+                    quoteBasket: (typeof quoteBasket !== 'undefined' && Array.isArray(quoteBasket)) ? quoteBasket : [],
+                    activeBasketItemId: g_activeBasketItemId
                 };
 
                 const suggestedName = buildStandardFileName('.json');
@@ -10096,7 +10128,11 @@ function loadProject(id) {
 
                         }
 
-                    }
+                    },
+
+                    quoteBasket: (typeof quoteBasket !== 'undefined' && Array.isArray(quoteBasket)) ? quoteBasket : [],
+
+                    activeBasketItemId: g_activeBasketItemId
 
                 };
 
