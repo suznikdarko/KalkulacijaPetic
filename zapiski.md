@@ -182,6 +182,19 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
   3. **Vzporedno iskanje strežnika (`Promise.any`):** Funkcija `getServerBaseUrl()` preveri vse strežniške naslove vzporedno na hitri točki `/` in izbere najhitrejšega v < 20 ms.
 
 ---
+---
+
+### P. Šifra Stranke Ostaja Prazna v Vseh Kalkulatorjih
+- **Zahteva uporabnika:** V vseh kalkulatorjih naj bo šifra stranke (`#calc-customer-code`) prazna.
+- **Težava:** Pri samodejnem zbiranju kontaktov strank so se kot šifre strank shranile ponudbene ali povpraševalne številke (npr. `11620`, `Anfrage 726257/26` ipd.), ki so se ob izbiri stranke samodejno vpisale v polje `Šifra stranke`.
+- **Rešitev:**
+  1. V vseh 7 delovnih kalkulatorjih (`pola2.html`, `blok2.html`, `brosura2.html`, `TENOVIS2.html`, `kuverte2.html`, `etikete2.html`, `koledar2.html`) je bilo odstranjeno samodejno izpolnjevanje `calc-customer-code`.
+  2. Ob vsaki izbiri ali menjavi stranke (`hasChanged`) se polje `calc-customer-code` izrecno ponastavi na prazno (`""`).
+  3. Pri odpiranju obstoječih projektov se polje `calc-customer-code` prav tako nastavi na prazno.
+  4. V datotekah `customer_contacts_seed.js` in `customer_contacts_seed.json` so bile šifre strank izbrisane, dodano pa je tudi samodejno čiščenje starih šifer iz lokalnega predpomnilnika (`localStorage.petric_customer_contacts_cache`).
+  5. Vse posodobljene datoteke so sinhronizirane na lokalnem disku `C:` in omrežnem disku `S:`.
+
+---
 
 ## 2. Hitri Diagnostični Protokol (Če se zavihek spet ne odziva)
 

@@ -1,7 +1,19 @@
 /**
  * SEED PODATKI STRANK IN E-MAILOV - Tiskarna Petrič
- * Avtomatsko zbrano iz obstoječih projektov
+ * Po navodilu uporabnika: šifra stranke naj bo prazna
  */
+try {
+    var _cache = JSON.parse(localStorage.getItem('petric_customer_contacts_cache') || '{}');
+    var _changed = false;
+    for (var _k in _cache) {
+        if (_cache[_k] && _cache[_k].code) {
+            delete _cache[_k].code;
+            _changed = true;
+        }
+    }
+    if (_changed) localStorage.setItem('petric_customer_contacts_cache', JSON.stringify(_cache));
+} catch(e) {}
+
 window.PETRIC_CONTACTS_SEED = {
   "belupo": {
     "name": "BELUPO",
@@ -14,7 +26,7 @@ window.PETRIC_CONTACTS_SEED = {
       "Dvorakova ulica 6\n1000 Ljubjana",
       "Dvorakova ulica 6\n1000 Ljubljana"
     ],
-    "code": "11620"
+    "code": ""
   },
   "tenovis": {
     "name": "TENOVIS",
@@ -30,7 +42,7 @@ window.PETRIC_CONTACTS_SEED = {
       "Špelina 1\n2000 Maribor",
       "Špelina ul. 1\n2000 Maribor"
     ],
-    "code": "12040"
+    "code": ""
   },
   "embalaža kunej - marinka lesjak": {
     "name": "Embalaža Kunej - Marinka Lesjak",
@@ -40,7 +52,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Podsreda 51\n3257 Podsreda"
     ],
-    "code": "10005"
+    "code": ""
   },
   "otp banka": {
     "name": "OTP Banka",
@@ -58,7 +70,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Slovenska cesta 58\n1000  Ljubljana"
     ],
-    "code": "11828"
+    "code": ""
   },
   "otp": {
     "name": "OTP",
@@ -78,7 +90,7 @@ window.PETRIC_CONTACTS_SEED = {
       "Slovenska cesta 58\n1000 Ljubljana",
       "Slovenska cesta 58, \n1000 Ljubljana"
     ],
-    "code": "11828"
+    "code": ""
   },
   "prinux": {
     "name": "Prinux",
@@ -88,7 +100,7 @@ window.PETRIC_CONTACTS_SEED = {
     ],
     "address": "",
     "addresses": [],
-    "code": "11646"
+    "code": ""
   },
   "heser d.o.o.": {
     "name": "HESER d.o.o.",
@@ -100,7 +112,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Levec 71C\n3301 Petrovče"
     ],
-    "code": "11646"
+    "code": ""
   },
   "vendo": {
     "name": "VENDO",
@@ -118,7 +130,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Kommunikation + Druck GmbH\nGutenbergstrasse 2\n4840  Vöcklabruck"
     ],
-    "code": "Anfrage 1Kissenverpackung Weko"
+    "code": ""
   },
   "ldd communication gmbh": {
     "name": "LDD Communication GmbH",
@@ -131,7 +143,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Gewerbegebiet Süd 1\n4664  Oberweis-Gmunden"
     ],
-    "code": "11939"
+    "code": ""
   },
   "blaž": {
     "name": "BLAŽ",
@@ -149,7 +161,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Tattenbachova ulica 1a\n3210 Slovenske Konjice"
     ],
-    "code": "11646"
+    "code": ""
   },
   "meisterwerk": {
     "name": "Meisterwerk",
@@ -161,7 +173,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Nad gramoznico 14\nMiklavž na Dravskem polju"
     ],
-    "code": "11254"
+    "code": ""
   },
   "belupo d.o.o.": {
     "name": "BELUPO d.o.o.",
@@ -173,7 +185,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Dvorakova ulica 6\n1000 Ljubljana"
     ],
-    "code": "11620"
+    "code": ""
   },
   "vrtec slovenske konjice": {
     "name": "VRTEC SLOVENSKE KONJICE",
@@ -181,7 +193,7 @@ window.PETRIC_CONTACTS_SEED = {
     "emails": [],
     "address": "",
     "addresses": [],
-    "code": "10351"
+    "code": ""
   },
   "sanctum": {
     "name": "SANCTUM",
@@ -193,7 +205,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Lipoglav 71\n3215 Loče"
     ],
-    "code": "11646"
+    "code": ""
   },
   "tcc plus": {
     "name": "TCC PLUS",
@@ -203,7 +215,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Kosovelova ul. 16\n3000 Celje"
     ],
-    "code": "11646"
+    "code": ""
   },
   "obrtna zbornica sk": {
     "name": "Obrtna zbornica SK",
@@ -215,7 +227,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Celjska cesta 2, \n3210 Slovenske Konjice"
     ],
-    "code": "10832"
+    "code": ""
   },
   "ptujska tiskarna (ino)": {
     "name": "PTUJSKA TISKARNA (INO)",
@@ -225,7 +237,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "INO - Ptujska tiskarna"
     ],
-    "code": "11254"
+    "code": ""
   },
   "grafika adt": {
     "name": "Grafika ADT",
@@ -235,7 +247,7 @@ window.PETRIC_CONTACTS_SEED = {
     ],
     "address": "",
     "addresses": [],
-    "code": "11646"
+    "code": ""
   },
   "sž tovorni promet": {
     "name": "SŽ Tovorni promet",
@@ -245,7 +257,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Zaloška cesta 214\n1000 Ljubljana"
     ],
-    "code": "10005"
+    "code": ""
   },
   "enset": {
     "name": "ENSET",
@@ -255,7 +267,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Kraigherjeva ulica 22\n2230 Lenart v Slovenskih goricah"
     ],
-    "code": "11646"
+    "code": ""
   },
   "maja stanojevič": {
     "name": "Maja Stanojevič",
@@ -277,7 +289,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Gregorčičeva 39\n2000 Maribor"
     ],
-    "code": "11646"
+    "code": ""
   },
   "deltex": {
     "name": "Deltex",
@@ -289,7 +301,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Močilnik 1\n1360 Vrhnika"
     ],
-    "code": "10508"
+    "code": ""
   },
   "petric": {
     "name": "PETRIC",
@@ -310,7 +322,7 @@ window.PETRIC_CONTACTS_SEED = {
       "Oddelek za financiranje zalog\nAjdovščina 4\n1000 Ljubljana",
       "Služba za podporo SKB Leasing Selecta\nAjdovščina 4\n1000 Ljubljana"
     ],
-    "code": "11646"
+    "code": ""
   },
   "diamant plus": {
     "name": "DIAMANT PLUS",
@@ -322,7 +334,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Stara cesta 20\nDomžale"
     ],
-    "code": "10979"
+    "code": ""
   },
   "grafoline": {
     "name": "GRAFOLINE",
@@ -334,7 +346,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Cesta na Roglo 71\n3241 Zreče"
     ],
-    "code": "11646"
+    "code": ""
   },
   "delfin hotel zdus": {
     "name": "DELFIN HOTEL ZDUS",
@@ -346,7 +358,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "TOMAŽIČEVA ULICA 10, \n6310 IZOLA"
     ],
-    "code": "11937"
+    "code": ""
   },
   "adam": {
     "name": "ADAM",
@@ -360,7 +372,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Großalmstraße 4\n4813  Altmünster am Traundee"
     ],
-    "code": "Preisanfrage zu 0125_26_03353"
+    "code": ""
   },
   "hotel mons": {
     "name": "HOTEL MONS",
@@ -372,7 +384,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Pot za Brdom 4\n1000 Ljubljana"
     ],
-    "code": "11937"
+    "code": ""
   },
   "servier": {
     "name": "SERVIER",
@@ -384,7 +396,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Podmilščakova ulica 24\n1000 Ljubljana"
     ],
-    "code": "11646"
+    "code": ""
   },
   "ldd": {
     "name": "LDD",
@@ -399,7 +411,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Gewerbegebiet Süd 1\n4664  Oberweis-Gmunden"
     ],
-    "code": "Anfrage 016142/26"
+    "code": ""
   },
   "pliva": {
     "name": "PLIVA",
@@ -412,7 +424,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Ameriška ulica 2\n1000  Ljubljana"
     ],
-    "code": "11646"
+    "code": ""
   },
   "jgl": {
     "name": "JGL",
@@ -424,7 +436,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Litostrojska cesta 46A\n1000 Ljubljana"
     ],
-    "code": "11646"
+    "code": ""
   },
   "styria": {
     "name": "STYRIA",
@@ -553,7 +565,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Stari trg 33\n3210 Slovenske Konjice"
     ],
-    "code": "11962"
+    "code": ""
   },
   "simona glavič": {
     "name": "Simona Glavič",
@@ -641,7 +653,7 @@ window.PETRIC_CONTACTS_SEED = {
     "emails": [],
     "address": "",
     "addresses": [],
-    "code": "2541"
+    "code": ""
   },
   "kemoplast": {
     "name": "Kemoplast",
@@ -653,7 +665,7 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Drofenikova 7\n3230 Šentjur"
     ],
-    "code": "10005"
+    "code": ""
   },
   "lelosi uvecto d.o.o.": {
     "name": "Lelosi UVECTO d.o.o.",
@@ -665,94 +677,6 @@ window.PETRIC_CONTACTS_SEED = {
     "addresses": [
       "Kovinarska cesta 4\n1241 Kamnik"
     ],
-    "code": "11646"
+    "code": ""
   }
 };
-
-window.seedCustomerContactsIfEmpty = function() {
-    try {
-        var existing = JSON.parse(localStorage.getItem('petric_customer_contacts_cache') || '{}');
-        if (window.PETRIC_CONTACTS_SEED) {
-            var updated = false;
-            for (var k in window.PETRIC_CONTACTS_SEED) {
-                var sItem = window.PETRIC_CONTACTS_SEED[k];
-                if (!existing[k]) {
-                    existing[k] = JSON.parse(JSON.stringify(sItem));
-                    updated = true;
-                } else {
-                    if (!Array.isArray(existing[k].emails)) {
-                        existing[k].emails = existing[k].email ? [existing[k].email] : [];
-                    }
-                    if (sItem.emails && Array.isArray(sItem.emails)) {
-                        for (var si = 0; si < sItem.emails.length; si++) {
-                            var sem = sItem.emails[si];
-                            if (existing[k].emails.indexOf(sem) === -1) {
-                                existing[k].emails.push(sem);
-                                updated = true;
-                            }
-                        }
-                    }
-                    if (!existing[k].email && sItem.email) {
-                        existing[k].email = sItem.email;
-                        updated = true;
-                    }
-                    if (!existing[k].address && sItem.address) {
-                        existing[k].address = sItem.address;
-                        updated = true;
-                    }
-                    if (!existing[k].code && sItem.code) {
-                        existing[k].code = sItem.code;
-                        updated = true;
-                    }
-                }
-            }
-            if (updated) {
-                localStorage.setItem('petric_customer_contacts_cache', JSON.stringify(existing));
-            }
-            var custCache = JSON.parse(localStorage.getItem('petric_customers_cache') || '[]');
-            var custCacheUpdated = false;
-            for (var ck in window.PETRIC_CONTACTS_SEED) {
-                var cname = window.PETRIC_CONTACTS_SEED[ck].name;
-                if (cname && custCache.indexOf(cname) === -1) {
-                    custCache.push(cname);
-                    custCacheUpdated = true;
-                }
-            }
-            if (custCacheUpdated) {
-                localStorage.setItem('petric_customers_cache', JSON.stringify(custCache));
-                if (typeof updateCustomerDatalist === 'function') updateCustomerDatalist();
-            }
-        }
-    } catch (e) {
-        console.error("seedCustomerContactsIfEmpty error:", e);
-    }
-};
-
-window.removeCustomerEmail = function(custKey, emailToDelete) {
-    try {
-        var contactsCache = JSON.parse(localStorage.getItem('petric_customer_contacts_cache') || '{}');
-        for (var k in contactsCache) {
-            if (k === custKey || k === custKey.replace(/\s+/g, '') || (custKey.length > 4 && k.indexOf(custKey) === 0)) {
-                var contact = contactsCache[k];
-                if (contact && Array.isArray(contact.emails)) {
-                    var idx = contact.emails.findIndex(function(e) { return e.toLowerCase() === emailToDelete.toLowerCase(); });
-                    if (idx > -1) contact.emails.splice(idx, 1);
-                }
-                if (contact && contact.email && contact.email.toLowerCase() === emailToDelete.toLowerCase()) {
-                    contact.email = (contact.emails && contact.emails.length > 0) ? contact.emails[contact.emails.length - 1] : "";
-                }
-            }
-        }
-        localStorage.setItem('petric_customer_contacts_cache', JSON.stringify(contactsCache));
-        var custInput = document.getElementById('calc-customer');
-        var custName = custInput ? custInput.value : '';
-        if (typeof handleCustomerUpdate === 'function') handleCustomerUpdate(custName);
-        if (typeof renderEmailList === 'function') renderEmailList();
-    } catch (e) { console.error("removeCustomerEmail napaka:", e); }
-};
-
-// Samodejni zagon semena ob uvozu
-try {
-    window.seedCustomerContactsIfEmpty();
-} catch(e) {}
-
