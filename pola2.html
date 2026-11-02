@@ -562,7 +562,7 @@
             <div class="header-group" style="grid-column: span 3;">
                 <label for="calc-customer">Stranka</label>
                 <div style="display: flex; gap: 0.2rem; position: relative;">
-                    <input type="text" id="calc-customer" list="customer-list" placeholder="Izberite stranko"
+                    <input type="text" id="calc-customer" autocomplete="off" placeholder="Izberite stranko"
                         style="flex: 1;">
                     <button onclick="toggleCustomerDropdown()"
                         style="width: 35px; background: #3b82f6; border: none; border-radius: 8px; color: white; cursor: pointer;">▼</button>
@@ -6627,13 +6627,19 @@
                 }
             } catch (e) { console.error("seedCustomerContactsIfEmpty napaka:", e); }
         }
-        function toggleCustomerDropdown() {
-            var list = document.getElementById('cust-dropdown-list');
-            if (list.style.display === 'block') {
-                list.style.display = 'none';
-            } else {
-                renderCustomerList();
-                list.style.display = 'block';
+                function toggleCustomerDropdown() {
+            try {
+                var list = document.getElementById('cust-dropdown-list');
+                if (!list) return;
+                if (list.style.display === 'block') {
+                    list.style.display = 'none';
+                } else {
+                    renderCustomerList('');
+                    list.style.display = 'block';
+                }
+            } catch (e) {
+                var safeLog = (typeof logDebug === 'function') ? logDebug : console.error;
+                safeLog("Napaka v toggleCustomerDropdown: " + e.message);
             }
         }
         function getAllArchives() {
@@ -6724,21 +6730,53 @@
             return customers;
         }
 
-        function renderCustomerList() {
+                function renderCustomerList(filterText) {
             try {
-                var customers = getUnifiedCustomersList();
+                var cInput = document.getElementById('calc-customer');
+                if (filterText === undefined || filterText === null) {
+                    filterText = (cInput && cInput.value) ? cInput.value.trim() : "";
+                }
+                var customers = typeof getUnifiedCustomersList === 'function' ? getUnifiedCustomersList() : [];
 
                 var listDiv = document.getElementById('cust-dropdown-list');
                 if (!listDiv) return;
                 listDiv.innerHTML = "";
 
-                if (customers.length === 0) {
-                    listDiv.innerHTML = '<div style="padding: 10px; color: #94a3b8; font-size: 0.8rem;">Arhiv strank je prazen.</div>';
+                var q = (typeof filterText === 'string') ? filterText.trim().toLowerCase() : "";
+                var displayList = [];
+
+                if (q.length > 0) {
+                    var starts = [];
+                    var contains = [];
+                    for (var k = 0; k < customers.length; k++) {
+                        var c = customers[k];
+                        var cLower = c.toLowerCase();
+                        if (cLower.indexOf(q) === 0) {
+                            starts.push(c);
+                        } else if (cLower.indexOf(q) > 0) {
+                            contains.push(c);
+                        }
+                    }
+                    starts.sort(function (a, b) { return a.localeCompare(b, 'sl'); });
+                    contains.sort(function (a, b) { return a.localeCompare(b, 'sl'); });
+                    displayList = starts.concat(contains);
+                } else {
+                    displayList = customers.slice();
+                    displayList.sort(function (a, b) { return a.localeCompare(b, 'sl'); });
+                }
+
+                if (displayList.length === 0) {
+                    var cleanQ = q.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    var msg = q.length > 0 ? ('Ni najdenih strank za "' + cleanQ + '".') : 'Arhiv strank je prazen.';
+                    listDiv.innerHTML = '<div style="padding: 10px; color: #94a3b8; font-size: 0.85rem;">' + msg + '</div>';
                     return;
                 }
 
-                for (var j = 0; j < customers.length; j++) {
+                for (var j = 0; j < displayList.length; j++) {
                     var item = document.createElement('div');
+                    item.className = 'cust-dropdown-item';
+                    item.dataset.index = j;
+                    item.dataset.custName = displayList[j];
                     item.style.padding = "8px 12px";
                     item.style.cursor = "pointer";
                     item.style.borderBottom = "1px solid #334155";
@@ -6746,9 +6784,11 @@
                     item.style.display = "flex";
                     item.style.justifyContent = "space-between";
                     item.style.alignItems = "center";
+                    item.style.transition = "background-color 0.1s ease";
 
                     var nameSpan = document.createElement('span');
-                    nameSpan.innerText = customers[j];
+                    nameSpan.innerText = displayList[j];
+                    nameSpan.style.flex = "1";
                     item.appendChild(nameSpan);
 
                     var delBtn = document.createElement('span');
@@ -6757,6 +6797,7 @@
                     delBtn.style.fontSize = '0.8rem';
                     delBtn.style.padding = '2px 8px';
                     delBtn.style.borderRadius = '4px';
+                    delBtn.style.cursor = 'pointer';
                     delBtn.title = 'Odstrani stranko iz predpomnilnika';
                     delBtn.onclick = (function (name) {
                         return function (e) {
@@ -6768,25 +6809,36 @@
                                     cache.splice(idx, 1);
                                     localStorage.setItem('petric_customers_cache', JSON.stringify(cache));
                                 }
-                                updateCustomerDatalist();
-                                // Also re-render the dropdown list itself
-                                renderCustomerList();
+                                if (typeof updateCustomerDatalist === 'function') updateCustomerDatalist();
+                                var curInput = document.getElementById('calc-customer');
+                                var curVal = curInput ? curInput.value : '';
+                                renderCustomerList(curVal);
                             }
                         };
-                    })(customers[j]);
+                    })(displayList[j]);
                     delBtn.onmouseover = function () { this.style.background = '#fecaca'; };
                     delBtn.onmouseout = function () { this.style.background = 'transparent'; };
                     item.appendChild(delBtn);
 
                     item.onclick = (function (name) {
                         return function () {
-                            document.getElementById('calc-customer').value = name;
-                            document.getElementById('cust-dropdown-list').style.display = 'none';
-                            handleCustomerUpdate(name);
+                            var curInput = document.getElementById('calc-customer');
+                            if (curInput) curInput.value = name;
+                            var dList = document.getElementById('cust-dropdown-list');
+                            if (dList) dList.style.display = 'none';
+                            if (typeof handleCustomerUpdate === 'function') handleCustomerUpdate(name);
                         };
-                    })(customers[j]);
-                    item.onmouseover = function () { this.style.background = "#334155"; };
-                    item.onmouseout = function () { this.style.background = "transparent"; };
+                    })(displayList[j]);
+                    item.onmouseover = function () {
+                        var allItems = listDiv.querySelectorAll('.cust-dropdown-item');
+                        allItems.forEach(function (el) { el.classList.remove('active-item'); el.style.background = 'transparent'; });
+                        this.classList.add('active-item');
+                        this.style.background = "#334155";
+                    };
+                    item.onmouseout = function () {
+                        this.classList.remove('active-item');
+                        this.style.background = "transparent";
+                    };
                     listDiv.appendChild(item);
                 }
             } catch (e) {
@@ -7049,10 +7101,87 @@
         // Attach events safely
         try {
             var custInput = document.getElementById('calc-customer');
+            var custListDiv = document.getElementById('cust-dropdown-list');
             if (custInput) {
-                custInput.addEventListener('input', function (e) { handleCustomerUpdate(e.target.value); });
-                custInput.addEventListener('change', function (e) { handleCustomerUpdate(e.target.value); });
-                custInput.addEventListener('blur', function (e) { handleCustomerUpdate(e.target.value); });
+                custInput.setAttribute('autocomplete', 'off');
+                custInput.removeAttribute('list');
+
+                custInput.addEventListener('input', function (e) {
+                    var val = e.target.value;
+                    if (typeof handleCustomerUpdate === 'function') handleCustomerUpdate(val);
+                    if (custListDiv) {
+                        if (val && val.trim().length > 0) {
+                            renderCustomerList(val.trim());
+                            custListDiv.style.display = 'block';
+                        } else {
+                            custListDiv.style.display = 'none';
+                        }
+                    }
+                });
+
+                custInput.addEventListener('focus', function (e) {
+                    var val = e.target.value;
+                    if (val && val.trim().length > 0) {
+                        renderCustomerList(val.trim());
+                        if (custListDiv) custListDiv.style.display = 'block';
+                    }
+                });
+
+                custInput.addEventListener('keydown', function (e) {
+                    if (!custListDiv || custListDiv.style.display !== 'block') {
+                        if (e.key === 'ArrowDown') {
+                            var val = custInput.value ? custInput.value.trim() : '';
+                            renderCustomerList(val);
+                            custListDiv.style.display = 'block';
+                            e.preventDefault();
+                        }
+                        return;
+                    }
+
+                    var items = custListDiv.querySelectorAll('.cust-dropdown-item');
+                    if (!items || items.length === 0) return;
+
+                    var activeIdx = -1;
+                    for (var i = 0; i < items.length; i++) {
+                        if (items[i].classList.contains('active-item')) {
+                            activeIdx = i;
+                            break;
+                        }
+                    }
+
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        var nextIdx = (activeIdx + 1) >= items.length ? 0 : activeIdx + 1;
+                        items.forEach(function (el) { el.classList.remove('active-item'); el.style.background = 'transparent'; });
+                        items[nextIdx].classList.add('active-item');
+                        items[nextIdx].style.background = '#334155';
+                        items[nextIdx].scrollIntoView({ block: 'nearest' });
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        var prevIdx = (activeIdx - 1) < 0 ? items.length - 1 : activeIdx - 1;
+                        items.forEach(function (el) { el.classList.remove('active-item'); el.style.background = 'transparent'; });
+                        items[prevIdx].classList.add('active-item');
+                        items[prevIdx].style.background = '#334155';
+                        items[prevIdx].scrollIntoView({ block: 'nearest' });
+                    } else if (e.key === 'Enter') {
+                        if (activeIdx >= 0 && activeIdx < items.length) {
+                            e.preventDefault();
+                            items[activeIdx].click();
+                        } else if (items.length === 1) {
+                            e.preventDefault();
+                            items[0].click();
+                        }
+                    } else if (e.key === 'Escape' || e.key === 'Tab') {
+                        custListDiv.style.display = 'none';
+                    }
+                });
+
+                custInput.addEventListener('change', function (e) {
+                    if (typeof handleCustomerUpdate === 'function') handleCustomerUpdate(e.target.value);
+                });
+                custInput.addEventListener('blur', function (e) {
+                    if (typeof handleCustomerUpdate === 'function') handleCustomerUpdate(e.target.value);
+                });
             }
             var emailInput = document.getElementById('calc-cust-email');
             if (emailInput) {
@@ -7072,6 +7201,31 @@
                 codeInput.addEventListener('change', saveCurrentCustomerContact);
                 codeInput.addEventListener('blur', saveCurrentCustomerContact);
             }
+
+            if (custListDiv) {
+                custListDiv.addEventListener('mousedown', function (e) {
+                    e.preventDefault();
+                });
+            }
+
+            document.addEventListener('click', function (e) {
+                var cList = document.getElementById('cust-dropdown-list');
+                if (cList && cList.style.display === 'block') {
+                    if (!e.target.closest('#calc-customer') &&
+                        !e.target.closest('button[onclick*="toggleCustomerDropdown"]') &&
+                        !e.target.closest('#cust-dropdown-list')) {
+                        cList.style.display = 'none';
+                    }
+                }
+                var eList = document.getElementById('email-dropdown-list');
+                if (eList && eList.style.display === 'block') {
+                    if (!e.target.closest('#calc-cust-email') &&
+                        !e.target.closest('button[onclick*="toggleEmailDropdown"]') &&
+                        !e.target.closest('#email-dropdown-list')) {
+                        eList.style.display = 'none';
+                    }
+                }
+            });
         } catch (e) { alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack); logDebug("Napaka pri povezovanju dogodkov: " + e.message, true); }
         function saveCurrentProject(btn = null, silent = false) {
             try {
