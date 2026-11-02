@@ -8274,6 +8274,35 @@ async function downloadWordDoc(filename, htmlContent) {
                 }
             }
 
+async function autoSaveQuoteWordToServer(suggestedJsonName) {
+            try {
+                if (typeof getQuoteHTML !== 'function') return null;
+                let wordName = typeof buildSuggestedFilename === 'function' ? buildSuggestedFilename('.doc') : (suggestedJsonName || '').replace(/\.(blok\.json|json)$/i, '') + '.doc';
+                if (!wordName || wordName === '.doc') wordName = 'ponudba.doc';
+                wordName = wordName.replace(/[/\\?%*:|"<> \t]+/g, '_').replace(/_+/g, '_');
+
+                let htmlContent = getQuoteHTML(true, null, false, false);
+                if (!htmlContent) return null;
+                let fullHtml = htmlContent.includes('<!DOCTYPE html>') ? htmlContent : ('<!DOCTYPE html>' + htmlContent);
+
+                const srvUrl = await getServerBaseUrl();
+                const srvRes = await fetch(srvUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'word', filename: wordName, content: fullHtml })
+                });
+                if (srvRes.ok) {
+                    const srvData = await srvRes.json();
+                    if (srvData && srvData.status === 'success') {
+                        return wordName;
+                    }
+                }
+            } catch (e) {
+                console.warn('Samodejno shranjevanje Word ponudbe ni uspelo:', e);
+            }
+            return null;
+        }
+
 async function saveCurrentProject(btn = null) {
                 try {
                     function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
@@ -8486,7 +8515,13 @@ async function saveCurrentProject(btn = null) {
                                 }
                                 if (typeof renderSavedProjects === 'function') renderSavedProjects();
                                 const fullPath = srvData.path || ("\\\\server-2012\\Srecko\\PONUDBE TEST\\" + suggestedName);
-                                alert("💾 Projekt (JSON) shranjen v srečko-server (ponudbe test):\n\nLokacija: " + fullPath + "\nDatoteka: " + suggestedName);
+                                let wordSavedName = await autoSaveQuoteWordToServer(suggestedName);
+                                const currYr = new Date().getFullYear();
+                                if (wordSavedName) {
+                                    alert("✓ Shranjeno v srečko-server:\n\n• Kalkulacija (PONUDBE TEST):\n  " + suggestedName + "\n\n• Word ponudba (PONUDBE " + currYr + "):\n  " + wordSavedName);
+                                } else {
+                                    alert("💾 Projekt (JSON) shranjen v srečko-server (ponudbe test):\n\nLokacija: " + fullPath + "\nDatoteka: " + suggestedName);
+                                }
                             }
                         }
                     } catch (srvErr) {
@@ -9293,7 +9328,13 @@ async function saveCurrentProject(btn = null) {
                             }
                                 if (typeof renderSavedProjects === 'function') renderSavedProjects();
                                 const fullPath = srvData.path || ("\\\\server-2012\\Srecko\\PONUDBE TEST\\" + suggestedName);
-                                alert("💾 Projekt (JSON) shranjen v srečko-server (ponudbe test):\n\nLokacija: " + fullPath + "\nDatoteka: " + suggestedName);
+                                let wordSavedName = await autoSaveQuoteWordToServer(suggestedName);
+                                const currYr = new Date().getFullYear();
+                                if (wordSavedName) {
+                                    alert("✓ Shranjeno v srečko-server:\n\n• Kalkulacija (PONUDBE TEST):\n  " + suggestedName + "\n\n• Word ponudba (PONUDBE " + currYr + "):\n  " + wordSavedName);
+                                } else {
+                                    alert("💾 Projekt (JSON) shranjen v srečko-server (ponudbe test):\n\nLokacija: " + fullPath + "\nDatoteka: " + suggestedName);
+                                }
                                 return;
                             }
                         }

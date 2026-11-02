@@ -7736,7 +7736,36 @@ async function extractCustomersFromDisk() {
                 });
             } catch (e) { logDebug("Napaka pri povezovanju dogodkov: " + e.message, true); }
 
-            function saveCurrentProject(btn = null) {
+            async function autoSaveQuoteWordToServer(suggestedJsonName) {
+                try {
+                    if (typeof getQuoteHTML !== 'function') return null;
+                    let wordName = (suggestedJsonName || '').replace(/\.(etiketa\.json|json)$/i, '') + '.doc';
+                    if (!wordName || wordName === '.doc') wordName = 'ponudba.doc';
+                    wordName = wordName.replace(/[/\\?%*:|"<> \t]+/g, '_').replace(/_+/g, '_');
+
+                    let htmlContent = getQuoteHTML(true, null, false, false);
+                    if (!htmlContent) return null;
+                    let fullHtml = htmlContent.includes('<!DOCTYPE html>') ? htmlContent : ('<!DOCTYPE html>' + htmlContent);
+
+                    const srvUrl = await getServerBaseUrl();
+                    const srvRes = await fetch(srvUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'word', filename: wordName, content: fullHtml })
+                    });
+                    if (srvRes.ok) {
+                        const srvData = await srvRes.json();
+                        if (srvData && srvData.status === 'success') {
+                            return wordName;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Samodejno shranjevanje Word ponudbe ni uspelo:', e);
+                }
+                return null;
+            }
+
+            async function saveCurrentProject(btn = null) {
                 try {
                     if (typeof saveCurrentCustomerContact === 'function') saveCurrentCustomerContact();
                     function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
@@ -7910,6 +7939,52 @@ async function extractCustomersFromDisk() {
                     document.getElementById('calc-project-name').value = "";
                     renderSavedProjects();
                     updateCustomerDatalist();
+
+                    let s_ponudba = (gv('calc-quote-number') || '').replace(/[\/\\]/g, '-').trim();
+                    if (s_ponudba) s_ponudba = 'pon.' + s_ponudba;
+                    let s_stranka = (gv('calc-customer') || '').trim();
+                    let s_izdelek = (gv('calc-project-name') || name || '').trim();
+                    let s_naklada = (gv('quantity') || '').replace(/\s+/g, '').replace(/,/g, '-');
+                    let parts = [s_ponudba, s_stranka, s_izdelek, s_naklada].filter(Boolean);
+                    let baseName = parts.length > 0 ? parts.join('_').replace(/\s+/g, '_') : 'etiketa';
+                    const suggestedName = baseName.replace(/[/\\?%*:|"<> \t]+/g, '_') + '.etiketa.json';
+                    const jsonStr = JSON.stringify(data, null, 2);
+
+                    try {
+                        const srvUrl = await getServerBaseUrl();
+                        const srvRes = await fetch(srvUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ type: 'json', filename: suggestedName, content: jsonStr })
+                        });
+                        if (srvRes.ok) {
+                            const srvData = await srvRes.json();
+                            if (srvData.status === 'success') {
+                                if (typeof updateIndexWithProject === 'function') {
+                                    await updateIndexWithProject({
+                                        name: suggestedName,
+                                        customer: (gv('calc-customer') || '').trim(),
+                                        quoteNum: (gv('calc-quote-number') || '').trim(),
+                                        date: new Date().toLocaleString('sl-SI'),
+                                        total: (document.getElementById('res-price-total') || {}).innerText || '',
+                                        sourceFormat: '',
+                                        isEtikete: true,
+                                        mtime: Date.now()
+                                    });
+                                }
+                                if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                                let wordSavedName = await autoSaveQuoteWordToServer(suggestedName);
+                                const currYr = new Date().getFullYear();
+                                if (wordSavedName) {
+                                    alert("✓ Shranjeno v srečko-server:\n\n• Kalkulacija (PONUDBE TEST):\n  " + suggestedName + "\n\n• Word ponudba (PONUDBE " + currYr + "):\n  " + wordSavedName);
+                                } else {
+                                    alert("✓ Shranjeno v srečko-server (ponudbe test):\nDatoteka: " + suggestedName);
+                                }
+                            }
+                        }
+                    } catch (srvErr) {
+                        console.log("Srečko-server save error:", srvErr);
+                    }
 
                     if (btn) {
                         const oldHTML = btn.innerHTML;
