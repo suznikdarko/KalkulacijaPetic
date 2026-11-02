@@ -5080,16 +5080,13 @@
 
                 const shc = parseFloat(gV('calc-source-cover-h').replace(',', '.')) || 700;
 
-
+                const cItemW = cw + (2 * cb);
+                const cItemH = ch + (2 * cb);
 
                 let cBestSheet = null;
                 let cBestLayout = null;
 
                 if (cw && ch && cw > 0 && ch > 0) {
-
-                    const cItemW = cw + (2 * cb);
-
-                    const cItemH = ch + (2 * cb);
 
                     cBestSheet = null;
 
@@ -5196,82 +5193,78 @@
                         if (s) checkCoverSheet(s);
                     }
 
+                }
 
+                if (cBestSheet && cBestLayout) {
 
-                    if (cBestSheet && cBestLayout) {
-
-                        if (document.getElementById('empty-state-cover')) document.getElementById('empty-state-cover').style.display = 'none';
-
-
-
-                        const finalCountCover = targetCountCover > 0 ? targetCountCover : cBestLayout.count;
-
-                        let cActualArea = finalCountCover * (cItemW * cItemH);
-
-                        let cTotalArea = cBestSheet.w * cBestSheet.h;
-
-                        let cUsage = (cActualArea / cTotalArea * 100).toFixed(1) + '%';
+                    if (document.getElementById('empty-state-cover')) document.getElementById('empty-state-cover').style.display = 'none';
 
 
 
-                        setT('res-count-cover', finalCountCover);
+                    const finalCountCover = targetCountCover > 0 ? targetCountCover : cBestLayout.count;
 
-                        setT('res-usage-cover', cUsage);
+                    let cActualArea = finalCountCover * (cItemW * cItemH);
 
+                    let cTotalArea = cBestSheet.w * cBestSheet.h;
 
-
-                        const cQtyStr = gV('calc-cover-qty') || "";
-                        const cQtyList = cQtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, '').replace(',', '.'))).filter(n => !isNaN(n) && n >= 0);
-                        let cQtyTotal = cQtyList.length > 0 ? cQtyList[0] : (q || 0);
-
-                        sheetsNeededCover = Math.ceil(cQtyTotal / finalCountCover);
-
-                        setT('res-sheets-cover-net', sheetsNeededCover + ' pol');
-
-                        setT('res-cover-sheets-needed', sheetsNeededCover);
-
-                        setT('header-cover-sheets-val', sheetsNeededCover);
+                    let cUsage = (cActualArea / cTotalArea * 100).toFixed(1) + '%';
 
 
 
-                        if (document.getElementById('sheets-per-cover')) {
+                    setT('res-count-cover', finalCountCover);
 
-                            let sheetsPerC = 1 / finalCountCover;
-
-                            let cEl = document.getElementById('sheets-per-cover');
-                            cEl.dataset.val = sheetsPerC;
-                            cEl.innerText = formatSheetsText(sheetsPerC);
-
-                        }
+                    setT('res-usage-cover', cUsage);
 
 
 
-                        cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
+                    const cQtyStr = gV('calc-cover-qty') || "";
+                    const cQtyList = cQtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, '').replace(',', '.'))).filter(n => !isNaN(n) && n >= 0);
+                    let cQtyTotal = cQtyList.length > 0 ? cQtyList[0] : (q || 0);
 
-                        cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
+                    sheetsNeededCover = Math.ceil(cQtyTotal / finalCountCover);
 
-                        setT('res-size-cover-val', `${cDrawW}x${cDrawH}`);
+                    setT('res-sheets-cover-net', sheetsNeededCover + ' pol');
 
-                        const autoOptCover = document.getElementById('machine-format-cover') ? document.getElementById('machine-format-cover').options[0] : null;
-                        if (autoOptCover) {
-                            autoOptCover.text = (mFormatC === 'auto' && cBestSheet) ? `Samodejno (Izbrano: ${cBestSheet.name})` : "Samodejno (B2 max)";
-                        }
+                    setT('res-cover-sheets-needed', sheetsNeededCover);
 
-                        if (!bestSheet) setT('res-size', `${cDrawW} x ${cDrawH}`);
-
-
-
-                        drawCanvas('canvas-cover', cDrawW, cDrawH, cBestLayout, cg, cw, ch, cb, (targetCountCover > 0 && targetCountCover !== cBestLayout.count), targetCountCover, '#f43f5e', true);
+                    setT('header-cover-sheets-val', sheetsNeededCover);
 
 
 
-                        let sourceYieldC = drawSourceLayoutCanvas('canvas-source-cover', swc, shc, cBestSheet.w, cBestSheet.h, '#f43f5e');
+                    if (document.getElementById('sheets-per-cover')) {
 
-                        setT('res-source-cover-yield-info', `Izkoristek: ${sourceYieldC} x`);
+                        let sheetsPerC = 1 / finalCountCover;
 
-                        calculatePrice(sheetsNeededLeaves, sheetsNeededCover, q, drawW, drawH, cDrawW, cDrawH);
+                        let cEl = document.getElementById('sheets-per-cover');
+                        cEl.dataset.val = sheetsPerC;
+                        cEl.innerText = formatSheetsText(sheetsPerC);
 
                     }
+
+
+
+                    cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
+
+                    cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
+
+                    setT('res-size-cover-val', `${cDrawW}x${cDrawH}`);
+
+                    const autoOptCover = document.getElementById('machine-format-cover') ? document.getElementById('machine-format-cover').options[0] : null;
+                    if (autoOptCover) {
+                        autoOptCover.text = (mFormatC === 'auto' && cBestSheet) ? `Samodejno (Izbrano: ${cBestSheet.name})` : "Samodejno (B2 max)";
+                    }
+
+                    if (!bestSheet) setT('res-size', `${cDrawW} x ${cDrawH}`);
+
+
+
+                    drawCanvas('canvas-cover', cDrawW, cDrawH, cBestLayout, cg, cw, ch, cb, (targetCountCover > 0 && targetCountCover !== cBestLayout.count), targetCountCover, '#f43f5e', true);
+
+
+
+                    let sourceYieldC = drawSourceLayoutCanvas('canvas-source-cover', swc, shc, cBestSheet.w, cBestSheet.h, '#f43f5e');
+
+                    setT('res-source-cover-yield-info', `Izkoristek: ${sourceYieldC} x`);
 
                 } else {
 
@@ -5280,13 +5273,45 @@
                         autoOptCover.text = "Samodejno (B2 max)";
                     }
 
-                    document.getElementById('empty-state-cover').style.display = 'flex';
+                    const esC = document.getElementById('empty-state-cover');
+                    if (esC) {
+                        if (cw > 0 && ch > 0) {
+                            esC.innerText = "❌ Tiskovina je prevelika za izbran stroj ali format!";
+                            esC.style.display = 'flex';
+                        } else {
+                            esC.innerText = "Vnesite dimenzije ovitka";
+                            esC.style.display = 'flex';
+                        }
+                    }
 
-                    document.getElementById('canvas-cover').style.display = 'none';
+                    if (document.getElementById('canvas-cover')) document.getElementById('canvas-cover').style.display = 'none';
+                    if (document.getElementById('canvas-source-cover')) document.getElementById('canvas-source-cover').style.display = 'none';
 
-                    document.getElementById('res-count-cover').innerText = '-';
+                    setT('res-count-cover', '-');
+                    setT('res-usage-cover', '-%');
+                    setT('res-sheets-cover-net', '- pol');
+                    setT('res-cover-sheets-needed', '0');
+                    setT('header-cover-sheets-val', '0');
+                    setT('res-size-cover-val', '-');
+                    setT('res-source-cover-yield-info', 'Izkoristek: -');
 
-                    document.getElementById('res-usage-cover').innerText = '-%';
+                    if (document.getElementById('sheets-per-cover')) {
+                        let cEl = document.getElementById('sheets-per-cover');
+                        cEl.dataset.val = 0;
+                        cEl.innerText = '-';
+                    }
+
+                    if (cw > 0 && ch > 0) {
+                        if (document.getElementById('stats')) document.getElementById('stats').style.display = 'none';
+                        if (document.getElementById('sticky-spec-paper')) document.getElementById('sticky-spec-paper').innerText = "0.00 €";
+                        if (document.getElementById('sticky-spec-prep')) document.getElementById('sticky-spec-prep').innerText = "0.00 €";
+                        if (document.getElementById('sticky-spec-print')) document.getElementById('sticky-spec-print').innerText = "0.00 €";
+                        if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = "0.00 €";
+                        if (document.getElementById('sticky-qty')) document.getElementById('sticky-qty').innerText = "-";
+                        if (document.getElementById('sticky-price-total')) document.getElementById('sticky-price-total').innerText = "0.00 €";
+                        if (document.getElementById('sticky-price-per-item')) document.getElementById('sticky-price-per-item').innerText = "0.000 €";
+                        if (document.getElementById('sticky-price-1000')) document.getElementById('sticky-price-1000').innerText = "0.00 €";
+                    }
 
                 }
 
@@ -5296,17 +5321,22 @@
                     cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
                     cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
                     setT('res-size', `${drawW}x${drawH} / ${cDrawW}x${cDrawH}`);
-                } else if (bestSheet) {
+                } else if (bestSheet && (!cw || !ch || cw <= 0 || ch <= 0)) {
                     setT('res-sheet', bestSheet.name);
                     setT('res-size', `${drawW} x ${drawH}`);
-                } else if (cBestSheet) {
+                } else if (cBestSheet && (!w || !h || w <= 0 || h <= 0)) {
                     setT('res-sheet', cBestSheet.name);
                     cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
                     cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
                     setT('res-size', `${cDrawW} x ${cDrawH}`);
+                } else {
+                    setT('res-sheet', '-');
+                    setT('res-size', '-');
                 }
 
-                calculatePrice(sheetsNeededLeaves, sheetsNeededCover, q, drawW, drawH, cDrawW, cDrawH);
+                if ((!cw || !ch || cw <= 0 || ch <= 0 || (cBestSheet && cBestLayout)) && (bestSheet && bestLayout)) {
+                    calculatePrice(sheetsNeededLeaves, sheetsNeededCover, q, drawW, drawH, cDrawW, cDrawH);
+                }
 
                 setTimeout(() => {
 
@@ -6348,6 +6378,28 @@
 
             function calculatePrice(sheetsNeededLeaves, sheetsNeededCover, totalItemsForm, drawW, drawH, drawWC, drawHC, qtyIndex, customOrderedSheetsL, customOrderedSheetsC) {
                 try {
+                    const wCheck = parseFloat(document.getElementById('width')?.value.replace(',', '.')) || 0;
+                    const hCheck = parseFloat(document.getElementById('height')?.value.replace(',', '.')) || 0;
+                    const esLCheck = document.getElementById('empty-state-leaves');
+                    const cwCheck = parseFloat(document.getElementById('calc-cover-w')?.value.replace(',', '.')) || 0;
+                    const chCheck = parseFloat(document.getElementById('calc-cover-h')?.value.replace(',', '.')) || 0;
+                    const esCCheck = document.getElementById('empty-state-cover');
+
+                    const leavesTooBig = (wCheck > 0 && hCheck > 0 && esLCheck && esLCheck.style.display !== 'none' && esLCheck.innerText.includes('prevelika'));
+                    const coverTooBig = (cwCheck > 0 && chCheck > 0 && esCCheck && esCCheck.style.display !== 'none' && esCCheck.innerText.includes('prevelika'));
+
+                    if (leavesTooBig || coverTooBig) {
+                        if (document.getElementById('stats')) document.getElementById('stats').style.display = 'none';
+                        if (document.getElementById('sticky-spec-paper')) document.getElementById('sticky-spec-paper').innerText = "0.00 €";
+                        if (document.getElementById('sticky-spec-prep')) document.getElementById('sticky-spec-prep').innerText = "0.00 €";
+                        if (document.getElementById('sticky-spec-print')) document.getElementById('sticky-spec-print').innerText = "0.00 €";
+                        if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = "0.00 €";
+                        if (document.getElementById('sticky-qty')) document.getElementById('sticky-qty').innerText = "-";
+                        if (document.getElementById('sticky-price-total')) document.getElementById('sticky-price-total').innerText = "0.00 €";
+                        if (document.getElementById('sticky-price-per-item')) document.getElementById('sticky-price-per-item').innerText = "0.000 €";
+                        if (document.getElementById('sticky-price-1000')) document.getElementById('sticky-price-1000').innerText = "0.00 €";
+                        return;
+                    }
 
                     if (sheetsNeededLeaves === undefined) {
 
