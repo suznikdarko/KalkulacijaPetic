@@ -491,11 +491,167 @@
         .pdf-page-wrapper canvas {
             max-height: none !important;
         }
+
+        /* ========================================================
+           FOKUSNI NAČIN & DESNI PLAVAJOČI TRAK (PREDLOG 1)
+           ======================================================== */
+        body {
+            padding-right: 85px !important;
+            box-sizing: border-box;
+        }
+
+        .container.focus-mode {
+            display: flex !important;
+            flex-direction: column !important;
+            grid-template-columns: 1fr !important;
+            grid-template-areas: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        .container.focus-mode > .panel,
+        .container.focus-mode > .details-panel,
+        .container.focus-mode > .header-panel {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        /* Razširitev dodelave v več stolpcev na celotnem zaslonu */
+        .container.focus-mode[data-focus="dodelava"] #calc-tab-dodelava {
+            display: block !important;
+            width: 100% !important;
+        }
+
+        /* Desni plavajoči navigacijski dock */
+        #quick-nav-dock {
+            position: fixed;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 9995;
+            background: rgba(15, 23, 42, 0.94);
+            backdrop-filter: blur(16px);
+            border: 1.5px solid #334155;
+            border-radius: 16px;
+            padding: 8px 6px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            user-select: none;
+            width: 70px;
+            box-sizing: border-box;
+        }
+
+        .dock-header-label {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
+            text-align: center;
+            font-weight: 700;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #334155;
+            margin-bottom: 2px;
+        }
+
+        .dock-btn {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #cbd5e1;
+            border-radius: 8px;
+            padding: 6px 3px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            transition: all 0.18s ease-in-out;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            outline: none;
+        }
+
+        .dock-btn .dock-icon {
+            font-size: 1.15rem;
+            line-height: 1;
+        }
+
+        .dock-btn .dock-text {
+            font-size: 0.65rem;
+            white-space: nowrap;
+        }
+
+        .dock-btn:hover {
+            background: #334155;
+            border-color: #60a5fa;
+            color: #ffffff;
+            transform: translateX(-3px);
+        }
+
+        .dock-btn.active {
+            background: linear-gradient(135deg, #1d4ed8, #2563eb);
+            border-color: #60a5fa;
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+            transform: translateX(-4px);
+        }
+
+        .dock-btn.btn-all {
+            background: #0f766e;
+            border-color: #14b8a6;
+            margin-top: 4px;
+        }
+
+        .dock-btn.btn-all:hover {
+            background: #0d9488;
+        }
+
+        .dock-btn.btn-all.active {
+            background: linear-gradient(135deg, #0f766e, #14b8a6);
+            border-color: #2dd4bf;
+            box-shadow: 0 0 12px rgba(20, 184, 166, 0.5);
+        }
+
+        @media (max-width: 1000px) {
+            body {
+                padding-right: 65px !important;
+            }
+            #quick-nav-dock {
+                right: 4px;
+                width: 58px;
+                padding: 6px 3px;
+            }
+            .dock-btn .dock-icon {
+                font-size: 1rem;
+            }
+            .dock-btn .dock-text {
+                font-size: 0.58rem;
+            }
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
+        <!-- FOKUS INFO VRSTICA (Prikazana v načinu posamezne faze) -->
+        <div id="focus-info-banner" style="display: none; background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(8px); border: 1.5px solid #3b82f6; border-radius: 10px; padding: 8px 16px; margin-bottom: 12px; align-items: center; justify-content: space-between; font-size: 0.85rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+                <span id="focus-title-badge" style="background: linear-gradient(135deg, #1d4ed8, #2563eb); color: white; font-weight: bold; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem; letter-spacing: 0.5px;">✂️ DODELAVA</span>
+                <span style="color: #94a3b8;">Izdelek: <strong id="focus-product-name" style="color: #60a5fa;">-</strong></span>
+                <span style="color: #94a3b8;">Stranka: <strong id="focus-customer-name" style="color: #cbd5e1;">-</strong></span>
+                <span style="color: #94a3b8;">Količina: <strong id="focus-quantity" style="color: #f59e0b;">-</strong></span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" onclick="setFocusSection('header')" style="background: #334155; border: 1px solid #475569; color: #cbd5e1; border-radius: 6px; padding: 5px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer;" title="Skoči na osnovne podatke o stranki in dimenzijah">📋 Uredi podatke</button>
+                <button type="button" onclick="setFocusSection('vse')" style="background: #0f766e; border: 1px solid #14b8a6; color: white; border-radius: 6px; padding: 5px 14px; font-size: 0.78rem; cursor: pointer; font-weight: bold;" title="Prikaži vse 3 stolpce naenkrat">👁️ Prikaži vse</button>
+            </div>
+        </div>
+
         <!-- GLAVA Z VNOSI -->
         <div class="header-panel">
             <div class="header-group" style="grid-column: span 3;">
@@ -1920,6 +2076,7 @@
             <div class="sticky-price-value" id="sticky-price-total-old" style="color: #10b981;">0.00 €</div>
         </div>
         <div style="display:flex; gap:0.5rem; flex-wrap: wrap; align-items: center;">
+            <button class="calculate-btn" type="button" onclick="saveProjectToFile()" style="margin: 0; width: auto; background: #6366f1; padding: 0.6rem 1.4rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);" title="Shrani kalkulacijo in Word ponudbo">💾 SHRANI</button>
             <button class="calculate-btn" type="button" onclick="odpriCenikPDF()"
                 style="margin: 0; width: auto; background: #0284c7; padding: 0.6rem 1.2rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);"
                 title="Odpri cenik prevozov (PDF)">
@@ -1956,6 +2113,108 @@
 
     <script>
         var g_lastSaveHandle = null;
+
+        
+        // ========================================================
+        // LOGIKA ZA FOKUSNI NAČIN IN DESNI NAVIGACIJSKI TRAK
+        // ========================================================
+        function setFocusSection(sectionKey) {
+            const container = document.querySelector('.container');
+            const headerPanel = document.querySelector('.header-panel');
+            const visualPanel = document.querySelector('.panel.results');
+            const specPanel = document.querySelector('.details-panel');
+            const calcPanel = document.querySelector('.panel.calculation');
+            const banner = document.getElementById('focus-info-banner');
+
+            if (!container || !headerPanel || !visualPanel || !specPanel || !calcPanel) return;
+
+            // Označi aktivni gumb v desnem traku
+            const dockButtons = document.querySelectorAll('.dock-btn');
+            dockButtons.forEach(btn => {
+                if (btn.getAttribute('data-section') === sectionKey) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            if (sectionKey === 'vse') {
+                container.classList.remove('focus-mode');
+                container.removeAttribute('data-focus');
+                headerPanel.style.display = '';
+                visualPanel.style.display = '';
+                specPanel.style.display = '';
+                calcPanel.style.display = '';
+                if (banner) banner.style.display = 'none';
+                if (typeof switchCalcTab === 'function') switchCalcTab('vse');
+                try { localStorage.setItem('pola2_focus_section', 'vse'); } catch(e){}
+                setTimeout(() => { if (typeof calculate === 'function') calculate(); }, 50);
+                return;
+            }
+
+            // Vklopi fokusni način
+            container.classList.add('focus-mode');
+            container.setAttribute('data-focus', sectionKey);
+
+            // Posodobi podatke v zgornji vrstici (banner)
+            if (banner) {
+                if (sectionKey === 'header') {
+                    banner.style.display = 'none';
+                } else {
+                    banner.style.display = 'flex';
+                    const prodName = document.getElementById('calc-project-name')?.value || '-';
+                    const custName = document.getElementById('calc-customer')?.value || '-';
+                    const qtyVal = document.getElementById('quantity')?.value || '-';
+                    const badge = document.getElementById('focus-title-badge');
+                    
+                    const titles = {
+                        'visual': '📐 VIZUALIZACIJA POL',
+                        'papir': '📄 PAPIR IN PLOŠČE',
+                        'tisk': '🖨️ TISK IN STROJ',
+                        'dodelava': '✂️ DODELAVA',
+                        'povzetek': '📊 REZULTATI IN RVC',
+                        'spec': '📁 KOŠARICA IN SPECIFIKACIJA'
+                    };
+                    if (badge) badge.innerText = titles[sectionKey] || sectionKey.toUpperCase();
+                    const pEl = document.getElementById('focus-product-name');
+                    const cEl = document.getElementById('focus-customer-name');
+                    const qEl = document.getElementById('focus-quantity');
+                    if (pEl) pEl.innerText = prodName;
+                    if (cEl) cEl.innerText = custName;
+                    if (qEl) qEl.innerText = qtyVal ? (qtyVal + ' kos') : '-';
+                }
+            }
+
+            // Prikaz izbranega panela, skrivanje ostalih
+            headerPanel.style.display = (sectionKey === 'header') ? 'grid' : 'none';
+            visualPanel.style.display = (sectionKey === 'visual') ? 'block' : 'none';
+            specPanel.style.display = (sectionKey === 'spec') ? 'block' : 'none';
+            
+            if (['papir', 'tisk', 'dodelava', 'povzetek'].includes(sectionKey)) {
+                calcPanel.style.display = 'block';
+                const tabMap = {
+                    'papir': 'papir-plosce',
+                    'tisk': 'tisk-stroj',
+                    'dodelava': 'dodelava',
+                    'povzetek': 'povzetek'
+                };
+                if (typeof switchCalcTab === 'function') {
+                    switchCalcTab(tabMap[sectionKey]);
+                }
+            } else {
+                calcPanel.style.display = 'none';
+            }
+
+            // Osveži vizualizacijo, če je aktivna
+            if (sectionKey === 'visual') {
+                setTimeout(() => {
+                    if (typeof calculate === 'function') calculate();
+                }, 50);
+            }
+
+            try { localStorage.setItem('pola2_focus_section', sectionKey); } catch(e){}
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
 
         function switchCalcTab(tabId) {
             const tabs = ['papir-plosce', 'tisk-stroj', 'dodelava', 'povzetek', 'vse'];
@@ -9016,7 +9275,9 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                             <img src="${canvasImage}" style="max-width: 100%; height: auto; max-height: 600px;">
                         </div>
                         <div class="footer">Datum: ${date} | Pripravil: ${preparedBy}<br><span style="color: red; font-weight: bold; font-size: 11pt;">INTERNI DOKUMENT - TISKARNA PETRIČ</span></div>
-                    </body></html>`;
+                    
+
+</body></html>`;
             }
             // GENERATE MULTI-ITEM QUOTE
             let itemsHtml = itemsToPrint.map(item => {
@@ -13810,6 +14071,42 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             </div>
 
         </div>
+    </div>
+    <!-- DESNI PLAVAJOČI NAVIGACIJSKI TRAK (PREDLOG 1) -->
+    <div id="quick-nav-dock" title="Hitri preklop med sklopi kalkulacije">
+        <div class="dock-header-label">FAZE</div>
+        <button type="button" class="dock-btn" data-section="header" onclick="setFocusSection('header')" title="1. Osnovni podatki, izdelek in formati">
+            <span class="dock-icon">📋</span>
+            <span class="dock-text">Podatki</span>
+        </button>
+        <button type="button" class="dock-btn" data-section="visual" onclick="setFocusSection('visual')" title="2. Vizualizacija izreza in tiskovne pole">
+            <span class="dock-icon">📐</span>
+            <span class="dock-text">Pola</span>
+        </button>
+        <button type="button" class="dock-btn" data-section="papir" onclick="setFocusSection('papir')" title="3. Material (papir), zaloga in plošče">
+            <span class="dock-icon">📄</span>
+            <span class="dock-text">Papir</span>
+        </button>
+        <button type="button" class="dock-btn" data-section="tisk" onclick="setFocusSection('tisk')" title="4. Tisk, stroj, barve in hitrost">
+            <span class="dock-icon">🖨️</span>
+            <span class="dock-text">Stroj</span>
+        </button>
+        <button type="button" class="dock-btn" data-section="dodelava" onclick="setFocusSection('dodelava')" title="5. Dodelava (razrez, plastika, zgib, vezava...)">
+            <span class="dock-icon">✂️</span>
+            <span class="dock-text">Dodelava</span>
+        </button>
+        <button type="button" class="dock-btn" data-section="povzetek" onclick="setFocusSection('povzetek')" title="6. Rezultati kalkulacije, marža in cene">
+            <span class="dock-icon">📊</span>
+            <span class="dock-text">Cene</span>
+        </button>
+        <button type="button" class="dock-btn" data-section="spec" onclick="setFocusSection('spec')" title="7. Košarica in specifikacija za nalog">
+            <span class="dock-icon">📁</span>
+            <span class="dock-text">Košarica</span>
+        </button>
+        <button type="button" class="dock-btn btn-all active" data-section="vse" onclick="setFocusSection('vse')" title="Prikaži vse sekcije naenkrat (klasični pogled)">
+            <span class="dock-icon">👁️</span>
+            <span class="dock-text">Vse</span>
+        </button>
     </div>
 </body>
 
