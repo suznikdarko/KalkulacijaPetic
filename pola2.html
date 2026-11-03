@@ -6116,13 +6116,23 @@
             }
             let slotsToDraw = [];
             let itemsToDraw = targetCount;
-            function drawOneItem(ctx, x, y, iw, ih, singleInnerW, singleInnerH, b, sc) {
+            function drawOneItem(ctx, x, y, iw, ih, singleInnerW, singleInnerH, b, sc, sideType = '') {
                 let bg = (typeof blockGap !== 'undefined') ? blockGap : ((typeof getFloatValue === 'function' && document.getElementById('block-gap')) ? getFloatValue('block-gap') : 0);
                 let actW = iw - bg;
                 let actH = ih - bg;
 
-                ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
-                ctx.strokeStyle = '#3b82f6';
+                let rectFill = 'rgba(96, 165, 250, 0.3)';
+                let rectStroke = '#3b82f6';
+                if (sideType === 'A') {
+                    rectFill = 'rgba(37, 99, 235, 0.20)';
+                    rectStroke = '#2563eb';
+                } else if (sideType === 'B') {
+                    rectFill = 'rgba(234, 88, 12, 0.20)';
+                    rectStroke = '#ea580c';
+                }
+
+                ctx.fillStyle = rectFill;
+                ctx.strokeStyle = rectStroke;
                 ctx.lineWidth = 1;
                 ctx.fillRect(x, y, actW * sc, actH * sc);
                 ctx.strokeRect(x, y, actW * sc, actH * sc);
@@ -6170,7 +6180,7 @@
                 ctx.setLineDash([]);
 
                 // Oznaka dimenzije za VSAKO zloženko / element v bloku posebej
-                ctx.fillStyle = '#1e3a8a';
+                ctx.fillStyle = (sideType === 'B') ? '#c2410c' : '#1e3a8a';
                 ctx.font = 'bold 11px Arial, sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -6181,7 +6191,34 @@
                         for (let c = 0; c < drawCols; c++) {
                             const cellCenterX = x + c * stepX + stepX / 2;
                             const cellCenterY = y + r * stepY + stepY / 2;
-                            ctx.fillText(dimLabel, cellCenterX, cellCenterY);
+
+                            if (sideType === 'A' || sideType === 'B') {
+                                ctx.save();
+                                const isSideA = (sideType === 'A');
+                                const badgeColor = isSideA ? '#2563eb' : '#ea580c';
+                                const badgeText = (stepX >= 48 && stepY >= 36) ? (isSideA ? 'STRAN A' : 'STRAN B') : (isSideA ? 'A' : 'B');
+                                ctx.font = 'bold 10px Inter, sans-serif';
+                                const tw = ctx.measureText(badgeText).width;
+                                const bw = tw + 8;
+                                const bh = 15;
+                                const bx = cellCenterX - bw / 2;
+                                const by = cellCenterY - 11;
+
+                                ctx.fillStyle = badgeColor;
+                                ctx.beginPath();
+                                if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 3); else ctx.rect(bx, by, bw, bh);
+                                ctx.fill();
+
+                                ctx.fillStyle = '#ffffff';
+                                ctx.fillText(badgeText, cellCenterX, by + bh / 2 + 0.5);
+                                ctx.restore();
+
+                                ctx.fillStyle = isSideA ? '#1d4ed8' : '#c2410c';
+                                ctx.font = 'bold 10px Arial, sans-serif';
+                                ctx.fillText(dimLabel, cellCenterX, cellCenterY + 9);
+                            } else {
+                                ctx.fillText(dimLabel, cellCenterX, cellCenterY);
+                            }
                         }
                     }
                 }
@@ -6289,7 +6326,15 @@
                 }
                 const innerW = (layout.rot ? origH : origW);
                 const innerH = (layout.rot ? origW : origH);
-                drawOneItem(ctx, x, y, layout.itemW, layout.itemH, innerW, innerH, bleed, scale);
+                let sideType = '';
+                if (isObratChecked) {
+                    if (usedCols % 2 === 0) {
+                        sideType = (slot.c < usedCols / 2) ? 'A' : 'B';
+                    } else if (usedRows % 2 === 0) {
+                        sideType = (slot.r < usedRows / 2) ? 'A' : 'B';
+                    }
+                }
+                drawOneItem(ctx, x, y, layout.itemW, layout.itemH, innerW, innerH, bleed, scale, sideType);
             });
             // Mešana postavitev (Mixed) - nariši preostale kose
             let drawnSoFar = slotsToDraw.length;
@@ -6329,6 +6374,94 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(`⚠️ OPOZORILO: ${targetCount} kosov ni mogoče simetrično razporediti na to polo!`, canvas.width / 2, 15);
+            }
+
+            // Nariši rezalno os / os obračanja (če je obračanje aktivno)
+            if (isObratChecked && itemsToDraw >= 2) {
+                ctx.save();
+                if (usedCols % 2 === 0) {
+                    const cutX = (startX + (usedCols / 2) * layout.itemW) * scale;
+
+                    // Bela senca za kontrast
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    ctx.moveTo(cutX, 0);
+                    ctx.lineTo(cutX, canvas.height);
+                    ctx.stroke();
+
+                    // Rdeča črtkana črta
+                    ctx.strokeStyle = '#dc2626';
+                    ctx.lineWidth = 2.5;
+                    ctx.setLineDash([8, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(cutX, 0);
+                    ctx.lineTo(cutX, canvas.height);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Značka osi
+                    const badgeText = '✂ OS OBRAČANJA (STRAN A | STRAN B)';
+                    ctx.font = 'bold 10px Inter, sans-serif';
+                    const tw = ctx.measureText(badgeText).width;
+                    const bw = tw + 16;
+                    const bh = 22;
+                    const bx = cutX - bw / 2;
+                    const by = Math.max(10, (canvas.height - bh) / 2);
+
+                    ctx.fillStyle = '#dc2626';
+                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                    ctx.shadowBlur = 5;
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 5); else ctx.rect(bx, by, bw, bh);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(badgeText, cutX, by + bh / 2 + 0.5);
+                } else if (usedRows % 2 === 0) {
+                    const cutY = (startY + (usedRows / 2) * layout.itemH) * scale;
+
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    ctx.moveTo(0, cutY);
+                    ctx.lineTo(canvas.width, cutY);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = '#dc2626';
+                    ctx.lineWidth = 2.5;
+                    ctx.setLineDash([8, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(0, cutY);
+                    ctx.lineTo(canvas.width, cutY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    const badgeText = '✂ OS OBRAČANJA (STRAN A | STRAN B)';
+                    ctx.font = 'bold 10px Inter, sans-serif';
+                    const tw = ctx.measureText(badgeText).width;
+                    const bw = tw + 16;
+                    const bh = 22;
+                    const bx = (canvas.width - bw) / 2;
+                    const by = cutY - bh / 2;
+
+                    ctx.fillStyle = '#dc2626';
+                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                    ctx.shadowBlur = 5;
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 5); else ctx.rect(bx, by, bw, bh);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(badgeText, canvas.width / 2, cutY + 0.5);
+                }
+                ctx.restore();
             }
 
             // Nariši linije razreza za personalizacijo (če je vklopljena personalizacija)
