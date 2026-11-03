@@ -5831,6 +5831,11 @@
                         sourceCoverW: gv('calc-source-cover-w'),
                         sourceCoverH: gv('calc-source-cover-h'),
                         sourceCoverYield: gv('calc-source-cover-yield'),
+                        machine_format_cover: gv('machine-format-cover'),
+                        itemsPerSheetCover: gv('items-per-sheet-cover'),
+                        orientationCover: gv('item-orientation-cover'),
+                        washesC: gv('calc-color-washes-cover'),
+                        washPriceC: gv('calc-wash-price-cover'),
                         pActive: gc('calc-paper-active'),
                         pPrice: gv('calc-paper-price'),
                         pUnit: gv('calc-paper-unit'),
@@ -7821,6 +7826,7 @@ async function extractCustomersFromDisk() {
                             emailDate: gv('calc-email-date'),
                             isMultiLabelMode: isMultiLabelMode,
                             sheetGrain: gv('calc-sheet-grain'),
+                            labelGrain: gv('calc-label-grain'),
                             multiLabelItems: multiLabelItems,
                             machine_format: gv('machine-format'),
                             item_w: gv('width'),
@@ -7846,6 +7852,16 @@ async function extractCustomersFromDisk() {
                             sourceCoverW: gv('calc-source-cover-w'),
                             sourceCoverH: gv('calc-source-cover-h'),
                             sourceCoverYield: gv('calc-source-cover-yield'),
+                            machine_format_cover: gv('machine-format-cover'),
+                            itemsPerSheetCover: gv('items-per-sheet-cover'),
+                            orientationCover: gv('item-orientation-cover'),
+                            washesC: gv('calc-color-washes-cover'),
+                            washPriceC: gv('calc-wash-price-cover'),
+                        machine_format_cover: gv('machine-format-cover'),
+                        itemsPerSheetCover: gv('items-per-sheet-cover'),
+                        orientationCover: gv('item-orientation-cover'),
+                        washesC: gv('calc-color-washes-cover'),
+                        washPriceC: gv('calc-wash-price-cover'),
                             pActive: gc('calc-paper-active'),
                             pPrice: gv('calc-paper-price'),
                             pUnit: gv('calc-paper-unit'),
@@ -7909,7 +7925,10 @@ async function extractCustomersFromDisk() {
                                 lepljenjeblokov: { active: gc('f-lepljenjeblokov-active'), prep: gv('f-lepljenjeblokov-prep'), kos: gv('f-lepljenjeblokov-kos') },
                                 spiraljenje: { active: gc('f-spiraljenje-active'), prep: gv('f-spiraljenje-prep'), kos: gv('f-spiraljenje-kos') },
                                 sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
-                                numeracija: { active: gc('f-numeracija-active'), kos: gv('f-numeracija-kos') },
+                                precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
+                                numeracijaLeaves: { active: gc('f-numeracija-leaves-active'), sides: gv('f-numeracija-leaves-sides'), kos: gv('f-numeracija-leaves-kos') },
+                                numeracijaCover: { active: gc('f-numeracija-cover-active'), sides: gv('f-numeracija-cover-sides'), kos: gv('f-numeracija-cover-kos') },
+                                numeracija: { active: gc('f-numeracija-leaves-active'), kos: gv('f-numeracija-leaves-kos') },
                                 numeracija: { active: gc('f-numeracija-active'), kos: gv('f-numeracija-kos') },
 
                                 extra: { active: gc('f-extra-active'), manual: gv('f-extra-manual'), external: gv('f-extra-external') },
@@ -8245,6 +8264,7 @@ async function extractCustomersFromDisk() {
                     multiLabelItems = inp.multiLabelItems;
                 }
                 setV('calc-sheet-grain', inp.sheetGrain || 'vertical');
+                setV('calc-label-grain', inp.labelGrain || 'vertical');
                 if (typeof toggleLabelMode === 'function') {
                     toggleLabelMode(inp.isMultiLabelMode ? 'multi' : 'single');
                 }
@@ -8329,6 +8349,11 @@ async function extractCustomersFromDisk() {
                 // Cover tech fields
                 setV('calc-cover-w', inp.coverW);
                 setV('calc-cover-h', inp.coverH);
+                setV('machine-format-cover', inp.machine_format_cover ?? proj.machine_format_cover ?? 'auto');
+                setV('items-per-sheet-cover', inp.itemsPerSheetCover ?? proj.itemsPerSheetCover ?? '');
+                setV('item-orientation-cover', inp.orientationCover ?? proj.orientationCover ?? 'portrait');
+                setV('calc-color-washes-cover', inp.washesC ?? proj.washesC ?? '0');
+                setV('calc-wash-price-cover', inp.washPriceC ?? proj.washPriceC ?? '25');
                 setV('calc-cover-bleed', inp.coverBleed);
                 setV('calc-cover-gripper', inp.coverGripper);
                 setV('calc-cover-qty', inp.coverQty);
@@ -8411,10 +8436,19 @@ async function extractCustomersFromDisk() {
                         setV('f-spiraljenje-kos', f.spiraljenje.kos);
                         if (typeof toggleFinishRow === 'function') toggleFinishRow('spiraljenje');
                     }
-                    if (f.numeracija) {
-                        setV('f-numeracija-active', f.numeracija.active, true);
-                        setV('f-numeracija-kos', f.numeracija.kos);
-                        if (typeof toggleFinishRow === 'function') toggleFinishRow('numeracija');
+                    if (f.numeracijaLeaves || f.numeracija) {
+                        const nL = f.numeracijaLeaves || f.numeracija;
+                        setV('f-numeracija-leaves-active', nL.active, true);
+                        if (nL.sides !== undefined) setV('f-numeracija-leaves-sides', nL.sides);
+                        if (nL.kos !== undefined) setV('f-numeracija-leaves-kos', nL.kos);
+                        if (typeof toggleFinishRow === 'function') toggleFinishRow('numeracija-leaves');
+                    }
+                    if (f.numeracijaCover) {
+                        const nC = f.numeracijaCover;
+                        setV('f-numeracija-cover-active', nC.active, true);
+                        if (nC.sides !== undefined) setV('f-numeracija-cover-sides', nC.sides);
+                        if (nC.kos !== undefined) setV('f-numeracija-cover-kos', nC.kos);
+                        if (typeof toggleFinishRow === 'function') toggleFinishRow('numeracija-cover');
                     }
 
                     if (f.extra) {
@@ -8587,6 +8621,16 @@ async function extractCustomersFromDisk() {
                             sourceCoverW: gv('calc-source-cover-w'),
                             sourceCoverH: gv('calc-source-cover-h'),
                             sourceCoverYield: gv('calc-source-cover-yield'),
+                            machine_format_cover: gv('machine-format-cover'),
+                            itemsPerSheetCover: gv('items-per-sheet-cover'),
+                            orientationCover: gv('item-orientation-cover'),
+                            washesC: gv('calc-color-washes-cover'),
+                            washPriceC: gv('calc-wash-price-cover'),
+                        machine_format_cover: gv('machine-format-cover'),
+                        itemsPerSheetCover: gv('items-per-sheet-cover'),
+                        orientationCover: gv('item-orientation-cover'),
+                        washesC: gv('calc-color-washes-cover'),
+                        washPriceC: gv('calc-wash-price-cover'),
                             pActive: gc('calc-paper-active'),
                             pPrice: gv('calc-paper-price'),
                             pUnit: gv('calc-paper-unit'),
@@ -8648,7 +8692,10 @@ async function extractCustomersFromDisk() {
                                 lepljenjeblokov: { active: gc('f-lepljenjeblokov-active'), prep: gv('f-lepljenjeblokov-prep'), kos: gv('f-lepljenjeblokov-kos') },
                                 spiraljenje: { active: gc('f-spiraljenje-active'), prep: gv('f-spiraljenje-prep'), kos: gv('f-spiraljenje-kos') },
                                 sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
-                                numeracija: { active: gc('f-numeracija-active'), kos: gv('f-numeracija-kos') },
+                                precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
+                                numeracijaLeaves: { active: gc('f-numeracija-leaves-active'), sides: gv('f-numeracija-leaves-sides'), kos: gv('f-numeracija-leaves-kos') },
+                                numeracijaCover: { active: gc('f-numeracija-cover-active'), sides: gv('f-numeracija-cover-sides'), kos: gv('f-numeracija-cover-kos') },
+                                numeracija: { active: gc('f-numeracija-leaves-active'), kos: gv('f-numeracija-leaves-kos') },
                                 numeracija: { active: gc('f-numeracija-active'), kos: gv('f-numeracija-kos') },
 
                                 extra: { active: gc('f-extra-active'), manual: gv('f-extra-manual'), external: gv('f-extra-external') },
