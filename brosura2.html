@@ -1498,9 +1498,11 @@
 
                 <div style="flex: 1; min-width: min-content;">
 
-                    <label>Število strani na poli</label>
+                    <label title="Število kosov ovitka na tiskarski poli (1 ovitek = 4 strani)">Št. ovitkov na poli</label>
 
                     <input type="number" id="items-per-sheet-cover" value="" placeholder="Avto" oninput="calculate()">
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.2rem;" id="cover-pages-equiv"></div>
+ 
 
                 </div>
 
@@ -1606,7 +1608,7 @@
                         <label>Format tiskarske pole</label>
 
                         <select id="machine-format"
-                            onchange="document.getElementById('items-per-sheet').value=''; document.getElementById('items-per-sheet-cover').value=''; calculate()"
+                            onchange="document.getElementById('items-per-sheet').value=''; calculate()"
                             style="width: 100%; height: 48px; font-size: 1rem;">
 
                             <option value="auto">Samodejno (B2 max)</option>
@@ -1650,7 +1652,7 @@
                         <label>Format tiskarske pole - ovitek</label>
 
                         <select id="machine-format-cover"
-                            onchange="document.getElementById('items-per-sheet').value=''; document.getElementById('items-per-sheet-cover').value=''; calculate()"
+                            onchange="document.getElementById('items-per-sheet-cover').value=''; calculate()"
                             style="width: 100%; height: 48px; font-size: 1rem;">
 
                             <option value="auto">Samodejno (B2 max)</option>
@@ -2575,7 +2577,7 @@
                                 style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0;">
 
                                 <input type="checkbox" id="calc-is-obrat-leaves"
-                                    onchange="if(this.checked) { let sv = document.getElementById('calc-is-sv-leaves'); if(sv) { sv.checked = false; } } window.g_manualPlatesNumLeavesEdited = false; document.getElementById('items-per-sheet').value=''; document.getElementById('machine-format').value='auto'; updateWasteAndPrice('leaves'); calculate()"
+                                    onchange="if(this.checked) { let sv = document.getElementById('calc-is-sv-leaves'); if(sv) { sv.checked = false; } } window.g_manualPlatesNumLeavesEdited = false; updateWasteAndPrice('leaves'); calculate()"
                                     style="width: auto; margin: 0;">
 
                                 Tisk "na obrat" (OB)
@@ -2591,7 +2593,7 @@
                                 style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #60a5fa; margin: 0; font-size: 0.85rem;">
 
                                 <input type="checkbox" id="calc-is-sv-leaves"
-                                    onchange="if(this.checked) { let ob = document.getElementById('calc-is-obrat-leaves'); if(ob) { ob.checked = false; } } window.g_manualPlatesNumLeavesEdited = false; document.getElementById('items-per-sheet').value=''; document.getElementById('machine-format').value='auto'; updateWasteAndPrice('leaves'); calculate()"
+                                    onchange="if(this.checked) { let ob = document.getElementById('calc-is-obrat-leaves'); if(ob) { ob.checked = false; } } window.g_manualPlatesNumLeavesEdited = false; updateWasteAndPrice('leaves'); calculate()"
                                     style="width: auto; margin: 0;">
 
                                 Šen Vider (ŠV) - obojestranski tisk v enem prehodu
@@ -2793,7 +2795,7 @@
                                 style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fcd34d; margin: 0;">
 
                                 <input type="checkbox" id="calc-is-obrat-cover"
-                                    onchange="if(this.checked) { let sv = document.getElementById('calc-is-sv-cover'); if(sv) { sv.checked = false; } } document.getElementById('items-per-sheet-cover').value=''; document.getElementById('machine-format-cover').value='auto'; updateWasteAndPrice('cover'); calculate()"
+                                    onchange="if(this.checked) { let sv = document.getElementById('calc-is-sv-cover'); if(sv) { sv.checked = false; } } updateWasteAndPrice('cover'); calculate()"
                                     style="width: auto; margin: 0;">
 
                                 Tisk "na obrat"
@@ -2809,7 +2811,7 @@
                                 style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #60a5fa; margin: 0; font-size: 0.85rem;">
 
                                 <input type="checkbox" id="calc-is-sv-cover"
-                                    onchange="if(this.checked) { let ob = document.getElementById('calc-is-obrat-cover'); if(ob) { ob.checked = false; } } document.getElementById('items-per-sheet-cover').value=''; document.getElementById('machine-format-cover').value='auto'; updateWasteAndPrice('cover'); calculate()"
+                                    onchange="if(this.checked) { let ob = document.getElementById('calc-is-obrat-cover'); if(ob) { ob.checked = false; } } updateWasteAndPrice('cover'); calculate()"
                                     style="width: auto; margin: 0;">
 
                                 Šen Vider (ŠV) - obojestranski tisk v enem prehodu
@@ -5260,21 +5262,23 @@
 
 
             // --- OPTIMIZATION FOR COVER ---
-
             const cw = parseFloat(gV('calc-cover-w').replace(',', '.')) || 0;
-
             const ch = parseFloat(gV('calc-cover-h').replace(',', '.')) || 0;
-
             const cb = parseFloat(gV('calc-cover-bleed').replace(',', '.')) || 0;
-
             const cg = parseFloat(gV('calc-cover-gripper').replace(',', '.')) || 0;
+            const mTypeC = gV('calc-machine-type-cover') || "S4";
 
-            const targetCountCover = parseInt(gV('items-per-sheet-cover')) || 0;
+            const itemsInpCover = document.getElementById('items-per-sheet-cover');
+            let rawTargetCover = itemsInpCover ? parseInt(itemsInpCover.value) : 0;
+            if (isNaN(rawTargetCover)) rawTargetCover = 0;
 
-
+            // Ce je uporabnik vnesel stevilo strani namesto ovitkov (npr. 32 namesto 8, saj je 1 ovitek = 4 strani):
+            let targetCountCover = rawTargetCover;
+            if (targetCountCover > 16 && targetCountCover % 4 === 0) {
+                targetCountCover = targetCountCover / 4;
+            }
 
             const swc = parseFloat(gV('calc-source-cover-w').replace(',', '.')) || 1000;
-
             const shc = parseFloat(gV('calc-source-cover-h').replace(',', '.')) || 700;
 
             const cItemW = cw + (2 * cb);
@@ -5284,55 +5288,30 @@
             let cBestLayout = null;
 
             if (cw && ch && cw > 0 && ch > 0) {
-
                 cBestSheet = null;
-
                 cBestLayout = null;
-
                 let cBestScore = -1;
 
-
-
                 const checkCoverSheet = (sheet) => {
-
-                    let mTypeC = gV('calc-machine-type-cover') || "S4";
-
                     let profileC = machineProfiles[mTypeC];
-
                     if (profileC) {
-
                         let machineFits = (sheet.w <= profileC.limitW && sheet.h <= profileC.limitH) ||
-
                             (sheet.h <= profileC.limitW && sheet.w <= profileC.limitH);
-
                         if (!machineFits) return;
-
                     }
 
                     const rawFamilyC = getPaperFamily(swc, shc);
-
                     let fitsSource = (swc >= sheet.w && shc >= sheet.h) || (swc >= sheet.h && shc >= sheet.w);
-
                     let familyMatches = isSheetFamilyMatching(rawFamilyC, sheet.family, mTypeC, sheet.name);
-
                     if (!fitsSource || !familyMatches) return;
 
-
-
                     let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, cg, fModeC, mTypeC === 'digital');
-
                     let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, cg, fModeC, mTypeC === 'digital');
-
                     let bL = null, bM = 'L';
-
                     if (l1 && l2) { if (l1.count >= l2.count) { bL = l1; bM = 'L'; } else { bL = l2; bM = 'P'; } }
-
                     else if (l1) { bL = l1; bM = 'L'; } else if (l2) { bL = l2; bM = 'P'; }
 
-
-
                     if (bL) {
-
                         const isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
                         if (isObratC) {
                             let evenCount = Math.floor(bL.count / 2) * 2;
@@ -5341,78 +5320,86 @@
                         }
 
                         const y1 = Math.floor(swc / sheet.w) * Math.floor(shc / sheet.h);
-
                         const y2 = Math.floor(swc / sheet.h) * Math.floor(shc / sheet.w);
-
                         const sY = Math.max(y1, y2, 1);
 
-
-
                         let score;
-
                         let isSatisfied = (targetCountCover > 0 && bL.count >= targetCountCover);
-
                         const isStandard = sheet.family === 'B' || sheet.family === 'A' || sheet.family === 'N' || sheet.family === 'DIGITAL';
                         const standardBonus = isStandard ? 10000000 : 0;
                         const standardBonusNormal = isStandard ? 500 : 0;
 
                         if (targetCountCover > 0) {
-
                             score = isSatisfied ? (sY * 1000000000) + (1000000000000 / (sheet.w * sheet.h)) + bL.count + standardBonus : bL.count + (isStandard ? 0.1 : 0);
-
                         } else {
-
                             score = (sY * bL.count * 100000) + (bL.count * 1000) + standardBonusNormal;
-
                         }
-
-
 
                         if (score > cBestScore) {
-
                             cBestScore = score;
-
                             cBestSheet = { ...sheet, mode: bM };
-
                             cBestLayout = bL;
-
                         }
-
                     }
-
                 };
-
-
 
                 if (mFormatC === 'auto') sheets.forEach(checkCoverSheet);
                 else {
                     let s = sheets.find(s => s.name === mFormatC);
                     if (s) checkCoverSheet(s);
                 }
-
             }
 
             if (cBestSheet && cBestLayout) {
-
                 if (document.getElementById('empty-state-cover')) document.getElementById('empty-state-cover').style.display = 'none';
 
+                const maxFittingCover = cBestLayout.count;
+                const isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
 
+                // Ce je uporabnik vnesel stevilo strani (npr. 32) namesto ovitkov (8):
+                if (rawTargetCover > maxFittingCover && rawTargetCover % 4 === 0 && (rawTargetCover / 4) <= maxFittingCover) {
+                    rawTargetCover = rawTargetCover / 4;
+                    if (itemsInpCover) itemsInpCover.value = rawTargetCover;
+                }
 
-                const finalCountCover = targetCountCover > 0 ? targetCountCover : cBestLayout.count;
+                let autoCovers = maxFittingCover;
+                if (isObratC) {
+                    autoCovers = Math.floor(maxFittingCover / 2) * 2;
+                }
+
+                if (itemsInpCover && (isManual || itemsInpCover.value === "" || itemsInpCover.value == "0" || parseInt(itemsInpCover.value) === window.g_autoCountCover)) {
+                    itemsInpCover.value = autoCovers;
+                    window.g_autoCountCover = autoCovers;
+                }
+
+                let finalCountCover = itemsInpCover ? (parseInt(itemsInpCover.value) || autoCovers) : autoCovers;
+                if (finalCountCover > maxFittingCover) {
+                    finalCountCover = maxFittingCover;
+                }
+                if (isObratC) {
+                    let evenCount = Math.floor(finalCountCover / 2) * 2;
+                    if (evenCount >= 2) finalCountCover = evenCount;
+                }
+
+                cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
+                cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
+
+                let cFinalLayout = cBestLayout;
+                if (finalCountCover > 0 && finalCountCover !== cBestLayout.count) {
+                    let tLayout = getTargetLayout(cDrawW, cDrawH, cItemW, cItemH, cg, finalCountCover, fModeC, mTypeC === 'digital');
+                    if (tLayout) {
+                        cFinalLayout = tLayout;
+                    } else {
+                        cFinalLayout = { ...cBestLayout, count: finalCountCover };
+                    }
+                }
 
                 let cActualArea = finalCountCover * (cItemW * cItemH);
-
                 let cTotalArea = cBestSheet.w * cBestSheet.h;
-
                 let cUsage = (cActualArea / cTotalArea * 100).toFixed(1) + '%';
 
-
-
                 setT('res-count-cover', finalCountCover);
-
                 setT('res-usage-cover', cUsage);
-
-
 
                 const cQtyStr = gV('calc-cover-qty') || "";
                 const cQtyList = cQtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, '').replace(',', '.'))).filter(n => !isNaN(n) && n >= 0);
@@ -5421,28 +5408,15 @@
                 sheetsNeededCover = Math.ceil(cQtyTotal / finalCountCover);
 
                 setT('res-sheets-cover-net', sheetsNeededCover + ' pol');
-
                 setT('res-cover-sheets-needed', sheetsNeededCover);
-
                 setT('header-cover-sheets-val', sheetsNeededCover);
 
-
-
                 if (document.getElementById('sheets-per-cover')) {
-
                     let sheetsPerC = 1 / finalCountCover;
-
                     let cEl = document.getElementById('sheets-per-cover');
                     cEl.dataset.val = sheetsPerC;
                     cEl.innerText = formatSheetsText(sheetsPerC);
-
                 }
-
-
-
-                cDrawW = cBestSheet.mode === 'L' ? cBestSheet.w : cBestSheet.h;
-
-                cDrawH = cBestSheet.mode === 'L' ? cBestSheet.h : cBestSheet.w;
 
                 setT('res-size-cover-val', `${cDrawW}x${cDrawH}`);
 
@@ -5453,15 +5427,14 @@
 
                 if (!bestSheet) setT('res-size', `${cDrawW} x ${cDrawH}`);
 
-
-
-                drawCanvas('canvas-cover', cDrawW, cDrawH, cBestLayout, cg, cw, ch, cb, (targetCountCover > 0 && targetCountCover !== cBestLayout.count), targetCountCover, '#f43f5e', true);
-
-
+                drawCanvas('canvas-cover', cDrawW, cDrawH, cFinalLayout, cg, cw, ch, cb, (finalCountCover > 0 && finalCountCover !== cBestLayout.count), finalCountCover, '#f43f5e', true);
 
                 let sourceYieldC = drawSourceLayoutCanvas('canvas-source-cover', swc, shc, cBestSheet.w, cBestSheet.h, '#f43f5e');
-
                 setT('res-source-cover-yield-info', `Izkoristek: ${sourceYieldC} x`);
+
+                const cPagesPerCover = parseInt(gV('calc-cover-pages')) || 4;
+                const totalCoverPagesOnSheet = finalCountCover * cPagesPerCover;
+                setT('cover-pages-equiv', `(= ${totalCoverPagesOnSheet} strani na poli)`);
 
             } else {
 
@@ -5473,7 +5446,7 @@
                 const esC = document.getElementById('empty-state-cover');
                 if (esC) {
                     if (cw > 0 && ch > 0) {
-                        esC.innerText = "❌ Tiskovina je prevelika za izbran stroj ali format!";
+                        esC.innerText = "\u274C Tiskovina je prevelika za izbran stroj ali format!";
                         esC.style.display = 'flex';
                     } else {
                         esC.innerText = "Vnesite dimenzije ovitka";
@@ -5491,6 +5464,7 @@
                 setT('header-cover-sheets-val', '0');
                 setT('res-size-cover-val', '-');
                 setT('res-source-cover-yield-info', 'Izkoristek: -');
+                setT('cover-pages-equiv', '');
 
                 if (document.getElementById('sheets-per-cover')) {
                     let cEl = document.getElementById('sheets-per-cover');
@@ -5500,14 +5474,14 @@
 
                 if (cw > 0 && ch > 0) {
                     if (document.getElementById('stats')) document.getElementById('stats').style.display = 'none';
-                    if (document.getElementById('sticky-spec-paper')) document.getElementById('sticky-spec-paper').innerText = "0.00 €";
-                    if (document.getElementById('sticky-spec-prep')) document.getElementById('sticky-spec-prep').innerText = "0.00 €";
-                    if (document.getElementById('sticky-spec-print')) document.getElementById('sticky-spec-print').innerText = "0.00 €";
-                    if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = "0.00 €";
+                    if (document.getElementById('sticky-spec-paper')) document.getElementById('sticky-spec-paper').innerText = "0.00 \u20AC";
+                    if (document.getElementById('sticky-spec-prep')) document.getElementById('sticky-spec-prep').innerText = "0.00 \u20AC";
+                    if (document.getElementById('sticky-spec-print')) document.getElementById('sticky-spec-print').innerText = "0.00 \u20AC";
+                    if (document.getElementById('sticky-spec-finish')) document.getElementById('sticky-spec-finish').innerText = "0.00 \u20AC";
                     if (document.getElementById('sticky-qty')) document.getElementById('sticky-qty').innerText = "-";
-                    if (document.getElementById('sticky-price-total')) document.getElementById('sticky-price-total').innerText = "0.00 €";
-                    if (document.getElementById('sticky-price-per-item')) document.getElementById('sticky-price-per-item').innerText = "0.000 €";
-                    if (document.getElementById('sticky-price-1000')) document.getElementById('sticky-price-1000').innerText = "0.00 €";
+                    if (document.getElementById('sticky-price-total')) document.getElementById('sticky-price-total').innerText = "0.00 \u20AC";
+                    if (document.getElementById('sticky-price-per-item')) document.getElementById('sticky-price-per-item').innerText = "0.000 \u20AC";
+                    if (document.getElementById('sticky-price-1000')) document.getElementById('sticky-price-1000').innerText = "0.00 \u20AC";
                 }
 
             }
@@ -6239,17 +6213,13 @@
 
 
         function applyMachineDefaults(comp = 'leaves') {
-
-            const itemsInp = document.getElementById('items-per-sheet');
-
-            if (itemsInp) itemsInp.value = "";
-
-            const itemsInpCover = document.getElementById('items-per-sheet-cover');
-
-            if (itemsInpCover) itemsInpCover.value = "";
-
-
-
+            if (comp === 'leaves') {
+                const itemsInp = document.getElementById('items-per-sheet');
+                if (itemsInp) itemsInp.value = "";
+            } else {
+                const itemsInpCover = document.getElementById('items-per-sheet-cover');
+                if (itemsInpCover) itemsInpCover.value = "";
+            }
             // Samodejno nastavi format na 'auto', da sistem sam poišče najboljšo polo ob menjavi stroja
 
             const formatId = comp === 'leaves' ? 'machine-format' : 'machine-format-cover';
