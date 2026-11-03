@@ -892,46 +892,46 @@
                     <!-- DROPDOWN ZA PROJEKTE -->
 
                     <div id="projects-dropdown-list"
-                        style="display: none; position: absolute; top: 100%; right: 0; width: 320px; background: #1e293b; border: 2px solid #64748b; border-radius: 12px; max-height: 400px; overflow: hidden; z-index: 2000; margin-top: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); flex-direction: column;">
+                        style="display: none; position: absolute; top: 100%; right: 0; width: 420px; background: #1e293b; border: 2px solid #64748b; border-radius: 12px; max-height: 520px; overflow: hidden; z-index: 2000; margin-top: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); flex-direction: column;">
 
-                        <!-- STATIČNA GLAVA Z ISKANJEM -->
-
+                        <!-- STATIČNA GLAVA Z ISKANJEM IN FILTRI -->
                         <div style="padding: 10px; border-bottom: 2px solid #334155; background: #1e293b;">
 
-                            <input type="text" id="project-search-input" placeholder="Išči (ime, stranka, šifra)..."
-                                style="width: 100%; padding: 8px; border-radius: 6px; background: #0f172a; border: 1px solid #475569; color: white; font-size: 0.8rem;"
+                            <input type="text" id="project-search-input" placeholder="🔍 Išči po vseh ponudbah (stranka, šifra, ime)..."
+                                style="width: 100%; padding: 8px 10px; border-radius: 6px; background: #0f172a; border: 1px solid #475569; color: white; font-size: 0.82rem;"
                                 oninput="renderSavedProjects()">
 
-                            <div style="margin-top: 8px; display: flex; gap: 5px;">
-
-                                <button onclick="syncWithFolder()"
-                                    style="flex: 1.2; background: #10b981; border: 1px solid #059669; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;"
-                                    title="Prikaži datoteke iz mape na disku (C:\TISKOVNE_POLE)">
-
-                                    📂 POVEŽI Z MAPO
-
+                            <div style="margin-top: 8px; display: flex; gap: 5px; align-items: center;">
+                                <button type="button" id="btn-filter-all" onclick="setProjectFilterMode('all')"
+                                    style="flex: 1.2; background: #3b82f6; color: white; border: none; padding: 5px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;"
+                                    title="Prikaži vse shranjene kalkulacije na strežniku">
+                                    🌐 VSE NA STREŽNIKU (<span id="count-filter-all">...</span>)
                                 </button>
-
-                                <button onclick="syncWithFolder(true)"
-                                    style="background: #059669; border: 1px solid #047857; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;"
-                                    title="Izberi drugo mapo">
-
+                                <button type="button" id="btn-filter-type" onclick="setProjectFilterMode('type')"
+                                    style="flex: 1; background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 5px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;"
+                                    title="Prikaži samo kalkulacije za Tenovis">
+                                    ⚡ TENOVIS (<span id="count-filter-type">...</span>)
+                                </button>
+                                <button type="button" onclick="fetchServerProjects().then(() => renderSavedProjects())"
+                                    style="background: #0f172a; border: 1px solid #475569; color: #38bdf8; padding: 5px 8px; border-radius: 6px; font-size: 0.75rem; cursor: pointer;"
+                                    title="Ponovno preveri strežnik (S:\PONUDBE TEST)">
                                     🔄
-
                                 </button>
-
-                                <button onclick="document.getElementById('import-file-input').click()"
-                                    style="flex: 1; background: #334155; border: 1px solid #475569; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;">
-
-                                    📤 UVOZI JSON
-
-                                </button>
-
-                                <input type="file" id="import-file-input" style="display: none;"
-                                    onchange="handleFileSelect(event)">
-
                             </div>
 
+                            <div style="margin-top: 6px; display: flex; gap: 5px;">
+                                <button onclick="syncWithFolder()"
+                                    style="flex: 1.2; background: #10b981; border: 1px solid #059669; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;"
+                                    title="Prikaži datoteke iz mape na disku">
+                                    📂 POVEŽI Z MAPO
+                                </button>
+                                <button onclick="document.getElementById('import-file-input').click()"
+                                    style="flex: 1; background: #334155; border: 1px solid #475569; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;">
+                                    📤 UVOZI JSON
+                                </button>
+                                <input type="file" id="import-file-input" style="display: none;"
+                                    onchange="handleFileSelect(event)">
+                            </div>
                         </div>
 
                         <!-- SCROLLABLE LIST CONTAINER -->
@@ -9838,14 +9838,65 @@ async function extractCustomersFromDisk() {
             return false;
         }
 
+        window.g_serverFilterMode = 'all';
+
+        function setProjectFilterMode(mode) {
+            window.g_serverFilterMode = mode;
+            renderSavedProjects();
+        }
+
+        function getProjectCategoryInfo(p) {
+            const src = (p.source || p._source || '').toLowerCase();
+            const fname = (p.file || p.name || '').toLowerCase();
+            if (src.includes('tenovis') || fname.includes('tenovis') || fname.includes('_230') || fname.includes('_240')) {
+                return { type: 'tenovis', label: 'TENOVIS', color: '#c084fc', bg: 'rgba(192, 132, 252, 0.15)', icon: '⚡' };
+            }
+            if (src.includes('kuvert') || fname.includes('kuvert')) {
+                return { type: 'kuverte', label: 'KUVERTE', color: '#fb7185', bg: 'rgba(251, 113, 133, 0.15)', icon: '✉️' };
+            }
+            if (src.includes('etiket') || fname.includes('etiket')) {
+                return { type: 'etikete', label: 'ETIKETE', color: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.15)', icon: '🏷️' };
+            }
+            if (src.includes('brosur') || fname.includes('brosur') || fname.includes('brošur') || fname.includes('broura') || fname.includes('brour') || fname.includes('.brosura.json')) {
+                return { type: 'brosura', label: 'BROŠURA', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.15)', icon: '📖' };
+            }
+            if (src.includes('blok') || fname.includes('blok')) {
+                return { type: 'blok', label: 'BLOK', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.15)', icon: '📋' };
+            }
+            return { type: 'pola', label: 'POLA', color: '#34d399', bg: 'rgba(52, 211, 153, 0.15)', icon: '📑' };
+        }
+
+        function openProjectSmart(safeFile, projSource) {
+            if (typeof toggleProjectsDropdown === 'function') toggleProjectsDropdown();
+            const cat = getProjectCategoryInfo({ file: safeFile, source: projSource });
+            const currentCalc = 'tenovis';
+
+            if (cat.type !== currentCalc && window.parent && window.parent !== window && typeof window.parent.switchTab === 'function') {
+                try {
+                    window.parent.switchTab(cat.type);
+                    const ifr = window.parent.document.getElementById('iframe_' + cat.type);
+                    if (ifr && ifr.contentWindow && typeof ifr.contentWindow.loadProjectFromServer === 'function') {
+                        setTimeout(() => {
+                            try { ifr.contentWindow.loadProjectFromServer(safeFile); } catch (e) {}
+                        }, 150);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn("Preklop med zavihki ni uspel:", e);
+                }
+            }
+
+            if (typeof loadProjectFromServer === 'function') {
+                loadProjectFromServer(safeFile);
+            }
+        }
+
         function renderSavedProjects() {
             function getSearchableText(obj) {
                 let text = "";
                 for (let key in obj) {
                     if (obj.hasOwnProperty(key)) {
-                        if (key.toLowerCase().includes('html') || key === 'id' || key === 'timestamp') {
-                            continue;
-                        }
+                        if (key.toLowerCase().includes('html') || key === 'id' || key === 'timestamp') continue;
                         let val = obj[key];
                         if (typeof val === 'object' && val !== null) {
                             text += " " + getSearchableText(val);
@@ -9863,39 +9914,116 @@ async function extractCustomersFromDisk() {
             const searchInput = document.getElementById('project-search-input');
             const filter = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
-            let html = "";
+            const allServerProjects = Array.isArray(g_serverProjects) ? g_serverProjects : [];
+            const tenovisServerCount = allServerProjects.filter(p => getProjectCategoryInfo(p).type === 'tenovis').length;
 
-            // 1. DODAJ PONUDBE ZE STREŽNIKA (PONUDBE 2026)
-            if (g_serverProjects.length > 0) {
-                let srvFiltered = g_serverProjects.filter(isTenovisProject);
-                if (filter) {
-                    srvFiltered = srvFiltered.filter(p => {
-                        const str = `${p.file} ${p.name} ${p.customer} ${p.quoteNum}`.toLowerCase();
-                        return filter.split(/\s+/).every(term => str.includes(term));
-                    });
+            const countAllEl = document.getElementById('count-filter-all');
+            const countTypeEl = document.getElementById('count-filter-type');
+            if (countAllEl) countAllEl.innerText = allServerProjects.length;
+            if (countTypeEl) countTypeEl.innerText = tenovisServerCount;
+
+            const btnAll = document.getElementById('btn-filter-all');
+            const btnType = document.getElementById('btn-filter-type');
+            const activeMode = window.g_serverFilterMode || 'all';
+            if (btnAll) {
+                if (activeMode === 'all') {
+                    btnAll.style.background = '#3b82f6';
+                    btnAll.style.color = 'white';
+                    btnAll.style.border = 'none';
+                } else {
+                    btnAll.style.background = '#334155';
+                    btnAll.style.color = '#94a3b8';
+                    btnAll.style.border = '1px solid #475569';
                 }
-                if (srvFiltered.length > 0) {
-                    html += '<div style="padding: 5px 12px; background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(59, 130, 246, 0.3);">🖥️ PONUDBE NA STREŽNIKU (Srečko server - PONUDBE TEST)</div>';
-                    srvFiltered.forEach(p => {
-                        const safeFile = p.file.replace(/'/g, "\\'");
-                        const custStr = p.customer ? ` | Stranka: ${escapeHtml(p.customer)}` : '';
-                        const dateStr = p.date ? ` (${p.date})` : '';
-                        html += `
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='transparent'">
-                                <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProjectFromServer('${safeFile}'); toggleProjectsDropdown();">
-                                    <div style="font-weight: bold; color: #38bdf8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
-                                        📄 ${escapeHtml(p.file)}
-                                    </div>
-                                    <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">Strežnik${custStr}${dateStr}</div>
-                                </div>
-                            </div>`;
-                    });
+            }
+            if (btnType) {
+                if (activeMode === 'type') {
+                    btnType.style.background = '#3b82f6';
+                    btnType.style.color = 'white';
+                    btnType.style.border = 'none';
+                } else {
+                    btnType.style.background = '#334155';
+                    btnType.style.color = '#94a3b8';
+                    btnType.style.border = '1px solid #475569';
                 }
             }
 
-            // 2. DODAJ DATOTEKE Z DISKA (TENOVIS)
-            if (g_diskProjects.length > 0) {
-                html += '<div style="padding: 5px 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(16, 185, 129, 0.2);">📁 DATOTEKE NA DISKU (TENOVIS)</div>';
+            let html = "";
+
+            if (g_projectsDirHandle) {
+                html += '<div style="padding: 6px 12px; background: rgba(16, 185, 129, 0.15); border-bottom: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.75rem; font-weight: bold; color: #10b981; display: flex; justify-content: space-between; align-items: center;">' +
+                    '<span>📁 Povezana: [' + g_projectsDirHandle.name + ']</span>' +
+                    '<div style="display:flex; gap:4px;">' +
+                    '<button onclick="refreshDiskProjects(true).then(() => renderSavedProjects())" style="background:#0284c7; color:white; border:none; padding:2px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer;" title="Ponovno preberi vse datoteke in osveži hitri indeks">🔄 Osveži</button>' +
+                    '<button onclick="syncWithFolder()" style="background:#10b981; color:white; border:none; padding:2px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer;" title="Spremeni mapo">Spremeni</button>' +
+                    '</div>' +
+                    '</div>';
+            }
+
+            // 0. PONUDBE ZE STREŽNIKA (Srečko server 8095 -> PONUDBE TEST)
+            if (allServerProjects.length > 0) {
+                let srvFiltered = allServerProjects;
+                if (filter) {
+                    const terms = filter.split(/\s+/).filter(Boolean);
+                    srvFiltered = allServerProjects.filter(p => {
+                        const str = `${p.file} ${p.name || ''} ${p.customer || ''} ${p.quoteNum || ''}`.toLowerCase();
+                        return terms.every(term => str.includes(term));
+                    });
+                } else if (activeMode === 'type') {
+                    srvFiltered = allServerProjects.filter(p => getProjectCategoryInfo(p).type === 'tenovis');
+                }
+
+                if (srvFiltered.length > 0) {
+                    const headerLabel = filter 
+                        ? `🔍 REZULTATI ISKANJA NA STREŽNIKU (${srvFiltered.length})` 
+                        : (activeMode === 'type' 
+                            ? `⚡ TENOVIS NA STREŽNIKU (${srvFiltered.length})` 
+                            : `🌐 VSE PONUDBE NA STREŽNIKU (${srvFiltered.length})`);
+
+                    html += `<div style="padding: 6px 12px; background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.72rem; font-weight: bold; border-bottom: 1px solid rgba(59, 130, 246, 0.3); display: flex; justify-content: space-between; align-items: center;">
+                        <span>${headerLabel}</span>
+                        <span style="font-size: 0.65rem; color: #94a3b8; font-weight: normal;">S:\\PONUDBE TEST</span>
+                    </div>`;
+
+                    srvFiltered.forEach(p => {
+                        const safeFile = p.file.replace(/'/g, "\\'");
+                        const cat = getProjectCategoryInfo(p);
+                        const custStr = p.customer ? `<div style="font-size: 0.72rem; color: #6ee7b7; font-weight: 600; margin-top: 1px;">👤 ${p.customer}</div>` : '';
+                        const dateStr = p.date || 'Strežnik';
+                        const qNumStr = p.quoteNum ? `<span style="color:#fde047; font-weight:bold;">pon. ${p.quoteNum}</span> | ` : '';
+                        const totalStr = p.total ? `<div style="text-align: right; margin-left: 8px;"><div style="color: #10b981; font-weight: bold; font-size: 0.85rem;">${p.total}</div></div>` : '';
+
+                        html += `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='transparent'">
+                                <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="openProjectSmart('${safeFile}', '${cat.type}')">
+                                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+                                        <span style="font-size: 0.62rem; font-weight: 800; padding: 1px 5px; border-radius: 4px; background: ${cat.bg}; color: ${cat.color}; border: 1px solid ${cat.color}40; letter-spacing: 0.3px;">${cat.icon} ${cat.label}</span>
+                                        <div style="font-weight: 600; color: #38bdf8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.82rem;" title="${safeFile}">
+                                            ${p.file}
+                                        </div>
+                                    </div>
+                                    ${custStr}
+                                    <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 1px;">${qNumStr}${dateStr}</div>
+                                </div>
+                                ${totalStr}
+                            </div>`;
+                    });
+                } else if (filter) {
+                    html += `<div style="padding: 16px 12px; text-align: center; color: #94a3b8; font-size: 0.8rem;">
+                        Za iskanje "<strong style="color:white;">${filter}</strong>" na strežniku ni zadetkov.
+                    </div>`;
+                }
+            } else {
+                html += `<div style="padding: 24px 16px; text-align: center; color: #38bdf8; font-size: 0.82rem;">
+                    <div style="font-size: 1.5rem; margin-bottom: 6px;">⏳</div>
+                    <strong>Nalagam kalkulacije s strežnika...</strong>
+                    <div style="color: #64748b; font-size: 0.7rem; margin-top: 4px;">Povezujem z mapo S:\\PONUDBE TEST</div>
+                </div>`;
+            }
+
+            // 1. DATOTEKE NA DISKU (če je mapa povezana)
+            if (g_diskProjects && g_diskProjects.length > 0) {
+                html += '<div style="padding: 5px 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(16, 185, 129, 0.2);">📁 DATOTEKE NA DISKU</div>';
                 let diskFiltered = g_diskProjects;
                 if (filter) diskFiltered = g_diskProjects.filter(e => e.name.toLowerCase().includes(filter));
                 diskFiltered.forEach(entry => {
@@ -9905,16 +10033,14 @@ async function extractCustomersFromDisk() {
                     let metaQuote = meta.quoteNum ? (' | ' + meta.quoteNum) : '';
                     let metaDate = meta.date || 'Lokalna datoteka';
                     let metaTotal = meta.total || '';
-                    let metaFormat = meta.sourceFormat ? `<div style="font-size: 0.68rem; color: #38bdf8; margin-top: 1px;">📐 ${meta.sourceFormat}</div>` : '';
 
                     html += `
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155; transition: background 0.2s;" class="project-item-row" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
                             <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProjectFromDisk('${safeName}'); toggleProjectsDropdown();">
                                 <div style="font-weight: bold; color: #10b981; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;" title="${safeName}">
-                                    📄 ${escapeHtml(entry.name)}
+                                    📄 ${entry.name}
                                 </div>
-                                ${metaCust ? `<div style="font-size: 0.75rem; color: #e2e8f0; font-weight: 600; margin-top: 2px;">👤 ${escapeHtml(metaCust)}${metaQuote}</div>` : ''}
-                                ${metaFormat}
+                                ${metaCust ? `<div style="font-size: 0.75rem; color: #e2e8f0; font-weight: 600; margin-top: 2px;">👤 ${metaCust}${metaQuote}</div>` : ''}
                                 <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${metaDate}</div>
                             </div>
                             ${metaTotal ? `<div style="text-align: right; margin-left: 8px;"><div style="color: #10b981; font-weight: bold; font-size: 0.85rem;">${metaTotal}</div></div>` : ''}
@@ -9922,41 +10048,51 @@ async function extractCustomersFromDisk() {
                 });
             }
 
-            // 3. DODAJ ARHIV IZ LOCALSTORAGE
-            let arhiv = [];
-            try {
-                arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-            } catch (e) { arhiv = []; }
-
-            let filtered = filter ? arhiv.filter(proj => {
+            // 2. LOKALNI ARHIV BRUSKALNIKA
+            let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            arhiv = arhiv.filter(proj => isTenovisProject(proj));
+            let localFiltered = filter ? arhiv.filter(proj => {
                 const searchStr = getSearchableText(proj).toLowerCase();
                 const terms = filter.split(/\s+/).filter(Boolean);
                 return terms.every(term => searchStr.includes(term));
             }) : arhiv;
-            filtered.sort((a, b) => b.id - a.id);
+            localFiltered.sort((a, b) => b.id - a.id);
 
-            if (filtered.length > 0) {
-                html += '<div style="padding: 5px 12px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(245, 158, 11, 0.2);">💾 SHRANJENO V BRSKALNIKU (LocalStorage)</div>';
-                filtered.forEach(proj => {
-                    html += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #334155;" class="project-item-row">
-                            <div style="cursor: pointer; flex: 1; min-width: 0;" onclick="loadProject(${proj.id}); toggleProjectsDropdown();">
-                                <div style="font-weight: bold; color: #f59e0b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem;">
-                                    📌 ${escapeHtml(proj.name || 'Neimenovan projekt')}
-                                </div>
-                                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${escapeHtml(proj.customer || '')} - ${proj.date || ''}</div>
+            if (localFiltered.length > 0 && allServerProjects.length === 0) {
+                html += '<div style="padding: 5px 12px; background: rgba(59, 130, 246, 0.1); color: #60a5fa; font-size: 0.7rem; font-weight: bold; border-bottom: 1px solid rgba(59, 130, 246, 0.2);">⭐ LOKALNI ARHIV BRUSKALNIKA</div>';
+                html += localFiltered.map(proj => `
+                    <div style="padding: 10px 12px; border-bottom: 1px solid #334155; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='transparent'">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;" onclick="loadProject('${proj.id}'); toggleProjectsDropdown();">
+                            <div style="flex: 1;">
+                                <div style="color: #f8fafc; font-weight: bold; font-size: 0.85rem;">${proj.name || 'Brez imena'}</div>
+                                <div style="color: #94a3b8; font-size: 0.72rem;">${proj.customer || 'Neznana stranka'}</div>
+                                <div style="color: #64748b; font-size: 0.68rem; margin-top: 1px;">${proj.date || ''}</div>
                             </div>
-                            <button onclick="deleteProject(${proj.id}); event.stopPropagation();" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px 8px; font-size: 0.9rem;" title="Izbriši iz brskalnika">🗑️</button>
-                        </div>`;
-                });
-            }
-
-            if (!html) {
-                html = '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.85rem;">Ni najdenih projektov.</div>';
+                            <div style="text-align: right;">
+                                <div style="color: #10b981; font-weight: bold; font-size: 0.85rem;">${(proj.results && proj.results.total) ? proj.results.total : ''}</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
             }
 
             listContent.innerHTML = html;
         }
+
+        (function initAutoFetchServerProjects() {
+            function doFetch() {
+                if (typeof fetchServerProjects === 'function') {
+                    fetchServerProjects().then(() => {
+                        if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                    }).catch(() => {});
+                }
+            }
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                setTimeout(doFetch, 50);
+            } else {
+                document.addEventListener('DOMContentLoaded', doFetch);
+            }
+        })();
 
         function exportSingleProject(id) {
 
