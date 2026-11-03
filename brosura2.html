@@ -1376,7 +1376,7 @@
 
                     <label>št. strani v brošuri</label>
 
-                    <input type="number" id="calc-leaves" value="" onchange="calculate()">
+                    <input type="number" id="calc-leaves" value="" oninput="document.getElementById('items-per-sheet').value=''; calculate()" onchange="calculate()">
 
                 </div>
 
@@ -4475,6 +4475,66 @@
                 return bestLayout;
             }
 
+            function getTargetLayout(sheetW, sheetH, itemW, itemH, gripper, targetCount, forceOrientation = 'auto', isDigital = false) {
+                if (!targetCount || targetCount <= 0) return null;
+                let bestLayout = null;
+                let minScore = Infinity;
+
+                const check = (sW, sH, iW, iH, gripOnW, rot) => {
+                    let printW = sW - (gripOnW ? gripper : 0);
+                    let printH = sH - (gripOnW ? 0 : gripper);
+                    if (isDigital) {
+                        if (sW >= sH) {
+                            printW = Math.min(printW, 470);
+                            printH = Math.min(printH, 310);
+                        } else {
+                            printW = Math.min(printW, 310);
+                            printH = Math.min(printH, 470);
+                        }
+                    }
+                    let maxCols = Math.floor(printW / iW);
+                    let maxRows = Math.floor(printH / iH);
+                    if (maxCols <= 0 || maxRows <= 0) return;
+                    if (maxCols * maxRows < targetCount) return;
+
+                    for (let c = 1; c <= maxCols; c++) {
+                        for (let r = 1; r <= maxRows; r++) {
+                            if (c * r >= targetCount) {
+                                let excess = (c * r) - targetCount;
+                                let penGrip = gripOnW ? 50 : 0;
+                                let marginW = printW - (c * iW);
+                                let marginH = printH - (r * iH);
+                                let penMargin = Math.abs(marginW - marginH);
+                                let score = (excess * 100000) + (penGrip * 1000) + penMargin;
+                                if (score < minScore) {
+                                    minScore = score;
+                                    bestLayout = {
+                                        count: targetCount,
+                                        cols: c,
+                                        rows: r,
+                                        itemW: iW,
+                                        itemH: iH,
+                                        rot: rot,
+                                        gripEdge: gripOnW ? 'W' : 'H'
+                                    };
+                                }
+                            }
+                        }
+                    }
+                };
+
+                if (forceOrientation === 'auto' || forceOrientation === 'landscape') {
+                    check(sheetW, sheetH, itemW, itemH, true, false);
+                    check(sheetW, sheetH, itemW, itemH, false, false);
+                }
+                if (forceOrientation === 'auto' || forceOrientation === 'portrait') {
+                    check(sheetW, sheetH, itemH, itemW, true, true);
+                    check(sheetW, sheetH, itemH, itemW, false, true);
+                }
+
+                return bestLayout;
+            }
+
             function filterAvailableFormats() {
 
                 // Za listi
@@ -4695,17 +4755,27 @@
 
                 // Ročni vnos (število strani na poli)
 
+                const leavesPerBlock = parseFloat(gV('calc-leaves')) || 0;
+
                 const itemsInp = document.getElementById('items-per-sheet');
 
-                let targetCount = itemsInp ? Math.floor((parseInt(itemsInp.value) || 0) / 4) : 0;
+                let manualSpreads = itemsInp ? Math.floor((parseInt(itemsInp.value) || 0) / 4) : 0;
 
                 if (isManual && itemsInp) {
 
-                    targetCount = 0;
+                    manualSpreads = 0;
 
                     itemsInp.value = 0;
 
                 }
+
+                const isAutoLeavesCount = !itemsInp || !itemsInp.value || itemsInp.value == "0" || parseInt(itemsInp.value) === window.g_autoCountBrosura;
+
+                const desiredSpreads = leavesPerBlock > 0 ? Math.ceil(leavesPerBlock / 4) : 0;
+
+                let targetCount = (!isAutoLeavesCount && manualSpreads > 0) ? manualSpreads : 0;
+
+                let effectiveTarget = targetCount > 0 ? targetCount : desiredSpreads;
 
 
 
@@ -4800,13 +4870,13 @@
 
                             let score;
 
-                            let isSatisfied = (targetCount > 0 && bestForThisSheet.count >= targetCount);
+                            let isSatisfied = (effectiveTarget > 0 && bestForThisSheet.count >= effectiveTarget);
 
                             const isStandard = sheet.family === 'B' || sheet.family === 'A' || sheet.family === 'N' || sheet.family === 'DIGITAL';
                             const standardBonus = isStandard ? 10000000 : 0;
                             const standardBonusNormal = isStandard ? 500 : 0;
 
-                            if (targetCount > 0) {
+                            if (effectiveTarget > 0) {
 
                                 if (isSatisfied) {
 
@@ -4868,60 +4938,54 @@
 
                     if (document.getElementById('stats')) document.getElementById('stats').style.display = 'grid';
 
+                    drawW = bestSheet.mode === 'L' ? bestSheet.w : bestSheet.h;
+                    drawH = bestSheet.mode === 'L' ? bestSheet.h : bestSheet.w;
 
+                    const maxFittingSpreads = bestLayout.count;
+                    const maxFittingPages = maxFittingSpreads * 4;
 
-                    if (itemsInp && (isManual || itemsInp.value == "0" || itemsInp.value == "" || parseInt(itemsInp.value) === window.g_autoCountBrosura)) {
-
-                        itemsInp.value = bestLayout.count * 4;
-
-                        window.g_autoCountBrosura = bestLayout.count * 4;
-
+                    let autoPages = maxFittingPages;
+                    if (leavesPerBlock > 0 && leavesPerBlock < maxFittingPages) {
+                        autoPages = leavesPerBlock;
                     }
 
+                    if (itemsInp && (isManual || itemsInp.value == "0" || itemsInp.value == "" || parseInt(itemsInp.value) === window.g_autoCountBrosura)) {
+                        itemsInp.value = autoPages;
+                        window.g_autoCountBrosura = autoPages;
+                    }
 
+                    const currentCount = itemsInp ? (Math.floor((parseInt(itemsInp.value) || 0) / 4) || maxFittingSpreads) : maxFittingSpreads;
 
-                    const currentCount = itemsInp ? (Math.floor((parseInt(itemsInp.value) || 0) / 4) || bestLayout.count) : bestLayout.count;
-
-
+                    let finalLayout = bestLayout;
+                    if (currentCount > 0 && currentCount !== bestLayout.count) {
+                        let tLayout = getTargetLayout(drawW, drawH, itemW, itemH, g, currentCount, fMode, mTypeL === 'digital');
+                        if (tLayout) {
+                            finalLayout = tLayout;
+                        } else {
+                            finalLayout = { ...bestLayout, count: currentCount };
+                        }
+                    }
 
                     const itemW = w + (2 * b);
-
                     const itemH = h + (2 * b);
-
                     let actualArea = currentCount * (itemW * itemH);
-
                     let totalArea = bestSheet.w * bestSheet.h;
-
                     let usage = (actualArea / totalArea * 100).toFixed(1) + '%';
 
-
-
                     setT('res-sheet', bestSheet.name);
-
                     setT('res-count', currentCount);
-
                     setT('res-usage', usage);
 
-
-
                     setT('res-sheet-mini', bestSheet.name);
-
                     setT('res-count-leaves', currentCount);
-
                     setT('res-usage-leaves', usage);
 
-
-
-                    const leavesPerBlock = parseFloat(gV('calc-leaves')) || 1;
-
                     const pagesPerSheet = currentCount * 4;
-
-                    sheetsNeededLeaves = Math.ceil((q * leavesPerBlock) / pagesPerSheet);
+                    const effLeaves = leavesPerBlock > 0 ? leavesPerBlock : pagesPerSheet;
+                    sheetsNeededLeaves = Math.ceil((q * effLeaves) / pagesPerSheet);
 
                     setT('res-sheets-needed', sheetsNeededLeaves);
-
                     setT('res-sheets-leaves-net', sheetsNeededLeaves + ' pol');
-
                     setT('header-sheets-val', sheetsNeededLeaves);
 
 
@@ -5001,7 +5065,7 @@
                         autoOptLeaves.text = (mFormat === 'auto' && bestSheet) ? `Samodejno (Izbrano: ${bestSheet.name})` : "Samodejno (B2 max)";
                     }
 
-                    drawCanvas('canvas-leaves', drawW, drawH, bestLayout, g, w, h, b, (targetCount > 0 && targetCount !== bestLayout.count), targetCount, '#3b82f6', false);
+                    drawCanvas('canvas-leaves', drawW, drawH, finalLayout, g, w, h, b, (targetCount > 0 && targetCount > maxFittingSpreads), currentCount, '#3b82f6', false);
 
                     // --- VIZUALIZACIJA RAZREZA PAPIRJA ---
 
@@ -9308,9 +9372,12 @@
 
 
 
+                let drawnItems = 0;
                 for (let r = 0; r < layout.rows; r++) {
 
                     for (let c = 0; c < layout.cols; c++) {
+                        if (layout.count && drawnItems >= layout.count) break;
+                        drawnItems++;
 
                         const x = (startX + (c * layout.itemW)) * scale;
 
