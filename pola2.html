@@ -3301,6 +3301,8 @@
         }
         function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceMode) {
             const isObrat = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
+            const isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
+            const isTwoSided = isObrat || isSV;
             const isPers = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
             const splitSelect = document.getElementById('f-personalization-split');
             const userSplit = splitSelect ? splitSelect.value : 'auto';
@@ -3413,11 +3415,20 @@
                 if (forceMode === 'auto' && !isObrat && count > 0) {
                     // Odstranjena avtomatska "mešana" postavitev (isMixed), da se ohrani simetrija in enotna smer vlaken.
                 }
-                if (isObrat) {
+                if (isTwoSided) {
                     let maxColsEven = Math.floor(cols / 2) * 2;
                     let maxRowsEven = Math.floor(rows / 2) * 2;
-                    let obratCount = Math.max(maxColsEven * rows, cols * maxRowsEven);
-                    finalCount = obratCount > 0 ? obratCount : 0;
+                    let countW = maxColsEven * rows;
+                    let countH = cols * maxRowsEven;
+                    if (countW >= countH && countW > 0) {
+                        cols = maxColsEven;
+                        finalCount = countW;
+                    } else if (countH > 0) {
+                        rows = maxRowsEven;
+                        finalCount = countH;
+                    } else {
+                        finalCount = 0;
+                    }
                 }
                 if (finalCount > 0 && (!best || finalCount > best.count)) {
                     best = {
@@ -3772,9 +3783,9 @@
                     if (spFinish) spFinish.innerText = '0.00 €';
 
                     if (isManual) {
-                        const isObrat = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
+                        const isObrat = (document.getElementById('calc-is-obrat')?.checked || document.getElementById('calc-is-sv')?.checked) || false;
                         if (isObrat) {
-                            alert("Izdelek ne gre na polo! (Nasvet: Imate vklopljeno 'Obračanje / OB', ki zahteva vsaj 2 kosa na poli. Izklopite obračanje ali zmanjšajte format.)");
+                            alert("Izdelek ne gre na polo! (Nasvet: Imate vklopljeno 'Obračanje / OB' ali 'Šen Vider (ŠV)', ki zahteva vsaj 2 kosa na poli. Izklopite obračanje/ŠV ali zmanjšajte format.)");
                         } else {
                             alert("Izdelek ne gre na polo! Preverite format (" + itemW + "x" + itemH + " vključno z bleed-om), prijemalec (" + g + "mm) in format stroja.");
                         }
@@ -3796,7 +3807,9 @@
                 let currentCount = parseInt(itemsInp.value) || bestLayout.count;
 
                 const obratCheckbox = document.getElementById('calc-is-obrat');
-                if (obratCheckbox && obratCheckbox.checked && currentCount % 2 !== 0) {
+                const svCheckbox = document.getElementById('calc-is-sv');
+                const isTwoSidedActive = (obratCheckbox && obratCheckbox.checked) || (svCheckbox && svCheckbox.checked);
+                if (isTwoSidedActive && currentCount % 2 !== 0) {
                     if (currentCount > 1) {
                         let maxEven = currentCount - 1;
                         if (bestLayout && !bestLayout.isMixed) {
@@ -3815,10 +3828,14 @@
                         itemsInp.value = currentCount;
                         // alert odstranjen glede na navodila uporabnika
                     } else {
-                        alert("Opozorilo: Izbrano je 'Obračanje / OB', vendar je na poli samo 1 stavek. Obračanje ni mogoče, zato je izklopljeno.");
-                        obratCheckbox.checked = false;
+                        alert("Opozorilo: Izbrano je '" + (obratCheckbox && obratCheckbox.checked ? "Obračanje / OB" : "Šen Vider (ŠV)") + "', vendar je na poli samo 1 stavek. Za obojestranski tisk sta potrebna vsaj 2 stavka na poli.");
+                        if (obratCheckbox) obratCheckbox.checked = false;
+                        if (svCheckbox) svCheckbox.checked = false;
                     }
                 }
+
+                document.getElementById('res-count').innerText = currentCount;
+                document.getElementById('res-count-mini').innerText = currentCount;
 
                 let usage = (currentCount * itemW * itemH) / (bestSheet.w * bestSheet.h);
                 document.getElementById('res-usage').innerText = (usage * 100).toFixed(1) + "%";
@@ -6033,7 +6050,7 @@
             let uniformCount = layout.isMixed ? (layout.cols * layout.rows) : targetCount;
             let bestC = Math.min(layout.cols, uniformCount);
             let bestR = Math.ceil(uniformCount / (bestC || 1));
-            const isObratChecked = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
+            const isObratChecked = (document.getElementById('calc-is-obrat')?.checked || document.getElementById('calc-is-sv')?.checked) || false;
             let foundPerfect = false;
             if (!layout.isMixed) {
                 let bestPerfectDiff = 999999;
@@ -6042,7 +6059,7 @@
                         let tempR = targetCount / tempC;
                         if (tempR <= layout.rows) {
                             let diff = Math.abs(tempC - tempR);
-                            if (isObratChecked && tempC % 2 !== 0) diff += 1000;
+                            if (isObratChecked && tempC % 2 !== 0 && tempR % 2 !== 0) diff += 1000;
                             if (!foundPerfect || diff < bestPerfectDiff || (diff === bestPerfectDiff && tempC > bestC)) {
                                 bestC = tempC;
                                 bestR = tempR;
@@ -6059,8 +6076,8 @@
                             let diff = Math.abs(tempC - tempR);
                             let currentBestDiff = Math.abs(bestC - bestR);
                             if (isObratChecked) {
-                                if (bestC % 2 !== 0) currentBestDiff += 1000;
-                                if (tempC % 2 !== 0) diff += 1000;
+                                if (bestC % 2 !== 0 && bestR % 2 !== 0) currentBestDiff += 1000;
+                                if (tempC % 2 !== 0 && tempR % 2 !== 0) diff += 1000;
                             }
                             if (diff < currentBestDiff || (diff === currentBestDiff && tempC > bestC)) {
                                 bestC = tempC;
@@ -6401,7 +6418,8 @@
                     ctx.setLineDash([]);
 
                     // Značka osi
-                    const badgeText = '✂ OS OBRAČANJA (STRAN A | STRAN B)';
+                    const isSVChecked = document.getElementById('calc-is-sv')?.checked || false;
+                    const badgeText = isSVChecked ? '✂ OS ŠV (STRAN A | STRAN B)' : '✂ OS OBRAČANJA (STRAN A | STRAN B)';
                     ctx.font = 'bold 10px Inter, sans-serif';
                     const tw = ctx.measureText(badgeText).width;
                     const bw = tw + 16;
@@ -6440,7 +6458,8 @@
                     ctx.stroke();
                     ctx.setLineDash([]);
 
-                    const badgeText = '✂ OS OBRAČANJA (STRAN A | STRAN B)';
+                    const isSVChecked = document.getElementById('calc-is-sv')?.checked || false;
+                    const badgeText = isSVChecked ? '✂ OS ŠV (STRAN A | STRAN B)' : '✂ OS OBRAČANJA (STRAN A | STRAN B)';
                     ctx.font = 'bold 10px Inter, sans-serif';
                     const tw = ctx.measureText(badgeText).width;
                     const bw = tw + 16;
