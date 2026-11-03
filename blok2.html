@@ -3874,7 +3874,7 @@ window.addEventListener('error', function (e) {
                         let familyMatches = isNoPrintL || isSheetFamilyMatching(rawFamily, sheet.family, mTypeL, sheet.name);
                         if (!fitsSource || !familyMatches) return;
 
-                        let isObratL = document.getElementById('calc-is-obrat-leaves')?.checked || false;
+                        let isObratL = (document.getElementById('calc-is-obrat-leaves')?.checked || document.getElementById('calc-is-sv-leaves')?.checked) || false;
                         let layout1 = optimizeLayout(sheet.w, sheet.h, itemW, itemH, effG, fMode, mTypeL === 'digital', isObratL);
                         let layout2 = optimizeLayout(sheet.h, sheet.w, itemW, itemH, effG, fMode, mTypeL === 'digital', isObratL);
 
@@ -4068,7 +4068,7 @@ window.addEventListener('error', function (e) {
                         let familyMatches = isNoPrintC || isSheetFamilyMatching(rawFamilyC, sheet.family, mTypeC, sheet.name);
                         if (!fitsSource || !familyMatches) return;
 
-                        let isObratC = document.getElementById('calc-is-obrat-cover')?.checked || false;
+                        let isObratC = (document.getElementById('calc-is-obrat-cover')?.checked || document.getElementById('calc-is-sv-cover')?.checked) || false;
                         let l1 = optimizeLayout(sheet.w, sheet.h, cItemW, cItemH, effCg, fModeCover, mTypeC === 'digital', isObratC);
                         let l2 = optimizeLayout(sheet.h, sheet.w, cItemW, cItemH, effCg, fModeCover, mTypeC === 'digital', isObratC);
 
@@ -4707,7 +4707,7 @@ window.addEventListener('error', function (e) {
 
                 let cFront = gV('calc-color-front-' + comp);
                 let cBack = gV('calc-color-back-' + comp);
-                let isOB = gC('calc-is-obrat-' + comp);
+                let isOB = gC('calc-is-obrat-' + comp) || gC('calc-is-sv-' + comp);
 
                 if (isOB) {
                     let itemsCount = 0;
@@ -4754,9 +4754,11 @@ window.addEventListener('error', function (e) {
                             calculate(false);
                             return;
                         } else {
-                            alert("Opozorilo: Izbrano je 'Obračanje / OB' (" + (comp === 'leaves' ? 'listi' : 'ovitek') + "), vendar je na poli samo 1 stavek. Obračanje ni mogoče, zato je izklopljeno.");
+                            alert("Opozorilo: Izbrano je '" + (gC('calc-is-obrat-' + comp) ? "Obračanje / OB" : "Šen Vider (ŠV)") + "' (" + (comp === 'leaves' ? 'listi' : 'ovitek') + "), vendar je na poli samo 1 stavek. Za obojestranski tisk sta potrebna vsaj 2 stavka na poli.");
                             let obCb = document.getElementById('calc-is-obrat-' + comp);
                             if (obCb) obCb.checked = false;
+                            let svCb = document.getElementById('calc-is-sv-' + comp);
+                            if (svCb) svCb.checked = false;
                             isOB = false;
                         }
                     }
@@ -6723,7 +6725,8 @@ window.addEventListener('error', function (e) {
                 const gridTotalH = layout.rows * layout.itemH;
 
                 const obratCbId = canvasId === 'canvas-leaves' ? 'calc-is-obrat-leaves' : 'calc-is-obrat-cover';
-                const isObratChecked = document.getElementById(obratCbId) ? document.getElementById(obratCbId).checked : false;
+                const svCbId = canvasId === 'canvas-leaves' ? 'calc-is-sv-leaves' : 'calc-is-sv-cover';
+                const isObratChecked = (document.getElementById(obratCbId)?.checked || document.getElementById(svCbId)?.checked) || false;
 
                 let bestC = layout.cols;
                 let bestR = layout.rows;
@@ -6736,7 +6739,7 @@ window.addEventListener('error', function (e) {
                             let tempR = manualTarget / tempC;
                             if (tempR <= layout.rows) {
                                 let diff = Math.abs(tempC - tempR);
-                                if (isObratChecked && tempC % 2 !== 0) diff += 1000;
+                                if (isObratChecked && tempC % 2 !== 0 && tempR % 2 !== 0) diff += 1000;
                                 if (!foundPerfect || diff < bestPerfectDiff || (diff === bestPerfectDiff && tempC > bestC)) {
                                     bestC = tempC;
                                     bestR = tempR;
@@ -6753,8 +6756,8 @@ window.addEventListener('error', function (e) {
                                 let diff = Math.abs(tempC - tempR);
                                 let currentBestDiff = Math.abs(bestC - bestR);
                                 if (isObratChecked) {
-                                    if (bestC % 2 !== 0) currentBestDiff += 1000;
-                                    if (tempC % 2 !== 0) diff += 1000;
+                                    if (bestC % 2 !== 0 && bestR % 2 !== 0) currentBestDiff += 1000;
+                                    if (tempC % 2 !== 0 && tempR % 2 !== 0) diff += 1000;
                                 }
                                 if (diff < currentBestDiff || (diff === currentBestDiff && tempC > bestC)) {
                                     bestC = tempC;
@@ -6882,24 +6885,43 @@ window.addEventListener('error', function (e) {
                     }
                 }
 
-                slots.forEach(slot => {
+                let splitByCols = isObratChecked && (usedCols % 2 === 0);
+                let splitByRows = isObratChecked && !splitByCols && (usedRows % 2 === 0);
+
+                slots.forEach((slot, slotIdx) => {
                     let r = slot.r;
                     let c = slot.c;
+
+                    let isSideA = false;
+                    let isSideB = false;
+                    if (splitByCols) {
+                        isSideA = (c < usedCols / 2);
+                        isSideB = !isSideA;
+                    } else if (splitByRows) {
+                        isSideA = (r < usedRows / 2);
+                        isSideB = !isSideA;
+                    } else if (isObratChecked) {
+                        isSideA = (slotIdx < itemsToDraw / 2);
+                        isSideB = !isSideA;
+                    }
 
                     const x = (startX + (c * layout.itemW)) * scale;
                     const y = (startY + (r * layout.itemH)) * scale;
                     const w = layout.itemW * scale;
                     const h = layout.itemH * scale;
 
-                    ctx.fillStyle = isManualMatch ? 'rgba(245, 158, 11, 0.15)' : '#3b82f6';
+                    let rectFill = isManualMatch ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)';
+                    let rectStroke = isManualMatch ? '#d97706' : '#2563eb';
+                    if (isObratChecked) {
+                        rectFill = isSideA ? 'rgba(37, 99, 235, 0.20)' : 'rgba(234, 88, 12, 0.20)';
+                        rectStroke = isSideA ? '#2563eb' : '#ea580c';
+                    }
+
+                    ctx.fillStyle = rectFill;
                     ctx.globalAlpha = 0.8;
                     ctx.fillRect(x, y, w, h);
                     ctx.globalAlpha = 1.0;
-                    ctx.strokeStyle = '#2563eb';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(x, y, w, h);
-
-                    ctx.strokeStyle = isManualMatch ? 'rgba(245, 158, 11, 0.5)' : 'rgba(59, 130, 246, 0.5)';
+                    ctx.strokeStyle = rectStroke;
                     ctx.lineWidth = 1;
                     ctx.strokeRect(x, y, w, h);
 
@@ -6908,21 +6930,135 @@ window.addEventListener('error', function (e) {
                     const bX = bleed * scale;
                     const bY = bleed * scale;
 
-                    ctx.strokeStyle = isManualMatch ? '#d97706' : '#2563eb';
+                    ctx.strokeStyle = isObratChecked ? rectStroke : (isManualMatch ? '#d97706' : '#2563eb');
                     ctx.setLineDash([2, 2]);
                     ctx.strokeRect(x + bX, y + bY, innerW, innerH);
                     ctx.setLineDash([]);
 
                     ctx.save();
-                    ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
-                    ctx.fillStyle = isManualMatch ? '#92400e' : '#1e40af';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
                     const labelW = layout.rot ? origH : origW;
                     const labelH = layout.rot ? origW : origH;
-                    ctx.fillText(`${labelW}x${labelH}`, x + (w / 2), y + (h / 2));
+                    const dimLabel = `${labelW}x${labelH}`;
+
+                    if (isObratChecked) {
+                        const isA = isSideA;
+                        const badgeColor = isA ? '#2563eb' : '#ea580c';
+                        const badgeText = (w >= 48 && h >= 36) ? (isA ? 'STRAN A' : 'STRAN B') : (isA ? 'A' : 'B');
+                        ctx.font = 'bold 10px Inter, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        const tw = ctx.measureText(badgeText).width;
+                        const bw = tw + 8;
+                        const bh = 15;
+                        const bx = x + w / 2 - bw / 2;
+                        const by = y + h / 2 - 11;
+
+                        ctx.fillStyle = badgeColor;
+                        ctx.beginPath();
+                        if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 3); else ctx.rect(bx, by, bw, bh);
+                        ctx.fill();
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillText(badgeText, x + w / 2, by + bh / 2 + 0.5);
+
+                        ctx.fillStyle = isA ? '#1d4ed8' : '#c2410c';
+                        ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
+                        ctx.fillText(dimLabel, x + (w / 2), y + (h / 2) + 9);
+                    } else {
+                        ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
+                        ctx.fillStyle = isManualMatch ? '#92400e' : '#1e40af';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(dimLabel, x + (w / 2), y + (h / 2));
+                    }
                     ctx.restore();
                 });
+
+                // Nariši rezalno os / os obračanja (če je obračanje ali ŠV aktivno)
+                if (isObratChecked && itemsToDraw >= 2) {
+                    ctx.save();
+                    const isSV = document.getElementById(svCbId)?.checked || false;
+                    const badgeText = isSV ? '✂ OS ŠV (STRAN A | STRAN B)' : '✂ OS OBRAČANJA (STRAN A | STRAN B)';
+
+                    if (usedCols % 2 === 0) {
+                        const cutX = (startX + (usedCols / 2) * layout.itemW) * scale;
+
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                        ctx.lineWidth = 6;
+                        ctx.beginPath();
+                        ctx.moveTo(cutX, 0);
+                        ctx.lineTo(cutX, canvas.height);
+                        ctx.stroke();
+
+                        ctx.strokeStyle = '#dc2626';
+                        ctx.lineWidth = 2.5;
+                        ctx.setLineDash([8, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(cutX, 0);
+                        ctx.lineTo(cutX, canvas.height);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        ctx.font = 'bold 10px Inter, sans-serif';
+                        const tw = ctx.measureText(badgeText).width;
+                        const bw = tw + 16;
+                        const bh = 22;
+                        const bx = cutX - bw / 2;
+                        const by = Math.max(10, (canvas.height - bh) / 2);
+
+                        ctx.fillStyle = '#dc2626';
+                        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                        ctx.shadowBlur = 5;
+                        ctx.beginPath();
+                        if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 5); else ctx.rect(bx, by, bw, bh);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(badgeText, cutX, by + bh / 2 + 0.5);
+                    } else if (usedRows % 2 === 0) {
+                        const cutY = (startY + (usedRows / 2) * layout.itemH) * scale;
+
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                        ctx.lineWidth = 6;
+                        ctx.beginPath();
+                        ctx.moveTo(0, cutY);
+                        ctx.lineTo(canvas.width, cutY);
+                        ctx.stroke();
+
+                        ctx.strokeStyle = '#dc2626';
+                        ctx.lineWidth = 2.5;
+                        ctx.setLineDash([8, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(0, cutY);
+                        ctx.lineTo(canvas.width, cutY);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        ctx.font = 'bold 10px Inter, sans-serif';
+                        const tw = ctx.measureText(badgeText).width;
+                        const bw = tw + 16;
+                        const bh = 22;
+                        const bx = (canvas.width - bw) / 2;
+                        const by = cutY - bh / 2;
+
+                        ctx.fillStyle = '#dc2626';
+                        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                        ctx.shadowBlur = 5;
+                        ctx.beginPath();
+                        if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 5); else ctx.rect(bx, by, bw, bh);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(badgeText, canvas.width / 2, cutY + 0.5);
+                    }
+                    ctx.restore();
+                }
 
                 // Info značka
                 ctx.save();
