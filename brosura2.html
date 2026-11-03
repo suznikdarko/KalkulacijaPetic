@@ -10735,7 +10735,74 @@ async function extractCustomersFromDisk() {
                 return null;
             }
 
-            async function saveProjectToFile() {
+                    function makeStorageSafeProject(proj) {
+            if (!proj) return proj;
+            try {
+                const item = JSON.parse(JSON.stringify(proj));
+                if (item.attachedPdf && item.attachedPdf.dataUrl) {
+                    item.attachedPdf = { name: item.attachedPdf.name, size: item.attachedPdf.size, text: item.attachedPdf.text };
+                }
+                if (Array.isArray(item.attachedPdfs)) {
+                    item.attachedPdfs = item.attachedPdfs.map(p => ({ name: p.name, size: p.size, text: p.text }));
+                }
+                if (item.editedQuoteHTML && item.editedQuoteHTML.length > 20000) item.editedQuoteHTML = '';
+                if (item.editedQuoteATHTML && item.editedQuoteATHTML.length > 20000) item.editedQuoteATHTML = '';
+                if (item.editedWorkOrderHTML && item.editedWorkOrderHTML.length > 20000) item.editedWorkOrderHTML = '';
+                return item;
+            } catch (e) {
+                return proj;
+            }
+        }
+
+        function saveArhivToStorage(key, arhivList) {
+            if (!Array.isArray(arhivList)) return false;
+            try {
+                if (localStorage.getItem('zaloga_simon_data')) {
+                    localStorage.removeItem('zaloga_simon_data');
+                }
+            } catch (e) {}
+
+            let sanitized = arhivList.map(makeStorageSafeProject);
+            if (sanitized.length > 30) sanitized = sanitized.slice(-30);
+
+            try {
+                localStorage.setItem(key, JSON.stringify(sanitized));
+                return true;
+            } catch (quotaErr) {
+                console.warn("Storage quota exceeded on first attempt, trimming older items...", quotaErr);
+                try {
+                    sanitized = sanitized.slice(-15);
+                    localStorage.setItem(key, JSON.stringify(sanitized));
+                    return true;
+                } catch (quotaErr2) {
+                    try {
+                        sanitized = sanitized.slice(-5);
+                        localStorage.setItem(key, JSON.stringify(sanitized));
+                        return true;
+                    } catch (quotaErr3) {
+                        console.error("Storage full, could not write arhiv to localStorage", quotaErr3);
+                        return false;
+                    }
+                }
+            }
+        }
+
+        (function autoFreeStorageQuota() {
+            try {
+                if (localStorage.getItem('zaloga_simon_data')) {
+                    localStorage.removeItem('zaloga_simon_data');
+                }
+                const raw = localStorage.getItem('darko_brosura_arhiv');
+                if (raw && raw.length > 300000) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) {
+                        saveArhivToStorage('darko_brosura_arhiv', parsed);
+                    }
+                }
+            } catch (e) {}
+        })();
+
+        async function saveProjectToFile() {
             try {
                 if (typeof saveCurrentCustomerContact === 'function') saveCurrentCustomerContact();
                 function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
@@ -10896,14 +10963,18 @@ async function extractCustomersFromDisk() {
                     activeBasketItemId: g_activeBasketItemId
                 };
 
-                const STORAGE_KEY_BROSURA = 'darko_brosura_arhiv';
-                let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY_BROSURA) || '[]');
-                if (typeof currentLoadedProjectId !== 'undefined' && currentLoadedProjectId) {
-                    arhiv = arhiv.filter(p => p.id !== currentLoadedProjectId);
+                try {
+                    const STORAGE_KEY_BROSURA = 'darko_brosura_arhiv';
+                    let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY_BROSURA) || '[]');
+                    if (typeof currentLoadedProjectId !== 'undefined' && currentLoadedProjectId) {
+                        arhiv = arhiv.filter(p => p.id !== currentLoadedProjectId);
+                    }
+                    arhiv.push(data);
+                    saveArhivToStorage(STORAGE_KEY_BROSURA, arhiv);
+                    if (typeof currentLoadedProjectId !== 'undefined') currentLoadedProjectId = projectId;
+                } catch (storageErr) {
+                    console.warn("Lokalni arhiv brskalnika ni bil posodobljen:", storageErr);
                 }
-                arhiv.push(data);
-                localStorage.setItem(STORAGE_KEY_BROSURA, JSON.stringify(arhiv));
-                if (typeof currentLoadedProjectId !== 'undefined') currentLoadedProjectId = projectId;
 
                 const jsonStr = JSON.stringify(data, null, 2);
                 const nakladaStr = gv('quantity');
@@ -11702,7 +11773,7 @@ async function extractCustomersFromDisk() {
 
                 arhiv = arhiv.filter(p => p.id != id);
 
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
+                saveArhivToStorage(STORAGE_KEY, arhiv);
 
                 renderSavedProjects();
 
