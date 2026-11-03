@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 
 <html lang="sl">
 
@@ -1498,11 +1498,12 @@
 
                 <div style="flex: 1; min-width: min-content;">
 
-                    <label title="Število kosov ovitka na tiskarski poli (1 ovitek = 4 strani)">Št. ovitkov na poli</label>
+                    <label title="Število kosov ovitka na tiskarski poli (1 ovitek = 4 strani)">Št. ovitkov na
+                        poli</label>
 
                     <input type="number" id="items-per-sheet-cover" value="" placeholder="Avto" oninput="calculate()">
                     <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.2rem;" id="cover-pages-equiv"></div>
- 
+
 
                 </div>
 
@@ -9467,14 +9468,6 @@
 
 
 
-            // Preveri ali je vklopljeno obracanje (Tisk na obrat)
-            const isObrat = isCover 
-                ? (document.getElementById('calc-is-obrat-cover')?.checked || false)
-                : (document.getElementById('calc-is-obrat-leaves')?.checked || false);
-
-            const splitByCols = isObrat && (layout.cols % 2 === 0);
-            const splitByRows = isObrat && !splitByCols && (layout.rows % 2 === 0);
-
             let drawnItems = 0;
             for (let r = 0; r < layout.rows; r++) {
 
@@ -9482,49 +9475,58 @@
                     if (layout.count && drawnItems >= layout.count) break;
                     drawnItems++;
 
-                    let isSideA = false;
-                    let isSideB = false;
-                    if (splitByCols) {
-                        isSideA = (c < layout.cols / 2);
-                        isSideB = !isSideA;
-                    } else if (splitByRows) {
-                        isSideA = (r < layout.rows / 2);
-                        isSideB = !isSideA;
-                    } else if (isObrat) {
-                        isSideA = (drawnItems <= layout.count / 2);
-                        isSideB = !isSideA;
-                    }
-
                     const x = (startX + (c * layout.itemW)) * scale;
+
                     const y = (startY + (r * layout.itemH)) * scale;
+
                     const w = layout.itemW * scale;
+
                     const h = layout.itemH * scale;
 
+
+
                     // Polnilo stavka
+
                     let rectFill = isCover ? 'rgba(244, 63, 94, 0.15)' : (isManualMatch ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)');
-                    if (isObrat) {
-                        rectFill = isSideA ? 'rgba(37, 99, 235, 0.18)' : 'rgba(234, 88, 12, 0.18)';
-                    }
 
                     ctx.fillStyle = rectFill;
+
                     ctx.globalAlpha = 0.8;
+
                     ctx.fillRect(x, y, w, h);
+
                     ctx.globalAlpha = 1.0;
 
-                    // Bleed rob (rdeca barva za porez ali barva strani pri obratu)
-                    ctx.strokeStyle = isObrat ? (isSideA ? '#2563eb' : '#ea580c') : '#ef4444';
+
+
+                    // Bleed rob (rdeča barva za porez)
+
+                    ctx.strokeStyle = '#ef4444';
+
                     ctx.lineWidth = 1;
+
                     ctx.strokeRect(x, y, w, h);
 
+
+
                     // Netto rob (rez)
+
                     const innerW = (layout.rot ? origH : origW) * scale;
+
                     const innerH = (layout.rot ? origW : origH) * scale;
+
                     const bX = bleed * scale;
+
                     const bY = bleed * scale;
 
-                    ctx.strokeStyle = '#10b981'; // Zelena crtkana crta za neto format strani (rez)
+
+
+                    ctx.strokeStyle = '#10b981'; // Zelena črtkana črta za neto format strani (rez)
+
                     ctx.lineWidth = 1.5;
+
                     ctx.setLineDash([4, 4]);
+
                     ctx.strokeRect(x + bX, y + bY, innerW, innerH);
 
                     // Izris posameznih zaprtih strani znotraj odprtega formata
@@ -9539,12 +9541,12 @@
                             for (let i = 1; i < panels; i++) {
                                 ctx.beginPath();
                                 if (!layout.rot) {
-                                    // Vertikalne crte za nerotiran element
+                                    // Vertikalne črte za nerotiran element
                                     const divX = x + bX + i * (innerW / panels);
                                     ctx.moveTo(divX, y + bY);
                                     ctx.lineTo(divX, y + bY + innerH);
                                 } else {
-                                    // Horizontalne crte za rotiran element
+                                    // Horizontalne črte za rotiran element
                                     const divY = y + bY + i * (innerH / panels);
                                     ctx.moveTo(x + bX, divY);
                                     ctx.lineTo(x + bX + innerW, divY);
@@ -9555,135 +9557,29 @@
                     }
 
                     ctx.setLineDash([]);
-                    ctx.lineWidth = 1;
 
-                    // Dimenzije in oznaka Stran A / B
+                    ctx.lineWidth = 1; // Ponastavimo debelino linije
+
+
+
+                    // Dimenzije v sredini vsakega stavka
+
                     ctx.save();
-                    if (isObrat && (isSideA || isSideB)) {
-                        const isMini = (w < 75 || h < 50);
-                        const sideLabel = isSideA ? (isMini ? 'A' : 'STRAN A') : (isMini ? 'B' : 'STRAN B');
-                        const sideColor = isSideA ? '#2563eb' : '#ea580c';
 
-                        ctx.font = 'bold ' + (isMini ? '10px' : '9px') + ' Inter';
-                        const badgeTw = ctx.measureText(sideLabel).width;
-                        const badgeBw = badgeTw + (isMini ? 8 : 12);
-                        const badgeBh = isMini ? 14 : 16;
-                        const badgeBx = x + (w - badgeBw) / 2;
-                        const badgeBy = y + (h / 2) - badgeBh - 1;
+                    ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
 
-                        ctx.fillStyle = sideColor;
-                        ctx.beginPath();
-                        if (ctx.roundRect) ctx.roundRect(badgeBx, badgeBy, badgeBw, badgeBh, 4); else ctx.rect(badgeBx, badgeBy, badgeBw, badgeBh);
-                        ctx.fill();
+                    ctx.fillStyle = isCover ? '#9d174d' : (isManualMatch ? '#92400e' : '#1e40af');
 
-                        ctx.fillStyle = '#ffffff';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(sideLabel, x + (w / 2), badgeBy + (badgeBh / 2) + 0.5);
+                    ctx.textAlign = 'center';
 
-                        // Dimenzije pod znacko A / B
-                        ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
-                        ctx.fillStyle = isSideA ? '#1e40af' : '#9a3412';
-                        ctx.fillText(`${Math.round(innerW / scale)}x${Math.round(innerH / scale)}`, x + (w / 2), y + (h / 2) + 9);
-                    } else {
-                        ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
-                        ctx.fillStyle = isCover ? '#9d174d' : (isManualMatch ? '#92400e' : '#1e40af');
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(`${Math.round(innerW / scale)}x${Math.round(innerH / scale)}`, x + (w / 2), y + (h / 2));
-                    }
+                    ctx.textBaseline = 'middle';
+
+                    ctx.fillText(`${Math.round(innerW / scale)}x${Math.round(innerH / scale)}`, x + (w / 2), y + (h / 2));
+
                     ctx.restore();
 
                 }
 
-            }
-
-            // Izris rezalne osi / osi obracanja (ce je obracanje aktivno)
-            if (isObrat && layout.count >= 2) {
-                ctx.save();
-                if (splitByCols) {
-                    const cutX = (startX + (layout.cols / 2) * layout.itemW) * scale;
-
-                    // Bela senca za kontrast
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-                    ctx.lineWidth = 6;
-                    ctx.beginPath();
-                    ctx.moveTo(cutX, 0);
-                    ctx.lineTo(cutX, canvas.height);
-                    ctx.stroke();
-
-                    // Rdeca crtkana crta
-                    ctx.strokeStyle = '#dc2626';
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([8, 4]);
-                    ctx.beginPath();
-                    ctx.moveTo(cutX, 0);
-                    ctx.lineTo(cutX, canvas.height);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    // Znacka osi
-                    const badgeText = '\u2702 OS OBRA\u010CANJA (STRAN A | STRAN B)';
-                    ctx.font = 'bold 10px Inter';
-                    const tw = ctx.measureText(badgeText).width;
-                    const bw = tw + 16;
-                    const bh = 22;
-                    const bx = cutX - bw / 2;
-                    const by = Math.max(10, (canvas.height - bh) / 2);
-
-                    ctx.fillStyle = '#dc2626';
-                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
-                    ctx.shadowBlur = 5;
-                    ctx.beginPath();
-                    if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 5); else ctx.rect(bx, by, bw, bh);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-
-                    ctx.fillStyle = '#ffffff';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(badgeText, cutX, by + bh / 2 + 0.5);
-                } else if (splitByRows) {
-                    const cutY = (startY + (layout.rows / 2) * layout.itemH) * scale;
-
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-                    ctx.lineWidth = 6;
-                    ctx.beginPath();
-                    ctx.moveTo(0, cutY);
-                    ctx.lineTo(canvas.width, cutY);
-                    ctx.stroke();
-
-                    ctx.strokeStyle = '#dc2626';
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([8, 4]);
-                    ctx.beginPath();
-                    ctx.moveTo(0, cutY);
-                    ctx.lineTo(canvas.width, cutY);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    const badgeText = '\u2702 OS OBRA\u010CANJA (STRAN A | STRAN B)';
-                    ctx.font = 'bold 10px Inter';
-                    const tw = ctx.measureText(badgeText).width;
-                    const bw = tw + 16;
-                    const bh = 22;
-                    const bx = (canvas.width - bw) / 2;
-                    const by = cutY - bh / 2;
-
-                    ctx.fillStyle = '#dc2626';
-                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
-                    ctx.shadowBlur = 5;
-                    ctx.beginPath();
-                    if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 5); else ctx.rect(bx, by, bw, bh);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-
-                    ctx.fillStyle = '#ffffff';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(badgeText, canvas.width / 2, cutY + 0.5);
-                }
-                ctx.restore();
             }
 
 
