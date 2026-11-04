@@ -754,6 +754,14 @@
                     <input type="number" id="items-per-sheet" value="0"
                         oninput="if(typeof updatePriceFromManualCount === 'function') updatePriceFromManualCount(); else calculate()">
                 </div>
+                <div style="display: flex; flex-direction: column; justify-content: flex-end;">
+                    <button type="button" id="btn-sort-imposition-trigger" onclick="openSortImpositionModal()"
+                        style="background: linear-gradient(135deg, #0284c7, #2563eb); border: none; border-radius: 8px; color: white; padding: 7px 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 7px; font-size: 0.82rem; box-shadow: 0 4px 12px rgba(2,132,199,0.3); height: 42px; white-space: nowrap;"
+                        title="Optimalna razporeditev več naklad/sort na tiskovno polo (gang-run)">
+                        <span style="font-size: 1.1rem;">🔀</span> Razporeditev sort na polo
+                        <span id="sort-imposition-active-badge" style="display: none; background: #10b981; color: white; border-radius: 10px; padding: 2px 7px; font-size: 0.72rem; font-weight: 800;" title="Ta ponudba ima shranjeno razporeditev">✓ Shranjeno</span>
+                    </button>
+                </div>
             </div>
             <div class="header-group"
                 style="grid-column: span 2; background: rgba(59, 130, 246, 0.1); padding: 15px; border-radius: 12px; border: 1px dashed rgba(59, 130, 246, 0.3); display: flex; gap: 1rem; align-items: flex-end;">
@@ -7475,6 +7483,7 @@
                         emailSubject: gv('calc-email-subject'),
                         emailSender: gv('calc-email-sender'),
                         emailDate: gv('calc-email-date'),
+                        sortImposition: window.g_currentSortImposition || null,
                         givenSheets: gv('calc-given-sheets'),
                         dnNum: gv('calc-dn-number'),
                         dnOld: gv('calc-dn-old'),
@@ -7547,7 +7556,8 @@
                                                 sheets: (document.getElementById('res-sheets-needed') || {}).innerText || ''
                     },
                     quoteBasket: (typeof quoteBasket !== 'undefined') ? quoteBasket : [],
-                    activeBasketItemId: g_activeBasketItemId
+                    activeBasketItemId: g_activeBasketItemId,
+                    sortImposition: window.g_currentSortImposition || null
                 };
                 let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
                 arhiv = arhiv.filter(proj => isPolaProject(proj));
@@ -7703,6 +7713,7 @@
                     materialDesc: gv('calc-material-desc'),
                     productDesc: gv('calc-material-desc'),
                     notes: gv('calc-notes'),
+                    sortImposition: window.g_currentSortImposition || null,
                     mutType: gv('calc-mut-type'),
                     mutQty: gv('calc-mut-qty'),
                     editedQuoteHTML: g_editedQuoteHTML,
@@ -8703,6 +8714,10 @@
                 setV('calc-material-code', proj.materialCode || inp.materialCode || '');
                 setV('calc-material-desc', proj.materialDesc || (inp && inp.materialDesc) || proj.productDesc || (inp && inp.productDesc) || '');
                 setV('calc-notes', proj.notes || inp.notes || '');
+                // Ob odpiranju ponudbe avtomatsko naloži shranjeno razporeditev sort
+                if (typeof restoreSortImpositionFromProject === 'function') {
+                    restoreSortImpositionFromProject(proj.sortImposition || (inp && inp.sortImposition) || null);
+                }
                 setV('calc-dn-number', proj.dnNum || inp.dnNum || '');
                 setV('calc-dn-old', proj.dnOld || inp.dnOld || '');
                 setV('calc-dn-deadline', proj.deadline || inp.deadline || '');
@@ -14400,6 +14415,779 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
 
         </div>
     </div>
-    </body>
+    
+    <!-- ======================================================== -->
+    <!-- MODAL: OPTIMALNA RAZPOREDITEV SORT NA POLO (GANG-RUN)    -->
+    <!-- ======================================================== -->
+    <div id="modal-sort-imposition-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px); z-index: 100000; justify-content: center; align-items: center;">
+        <div style="background: #0f172a; border: 1.5px solid #3b82f6; border-radius: 14px; width: 1180px; max-width: 96vw; max-height: 94vh; display: flex; flex-direction: column; overflow: hidden; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; box-shadow: 0 25px 60px rgba(0,0,0,0.85); color: #f8fafc;">
+            
+            <!-- MODAL HEADER -->
+            <div style="padding: 14px 22px; background: #1e293b; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 1.5rem;">🔀</span>
+                    <div>
+                        <div style="font-size: 1.15rem; font-weight: 800; color: #f8fafc; letter-spacing: -0.3px; display: flex; align-items: center; gap: 8px;">
+                            Optimalna Razporeditev Sort na Polo
+                            <span id="sim-modal-status-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px;">Samodejna presoja</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">
+                            Kombinirani tisk (gang-run) &bull; Kalkulator samodejno presodi najboljšo porazdelitev in število form
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="display: flex; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 3px; border: 1px solid rgba(255,255,255,0.08);">
+                        <button type="button" id="sim-tab-calc-btn" onclick="switchImpositionModalTab('calc')" style="background: #3b82f6; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">
+                            ⚡ Preračun
+                        </button>
+                        <button type="button" id="sim-tab-history-btn" onclick="switchImpositionModalTab('history')" style="background: transparent; color: #94a3b8; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">
+                            📂 Shranjene razporeditve za nazaj (<span id="sim-history-count">0</span>)
+                        </button>
+                    </div>
+                    <button type="button" onclick="closeSortImpositionModal()" style="background: transparent; color: #94a3b8; border: none; font-size: 1.4rem; cursor: pointer; padding: 2px 8px; border-radius: 6px;" title="Zapri">✕</button>
+                </div>
+            </div>
+
+            <!-- MODAL BODY -->
+            <div style="flex: 1; overflow-y: auto; padding: 18px 22px;">
+                
+                <!-- PANE 1: PRERAČUN -->
+                <div id="sim-pane-calc">
+                    <!-- INPUTS ROW -->
+                    <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; margin-bottom: 18px;">
+                        <div style="display: grid; grid-template-columns: 1fr 140px 150px auto; gap: 14px; align-items: flex-end;">
+                            <div>
+                                <label style="display: block; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">
+                                    Vnos količin / naklad (ločeno z vejico, presledkom ali vrstico):
+                                </label>
+                                <textarea id="sim-quantities" rows="2" 
+                                    style="width: 100%; box-sizing: border-box; background: #0b0f19; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; padding: 8px 12px; font-family: monospace; font-size: 0.88rem; resize: vertical;"
+                                    placeholder="Vnesite poljubno število količin, npr. 2800, 5500, 2600, 7500, 800, 700, 300, 100"
+                                    oninput="onSimQuantitiesInput()"></textarea>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">
+                                    Stavkov na poli:
+                                </label>
+                                <input type="number" id="sim-slots" min="1" max="32" value="3" 
+                                    style="width: 100%; box-sizing: border-box; background: #0b0f19; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; padding: 8px 12px; font-size: 0.9rem; font-weight: 700; text-align: center;"
+                                    onchange="runSimCalculation()">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">
+                                    Št. form (neobvezno):
+                                </label>
+                                <input type="number" id="sim-custom-forms" min="1" max="50" placeholder="Auto" 
+                                    style="width: 100%; box-sizing: border-box; background: #0b0f19; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; padding: 8px 12px; font-size: 0.9rem; font-weight: 700; text-align: center;"
+                                    title="Pustite prazno, da kalkulator samodejno presodi najbolj optimalno število form!"
+                                    onchange="runSimCalculation()">
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button type="button" onclick="runSimCalculation()" 
+                                    style="background: linear-gradient(135deg, #0284c7, #2563eb); color: white; border: none; border-radius: 8px; padding: 9px 16px; font-size: 0.85rem; font-weight: 700; cursor: pointer; height: 38px; box-shadow: 0 4px 12px rgba(2,132,199,0.3); white-space: nowrap;">
+                                    🚀 Preračunaj
+                                </button>
+                                <button type="button" onclick="loadSimExample8()" 
+                                    style="background: #334155; color: #e2e8f0; border: none; border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; height: 38px; white-space: nowrap;"
+                                    title="Primer z 8 sortami (2.800 do 7.500)">
+                                    Primer 8
+                                </button>
+                                <button type="button" onclick="loadSimExample25()" 
+                                    style="background: #334155; color: #e2e8f0; border: none; border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; height: 38px; white-space: nowrap;"
+                                    title="Primer s 25 sortami (100.000 kosov navzdol)">
+                                    Primer 25
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI CARDS -->
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px;">
+                        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 16px;">
+                            <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #94a3b8;">Vnesenih Sort</div>
+                            <div id="sim-kpi-sorts" style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-top: 2px;">-</div>
+                            <div id="sim-kpi-sorts-sub" style="font-size: 0.72rem; color: #64748b;">Naročeno: - kos</div>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 16px;">
+                            <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #94a3b8;">Število Tiskarskih Form</div>
+                            <div id="sim-kpi-forms" style="font-size: 1.5rem; font-weight: 800; color: #60a5fa; margin-top: 2px;">-</div>
+                            <div id="sim-kpi-forms-sub" style="font-size: 0.72rem; color: #10b981;">Kalkulator samodejno presodil</div>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 16px;">
+                            <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #94a3b8;">Skupaj Tiskovnih Pol</div>
+                            <div id="sim-kpi-sheets" style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-top: 2px;">-</div>
+                            <div id="sim-kpi-sheets-sub" style="font-size: 0.72rem; color: #64748b;">Natisnjeno: - kos</div>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 16px;">
+                            <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #94a3b8;">Skupni Višek (Odrez)</div>
+                            <div id="sim-kpi-waste" style="font-size: 1.5rem; font-weight: 800; color: #34d399; margin-top: 2px;">-</div>
+                            <div id="sim-kpi-waste-sub" style="font-size: 0.72rem; color: #64748b;">Izkoristek: -</div>
+                        </div>
+                    </div>
+
+                    <!-- FORMS LAYOUT DISPLAY -->
+                    <div style="margin-bottom: 22px;">
+                        <div style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>🖼️ Razporeditev po Tiskarskih Formah (Delovni Plan)</span>
+                            <span id="sim-algo-name" style="color: #60a5fa; font-weight: 600; text-transform: none; font-size: 0.8rem;"></span>
+                        </div>
+                        <div id="sim-forms-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px;">
+                            <!-- Dinamično generirane kartice form -->
+                        </div>
+                    </div>
+
+                    <!-- SORTS TABLE -->
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px;">
+                            📊 Pregled Realizacije po Posameznih Sortah
+                        </div>
+                        <div style="overflow-x: auto; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; text-align: left;">
+                                <thead>
+                                    <tr style="background: rgba(30, 41, 59, 0.8); border-bottom: 1px solid rgba(255,255,255,0.1); color: #94a3b8;">
+                                        <th style="padding: 8px 12px;">Sorta</th>
+                                        <th style="padding: 8px 12px; text-align: right;">Naročeno</th>
+                                        <th style="padding: 8px 12px; text-align: right;">Natisnjeno</th>
+                                        <th style="padding: 8px 12px; text-align: right;">Višek kosov</th>
+                                        <th style="padding: 8px 12px; text-align: right;">% Viška</th>
+                                        <th style="padding: 8px 12px; text-align: center;">Tiskarske forme</th>
+                                        <th style="padding: 8px 12px; text-align: center;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sim-sorts-tbody">
+                                    <!-- Dinamično generirane vrstice -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANE 2: ZGODOVINA / SHRANJENE RAZPOREDITVE ZA NAZAJ -->
+                <div id="sim-pane-history" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <div>
+                            <div style="font-size: 1rem; font-weight: 700; color: #f8fafc;">
+                                📂 Arhiv Shranjenih Razporeditev za Nazaj
+                            </div>
+                            <div style="font-size: 0.75rem; color: #94a3b8;">
+                                Pregled vseh ponudb s shranjenim načrtom razporeditve sort na polo
+                            </div>
+                        </div>
+                        <input type="text" id="sim-history-search" placeholder="Išči po stranki, številki ponudbe ali datumu..."
+                            style="width: 320px; background: #0b0f19; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; padding: 7px 12px; font-size: 0.82rem;"
+                            oninput="filterImpositionHistory(this.value)">
+                    </div>
+
+                    <div style="overflow-x: auto; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; text-align: left;">
+                            <thead>
+                                <tr style="background: rgba(30, 41, 59, 0.8); border-bottom: 1px solid rgba(255,255,255,0.1); color: #94a3b8;">
+                                    <th style="padding: 8px 12px;">Datum</th>
+                                    <th style="padding: 8px 12px;">Št. Ponudbe / Projekt</th>
+                                    <th style="padding: 8px 12px;">Stranka</th>
+                                    <th style="padding: 8px 12px; text-align: center;">Vnesenih Sort</th>
+                                    <th style="padding: 8px 12px; text-align: center;">Št. Form</th>
+                                    <th style="padding: 8px 12px; text-align: right;">Skupaj Pol</th>
+                                    <th style="padding: 8px 12px; text-align: center;">Akcija</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sim-history-tbody">
+                                <!-- Dinamično generiran seznam zgodovine -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- MODAL FOOTER -->
+            <div style="padding: 12px 22px; background: #1e293b; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+                <div id="sim-footer-status" style="font-size: 0.8rem; color: #10b981; font-weight: 600;"></div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" onclick="copySimImpositionPlan()" 
+                        style="background: #334155; color: #e2e8f0; border: none; border-radius: 6px; padding: 8px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <span>📋</span> Kopiraj plan
+                    </button>
+                    <button type="button" onclick="applySortImpositionToCurrentQuote()" 
+                        style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 6px; padding: 8px 18px; font-size: 0.85rem; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: flex; align-items: center; gap: 6px;">
+                        <span>💾</span> Shrani k ponudbi
+                    </button>
+                    <button type="button" onclick="closeSortImpositionModal()" 
+                        style="background: #475569; color: #e2e8f0; border: none; border-radius: 6px; padding: 8px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer;">
+                        Zapri
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT ZA OPTIMALNO RAZPOREDITEV SORT -->
+    <script>
+        window.g_currentSortImposition = null;
+        let g_simPalette = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316', '#64748b', '#84cc16', '#a855f7', '#14b8a6', '#e11d48', '#d97706', '#2563eb', '#059669'];
+        let g_simCalculatedPlan = null;
+        let g_simHistoryList = [];
+
+        function openSortImpositionModal() {
+            const overlay = document.getElementById('modal-sort-imposition-overlay');
+            if (!overlay) return;
+            overlay.style.display = 'flex';
+
+            // Če ponudba že ima shranjeno razporeditev, jo neposredno naloži
+            if (window.g_currentSortImposition && Array.isArray(window.g_currentSortImposition.quantities) && window.g_currentSortImposition.quantities.length > 0) {
+                document.getElementById('sim-quantities').value = window.g_currentSortImposition.quantities.join(', ');
+                if (window.g_currentSortImposition.slots) {
+                    document.getElementById('sim-slots').value = window.g_currentSortImposition.slots;
+                }
+                if (window.g_currentSortImposition.customForms) {
+                    document.getElementById('sim-custom-forms').value = window.g_currentSortImposition.customForms;
+                }
+                document.getElementById('sim-footer-status').textContent = "✓ Prikazana shranjena razporeditev te ponudbe!";
+            } else {
+                // Poskusi prebrati količine iz polj kalkulatorja
+                const qInput = document.getElementById('quantity');
+                const ordInput = document.getElementById('ordered-quantity');
+                const mutInput = document.getElementById('calc-mut-breakdown');
+                const ipsInput = document.getElementById('items-per-sheet');
+
+                if (ipsInput && parseInt(ipsInput.value) > 0) {
+                    document.getElementById('sim-slots').value = parseInt(ipsInput.value);
+                }
+
+                let currentQ = (qInput ? qInput.value : '') || (ordInput ? ordInput.value : '') || (mutInput ? mutInput.value : '');
+                if (currentQ && currentQ.includes(',')) {
+                    document.getElementById('sim-quantities').value = currentQ;
+                } else if (!document.getElementById('sim-quantities').value.trim()) {
+                    document.getElementById('sim-quantities').value = "2800, 5500, 2600, 7500, 800, 700, 300, 100";
+                }
+            }
+
+            switchImpositionModalTab('calc');
+            runSimCalculation();
+            updateImpositionHistoryBadge();
+        }
+
+        function closeSortImpositionModal() {
+            const overlay = document.getElementById('modal-sort-imposition-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+
+        function switchImpositionModalTab(tab) {
+            const calcPane = document.getElementById('sim-pane-calc');
+            const histPane = document.getElementById('sim-pane-history');
+            const calcBtn = document.getElementById('sim-tab-calc-btn');
+            const histBtn = document.getElementById('sim-tab-history-btn');
+
+            if (tab === 'calc') {
+                if (calcPane) calcPane.style.display = 'block';
+                if (histPane) histPane.style.display = 'none';
+                if (calcBtn) { calcBtn.style.background = '#3b82f6'; calcBtn.style.color = '#fff'; }
+                if (histBtn) { histBtn.style.background = 'transparent'; histBtn.style.color = '#94a3b8'; }
+            } else {
+                if (calcPane) calcPane.style.display = 'none';
+                if (histPane) histPane.style.display = 'block';
+                if (histBtn) { histBtn.style.background = '#3b82f6'; histBtn.style.color = '#fff'; }
+                if (calcBtn) { calcBtn.style.background = 'transparent'; calcBtn.style.color = '#94a3b8'; }
+                loadAndRenderImpositionHistory();
+            }
+        }
+
+        let g_simInputTimeout = null;
+        function onSimQuantitiesInput() {
+            if (g_simInputTimeout) clearTimeout(g_simInputTimeout);
+            g_simInputTimeout = setTimeout(runSimCalculation, 300);
+        }
+
+        function parseSimNumbers(str) {
+            if (!str) return [];
+            // Odstrani pike kot ločila tisočic in preberi vsa cela števila
+            const clean = str.replace(/\./g, '');
+            const matches = clean.match(/\d+/g);
+            if (!matches) return [];
+            return matches.map(n => parseInt(n)).filter(n => n > 0);
+        }
+
+        function loadSimExample8() {
+            document.getElementById('sim-quantities').value = "2800, 5500, 2600, 7500, 800, 700, 300, 100";
+            document.getElementById('sim-slots').value = 3;
+            document.getElementById('sim-custom-forms').value = "";
+            runSimCalculation();
+        }
+
+        function loadSimExample25() {
+            document.getElementById('sim-quantities').value = "60000, 30000, 75000, 85000, 100000, 30000, 6000, 6000, 7000, 6000, 45000, 15000, 10000, 20000, 10000, 35000, 35000, 3500, 3500, 1500, 2500, 25000, 8000, 17000, 40000";
+            document.getElementById('sim-slots').value = 4;
+            document.getElementById('sim-custom-forms').value = "8";
+            runSimCalculation();
+        }
+
+        // OPTIMIZACIJSKI MOTOR S SAMODEJNO PRESOJO ŠTEVILA FORM
+        function runSimCalculation() {
+            const rawQ = document.getElementById('sim-quantities').value;
+            const Q = parseSimNumbers(rawQ);
+            const K = parseInt(document.getElementById('sim-slots').value) || 3;
+            const customM = parseInt(document.getElementById('sim-custom-forms').value) || 0;
+
+            if (Q.length === 0) {
+                document.getElementById('sim-kpi-sorts').textContent = "0";
+                document.getElementById('sim-forms-container').innerHTML = '<div style="color: #94a3b8; padding: 20px;">Vnesite količine zgoraj za začetek preračuna.</div>';
+                return;
+            }
+
+            const N = Q.length;
+            const totalRequired = Q.reduce((a, b) => a + b, 0);
+
+            // Uredi indekse padajoče po nakladi
+            const sortedIdx = [...Array(N).keys()].sort((a, b) => Q[b] - Q[a]);
+            const minM = Math.ceil(N / K);
+
+            let targetMinM = minM;
+            let targetMaxM = Math.min(N, minM + (N > 12 ? 4 : 3));
+
+            if (customM && customM >= minM) {
+                targetMinM = customM;
+                targetMaxM = customM;
+            }
+
+            const memo = {};
+            function costOfGroup(grpIndices) {
+                const sz = grpIndices.length;
+                if (sz > K || sz === 0) return { sheets: Infinity, mults: {} };
+                const mults = {};
+                for (let i = 0; i < sz; i++) mults[grpIndices[i]] = 1;
+                let extra = K - sz;
+                while (extra > 0) {
+                    let bestIdx = grpIndices[0];
+                    let bestRatio = -1;
+                    for (let i = 0; i < sz; i++) {
+                        const idx = grpIndices[i];
+                        const r = Q[idx] / mults[idx];
+                        if (r > bestRatio) {
+                            bestRatio = r;
+                            bestIdx = idx;
+                        }
+                    }
+                    mults[bestIdx]++;
+                    extra--;
+                }
+                let sh = 0;
+                for (let i = 0; i < sz; i++) {
+                    const idx = grpIndices[i];
+                    const req = Math.ceil(Q[idx] / mults[idx]);
+                    if (req > sh) sh = req;
+                }
+                return { sheets: sh, mults: mults };
+            }
+
+            function dp(idx, fLeft) {
+                if (idx === N && fLeft === 0) return { cost: 0, plan: [] };
+                if (idx === N || fLeft === 0) return { cost: Infinity, plan: [] };
+                const state = idx + '_' + fLeft;
+                if (memo[state]) return memo[state];
+
+                let bestCost = Infinity;
+                let bestPlan = [];
+
+                const minSz = Math.max(1, (N - idx) - (fLeft - 1) * K);
+                const maxSz = Math.min(K, (N - idx) - (fLeft - 1) * 1);
+
+                for (let sz = minSz; sz <= maxSz; sz++) {
+                    const grp = sortedIdx.slice(idx, idx + sz);
+                    const { sheets, mults } = costOfGroup(grp);
+                    const rem = dp(idx + sz, fLeft - 1);
+                    const tot = sheets + rem.cost;
+                    if (tot < bestCost) {
+                        bestCost = tot;
+                        bestPlan = [{ sheets, grp, mults }].concat(rem.plan);
+                    }
+                }
+
+                memo[state] = { cost: bestCost, plan: bestPlan };
+                return memo[state];
+            }
+
+            // Oceni vse možne oblike form in samodejno presodi najboljšo
+            let evaluatedPlans = [];
+            for (let testM = targetMinM; testM <= targetMaxM; testM++) {
+                const res = dp(0, testM);
+                if (res && res.cost < Infinity) {
+                    const printed = res.cost * K;
+                    const waste = printed - totalRequired;
+                    const wastePct = totalRequired > 0 ? (waste / totalRequired) * 100 : 0;
+                    evaluatedPlans.push({
+                        M: testM,
+                        cost: res.cost,
+                        plan: res.plan,
+                        printed: printed,
+                        waste: waste,
+                        wastePct: wastePct
+                    });
+                }
+            }
+
+            let bestOverall = evaluatedPlans[0];
+            if (evaluatedPlans.length > 1) {
+                if (customM) {
+                    bestOverall = evaluatedPlans.find(p => p.M === customM) || evaluatedPlans[0];
+                } else {
+                    // Samodejna presoja: če prejšnji plan prinaša previsok višek (>15%),
+                    // in naslednji plan prihrani več kot 500 pol ali >5% pol, izberemo naslednjega!
+                    for (let i = 0; i < evaluatedPlans.length; i++) {
+                        const cur = evaluatedPlans[i];
+                        if (!bestOverall) bestOverall = cur;
+                        else {
+                            const sheetDiff = bestOverall.cost - cur.cost;
+                            const pctDiff = bestOverall.wastePct - cur.wastePct;
+                            if (sheetDiff >= 400 || pctDiff >= 5.0) {
+                                bestOverall = cur;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!bestOverall) {
+                bestOverall = dp(0, minM);
+                bestOverall.M = minM;
+            }
+
+            // Sestavi končni plan form
+            const resForms = [];
+            bestOverall.plan.forEach((item, fIdx) => {
+                const slots = [];
+                item.grp.forEach(sortIdx => {
+                    slots.push({ sortIdx: sortIdx, mult: item.mults[sortIdx] });
+                });
+                resForms.push({
+                    id: fIdx + 1,
+                    name: `Forma ${fIdx + 1}`,
+                    sheets: item.sheets,
+                    slots: slots
+                });
+            });
+
+            g_simCalculatedPlan = {
+                quantities: Q,
+                slots: K,
+                customForms: customM,
+                formsCount: bestOverall.M,
+                totalSheets: bestOverall.cost,
+                forms: resForms,
+                calculatedAt: new Date().toISOString()
+            };
+
+            renderSimResults(Q, K, totalRequired, g_simCalculatedPlan);
+        }
+
+        function renderSimResults(Q, K, totalRequired, plan) {
+            const totalSheets = plan.totalSheets;
+            const totalPrinted = totalSheets * K;
+            const totalWaste = totalPrinted - totalRequired;
+            const wastePct = totalRequired > 0 ? ((totalWaste / totalRequired) * 100).toFixed(1) : '0.0';
+
+            // KPI Cards
+            document.getElementById('sim-kpi-sorts').textContent = `${Q.length} sort`;
+            document.getElementById('sim-kpi-sorts-sub').textContent = `Naročeno: ${totalRequired.toLocaleString('sl-SI')} kos`;
+
+            document.getElementById('sim-kpi-forms').textContent = `${plan.formsCount} form`;
+            document.getElementById('sim-kpi-forms-sub').textContent = plan.customForms ? "Fiksno določeno" : "Kalkulator samodejno presodil";
+
+            document.getElementById('sim-kpi-sheets').textContent = `${totalSheets.toLocaleString('sl-SI')} pol`;
+            document.getElementById('sim-kpi-sheets-sub').textContent = `Natisnjeno: ${totalPrinted.toLocaleString('sl-SI')} kos`;
+
+            document.getElementById('sim-kpi-waste').textContent = `${totalWaste.toLocaleString('sl-SI')} kos`;
+            document.getElementById('sim-kpi-waste-sub').textContent = `${wastePct}% viška (${(100 - parseFloat(wastePct)).toFixed(1)}% izkoristek)`;
+
+            document.getElementById('sim-algo-name').textContent = plan.customForms 
+                ? `Uporabljeno fiksno: ${plan.formsCount} form` 
+                : `Kalkulator je sam določil ${plan.formsCount} form za minimalen odpad (${wastePct}% viška)`;
+
+            // Forms container cards
+            const container = document.getElementById('sim-forms-container');
+            container.innerHTML = '';
+
+            plan.forms.forEach(form => {
+                let slotsHtml = '';
+                let detailsHtml = '';
+
+                form.slots.forEach(slot => {
+                    const sortName = `Sorta ${slot.sortIdx + 1}`;
+                    const sortColor = g_simPalette[slot.sortIdx % g_simPalette.length];
+                    const yieldQty = form.sheets * slot.mult;
+
+                    for (let m = 0; m < slot.mult; m++) {
+                        slotsHtml += `
+                            <div style="background: rgba(255,255,255,0.05); border: 1.5px solid rgba(255,255,255,0.15); border-left: 3px solid ${sortColor}; border-radius: 5px; padding: 4px; text-align: center;">
+                                <div style="font-size: 0.75rem; font-weight: 700; color: ${sortColor}; line-height: 1.1;">${sortName}</div>
+                                <div style="font-size: 0.68rem; color: #94a3b8;">${form.sheets.toLocaleString('sl-SI')} kos</div>
+                            </div>
+                        `;
+                    }
+
+                    detailsHtml += `
+                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; padding: 2px 0; border-top: 1px dashed rgba(255,255,255,0.08);">
+                            <span><span style="display:inline-block; width:8px; height:8px; border-radius:2px; background:${sortColor}; margin-right:5px;"></span>${sortName} ${slot.mult > 1 ? '('+slot.mult+'×)' : ''}</span>
+                            <strong style="color: #f8fafc;">${yieldQty.toLocaleString('sl-SI')} kos</strong>
+                        </div>
+                    `;
+                });
+
+                const card = document.createElement('div');
+                card.style.cssText = "background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; border-radius: 10px; padding: 12px; display: flex; flex-direction: column;";
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
+                        <span style="font-weight: 800; font-size: 0.9rem; color: #f8fafc;">${form.name}</span>
+                        <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); font-size: 0.72rem; font-weight: 700; padding: 2px 6px; border-radius: 5px;">
+                            ${form.sheets.toLocaleString('sl-SI')} pol
+                        </span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(${K > 3 ? 2 : K}, 1fr); gap: 5px; background: #0b0f19; border: 1.5px dashed #334155; border-radius: 6px; padding: 6px; margin-bottom: 8px;">
+                        ${slotsHtml}
+                    </div>
+                    <div>
+                        ${detailsHtml}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            // Sorts table
+            const prodPerSort = new Array(Q.length).fill(0);
+            const formsPerSort = {};
+
+            plan.forms.forEach(form => {
+                form.slots.forEach(slot => {
+                    const sortIdx = slot.sortIdx;
+                    prodPerSort[sortIdx] = (prodPerSort[sortIdx] || 0) + (form.sheets * slot.mult);
+                    if (!formsPerSort[sortIdx]) formsPerSort[sortIdx] = [];
+                    formsPerSort[sortIdx].push(`${form.name} (${slot.mult > 1 ? slot.mult + '×' : '1×'})`);
+                });
+            });
+
+            const tbody = document.getElementById('sim-sorts-tbody');
+            tbody.innerHTML = '';
+
+            Q.forEach((req, idx) => {
+                const sortName = `Sorta ${idx + 1}`;
+                const sortColor = g_simPalette[idx % g_simPalette.length];
+                const printed = prodPerSort[idx] || 0;
+                const excess = printed - req;
+                const excessPct = req > 0 ? ((excess / req) * 100).toFixed(1) : '0.0';
+
+                let badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 7px; border-radius: 5px; font-weight: 700;">✅ V nulo (0)</span>';
+                if (excess > 0 && parseFloat(excessPct) <= 10.0) {
+                    badge = `<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); padding: 2px 7px; border-radius: 5px; font-weight: 700;">ℹ️ +${excessPct}%</span>`;
+                } else if (excess > 0) {
+                    badge = `<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 7px; border-radius: 5px; font-weight: 700;">⚠️ +${excessPct}%</span>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
+                tr.innerHTML = `
+                    <td style="padding: 7px 12px; font-weight: 700;">
+                        <span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:${sortColor}; margin-right:6px;"></span>
+                        ${sortName}
+                    </td>
+                    <td style="padding: 7px 12px; text-align: right; font-weight: 600;">${req.toLocaleString('sl-SI')}</td>
+                    <td style="padding: 7px 12px; text-align: right; font-weight: 700; color: #60a5fa;">${printed.toLocaleString('sl-SI')}</td>
+                    <td style="padding: 7px 12px; text-align: right; font-weight: 700; color: ${excess === 0 ? '#34d399' : '#fbbf24'};">${excess === 0 ? '0' : '+' + excess.toLocaleString('sl-SI')}</td>
+                    <td style="padding: 7px 12px; text-align: right; color: #94a3b8;">${excessPct} %</td>
+                    <td style="padding: 7px 12px; text-align: center; color: #94a3b8; font-size: 0.75rem;">${formsPerSort[idx] ? formsPerSort[idx].join(', ') : '-'}</td>
+                    <td style="padding: 7px 12px; text-align: center;">${badge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // SHRANJEVANJE K TRENUTNI PONUDBI
+        function applySortImpositionToCurrentQuote() {
+            if (!g_simCalculatedPlan) {
+                alert("Najprej izvedite preračun!");
+                return;
+            }
+            window.g_currentSortImposition = JSON.parse(JSON.stringify(g_simCalculatedPlan));
+            
+            // Posodobi značko ob gumbu
+            const badge = document.getElementById('sort-imposition-active-badge');
+            if (badge) badge.style.display = 'inline-block';
+
+            document.getElementById('sim-footer-status').textContent = "✓ Razporeditev je shranjena k tej ponudbi!";
+            alert("✓ Razporeditev sort je uspešno shranjena k tej ponudbi!\n\nKo boste kliknili gumb 'SHRANI' v kalkulatorju, se bo shranila v datoteko ponudbe in jo boste lahko kadarkoli ponovno odprli.");
+            closeSortImpositionModal();
+        }
+
+        function restoreSortImpositionFromProject(impositionData) {
+            window.g_currentSortImposition = impositionData;
+            const badge = document.getElementById('sort-imposition-active-badge');
+            if (badge) {
+                badge.style.display = (impositionData && impositionData.forms) ? 'inline-block' : 'none';
+            }
+        }
+
+        // KOPIRANJE DELOVNEGA PLANA V ODLOŽIŠČE
+        function copySimImpositionPlan() {
+            if (!g_simCalculatedPlan) return;
+            const plan = g_simCalculatedPlan;
+            let text = `TISKARNA PETRIČ - PLAN KOMBINIRANEGA TISKA SORT\n`;
+            text += `Skupaj tiskovnih pol: ${plan.totalSheets.toLocaleString('sl-SI')}\n`;
+            text += `Število form: ${plan.formsCount}\n\n`;
+            text += `RAZPOREDITEV PO FORMAH:\n`;
+
+            plan.forms.forEach(form => {
+                text += `\n▶ ${form.name.toUpperCase()} (Naklada: ${form.sheets.toLocaleString('sl-SI')} pol):\n`;
+                form.slots.forEach(slot => {
+                    text += `   - ${slot.mult}× Sorta ${slot.sortIdx + 1} => ${(form.sheets * slot.mult).toLocaleString('sl-SI')} kosov\n`;
+                });
+            });
+
+            text += `\nPREGLED PO SORTAH:\n`;
+            plan.quantities.forEach((req, idx) => {
+                let printed = 0;
+                plan.forms.forEach(f => {
+                    f.slots.forEach(s => {
+                        if (s.sortIdx === idx) printed += f.sheets * s.mult;
+                    });
+                });
+                text += `• Sorta ${idx + 1}: Naročeno ${req.toLocaleString('sl-SI')}, Natisnjeno ${printed.toLocaleString('sl-SI')}, Višek: ${(printed - req).toLocaleString('sl-SI')} kos\n`;
+            });
+
+            navigator.clipboard.writeText(text).then(() => {
+                alert("✓ Delovni plan je skopiran v odložišče!");
+            }).catch(() => {
+                prompt("Kopirajte plan:", text);
+            });
+        }
+
+        // ZGODOVINA RAZPOREDITEV ZA NAZAJ
+        function updateImpositionHistoryBadge() {
+            let count = 0;
+            try {
+                const arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                arhiv.forEach(p => {
+                    if (p.sortImposition || (p.inputs && p.inputs.sortImposition)) count++;
+                });
+            } catch(e){}
+            const el = document.getElementById('sim-history-count');
+            if (el) el.textContent = count;
+        }
+
+        function loadAndRenderImpositionHistory() {
+            const tbody = document.getElementById('sim-history-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            g_simHistoryList = [];
+
+            // 1. Preberi iz lokalnega arhiva
+            try {
+                const arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                arhiv.forEach(proj => {
+                    const imp = proj.sortImposition || (proj.inputs && proj.inputs.sortImposition);
+                    if (imp && imp.forms) {
+                        g_simHistoryList.push({
+                            source: 'local',
+                            id: proj.id,
+                            name: proj.name || 'Ponudba',
+                            customer: proj.customer || '-',
+                            date: proj.date || '-',
+                            quoteNum: proj.quoteNum || '-',
+                            imposition: imp
+                        });
+                    }
+                });
+            } catch(e){}
+
+            // 2. Preberi iz strežniškega seznama projektov
+            if (Array.isArray(window.g_serverProjects)) {
+                window.g_serverProjects.forEach(proj => {
+                    const imp = proj.sortImposition || (proj.inputs && proj.inputs.sortImposition);
+                    if (imp && imp.forms && !g_simHistoryList.some(h => h.name === proj.filename)) {
+                        g_simHistoryList.push({
+                            source: 'server',
+                            fileName: proj.filename,
+                            name: proj.name || proj.filename,
+                            customer: proj.customer || '-',
+                            date: proj.date || '-',
+                            quoteNum: proj.quoteNum || '-',
+                            imposition: imp
+                        });
+                    }
+                });
+            }
+
+            renderHistoryTableRows(g_simHistoryList);
+        }
+
+        function renderHistoryTableRows(list) {
+            const tbody = document.getElementById('sim-history-tbody');
+            tbody.innerHTML = '';
+
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: #94a3b8;">V arhivu še ni ponudb s shranjeno razporeditvijo sort. Ko boste pri ponudbi kliknili "Shrani k ponudbi" ter nato "SHRANI" v kalkulatorju, bo načrt viden tukaj za nazaj.</td></tr>';
+                return;
+            }
+
+            list.forEach((item, idx) => {
+                const imp = item.imposition;
+                const sortsCount = Array.isArray(imp.quantities) ? imp.quantities.length : '-';
+                const formsCount = imp.formsCount || (Array.isArray(imp.forms) ? imp.forms.length : '-');
+                const totalSheets = imp.totalSheets ? imp.totalSheets.toLocaleString('sl-SI') : '-';
+
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
+                tr.innerHTML = `
+                    <td style="padding: 8px 12px; color: #94a3b8;">${item.date}</td>
+                    <td style="padding: 8px 12px; font-weight: 700; color: #f8fafc;">${item.name}</td>
+                    <td style="padding: 8px 12px; color: #cbd5e1;">${item.customer}</td>
+                    <td style="padding: 8px 12px; text-align: center;"><span style="background: rgba(59,130,246,0.15); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-weight: 700;">${sortsCount} sort</span></td>
+                    <td style="padding: 8px 12px; text-align: center;"><strong style="color: #34d399;">${formsCount} form</strong></td>
+                    <td style="padding: 8px 12px; text-align: right; font-weight: 700; color: #f8fafc;">${totalSheets} pol</td>
+                    <td style="padding: 8px 12px; text-align: center;">
+                        <button type="button" onclick="loadHistoryImpositionToView(${idx})" 
+                            style="background: #2563eb; color: white; border: none; border-radius: 5px; padding: 4px 10px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">
+                            Prikaži
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterImpositionHistory(query) {
+            const q = (query || '').toLowerCase().trim();
+            if (!q) {
+                renderHistoryTableRows(g_simHistoryList);
+                return;
+            }
+            const filtered = g_simHistoryList.filter(item => {
+                const s = `${item.name} ${item.customer} ${item.date} ${item.quoteNum}`.toLowerCase();
+                return s.includes(q);
+            });
+            renderHistoryTableRows(filtered);
+        }
+
+        function loadHistoryImpositionToView(idx) {
+            const item = g_simHistoryList[idx];
+            if (!item || !item.imposition) return;
+
+            window.g_currentSortImposition = JSON.parse(JSON.stringify(item.imposition));
+            if (Array.isArray(item.imposition.quantities)) {
+                document.getElementById('sim-quantities').value = item.imposition.quantities.join(', ');
+            }
+            if (item.imposition.slots) {
+                document.getElementById('sim-slots').value = item.imposition.slots;
+            }
+            if (item.imposition.customForms) {
+                document.getElementById('sim-custom-forms').value = item.imposition.customForms;
+            }
+
+            switchImpositionModalTab('calc');
+            runSimCalculation();
+            document.getElementById('sim-footer-status').textContent = `✓ Naložena razporeditev iz ponudbe: ${item.name}`;
+        }
+    </script>
+
+</body>
 
 </html>

@@ -579,6 +579,7 @@
             <div>
                 <div class="brand-title">
                     <span>🖨️</span> TISKARNA PETRIČ &mdash; OPTIMIZACIJA SORT NA POLO
+                    <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; letter-spacing: 0;">v2.0 (Optimiziran solver)</span>
                 </div>
                 <div class="brand-subtitle">
                     Kombinirani tisk (gang-run) &amp; matematična porazdelitev več naklad na isto tiskarsko formo
@@ -604,9 +605,14 @@
             <div class="panel no-print">
                 <div class="panel-heading">
                     <span>⚙️ Vnos Podatkov &amp; Količin</span>
-                    <button class="btn btn-secondary btn-sm" onclick="resetToUserDefault()" title="Ponastavi na vprašanih 8 sort">
-                        🔄 Privzeto (8 sort)
-                    </button>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn btn-secondary btn-sm" onclick="resetToUserDefault()" title="Ponastavi na vprašanih 8 sort">
+                            🔄 8 sort
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="load25SortsExample()" title="Naloži vaš primer s 25 sortami (188.500 pol)">
+                            📋 25 sort
+                        </button>
+                    </div>
                 </div>
 
                 <!-- SLOTS PER SHEET -->
@@ -623,17 +629,21 @@
                     <label class="form-label">Strategija Optimizacije</label>
                     <div class="strategy-picker">
                         <div class="strategy-opt active" id="strat-rec" onclick="setStrategy('rec')">
-                            <div class="strategy-title">⭐ 4 Forme</div>
-                            <div class="strategy-desc">Priporočeno! Le 4% viška, 7.050 pol</div>
+                            <div class="strategy-title" id="strat-rec-title">⭐ Uravnoteženo</div>
+                            <div class="strategy-desc" id="strat-rec-desc">Optimalen kompromis (min višek)</div>
                         </div>
                         <div class="strategy-opt" id="strat-minf" onclick="setStrategy('minf')">
-                            <div class="strategy-title">⚡ 3 Forme</div>
-                            <div class="strategy-desc">Min. menjav plošč, 8.800 pol</div>
+                            <div class="strategy-title" id="strat-minf-title">⚡ Min. Form</div>
+                            <div class="strategy-desc" id="strat-minf-desc">Najmanj menjav plošč</div>
                         </div>
                         <div class="strategy-opt" id="strat-minp" onclick="setStrategy('minp')">
-                            <div class="strategy-title">🎯 Min. Pol</div>
-                            <div class="strategy-desc">Globalni min. papirja (6.767 pol)</div>
+                            <div class="strategy-title" id="strat-minp-title">🎯 Min. Papir</div>
+                            <div class="strategy-desc" id="strat-minp-desc">Maksimalen prihranek pol</div>
                         </div>
+                    </div>
+                    <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.2); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--panel-border);">
+                        <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Fiksno št. tiskarskih form (neobvezno):</label>
+                        <input type="number" id="custom-forms-count" class="form-input" style="width: 85px; padding: 4px 8px; font-size: 0.85rem; text-align: center;" placeholder="Auto" min="1" max="50" onchange="recalculate()">
                     </div>
                 </div>
 
@@ -823,8 +833,85 @@
         let g_currentSolution = null;
 
         function init() {
+            const hasRestored = loadFromLocalStorage();
+            if (!hasRestored) {
+                renderSortsTable();
+                recalculate();
+            }
+        }
+
+        function saveToLocalStorage() {
+            try {
+                const data = {
+                    sorts: g_sorts,
+                    slots: document.getElementById('slots-count') ? document.getElementById('slots-count').value : 3,
+                    customM: document.getElementById('custom-forms-count') ? document.getElementById('custom-forms-count').value : '',
+                    strategy: g_strategy
+                };
+                localStorage.setItem('petric_razpored_v2_data', JSON.stringify(data));
+            } catch(e) {}
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('petric_razpored_v2_data');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    if (data && data.sorts && data.sorts.length > 0) {
+                        g_sorts = data.sorts;
+                        if (data.slots && document.getElementById('slots-count')) {
+                            document.getElementById('slots-count').value = data.slots;
+                        }
+                        if (data.customM && document.getElementById('custom-forms-count')) {
+                            document.getElementById('custom-forms-count').value = data.customM;
+                        }
+                        if (data.strategy) {
+                            setStrategy(data.strategy);
+                        } else {
+                            renderSortsTable();
+                            recalculate();
+                        }
+                        return true;
+                    }
+                }
+            } catch(e) {}
+            return false;
+        }
+
+        function load25SortsExample() {
+            g_sorts = [
+                { id: 1, name: "Sorta 1", qty: 60000, color: COLOR_PALETTE[0] },
+                { id: 2, name: "Sorta 2", qty: 30000, color: COLOR_PALETTE[1] },
+                { id: 3, name: "Sorta 3", qty: 75000, color: COLOR_PALETTE[2] },
+                { id: 4, name: "Sorta 4", qty: 85000, color: COLOR_PALETTE[3] },
+                { id: 5, name: "Sorta 5", qty: 100000, color: COLOR_PALETTE[4] },
+                { id: 6, name: "Sorta 6", qty: 30000, color: COLOR_PALETTE[5] },
+                { id: 7, name: "Sorta 7", qty: 6000, color: COLOR_PALETTE[6] },
+                { id: 8, name: "Sorta 8", qty: 6000, color: COLOR_PALETTE[7] },
+                { id: 9, name: "Sorta 9", qty: 7000, color: COLOR_PALETTE[8] },
+                { id: 10, name: "Sorta 10", qty: 6000, color: COLOR_PALETTE[9] },
+                { id: 11, name: "Sorta 11", qty: 45000, color: COLOR_PALETTE[10] },
+                { id: 12, name: "Sorta 12", qty: 15000, color: COLOR_PALETTE[11] },
+                { id: 13, name: "Sorta 13", qty: 10000, color: COLOR_PALETTE[0] },
+                { id: 14, name: "Sorta 14", qty: 20000, color: COLOR_PALETTE[1] },
+                { id: 15, name: "Sorta 15", qty: 10000, color: COLOR_PALETTE[2] },
+                { id: 16, name: "Sorta 16", qty: 35000, color: COLOR_PALETTE[3] },
+                { id: 17, name: "Sorta 17", qty: 35000, color: COLOR_PALETTE[4] },
+                { id: 18, name: "Sorta 18", qty: 3500, color: COLOR_PALETTE[5] },
+                { id: 19, name: "Sorta 19", qty: 3500, color: COLOR_PALETTE[6] },
+                { id: 20, name: "Sorta 20", qty: 1500, color: COLOR_PALETTE[7] },
+                { id: 21, name: "Sorta 21", qty: 2500, color: COLOR_PALETTE[8] },
+                { id: 22, name: "Sorta 22", qty: 25000, color: COLOR_PALETTE[9] },
+                { id: 23, name: "Sorta 23", qty: 8000, color: COLOR_PALETTE[10] },
+                { id: 24, name: "Sorta 24", qty: 17000, color: COLOR_PALETTE[11] },
+                { id: 25, name: "Sorta 25", qty: 40000, color: COLOR_PALETTE[0] }
+            ];
+            document.getElementById('slots-count').value = 4;
+            const customM = document.getElementById('custom-forms-count');
+            if (customM) customM.value = 8;
             renderSortsTable();
             recalculate();
+            saveToLocalStorage();
         }
 
         function setStrategy(strat) {
@@ -874,6 +961,7 @@
 
         function updateSortName(idx, val) {
             if (g_sorts[idx]) g_sorts[idx].name = val;
+            saveToLocalStorage();
         }
 
         function updateSortQty(idx, val) {
@@ -881,6 +969,7 @@
             if (g_sorts[idx]) g_sorts[idx].qty = num;
             let total = g_sorts.reduce((sum, s) => sum + (parseInt(s.qty) || 0), 0);
             document.getElementById('total-qty-label').textContent = `Skupaj: ${formatNumber(total)} kosov`;
+            saveToLocalStorage();
         }
 
         function addNewSortRow() {
@@ -894,6 +983,7 @@
             });
             renderSortsTable();
             recalculate();
+            saveToLocalStorage();
         }
 
         function deleteSort(idx) {
@@ -904,6 +994,7 @@
             g_sorts.splice(idx, 1);
             renderSortsTable();
             recalculate();
+            saveToLocalStorage();
         }
 
         function clearAllSorts() {
@@ -928,6 +1019,7 @@
             document.getElementById('slots-count').value = 3;
             renderSortsTable();
             recalculate();
+            saveToLocalStorage();
         }
 
         // ==========================================
@@ -1034,85 +1126,122 @@
             renderResults(solution, Q, totalRequired, K);
         }
 
-        // Fast client-side solver for arbitrary user inputs
+        // Napreden matematični solver (Dynamic Programming & Group Clustering)
         function solveGenericImposition(N, K, Q, strategy) {
-            // Generate valid layouts
-            const layouts = [];
-            function gen(idx, cur) {
-                if (cur.length === K) {
-                    const vec = new Array(N).fill(0);
-                    let mask = 0;
-                    for (const item of cur) {
-                        vec[item]++;
-                        mask |= (1 << item);
-                    }
-                    layouts.push({ vec, mask, items: [...cur] });
-                    return;
-                }
-                for (let i = idx; i < N; i++) {
-                    cur.push(i);
-                    gen(i, cur);
-                    cur.pop();
-                }
-            }
-            gen(0, []);
-
-            // Target number of forms
-            let targetM = 4;
-            if (strategy === 'minf') targetM = Math.ceil(N / K);
-            else if (strategy === 'minp') targetM = Math.min(N + 2, 8);
-
-            // Greedy + Local Search solver
-            // 1. Initial heuristic assignment: partition sorted by quantity
-            let bestSheets = Infinity;
-            let bestForms = [];
-
-            // Let's test standard greedy grouping:
-            // Sort indices by quantity descending
             const sortedIdx = [...Array(N).keys()].sort((a, b) => Q[b] - Q[a]);
-            const M = Math.max(Math.ceil(N / K), targetM);
-            const forms = [];
-
-            // Simple robust partition
-            for (let f = 0; f < M; f++) forms.push([]);
-            for (let i = 0; i < N; i++) {
-                forms[i % M].push(sortedIdx[i]);
+            const minM = Math.ceil(N / K);
+            
+            // Fiksno število form (če ga uporabnik ročno določi)
+            const customMInput = document.getElementById('custom-forms-count');
+            const customM = customMInput ? parseInt(customMInput.value) : 0;
+            
+            let targetMinM = minM;
+            let targetMaxM = minM;
+            
+            if (customM && customM >= minM) {
+                targetMinM = customM;
+                targetMaxM = customM;
+            } else if (strategy === 'minf') {
+                targetMinM = minM;
+                targetMaxM = minM;
+            } else if (strategy === 'rec') {
+                targetMinM = minM;
+                targetMaxM = Math.min(N, minM + (N > 10 ? 2 : 1));
+            } else {
+                targetMinM = minM;
+                targetMaxM = Math.min(N, minM + 4);
             }
-            // Fill remaining slots
-            for (let f = 0; f < M; f++) {
-                while (forms[f].length < K) {
-                    // fill with the item with largest quantity in this form
-                    forms[f].push(forms[f][0] || 0);
+
+            const memo = {};
+            
+            function costOfGroup(grpIndices) {
+                const sz = grpIndices.length;
+                if (sz > K || sz === 0) return { sheets: Infinity, mults: {} };
+                const mults = {};
+                for (let i = 0; i < sz; i++) mults[grpIndices[i]] = 1;
+                let extra = K - sz;
+                while (extra > 0) {
+                    let bestIdx = grpIndices[0];
+                    let bestRatio = -1;
+                    for (let i = 0; i < sz; i++) {
+                        const idx = grpIndices[i];
+                        const r = Q[idx] / mults[idx];
+                        if (r > bestRatio) {
+                            bestRatio = r;
+                            bestIdx = idx;
+                        }
+                    }
+                    mults[bestIdx]++;
+                    extra--;
+                }
+                let sh = 0;
+                for (let i = 0; i < sz; i++) {
+                    const idx = grpIndices[i];
+                    const req = Math.ceil(Q[idx] / mults[idx]);
+                    if (req > sh) sh = req;
+                }
+                return { sheets: sh, mults: mults };
+            }
+
+            function dp(idx, fLeft) {
+                if (idx === N && fLeft === 0) return { cost: 0, plan: [] };
+                if (idx === N || fLeft === 0) return { cost: Infinity, plan: [] };
+                const state = idx + '_' + fLeft;
+                if (memo[state]) return memo[state];
+
+                let bestCost = Infinity;
+                let bestPlan = [];
+
+                const minSz = Math.max(1, (N - idx) - (fLeft - 1) * K);
+                const maxSz = Math.min(K, (N - idx) - (fLeft - 1) * 1);
+
+                for (let sz = minSz; sz <= maxSz; sz++) {
+                    const grp = sortedIdx.slice(idx, idx + sz);
+                    const { sheets, mults } = costOfGroup(grp);
+                    const rem = dp(idx + sz, fLeft - 1);
+                    const tot = sheets + rem.cost;
+                    if (tot < bestCost) {
+                        bestCost = tot;
+                        bestPlan = [{ sheets, grp, mults }].concat(rem.plan);
+                    }
+                }
+
+                memo[state] = { cost: bestCost, plan: bestPlan };
+                return memo[state];
+            }
+
+            let bestOverall = null;
+            for (let testM = targetMinM; testM <= targetMaxM; testM++) {
+                const res = dp(0, testM);
+                if (res && res.cost < Infinity) {
+                    if (!bestOverall || res.cost < bestOverall.cost) {
+                        bestOverall = { ...res, M: testM };
+                    }
                 }
             }
 
-            // Calculate sheets for each form
+            if (!bestOverall || bestOverall.cost === Infinity) {
+                bestOverall = dp(0, minM);
+                bestOverall.M = minM;
+            }
+
             const resForms = [];
-            let totalSheets = 0;
-            for (let f = 0; f < M; f++) {
-                const countMap = {};
-                for (const itm of forms[f]) countMap[itm] = (countMap[itm] || 0) + 1;
-                let maxNeeded = 0;
-                for (const itm in countMap) {
-                    const req = Math.ceil(Q[itm] / countMap[itm]);
-                    if (req > maxNeeded) maxNeeded = req;
-                }
+            bestOverall.plan.forEach((item, fIdx) => {
                 const slots = [];
-                for (const itm in countMap) {
-                    slots.push({ sortIdx: parseInt(itm), mult: countMap[itm] });
-                }
+                item.grp.forEach(sortIdx => {
+                    slots.push({ sortIdx: sortIdx, mult: item.mults[sortIdx] });
+                });
                 resForms.push({
-                    id: f + 1,
-                    name: `Forma ${f + 1}`,
-                    sheets: maxNeeded,
+                    id: fIdx + 1,
+                    name: `Forma ${fIdx + 1}`,
+                    sheets: item.sheets,
                     slots: slots
                 });
-                totalSheets += maxNeeded;
-            }
+            });
 
             return {
-                strategyName: `Prilagojena optimizacija (${M} form)`,
-                totalSheets: totalSheets,
+                strategyName: `Optimalno razvrščanje po skupinah naklad (${bestOverall.M} form)`,
+                totalSheets: bestOverall.cost,
                 forms: resForms
             };
         }
