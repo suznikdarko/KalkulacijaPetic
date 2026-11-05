@@ -1,0 +1,500 @@
+--- pola.html
++++ pola2.html
+@@ -8,4 +8,7 @@
+     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
++    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
++    <script src="tarife_prevozov.js?v=2"></script>
++    <script src="customer_contacts_seed.js?v=1"></script>
+     <style>
+         :root {
+@@ -485,5 +488,10 @@
+             gap: 0.5rem;
+         }
+-    </style>
++            #modal-pdf-viewer canvas,
++        .pdf-page-wrapper canvas {
++            max-height: none !important;
++        }
++
++        </style>
+ </head>
+ 
+@@ -496,41 +504,77 @@
+                 <div style="display: flex; gap: 0.2rem; position: relative;">
+                     <input type="text" id="calc-project-name" placeholder="Vnesite izdelek" style="flex: 1;">
+-                    <button onclick="toggleProjectsDropdown()"
++                    <button id="btn-my-projects" onclick="toggleProjectsDropdown()"
+                         style="width: auto; background: #64748b; border: none; border-radius: 8px; color: white; cursor: pointer; padding: 0 10px; font-size: 0.8rem; font-weight: bold;">
+                         MOJI PROJEKTI ˇ
+                     </button>
+-                    <button onclick="exportToFile()"
+-                        style="width: auto; background: #6366f1; border: none; border-radius: 8px; color: white; cursor: pointer; padding: 0 10px; font-size: 0.8rem; font-weight: bold;" title="Shrani projekt v JSON datoteko ali povezano mapo">
+-                        💾 SHRANI PROJEKT
+-                    </button>
+                     <!-- DROPDOWN ZA PROJEKTE -->
+                     <div id="projects-dropdown-list"
+-                        style="display: none; position: absolute; top: 100%; right: 0; width: 320px; background: #1e293b; border: 2px solid #64748b; border-radius: 12px; max-height: 400px; overflow: hidden; z-index: 2000; margin-top: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); flex-direction: column;">
+-                        <!-- STATIČNA GLAVA Z ISKANJEM -->
++                        style="display: none; position: absolute; top: 100%; right: 0; width: 420px; background: #1e293b; border: 2px solid #64748b; border-radius: 12px; max-height: 520px; overflow: hidden; z-index: 2000; margin-top: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); flex-direction: column;">
++
++                        <!-- STATIČNA GLAVA Z ISKANJEM IN FILTRI -->
+                         <div style="padding: 10px; border-bottom: 2px solid #334155; background: #1e293b;">
+-                            <input type="text" id="project-search-input" placeholder="Išči (ime, stranka, šifra)..."
+-                                style="width: 100%; padding: 8px; border-radius: 6px; background: #0f172a; border: 1px solid #475569; color: white; font-size: 0.8rem;"
++
++                            <input type="text" id="project-search-input" placeholder="🔍 Išči po vseh ponudbah (stranka, šifra, ime)..."
++                                style="width: 100%; padding: 8px 10px; border-radius: 6px; background: #0f172a; border: 1px solid #475569; color: white; font-size: 0.82rem;"
+                                 oninput="renderSavedProjects()">
+-                            <div style="margin-top: 8px; display: flex; gap: 5px;">
++
++                            <div style="margin-top: 8px; display: flex; gap: 5px; align-items: center;">
++                                <button type="button" id="btn-filter-all" onclick="setProjectFilterMode('all')"
++                                    style="flex: 1.2; background: #3b82f6; color: white; border: none; padding: 5px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;"
++                                    title="Prikaži vse shranjene kalkulacije na strežniku">
++                                    🌐 VSE NA STREŽNIKU (<span id="count-filter-all">...</span>)
++                                </button>
++                                <button type="button" id="btn-filter-type" onclick="setProjectFilterMode('type')"
++                                    style="flex: 1; background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 5px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;"
++                                    title="Prikaži samo kalkulacije za tiskovno polo">
++                                    📑 POLA (<span id="count-filter-type">...</span>)
++                                </button>
++                                <button type="button" onclick="fetchServerProjects().then(() => renderSavedProjects())"
++                                    style="background: #0f172a; border: 1px solid #475569; color: #38bdf8; padding: 5px 8px; border-radius: 6px; font-size: 0.75rem; cursor: pointer;"
++                                    title="Ponovno preveri strežnik (S:\PONUDBE TEST)">
++                                    🔄
++                                </button>
++                            </div>
++
++                            <div style="margin-top: 6px; display: flex; gap: 5px;">
+                                 <button onclick="syncWithFolder()"
+                                     style="flex: 1.2; background: #10b981; border: 1px solid #059669; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;"
+-                                    title="Prikaži datoteke iz mape na disku (C:\TISKOVNE_POLE)">
+-                                    = POVEŽI Z MAPO
+-                                </button>
+-                                <button onclick="exportToFile()"
+-                                    style="flex: 1; background: #6366f1; border: 1px solid #4f46e5; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;" title="Shrani trenutno kalkulacijo kot JSON datoteko">
+-                                    💾 SHRANI JSON
++                                    title="Prikaži datoteke iz mape na disku">
++                                    📂 POVEŽI Z MAPO
+                                 </button>
+                                 <button onclick="document.getElementById('import-file-input').click()"
+                                     style="flex: 1; background: #334155; border: 1px solid #475569; border-radius: 6px; color: white; padding: 5px; font-size: 0.7rem; cursor: pointer;">
+-                                    = UVOZI JSON
++                                    📤 UVOZI JSON
+                                 </button>
+-                                <input type="file" id="import-file-input" style="display: none;" accept=".pola.json,.json"
++                                <input type="file" id="import-file-input" style="display: none;"
+                                     onchange="handleFileSelect(event)">
+                             </div>
+                         </div>
++
+                         <!-- SCROLLABLE LIST CONTAINER -->
+                         <div id="projects-list-content" style="overflow-y: auto; flex: 1; max-height: 300px;"></div>
+                     </div>
++                </div>
++                <!-- GUMBI ZA E-POŠTO IN PDF -->
++                <div style="margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
++                    <button type="button" onclick="openEmailModal()" id="btn-open-email-modal"
++                        style="background: linear-gradient(135deg, #0284c7, #2563eb); border: none; border-radius: 8px; color: white; padding: 5px 12px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; box-shadow: 0 4px 12px rgba(2,132,199,0.3);"
++                        title="Vnos, prilep ali uvoz e-pošte / povpraševanja stranke">
++                        ✉️ E-POŠTA STRANKE
++                    </button>
++                    <div id="attached-email-badge" style="display:none; align-items: center; gap: 6px; background: rgba(2, 132, 199, 0.2); border: 1px solid #0284c7; border-radius: 8px; padding: 4px 10px; font-size: 0.8rem; color: #38bdf8;">
++                        <span>✉️ <strong id="attached-email-summary">Mail stranke</strong></span>
++                        <button type="button" onclick="openEmailModal()" style="background: #0284c7; color: white; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-weight: bold; font-size: 0.75rem;" title="Odpri in uredi mail">👁️ Poglej / Uredi</button>
++                        <button type="button" onclick="removeAttachedEmail()" style="background: rgba(239, 68, 68, 0.3); color: #f87171; border: 1px solid #ef4444; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.75rem;" title="Odstrani e-pošto">✕</button>
++                    </div>
++
++                    <button type="button" onclick="document.getElementById('pdf-file-input').click()"
++                        style="background: linear-gradient(135deg, #ec4899, #8b5cf6); border: none; border-radius: 8px; color: white; padding: 5px 12px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; box-shadow: 0 4px 12px rgba(236,72,153,0.3);"
++                        title="Naložite PDF, Excel (.xlsx, .xls) ali Word (.docx, .doc) dokumente naročila ali razdelilnika">
++                        📎 PRIPNI DATOTEKO (PDF / Excel / Word / Slike)
++                    </button>
++                    <input type="file" id="pdf-file-input" accept=".pdf,.xlsx,.xls,.docx,.doc,.jpg,.jpeg,.png,.webp" multiple style="display:none;" onchange="handlePdfFileUpload(event)">
++                    <div id="attached-pdfs-container" style="display:inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;"></div>
++                    <div id="attached-pdf-badge" style="display:none;"></div>
+                 </div>
+             </div>
+@@ -538,8 +582,8 @@
+                 <label for="calc-customer">Stranka</label>
+                 <div style="display: flex; gap: 0.2rem; position: relative;">
+-                    <input type="text" id="calc-customer" list="customer-list" placeholder="Izberite stranko"
++                    <input type="text" id="calc-customer" autocomplete="off" placeholder="Izberite stranko"
+                         style="flex: 1;">
+                     <button onclick="toggleCustomerDropdown()"
+-                        style="width: 35px; background: #3b82f6; border: none; border-radius: 8px; color: white; cursor: pointer;">ˇ</button>
++                        style="width: 35px; background: #3b82f6; border: none; border-radius: 8px; color: white; cursor: pointer;">▼</button>
+                     <div id="cust-dropdown-list"
+                         style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 1000; margin-top: 5px;">
+@@ -550,16 +594,11 @@
+             <div class="header-group" style="grid-column: span 3;">
+                 <label for="calc-notes">Pripombe / posebnosti</label>
+-                <textarea id="calc-notes" placeholder="Vnesite posebnosti ali pripombe..." rows="2"
++                <textarea id="calc-notes" placeholder="Vnesite posebnosti ali pripombe..." rows="3"
+                     style="font-family: Inter, sans-serif; resize: vertical;"></textarea>
+             </div>
+-            <div class="header-group"
+-                style="grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
++            <div class="header-group" style="grid-column: span 1; display: flex; flex-direction: column; gap: 0.75rem;">
+                 <div>
+                     <label for="calc-quote-number">Številka ponudbe</label>
+                     <input type="text" id="calc-quote-number" placeholder="">
+-                </div>
+-                <div>
+-                    <label for="calc-dn-number">Številka D.N.</label>
+-                    <input type="text" id="calc-dn-number" placeholder="">
+                 </div>
+                 <div>
+@@ -569,19 +608,6 @@
+                 </div>
+                 <div>
+-                    <label for="calc-dn-old">Stari D.N. (za montažo)</label>
+-                    <input type="text" id="calc-dn-old" placeholder="">
+-                </div>
+-                <div>
+                     <label>Šifra izdelka</label>
+                     <input type="text" id="calc-product-code" placeholder="">
+-                </div>
+-                <div>
+-                    <label for="calc-dn-deadline">Rok izdelave</label>
+-                    <input type="text" id="calc-dn-deadline" placeholder="">
+-                </div>
+-                <div style="display:flex; align-items:center; gap: 0.5rem; margin-top: 10px;">
+-                    <input type="checkbox" id="calc-dn-urgent" onchange="g_editedWorkOrderHTML = ''; calculatePrice()"
+-                        style="width:auto; height:auto;">
+-                    <label for="calc-dn-urgent" style="color: #ef4444; font-weight: bold; margin:0;">NUJNO!</label>
+                 </div>
+                 <div>
+@@ -590,32 +616,49 @@
+                 </div>
+             </div>
++            <div class="header-group" style="grid-column: span 1; display: flex; flex-direction: column; gap: 0.75rem;">
++                <div>
++                    <label for="calc-dn-number">Številka D.N.</label>
++                    <input type="text" id="calc-dn-number" placeholder="">
++                </div>
++                <div>
++                    <label for="calc-dn-old">Stari D.N. (za montažo)</label>
++                    <input type="text" id="calc-dn-old" placeholder="">
++                </div>
++                <div>
++                    <label for="calc-dn-deadline">Rok izdelave</label>
++                    <input type="text" id="calc-dn-deadline" placeholder="">
++                </div>
++                <div style="display:flex; align-items:center; gap: 0.5rem; margin-top: 5px;">
++                    <input type="checkbox" id="calc-dn-urgent" onchange="g_editedWorkOrderHTML = ''; calculatePrice()"
++                        style="width:auto; height:auto;">
++                    <label for="calc-dn-urgent" style="color: #ef4444; font-weight: bold; margin:0;">NUJNO!</label>
++                </div>
++            </div>
+             <div class="header-group" style="grid-column: span 1;">
+-                <label for="calc-prepared-by">Ponudbo pripravil</label>
+-                <select id="calc-prepared-by">
+-                    <option value="Darko Sužnik" selected>Darko Sužnik</option>
+-                    <option value="Sašo Slemenšek">Sašo Slemenšek</option>
+-                    <option value="Tilen Petrič">Tilen Petrič</option>
+-                </select>
++                <div>
++                    <label for="calc-prepared-by">Ponudbo pripravil</label>
++                    <select id="calc-prepared-by">
++                        <option value="Darko Sužnik" selected>Darko Sužnik</option>
++                        <option value="Sašo Slemenšek">Sašo Slemenšek</option>
++                        <option value="Tilen Petrič">Tilen Petrič</option>
++                    </select>
++                </div>
+                 <!-- Predogled dokumentov -->
+                 <div id="custom-docs-preview"
+                     style="display: flex; gap: 10px; margin-top: 10px; justify-content: center;"></div>
+                 <!-- Tip naročila / status -->
+-                <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
+-                    <div style="display: flex; flex-direction: column; gap: 2px;">
+-                        <label for="calc-order-type"
+-                            style="font-size: 11pt; font-family: Arial, sans-serif; color: #94a3b8; font-weight: bold; text-align: center;">Tip
+-                            naročila</label>
+-                        <select id="calc-order-type"
+-                            onchange="g_editedQuoteHTML=''; g_editedQuoteATHTML=''; g_editedWorkOrderHTML=''; calculatePrice();"
+-                            style="width: 100%; border-radius: 6px; padding: 6px; font-size: 11pt; background: #475569; color: white; border: 1px solid var(--glass-border);">
+-                            <option value=""></option>
+-                            <option value="NOVO">NOVO</option>
+-                            <option value="NOVO AK-JPG Montaže">NOVO AK-JPG Montaže</option>
+-                            <option value="Sprememba">Sprememba</option>
+-                            <option value="Sprememba AK-JPG Montaže">Sprememba AK-JPG Montaže</option>
+-                            <option value="Ponatis">Ponatis</option>
+-                            <option value="Ponatis AK-JPG Montaže">Ponatis AK-JPG Montaže</option>
+-                        </select>
+-                    </div>
++                <div style="margin-top: 10px;">
++                    <label for="calc-order-type">Tip naročila</label>
++                    <select id="calc-order-type"
++                        onchange="g_editedQuoteHTML=''; g_editedQuoteATHTML=''; g_editedWorkOrderHTML=''; calculatePrice();"
++                        style="width: 100%; border-radius: 6px; padding: 6px; font-size: 11pt; background: #475569; color: white; border: 1px solid var(--glass-border);">
++                        <option value=""></option>
++                        <option value="NOVO">NOVO</option>
++                        <option value="NOVO AK-JPG Montaže">NOVO AK-JPG Montaže</option>
++                        <option value="Sprememba">Sprememba</option>
++                        <option value="Sprememba AK-JPG Montaže">Sprememba AK-JPG Montaže</option>
++                        <option value="Ponatis">Ponatis</option>
++                        <option value="Ponatis AK-JPG Montaže">Ponatis AK-JPG Montaže</option>
++                    </select>
+                 </div>
+             </div>
+@@ -712,4 +755,12 @@
+                         oninput="if(typeof updatePriceFromManualCount === 'function') updatePriceFromManualCount(); else calculate()">
+                 </div>
++                <div style="display: flex; flex-direction: column; justify-content: flex-end;">
++                    <button type="button" id="btn-sort-imposition-trigger" onclick="openSortImpositionModal()"
++                        style="background: linear-gradient(135deg, #0284c7, #2563eb); border: none; border-radius: 8px; color: white; padding: 7px 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 7px; font-size: 0.82rem; box-shadow: 0 4px 12px rgba(2,132,199,0.3); height: 42px; white-space: nowrap;"
++                        title="Optimalna razporeditev več naklad/sort na tiskovno polo (gang-run)">
++                        <span style="font-size: 1.1rem;">🔀</span> Razporeditev sort na polo
++                        <span id="sort-imposition-active-badge" style="display: none; background: #10b981; color: white; border-radius: 10px; padding: 2px 7px; font-size: 0.72rem; font-weight: 800;" title="Ta ponudba ima shranjeno razporeditev">✓ Shranjeno</span>
++                    </button>
++                </div>
+             </div>
+             <div class="header-group"
+@@ -719,5 +770,5 @@
+                     <div style="display: flex; gap: 0.5rem; align-items: center;">
+                         <select id="calc-source-presets"
+-                            onchange="if(this.value){ const parts = this.value.split('x'); document.getElementById('calc-source-w').value = parts[0]; document.getElementById('calc-source-h').value = parts[1]; if(typeof filterAvailableFormats === 'function') filterAvailableFormats(); calculate(); }"
++                            onchange="if(this.value){ const parts = this.value.split('x'); document.getElementById('calc-source-w').value = parts[0]; document.getElementById('calc-source-h').value = parts[1]; document.getElementById('items-per-sheet').value = ''; if(typeof filterAvailableFormats === 'function') filterAvailableFormats(); calculate(); }"
+                             style="flex: 1.5; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; font-size: 0.8rem; padding: 0.5rem; color: #fff; border-radius: 8px;">
+                             <option value="">Format...</option>
+@@ -728,4 +779,6 @@
+                             <option value="900x640">900 x 640</option>
+                             <option value="640x900">640 x 900</option>
++                            <option value="700x500">700 x 500</option>
++                            <option value="500x700">500 x 700</option>
+                             <option value="450x640">450 x 640</option>
+                             <option value="640x450">640 x 450</option>
+@@ -755,7 +808,9 @@
+                             <option value="A1">A1 (841 x 594 mm)</option>
+                             <option value="900x640">900x640 (900 x 640 mm)</option>
++                            <option value="720x520">720x520 (720 x 520 mm)</option>
+                             <option value="B2">B2 (698 x 498 mm)</option>
+                             <option value="6 iz B1">6 iz B1 (349 x 332 mm)</option>
+                             <option value="638x448">Izrez (638 x 448 mm)</option>
++                            <option value="638x299">Izrez (638 x 299 mm)</option>
+                             <option value="B3">B3 (498 x 348 mm)</option>
+                             <option value="Riba">Riba (698 x 332 mm)</option>
+@@ -770,4 +825,5 @@
+                             <option value="Digital (480x320)">Digital (480 x 320 mm)</option>
+                             <option value="Digital (448x318)">Digital (448 x 318 mm)</option>
++                            <option value="Roll Up (850x2000)">Roll Up (850 x 2000 mm)</option>
+                         </select>
+                     </div>
+@@ -792,4 +848,6 @@
+                             <option value="CD UV">CD UV</option>
+                             <option value="digital">Digitalni stroj</option>
++                            <option value="digital-plakat">Digitalni tisk - plakat (B1, B2, A1)</option>
++                            <option value="digital-rollup">Digitalni ROLL UP</option>
+                             <option value="cooperation">Kooperacija (B1/A1)</option>
+                         </select>
+@@ -941,9 +999,23 @@
+                     <div class="stat-card full-width"
+                         style="margin-top: 5px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
+-                        <input type="number" id="calc-ordered-sheets" placeholder="Naročene osnovne pole..."
++                        <input type="text" id="calc-ordered-sheets" placeholder="Naročene osnovne pole..."
+                             oninput="g_editedWorkOrderHTML = ''; calculatePrice()"
+                             onchange="g_editedWorkOrderHTML = ''; calculatePrice()"
+                             style="width: 100%; text-align: center; font-size: 1.25rem; font-weight: bold; border: none; background: transparent; padding: 5px; color: #ffffff;">
+                         <div class="label" style="text-align: center;">Naročeno število osnovnih pol (za razrez)</div>
++
++                        <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(16, 185, 129, 0.3); font-size: 0.8rem; color: #a7f3d0; flex-wrap: wrap;">
++                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin: 0; font-weight: 500;" title="Naročilo po celih paketih pol (avtomatsko zaokroževanje navzgor)">
++                                <input type="checkbox" id="calc-paper-pack-enabled" onchange="onPaperPackToggle()" style="cursor: pointer; accent-color: #10b981;">
++                                Paket:
++                            </label>
++                            <select id="calc-paper-pack-size" onchange="onPaperPackSizeChange()" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(16, 185, 129, 0.5); color: #fff; border-radius: 4px; padding: 2px 6px; font-size: 0.78rem; cursor: pointer; opacity: 0.5;" disabled>
++                                <option value="100" selected>100 pol</option>
++                                <option value="250">250 pol</option>
++                                <option value="500">500 pol</option>
++                                <option value="custom">Poljubno...</option>
++                            </select>
++                            <input type="number" id="calc-paper-pack-custom" placeholder="Št." min="1" step="1" value="100" style="display: none; width: 55px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(16, 185, 129, 0.5); color: #fff; border-radius: 4px; padding: 2px 4px; font-size: 0.78rem; text-align: center;" oninput="calculatePrice()">
++                        </div>
+                     </div>
+                     <div class="stat-card full-width"
+@@ -974,8 +1046,16 @@
+                 style="display: none; margin-bottom: 2rem; background: rgba(30, 41, 59, 0.5); border: 1px solid var(--glass-border); border-radius: 12px; overflow: hidden;">
+                 <div
+-                    style="padding: 10px 15px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+-                    <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa;">= KOŠARICA ZA PONUDBO</h3>
+-                    <button onclick="clearBasket()"
+-                        style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.7rem;">Počisti</button>
++                    style="padding: 10px 15px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
++                    <div>
++                        <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa; display: flex; align-items: center; gap: 6px;">📁 KOŠARICA ZA PONUDBO</h3>
++                        <div id="basket-quote-subtext" style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;"></div>
++                    </div>
++                    <div style="display: flex; gap: 6px; align-items: center;">
++                        <button type="button" onclick="toggleProjectsDropdown()" style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;" title="Preklopi med drugimi shranjenimi ponudbami">
++                            📂 Druge ponudbe
++                        </button>
++                        <button onclick="clearBasket()"
++                            style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.7rem;">Počisti vse</button>
++                    </div>
+                 </div>
+                 <div id="basket-items-list" style="padding: 10px; max-height: 400px; overflow-y: auto;">
+@@ -1008,638 +1088,210 @@
+         <!-- DESNI PANEL: KALKULACIJA -->
+         <div class="panel calculation">
+-            <h2>Kalkulacija Stroškov Tiska</h2>
+-            <div class="calc-grid">
+-                <!-- 1. Papir -->
+-                <div class="calc-section">
+-                    <h3>1. Material (Papir)</h3>
+-                    <div class="form-group">
+-                        <label>Cena papirja</label>
+-                        <div class="input-group">
+-                            <input type="text" id="calc-paper-price" value="" placeholder="Vnesite ceno"
+-                                onchange="calculatePrice()">
+-                            <select id="calc-paper-unit" onchange="calculatePrice()">
+-                                <option value="ton">na tono</option>
+-                                <option value="1000">na 1000 pol</option>
+-                                <option value="1">na 1 polo</option>
+-                            </select>
+-                        </div>
+-                    </div>
+-                    <div class="form-group">
+-                        <label>Gramatura (g/m²)</label>
+-                        <input type="text" id="calc-paper-weight" value="" placeholder="g/m²" onchange="calculate()" oninput="onMaterialStockInput(this, 'paper')">
+-                    </div>
+-                    <div class="form-group">
+-                        <label style="display:flex; justify-content:space-between; align-items:center;">
+-                            <span>Vrsta materiala (mat, glos...)</span>
+-                            <button type="button" onclick="openStockSearchModal('paper')" style="padding:2px 8px; font-size:0.72rem; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🔍 Preveri zalogo (Simon)</button>
+-                        </label>
+-                        <input type="text" id="calc-paper-type" value="" placeholder="Vpišite naziv ali šifro (npr. 250g mat)..." onchange="calculate()"
+-                            oninput="onMaterialStockInput(this, 'paper'); if(typeof extractGrammage === 'function') extractGrammage(this, 'calc-paper-weight');">
+-                    </div>
+-                    <div class="form-group">
+-                        <label>Šifra materiala</label>
+-                        <input type="text" id="calc-material-code" value="" placeholder="" onchange="calculate()"
+-                            oninput="onMaterialStockInput(this, 'paper');">
+-                    </div>
+-                    <!-- Barve in obračanje prestavljene navzgor pod format tiskovne forme -->
+-                    <div class="form-group">
+-                        <label>Makulatura (št. pol) <small>(Prazno = Boss avto)</small></label>
+-                        <div style="display:flex; gap:0.5rem; align-items:center;">
+-                            <div style="flex:1;">
+-                                <input type="number" id="calc-paper-waste-manual" value="" placeholder="Avto"
++            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
++                <h2 style="margin: 0;">Kalkulacija Stroškov Tiska</h2>
++            </div>
++            
++            <!-- ZAVIHKI ZA KALKULACIJO -->
++            <div class="calc-tabs-bar" style="display: flex; gap: 0.35rem; margin-bottom: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; flex-wrap: wrap;">
++                <button type="button" class="calc-tab-btn active" id="btn-calc-tab-papir-plosce" onclick="switchCalcTab('papir-plosce')" style="flex: 1; min-width: 100px; padding: 0.45rem 0.6rem; background: rgba(59, 130, 246, 0.25); border: 1px solid #3b82f6; color: white; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">📋 Papir & Plošče</button>
++                <button type="button" class="calc-tab-btn" id="btn-calc-tab-tisk-stroj" onclick="switchCalcTab('tisk-stroj')" style="flex: 1; min-width: 90px; padding: 0.45rem 0.6rem; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border); color: #94a3b8; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">🖨️ Tisk & Stroj</button>
++                <button type="button" class="calc-tab-btn" id="btn-calc-tab-dodelava" onclick="switchCalcTab('dodelava')" style="flex: 1; min-width: 80px; padding: 0.45rem 0.6rem; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border); color: #94a3b8; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">✂️ Dodelava</button>
++                <button type="button" class="calc-tab-btn" id="btn-calc-tab-povzetek" onclick="switchCalcTab('povzetek')" style="flex: 1; min-width: 100px; padding: 0.45rem 0.6rem; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border); color: #94a3b8; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">💶 Povzetek & RVC</button>
++                <button type="button" class="calc-tab-btn" id="btn-calc-tab-vse" onclick="switchCalcTab('vse')" style="padding: 0.45rem 0.6rem; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border); color: #94a3b8; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;" title="Prikaži vse sekcije z enim samim pomikom">👁️ Vse</button>
++            </div>
++
++            <!-- TAB 1: PAPIR IN PLOŠČE -->
++            <div class="calc-tab-pane" id="calc-tab-papir-plosce">
++                <div class="calc-grid">
++                    <!-- 1. Papir -->
++                    <div class="calc-section">
++                        <h3>1. Material (Papir)</h3>
++                        <div class="form-group">
++                            <label>Cena papirja</label>
++                            <div class="input-group">
++                                <input type="text" id="calc-paper-price" value="" placeholder="Vnesite ceno"
+                                     onchange="calculatePrice()">
+-                            </div>
+-                            <div style="flex:1;">
+-                                <input type="number" id="calc-paper-waste" value="320" readonly
+-                                    style="background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.4); color:#fbbf24; font-weight:bold; cursor:default;"
+-                                    title="Samodejno izračunano glede na barve in obračanje">
++                                <select id="calc-paper-unit" onchange="calculatePrice()">
++                                    <option value="ton">na tono</option>
++                                    <option value="1000">na 1000 pol</option>
++                                    <option value="1">na 1 polo</option>
++                                </select>
+                             </div>
+                         </div>
+-                    </div>
+-                </div>
+-                <!-- 2. Priprava in Plošče -->
+-                <div class="calc-section">
+-                    <h3>2. Priprava in Plošče</h3>
+-                    <div class="form-group">
+-                        <label>Število plošč <small>(polno število)</small></label>
+-                        <input type="number" id="calc-plates-num" value="4" onchange="calculatePrice()">
+-                    </div>
+-                    <div class="form-group">
+-                        <label>Cena na ploščo ( )</label>
+-                        <input type="number" id="calc-plates-price" value="10.00" step="0.5"
+-                            onchange="calculatePrice()">
+-                    </div>
+-                    <div class="form-group">
+-                        <label>Priprava tiska (pavšal )</label>
+-                        <input type="number" id="calc-prep-price" value="25.00" step="1" onchange="calculatePrice()">
+-                    </div>
+-                    <div class="form-group">
+-                        <label>Menjava plošč ( / kos - brez prve)</label>
+-                        <input type="number" id="calc-change-price" value="10.00" step="1" onchange="calculatePrice()">
+-                    </div>
+-                    <div class="form-group"
+-                        style="padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 5px;">
+-                        <label>Vrsta mutacije</label>
+-                        <select id="calc-mut-type" onchange="updateMutationPlates(); calculatePrice()">
+-                            <option value="">Brez mutacij</option>
+-                            <option value="Mutacija po prvi strani (1/0)">Mutacija po prvi strani (1/0)</option>
+-                            <option value="Mutacija po drugi strani (0/1)">Mutacija po drugi strani (0/1)</option>
+-                            <option value="Mutacija obojestransko (1/1)">Mutacija obojestransko (1/1)</option>
+-                        </select>
+-                    </div>
+-                    <div class="form-group">
+-                        <label>Število mutacij</label>
+-                        <input type="number" id="calc-mut-qty" value="0" min="0" step="1"
+-                            oninput="updateMutationPlates(); calculatePrice()"
+-                            onchange="updateMutationPlates(); calculatePrice()">
+-                    </div>
+-                    <div class="form-group">
+-                        <label>Št. dodatnih plošč za mutacijo</label>
+-                        <input type="number" id="calc-mut-plates" value="0" min="0" step="1"
+-                            onchange="calculatePrice()">
+-                    </div>
+-                    <div class="form-group">
+-                        <label>Razdelitev naklade po mutacijah</label>
+-                        <input type="text" id="calc-mut-breakdown"
+-                            placeholder="npr. 3.000 kos vrsta A, 2.000 kos vrsta B" oninput="calculatePrice()"
+-                            onchange="calculatePrice()">
+-                    </div>
+-                    <div class="form-group">
+-                        <label>Dodatek na mutacijo (pol)</label>
+-                        <input type="text" id="calc-mut-dodatek" placeholder=""
+-                            oninput="g_editedWorkOrderHTML = ''; calculatePrice()"
+-                            onchange="g_editedWorkOrderHTML = ''; calculatePrice()">
+-                    </div>
+-                    <div id="calc-mut-warning"
+-                        style="display: none; margin-top: 5px; padding: 8px 12px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; border-radius: 6px; color: #fca5a5; font-size: 0.85rem; font-weight: bold;">
+-                        ⚠️ Opozorilo: Skupna količina mutacij (<span id="calc-mut-warning-qty">0</span> kos) presega
+-                        naročeno količino (<span id="calc-mut-warning-target">0</span> kos)!
+-                    </div>
+-                    <div class="form-group"
+-                        style="padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 5px;">
+-                        <label>Pranje / Menjava barv (število pranj)</label>
+-                        <div style="display: flex; gap: 0.2rem;">
+-                            <input type="number" id="calc-color-washes" value="0" min="0" step="1"
+-                                onchange="calculatePrice()" style="flex: 1;" placeholder="Št.">
+-                            <input type="number" id="calc-wash-price" value="25.00" step="1" onchange="calculatePrice()"
+-                                style="flex: 1;" placeholder=" /pranje">
+-                        </div>
+-                    </div>
+-                </div>
+-                <!-- 3. Tisk (Stroj) -->
+-                <div class="calc-section">
+-                    <h3>3. Tisk (Stroj)</h3>
+-                    <!-- Izbira stroja prestavljena navzgor pod format tiskovne forme -->
+-                    <div id="machine-inputs-group">
+                         <div class="form-group">
+-                            <label>Urna postavka stroja (EUR/h)</label>
+-                            <input type="number" id="calc-machine-rate" value="120.00" step="1">
++                            <label>Gramatura (g/m²)</label>
++                            <input type="text" id="calc-paper-weight" value="" placeholder="g/m²" onchange="calculate()" oninput="onMaterialStockInput(this, 'paper')">
+                         </div>
+                         <div class="form-group">
+-                            <label style="display:flex; align-items:center; gap:0.4rem;">

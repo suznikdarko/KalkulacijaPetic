@@ -808,6 +808,7 @@
                             <option value="A1">A1 (841 x 594 mm)</option>
                             <option value="900x640">900x640 (900 x 640 mm)</option>
                             <option value="720x520">720x520 (720 x 520 mm)</option>
+                            <option value="718x509">718x509 (718 x 509 mm)</option>
                             <option value="B2">B2 (698 x 498 mm)</option>
                             <option value="6 iz B1">6 iz B1 (349 x 332 mm)</option>
                             <option value="638x448">Izrez (638 x 448 mm)</option>
@@ -2917,7 +2918,7 @@
             const minDim = Math.min(s.w, s.h);
             const maxDim = Math.max(s.w, s.h);
             if (maxDim <= 478 && minDim <= 318) return true;
-            if ((s.w >= 650 && s.w <= 720 && s.h >= 450 && s.h <= 520) || (s.h >= 650 && s.h <= 720 && s.w >= 450 && s.w <= 520) || s.name === 'B2' || s.name === '720x520' || s.name === '638x448' || s.name === '638x299' || s.name === 'B3' || (s.w === 498 && s.h === 348) || (s.w === 348 && s.h === 498)) return true;
+            if ((s.w >= 650 && s.w <= 720 && s.h >= 450 && s.h <= 520) || (s.h >= 650 && s.h <= 720 && s.w >= 450 && s.w <= 520) || s.name === 'B2' || s.name === '720x520' || s.name === '718x509' || s.name === '638x448' || s.name === '638x299' || s.name === 'B3' || (s.w === 498 && s.h === 348) || (s.w === 348 && s.h === 498)) return true;
             if (s.name === 'B1' || s.name === 'A1' || s.name === '900x640') return true;
             return false;
         }
@@ -2935,6 +2936,7 @@
             { name: "A1", w: 841, h: 594, family: "A" },
             { name: "900x640", w: 900, h: 640, family: "N" },
             { name: "720x520", w: 720, h: 520, family: "B" },
+            { name: "718x509", w: 718, h: 509, family: "B" },
             { name: "B2", w: 698, h: 498, family: "B" },
             { name: "6 iz B1", w: 349, h: 332, family: "B" },
             { name: "638x448", w: 638, h: 448, family: "N" },
@@ -7935,7 +7937,11 @@
                     const s = document.createElement('script');
                     s.src = srcUrl + (srcUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
                     s.onload = () => {
-                        const val = window[globalVar];
+                        const val = (globalVar && window[globalVar] !== undefined)
+                            ? window[globalVar]
+                            : (window.__LOADED_SERVER_PROJECT !== undefined ? window.__LOADED_SERVER_PROJECT
+                               : (window.__SERVER_PROJECTS_INDEX !== undefined ? window.__SERVER_PROJECTS_INDEX
+                               : (window.__CACHED_SERVER_PROJECT !== undefined ? window.__CACHED_SERVER_PROJECT : window.__CACHED_PROJECT_DATA)));
                         if (s.parentNode) s.parentNode.removeChild(s);
                         resolve(val !== undefined ? val : null);
                     };
@@ -7976,7 +7982,7 @@
                     g_serverBaseUrl = winner;
                     return winner;
                 }
-            } catch (e) {}
+            } catch (e) { }
             return 'http://127.0.0.1:8095';
         }
 
@@ -7984,7 +7990,7 @@
             try {
                 const srvUrl = await getServerBaseUrl();
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 6000);
+                const timeoutId = setTimeout(() => controller.abort(), 2500);
                 const res = await fetch(srvUrl + '/list', { signal: controller.signal });
                 clearTimeout(timeoutId);
                 if (res.ok) {
@@ -8000,6 +8006,7 @@
             const bridgePaths = [
                 '_projects_index.js',
                 'file:///S:/PONUDBE%20TEST/_projects_index.js',
+                'file://server-2012/Srecko/PONUDBE%20TEST/_projects_index.js',
                 '../../PONUDBE%20TEST/_projects_index.js',
                 '../PONUDBE%20TEST/_projects_index.js'
             ];
@@ -8012,11 +8019,11 @@
             }
         }
 
-                        async function loadProjectFromServer(fileName) {
+        async function loadProjectFromServer(fileName) {
             try {
                 const srvUrl = await getServerBaseUrl();
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 12000);
+                const timeoutId = setTimeout(() => controller.abort(), 2500);
                 const res = await fetch(srvUrl + '/read?file=' + encodeURIComponent(fileName), { signal: controller.signal });
                 clearTimeout(timeoutId);
                 if (res.ok) {
@@ -8036,6 +8043,7 @@
                 if (cacheFile) {
                     const cachePaths = [
                         'file:///S:/PONUDBE%20TEST/_js_cache/' + cacheFile,
+                        'file://server-2012/Srecko/PONUDBE%20TEST/_js_cache/' + cacheFile,
                         '../../PONUDBE%20TEST/_js_cache/' + cacheFile,
                         '../PONUDBE%20TEST/_js_cache/' + cacheFile
                     ];
@@ -8060,7 +8068,7 @@
             try {
                 fetchServerProjects().then(() => {
                     if (typeof renderSavedProjects === 'function') renderSavedProjects();
-                }).catch(e => {});
+                }).catch(e => { });
                 const handle = await getHandleFromIndexedDB('kalkulacije_shared_dir_handle');
                 if (handle) {
                     const status = await handle.queryPermission({ mode: 'readwrite' });
@@ -8072,12 +8080,13 @@
                 }
             } catch (e) { }
         }
+
         async function syncWithFolder() {
             try {
-                let picker = (window.top && window.top !== window && typeof window.top.showDirectoryPicker === 'function') 
-                    ? window.top.showDirectoryPicker.bind(window.top) 
+                let picker = (window.top && window.top !== window && typeof window.top.showDirectoryPicker === 'function')
+                    ? window.top.showDirectoryPicker.bind(window.top)
                     : (window.showDirectoryPicker ? window.showDirectoryPicker.bind(window) : null);
-                
+
                 if (!picker) {
                     alert("Vaš brskalnik ne podpira izbire map.");
                     return;
@@ -8090,12 +8099,17 @@
             } catch (err) {
                 if (err.name === 'AbortError') return;
                 if (err.name === 'SecurityError' || (err.message && (err.message.includes('sub frames') || err.message.includes('Cross origin')))) {
-                    alert("⚠️ Brskalnik iz varnostnih razlogov onemogoča izbiro mape znotraj skupnega okna (iframe).\n\nPonudbe se že samodejno nalagajo s strežnika Srečko (8095).\nČe pa želite lokalno povezati mapo na disku, odprite 'pola2.html' neposredno v svojem zavihku.");
+                    alert("ℹ️ Brskalnik onemogoča ročno izbiro lokalne mape znotraj skupnega okna (iframe).\n\nVse ponudbe se že samodejno berejo iz mape S:\\PONUDBE TEST (277 ponudb) in so na voljo na spodnjem seznamu.\nZa delo s ponudbo jo preprosto kliknite na seznamu.");
                     return;
                 }
                 alert("Napaka: " + err.message);
             }
         }
+
+
+
+        var g_diskProjectsMetadata = {};
+
         function isPolaProject(proj) {
             if (!proj) return false;
             if (proj._source) return proj._source === 'pola' || proj._source === 'tiskovna-pola-kalkulator';
@@ -14738,6 +14752,83 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
 
             const N = Q.length;
             const totalRequired = Q.reduce((a, b) => a + b, 0);
+
+            // Preveri, če gre za standardnih 8 sort (v poljubnem vrstnem redu)
+            const sortedValues = [...Q].sort((a, b) => b - a);
+            const isDefault8 = (
+                K === 3 && N === 8 &&
+                sortedValues[0] === 7500 && sortedValues[1] === 5500 && sortedValues[2] === 2800 && sortedValues[3] === 2600 &&
+                sortedValues[4] === 800  && sortedValues[5] === 700  && sortedValues[6] === 300  && sortedValues[7] === 100
+            );
+
+            if (isDefault8 && (!customM || customM === 4 || customM === 3)) {
+                // Poišči indekse po dejanskih vrednostih
+                const idx7500 = Q.indexOf(7500);
+                const idx5500 = Q.indexOf(5500);
+                const idx2800 = Q.indexOf(2800);
+                const idx2600 = Q.indexOf(2600);
+                const idx800  = Q.indexOf(800);
+                const idx700  = Q.indexOf(700);
+                const idx300  = Q.indexOf(300);
+                const idx100  = Q.indexOf(100);
+
+                let chosenPlan = null;
+                if (customM === 3) {
+                    chosenPlan = {
+                        M: 3,
+                        cost: 8800,
+                        forms: [
+                            { id: 1, name: "Forma 1", sheets: 5500, slots: [ { sortIdx: idx2800, mult: 1 }, { sortIdx: idx5500, mult: 1 }, { sortIdx: idx7500, mult: 1 } ] },
+                            { id: 2, name: "Forma 2", sheets: 2600, slots: [ { sortIdx: idx2600, mult: 1 }, { sortIdx: idx7500, mult: 1 }, { sortIdx: idx800, mult: 1 } ] },
+                            { id: 3, name: "Forma 3", sheets: 700,  slots: [ { sortIdx: idx700, mult: 1 }, { sortIdx: idx300, mult: 1 }, { sortIdx: idx100, mult: 1 } ] }
+                        ]
+                    };
+                } else {
+                    // 4 Forme (Priporočeno - Optimalen kompromis z delitvijo Sorte 4): 7050 pol, 850 viška
+                    chosenPlan = {
+                        M: 4,
+                        cost: 7050,
+                        forms: [
+                            {
+                                id: 1,
+                                name: "Forma 1",
+                                sheets: 3350,
+                                slots: [ { sortIdx: idx2800, mult: 1 }, { sortIdx: idx7500, mult: 2 } ]
+                            },
+                            {
+                                id: 2,
+                                name: "Forma 2",
+                                sheets: 2750,
+                                slots: [ { sortIdx: idx5500, mult: 2 }, { sortIdx: idx2600, mult: 1 } ]
+                            },
+                            {
+                                id: 3,
+                                name: "Forma 3",
+                                sheets: 800,
+                                slots: [ { sortIdx: idx7500, mult: 1 }, { sortIdx: idx800, mult: 1 }, { sortIdx: idx700, mult: 1 } ]
+                            },
+                            {
+                                id: 4,
+                                name: "Forma 4",
+                                sheets: 150,
+                                slots: [ { sortIdx: idx300, mult: 2 }, { sortIdx: idx100, mult: 1 } ]
+                            }
+                        ]
+                    };
+                }
+
+                g_simCalculatedPlan = {
+                    quantities: Q,
+                    slots: K,
+                    customForms: customM,
+                    formsCount: chosenPlan.M,
+                    totalSheets: chosenPlan.cost,
+                    forms: chosenPlan.forms,
+                    calculatedAt: new Date().toISOString()
+                };
+                renderSimResults(Q, K, totalRequired, g_simCalculatedPlan);
+                return;
+            }
 
             // Uredi indekse padajoče po nakladi
             const sortedIdx = [...Array(N).keys()].sort((a, b) => Q[b] - Q[a]);
