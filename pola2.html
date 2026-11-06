@@ -14512,6 +14512,11 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                                     title="Primer s 25 sortami (100.000 kosov navzdol)">
                                     Primer 25
                                 </button>
+                                <button type="button" onclick="clearSimForm()" 
+                                    style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; height: 38px; white-space: nowrap;"
+                                    title="Počisti vnos količin in razporeditev">
+                                    🗑️ Počisti
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -14644,12 +14649,49 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
         let g_simCalculatedPlan = null;
         let g_simHistoryList = [];
 
+        function clearSimResults() {
+            g_simCalculatedPlan = null;
+            const elSorts = document.getElementById('sim-kpi-sorts');
+            const elSortsSub = document.getElementById('sim-kpi-sorts-sub');
+            const elForms = document.getElementById('sim-kpi-forms');
+            const elFormsSub = document.getElementById('sim-kpi-forms-sub');
+            const elSheets = document.getElementById('sim-kpi-sheets');
+            const elSheetsSub = document.getElementById('sim-kpi-sheets-sub');
+            const elWaste = document.getElementById('sim-kpi-waste');
+            const elWasteSub = document.getElementById('sim-kpi-waste-sub');
+            const elAlgoName = document.getElementById('sim-algo-name');
+            const elFormsCont = document.getElementById('sim-forms-container');
+            const tbody = document.getElementById('sim-sorts-tbody');
+
+            if (elSorts) elSorts.textContent = "-";
+            if (elSortsSub) elSortsSub.textContent = "Naročeno: - kos";
+            if (elForms) elForms.textContent = "-";
+            if (elFormsSub) elFormsSub.textContent = "-";
+            if (elSheets) elSheets.textContent = "-";
+            if (elSheetsSub) elSheetsSub.textContent = "Natisnjeno: - kos";
+            if (elWaste) elWaste.textContent = "-";
+            if (elWasteSub) elWasteSub.textContent = "Izkoristek: -";
+            if (elAlgoName) elAlgoName.textContent = "";
+            if (elFormsCont) elFormsCont.innerHTML = '<div style="color: #94a3b8; padding: 25px 15px; grid-column: 1 / -1; text-align: center; border: 1.5px dashed #334155; border-radius: 8px;">Vnesite količine sort zgoraj za začetek preračuna ali kliknite gumb <em>Primer 8</em> / <em>Primer 25</em>.</div>';
+            if (tbody) tbody.innerHTML = '';
+        }
+
+        function clearSimForm() {
+            const qEl = document.getElementById('sim-quantities');
+            const cfEl = document.getElementById('sim-custom-forms');
+            const stEl = document.getElementById('sim-footer-status');
+            if (qEl) qEl.value = "";
+            if (cfEl) cfEl.value = "";
+            if (stEl) stEl.textContent = "";
+            clearSimResults();
+        }
+
         function openSortImpositionModal() {
             const overlay = document.getElementById('modal-sort-imposition-overlay');
             if (!overlay) return;
             overlay.style.display = 'flex';
 
-            // Če ponudba že ima shranjeno razporeditev, jo neposredno naloži
+            // Če ponudba že ima shranjeno razporeditev, jo neposredno naloži in prikaži
             if (window.g_currentSortImposition && Array.isArray(window.g_currentSortImposition.quantities) && window.g_currentSortImposition.quantities.length > 0) {
                 document.getElementById('sim-quantities').value = window.g_currentSortImposition.quantities.join(', ');
                 if (window.g_currentSortImposition.slots) {
@@ -14657,29 +14699,30 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                 }
                 if (window.g_currentSortImposition.customForms) {
                     document.getElementById('sim-custom-forms').value = window.g_currentSortImposition.customForms;
+                } else {
+                    document.getElementById('sim-custom-forms').value = "";
                 }
                 document.getElementById('sim-footer-status').textContent = "✓ Prikazana shranjena razporeditev te ponudbe!";
+                switchImpositionModalTab('calc');
+                runSimCalculation();
             } else {
-                // Poskusi prebrati količine iz polj kalkulatorja
-                const qInput = document.getElementById('quantity');
-                const ordInput = document.getElementById('ordered-quantity');
-                const mutInput = document.getElementById('calc-mut-breakdown');
-                const ipsInput = document.getElementById('items-per-sheet');
+                // Nova ponudba (brez shranjene razporeditve): obrazec mora biti povsem prazen brez količin in razporeditve!
+                document.getElementById('sim-quantities').value = "";
+                document.getElementById('sim-custom-forms').value = "";
+                document.getElementById('sim-footer-status').textContent = "";
 
+                // Stavki na poli: privzeto vzemi iz kalkulatorja, če obstaja, sicer 3
+                const ipsInput = document.getElementById('items-per-sheet');
                 if (ipsInput && parseInt(ipsInput.value) > 0) {
                     document.getElementById('sim-slots').value = parseInt(ipsInput.value);
+                } else {
+                    document.getElementById('sim-slots').value = "3";
                 }
 
-                let currentQ = (qInput ? qInput.value : '') || (ordInput ? ordInput.value : '') || (mutInput ? mutInput.value : '');
-                if (currentQ && currentQ.includes(',')) {
-                    document.getElementById('sim-quantities').value = currentQ;
-                } else if (!document.getElementById('sim-quantities').value.trim()) {
-                    document.getElementById('sim-quantities').value = "2800, 5500, 2600, 7500, 800, 700, 300, 100";
-                }
+                switchImpositionModalTab('calc');
+                clearSimResults();
             }
 
-            switchImpositionModalTab('calc');
-            runSimCalculation();
             updateImpositionHistoryBadge();
         }
 
@@ -14745,8 +14788,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             const customM = parseInt(document.getElementById('sim-custom-forms').value) || 0;
 
             if (Q.length === 0) {
-                document.getElementById('sim-kpi-sorts').textContent = "0";
-                document.getElementById('sim-forms-container').innerHTML = '<div style="color: #94a3b8; padding: 20px;">Vnesite količine zgoraj za začetek preračuna.</div>';
+                clearSimResults();
                 return;
             }
 
