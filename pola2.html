@@ -3127,6 +3127,20 @@
                 if (widthEl) widthEl.value = "594";
                 if (heightEl) heightEl.value = "841";
             }
+            const prepInp = document.getElementById('calc-prep-price');
+            if (prepInp) prepInp.value = "0";
+            const platesInp = document.getElementById('calc-plates-num');
+            if (platesInp) platesInp.value = "0";
+            const platesPriceInp = document.getElementById('calc-plates-price');
+            if (platesPriceInp) platesPriceInp.value = "0";
+            const changeInp = document.getElementById('calc-change-price');
+            if (changeInp) changeInp.value = "0";
+            const mutInp = document.getElementById('calc-mut-plates');
+            if (mutInp) mutInp.value = "0";
+            const precutPrepInp = document.getElementById('f-precut-prep');
+            if (precutPrepInp) precutPrepInp.value = "0";
+            const precutAct = document.getElementById('f-precut-active');
+            if (precutAct) precutAct.checked = false;
             if (typeof calculate === 'function') {
                 calculate();
             } else {
@@ -3150,6 +3164,39 @@
             if (plakatInputs) plakatInputs.style.display = isPlakat ? 'flex' : 'none';
             if (rollupInputs) rollupInputs.style.display = isRollup ? 'flex' : 'none';
             if (isPlakat) {
+                const projNameEl = document.getElementById('calc-project-name');
+                if (projNameEl && (!projNameEl.value || projNameEl.value === 'Tiskovina')) {
+                    projNameEl.value = 'Plakat (digitalni tisk)';
+                }
+                const platesInp = document.getElementById('calc-plates-num');
+                if (platesInp) platesInp.value = "0";
+                const platesPriceInp = document.getElementById('calc-plates-price');
+                if (platesPriceInp) platesPriceInp.value = "0";
+                const prepInp = document.getElementById('calc-prep-price');
+                if (prepInp) prepInp.value = "0";
+                const changeInp = document.getElementById('calc-change-price');
+                if (changeInp) changeInp.value = "0";
+                const mutInp = document.getElementById('calc-mut-plates');
+                if (mutInp) mutInp.value = "0";
+                const precutPrepInp = document.getElementById('f-precut-prep');
+                if (precutPrepInp) precutPrepInp.value = "0";
+                const precutAct = document.getElementById('f-precut-active');
+                if (precutAct) precutAct.checked = false;
+                const prepTimeInp = document.getElementById('calc-machine-prep-time');
+                if (prepTimeInp) {
+                    prepTimeInp.value = "";
+                    prepTimeInp.placeholder = "Brez (0 h)";
+                }
+                const bleedEl = document.getElementById('bleed');
+                if (bleedEl) bleedEl.value = "0";
+                const gripEl = document.getElementById('gripper');
+                if (gripEl) gripEl.value = "0";
+                const colF = document.getElementById('calc-color-front');
+                if (colF && (!colF.value || colF.value === '0')) colF.value = "4";
+                const colB = document.getElementById('calc-color-back');
+                if (colB) colB.value = "0";
+                const obratEl = document.getElementById('calc-is-obrat');
+                if (obratEl) obratEl.checked = false;
                 onPosterFormatChange();
                 return;
             }
@@ -3252,7 +3299,9 @@
                     const mutInp = document.getElementById('calc-mut-plates');
                     if (mutInp) mutInp.value = "0";
                     const precutPrepInp = document.getElementById('f-precut-prep');
-                    if (precutPrepInp) precutPrepInp.value = "10";
+                    if (precutPrepInp) precutPrepInp.value = "0";
+                    const precutAct = document.getElementById('f-precut-active');
+                    if (precutAct) precutAct.checked = false;
                 } else if (mType === 'CD UV') {
                     const prepInp = document.getElementById('calc-prep-price');
                     if (prepInp) prepInp.value = "70";
@@ -4055,7 +4104,7 @@
             const isObrat = document.getElementById('calc-is-obrat').checked;
             const isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
             const mutPlates = parseInt(document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : 0) || 0;
-            const totalPlates = front + (isObrat ? 0 : back) + mutPlates;
+            const totalPlates = (mType === 'digital-plakat' || mType === 'digital-rollup' || mType === 'digital') ? 0 : (front + (isObrat ? 0 : back) + mutPlates);
             document.getElementById('calc-plates-num').value = totalPlates;
             // Odstranjeno prisilno prepisovanje rate, speed in prep-time iz updateWasteAndPrice,
             // tako da lahko uporabnik ročno vnese čas priprave in se ta ne povozi pri vsakem izračunu.
@@ -4197,10 +4246,14 @@
                 <div style="padding: 10px; background: rgba(167, 139, 250, 0.05); border-radius: 8px;">
                     <div style="font-weight: bold; color: #a78bfa; margin-bottom: 5px;">2. Priprava${d.prep.plates > 0 ? ' in Plošče' : ''}</div>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                        ${d.print.mType === 'digital-plakat' || d.print.mType === 'digital-rollup' ? `
+                        <span>Priprava tiska:</span> <span style="color: #34d399; font-weight: bold;">0,00 € (brez priprave / v ceni)</span>
+                        ` : `
                         ${d.prep.plates > 0 ? `<span>Cena plošč (${d.prep.plates} kos):</span> <span>${formatPrice(d.prep.platesCost)}</span>` : ''}
                         <span>Pavšalna priprava:</span> <span>${formatPrice(d.prep.setup)}</span>
                         ${d.prep.changes > 0 ? `<span>Menjava plošč:</span> <span>${formatPrice(d.prep.changesCost)}</span>` : ''}
                         ${d.prep.washCost > 0 ? `<span>Pranje stroja:</span> <span>${formatPrice(d.prep.washCost)}</span>` : ''}
+                        `}
                     </div>
                 </div>
                 <!-- PRINT -->
@@ -4934,7 +4987,10 @@
                 numberOfChanges = 0;
                 washesNum = 0;
                 washCost = 0;
+                prepPrice = 0;
                 totalPrepCost = 0;
+                mPrepMinutes = 0;
+                mPrepTime = 0;
                 paperCost = 0; // Cenik plakatov že zajema papir in tisk
                 let posterFormat = document.getElementById('calc-poster-format') ? document.getElementById('calc-poster-format').value : 'B1';
                 let posterUnitPrice = getDigitalPosterUnitPrice(posterFormat, qty);
@@ -5138,6 +5194,9 @@
             if (document.getElementById('f-precut-active') && document.getElementById('f-precut-active').checked) {
                 let prePrep = parseFloat(document.getElementById('f-precut-prep').value.replace(',', '.')) || 0;
                 let prePer1000 = parseFloat(document.getElementById('f-precut-per1000').value.replace(',', '.')) || 0;
+                if (mType === 'digital-plakat' || mType === 'digital-rollup') {
+                    prePrep = 0;
+                }
                 totalFinishCost += prePrep + (totalSourceSheetsNeeded / 1000) * prePer1000;
             }
             if (document.getElementById('f-lam-active').checked) {
@@ -5237,7 +5296,7 @@
                     plates: platesNum,
                     platesPrice: platesPrice,
                     platesCost: platesNum * platesPrice,
-                    setup: prepPrice,
+                    setup: (mType === 'digital-plakat' || mType === 'digital-rollup') ? 0 : prepPrice,
                     changes: numberOfChanges,
                     changePrice: changePrice,
                     changesCost: numberOfChanges * changePrice,
@@ -5572,6 +5631,9 @@
             if (document.getElementById('f-precut-active') && document.getElementById('f-precut-active').checked) {
                 let prePrep = parseFloat(document.getElementById('f-precut-prep').value.replace(',', '.')) || 0;
                 let prePer1000 = parseFloat(document.getElementById('f-precut-per1000').value.replace(',', '.')) || 0;
+                if (mType === 'digital-plakat' || mType === 'digital-rollup') {
+                    prePrep = 0;
+                }
                 let preCost = prePrep + (totalSourceSheetsNeeded / 1000) * prePer1000;
                 details.finish.items.push({
                     name: 'Razrez materiala (pred tiskom)',
@@ -10868,10 +10930,14 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                         <div style="font-weight: bold; color: #7c3aed; margin-bottom: 5px; font-size: 11pt;">2. Priprava in Tisk</div>
                         <table style="width: 100%; border-collapse: collapse; font-size: 10pt;" cellpadding="3">
                             ${d.prep ? `
+                            ${d.print && (d.print.mType === 'digital-plakat' || d.print.mType === 'digital-rollup') ? `
+                            <tr><td>Priprava:</td><td style="text-align: right; color: #16a34a; font-weight: bold;">0,00 € (brez priprave)</td></tr>
+                            ` : `
                             <tr><td>Število plošč:</td><td style="text-align: right;">${d.prep.plates || 0} kos (${formatPrice(d.prep.platesCost || 0)})</td></tr>
                             <tr><td>Pavšalna priprava:</td><td style="text-align: right;">${formatPrice(d.prep.setup || 0)}</td></tr>
                             ${(d.prep.changes || 0) > 0 ? `<tr><td>Menjava plošč:</td><td style="text-align: right;">${formatPrice(d.prep.changesCost || 0)}</td></tr>` : ''}
                             ${(d.prep.washes || 0) > 0 ? `<tr><td>Pranje stroja:</td><td style="text-align: right;">${formatPrice(d.prep.washCost || 0)}</td></tr>` : ''}
+                            `}
                             ` : ''}
                             ${d.print ? `
                             ${d.print.mType === 'digital'
