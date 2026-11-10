@@ -4313,6 +4313,9 @@
                     setV('calc-plates-price-' + comp, profile.platePrice);
                     setV('calc-prep-price-' + comp, profile.prepPrice);
                     setV('calc-change-price-' + comp, profile.changePrice);
+                    if (mType === 'digital') {
+                        setV('calc-plates-num-' + comp, 0);
+                    }
 
                     /* Avtomatsko nastavljanje formata onemogočeno po želji uporabnika */
                     // if (profile.defaultFormat && comp === 'leaves') {
@@ -4407,20 +4410,26 @@
                     }
                 }
 
-                // Vedno izračunaj in nastavi število plošč
-                setV('calc-plates-num-' + comp, cFrontVal + (isOB ? 0 : cBackVal));
-
-                if (cFront !== "" && cBack !== "") {
-                    let key = cFront + '/' + (isOB ? 'OB' : cBack);
-                    let rule = prepRules[key];
-
-                    if (rule) {
-                        setV('calc-paper-waste-' + comp, rule.wasteImpressions);
-                        setV('calc-machine-prep-time-' + comp, rule.passes * profile.prep);
-                    }
+                if (mType === 'digital') {
+                    setV('calc-plates-num-' + comp, 0);
+                    setV('calc-paper-waste-' + comp, (cFrontVal + cBackVal > 0) ? 20 : 0);
+                    setV('calc-machine-prep-time-' + comp, profile.prep);
                 } else {
-                    setV('calc-paper-waste-' + comp, 0);
-                    setV('calc-machine-prep-time-' + comp, 0);
+                    // Vedno izračunaj in nastavi število plošč
+                    setV('calc-plates-num-' + comp, cFrontVal + (isOB ? 0 : cBackVal));
+
+                    if (cFront !== "" && cBack !== "") {
+                        let key = cFront + '/' + (isOB ? 'OB' : cBack);
+                        let rule = prepRules[key];
+
+                        if (rule) {
+                            setV('calc-paper-waste-' + comp, rule.wasteImpressions);
+                            setV('calc-machine-prep-time-' + comp, rule.passes * profile.prep);
+                        }
+                    } else {
+                        setV('calc-paper-waste-' + comp, 0);
+                        setV('calc-machine-prep-time-' + comp, 0);
+                    }
                 }
 
                 calculatePrice();
@@ -4592,7 +4601,13 @@
                     let mTypeL = document.getElementById('calc-machine-type-leaves')?.value || 'S4';
                     let pwL = parseFloat(document.getElementById('calc-paper-weight')?.value) || 80;
                     let bossL = getBossLogic(frontL, backL, isObratL, isSVL, totalItemsForm, mutPlatesL, mTypeL, pwL);
-                    if (bossL) {
+                    if (mTypeL === 'digital') {
+                        wasteL = (frontL + backL > 0) ? 20 : 0;
+                        let wInputL = document.getElementById('calc-paper-waste-leaves');
+                        if (wInputL) wInputL.value = wasteL;
+                        let pal = document.getElementById('calc-print-allowance-leaves');
+                        if (pal) pal.placeholder = "Vpiši dodatek...";
+                    } else if (bossL) {
                         wasteL = bossL.waste;
                         let wInputL = document.getElementById('calc-paper-waste-leaves');
                         if (wInputL) wInputL.value = wasteL;
@@ -4609,7 +4624,13 @@
                     let mTypeC = document.getElementById('calc-machine-type-cover')?.value || 'S4';
                     let pwC = parseFloat(document.getElementById('calc-cardboard-weight')?.value) || 250;
                     let bossC = getBossLogic(frontC, backC, isObratC, false, totalItemsForm, mutPlatesC, mTypeC, pwC);
-                    if (bossC) {
+                    if (mTypeC === 'digital') {
+                        wasteC = (frontC + backC > 0) ? 20 : 0;
+                        let wInputC = document.getElementById('calc-paper-waste-cover');
+                        if (wInputC) wInputC.value = wasteC;
+                        let pac = document.getElementById('calc-print-allowance-cover');
+                        if (pac) pac.placeholder = "Vpiši dodatek...";
+                    } else if (bossC) {
                         wasteC = bossC.waste;
                         let wInputC = document.getElementById('calc-paper-waste-cover');
                         if (wInputC) wInputC.value = wasteC;
@@ -5371,6 +5392,36 @@
         window.g_currentTotalWeightKg = totalWeightKg;
         if (typeof window.syncTariffWeightExternal === "function") window.syncTariffWeightExternal();
 
+                    const buildPrintDetails = (suffix, cfg) => {
+                        const isDigital = cfg.mType === 'digital';
+                        const platesVal = isDigital ? 0 : (parseInt(document.getElementById('calc-plates-num-' + suffix).value) || 0);
+                        const platesPriceVal = isDigital ? 0 : (parseFloat(document.getElementById('calc-plates-price-' + suffix).value) || 0);
+                        const prepEl = document.getElementById('calc-machine-prep-time-' + suffix);
+                        const washNumEl = document.getElementById('calc-color-washes-' + suffix);
+                        const washPriceEl = document.getElementById('calc-wash-price-' + suffix);
+                        const washesNumVal = isDigital ? 0 : (parseInt(washNumEl ? washNumEl.value : 0) || 0);
+                        const washPriceVal = isDigital ? 0 : (parseFloat(washPriceEl ? washPriceEl.value : 0) || 25);
+                        return {
+                            active: cfg.active,
+                            isCoop: false,
+                            mType: cfg.mType,
+                            sheetsNeeded: cfg.sheetsNeeded,
+                            plates: platesVal,
+                            platesCost: platesVal * platesPriceVal,
+                            prepSetup: isDigital ? cfg.totalPrep : (parseFloat(document.getElementById('calc-prep-price-' + suffix).value) || 0),
+                            changes: isDigital ? 0 : Math.max(0, platesVal - 1),
+                            prepChanges: isDigital ? 0 : (Math.max(0, platesVal - 1) * (parseFloat(document.getElementById('calc-change-price-' + suffix).value) || 0)),
+                            washesNum: washesNumVal,
+                            washCost: washesNumVal * washPriceVal,
+                            mPrep: ((prepEl && prepEl.value !== '') ? parseFloat(prepEl.value) : 10) / 60,
+                            mRate: (parseFloat(document.getElementById('calc-machine-rate-' + suffix).value) || 0),
+                            printHours: cfg.printHours,
+                            gripper: document.getElementById(cfg.gripperId) ? document.getElementById(cfg.gripperId).value : 10,
+                            print: cfg.totalPrint,
+                            cost: cfg.totalPrep + cfg.totalPrint
+                        };
+                    };
+
                     let details = {
                         weight: {
                             singleKg: singleWeightKg,
@@ -5401,40 +5452,24 @@
                                 kg: (cbUnit === "ton" || cbUnit === "kg") ? (cbParentSheetsNeeded * ((cbSupplyW / 1000) * (cbSupplyH / 1000)) * ((parseFloat(document.getElementById('calc-cardboard-weight') ? document.getElementById('calc-cardboard-weight').value : 300) || 300) / 1000)) : 0
                             }
                         },
-                        leavesPrint: {
+                        leavesPrint: buildPrintDetails('leaves', {
                             active: (frontL + backL > 0),
-                            isCoop: false,
-                            plates: (parseInt(document.getElementById('calc-plates-num-leaves').value) || 0),
-                            platesCost: (parseInt(document.getElementById('calc-plates-num-leaves').value) || 0) * (parseFloat(document.getElementById('calc-plates-price-leaves').value) || 0),
-                            prepSetup: (parseFloat(document.getElementById('calc-prep-price-leaves').value) || 0),
-                            changes: Math.max(0, (parseInt(document.getElementById('calc-plates-num-leaves').value) || 0) - 1),
-                            prepChanges: Math.max(0, (parseInt(document.getElementById('calc-plates-num-leaves').value) || 0) - 1) * (parseFloat(document.getElementById('calc-change-price-leaves').value) || 0),
-                            washesNum: (parseInt(document.getElementById('calc-color-washes-leaves') ? document.getElementById('calc-color-washes-leaves').value : 0) || 0),
-                            washCost: ((parseInt(document.getElementById('calc-color-washes-leaves') ? document.getElementById('calc-color-washes-leaves').value : 0) || 0) * (parseFloat(document.getElementById('calc-wash-price-leaves') ? document.getElementById('calc-wash-price-leaves').value : 0) || 25)),
-                            mPrep: ((document.getElementById('calc-machine-prep-time-leaves') && document.getElementById('calc-machine-prep-time-leaves').value !== '') ? parseFloat(document.getElementById('calc-machine-prep-time-leaves').value) : 10) / 60,
-                            mRate: (parseFloat(document.getElementById('calc-machine-rate-leaves').value) || 0),
+                            mType: mTypeL,
+                            sheetsNeeded: sheetsNeededLeaves,
                             printHours: printHoursL,
-                            gripper: document.getElementById('gripper') ? document.getElementById('gripper').value : 10,
-                            print: totalPrintCostL,
-                            cost: totalPrepCostL + totalPrintCostL
-                        },
-                        coverPrint: {
+                            gripperId: 'gripper',
+                            totalPrep: totalPrepCostL,
+                            totalPrint: totalPrintCostL
+                        }),
+                        coverPrint: buildPrintDetails('cover', {
                             active: (frontC + backC > 0),
-                            isCoop: false,
-                            plates: (parseInt(document.getElementById('calc-plates-num-cover').value) || 0),
-                            platesCost: (parseInt(document.getElementById('calc-plates-num-cover').value) || 0) * (parseFloat(document.getElementById('calc-plates-price-cover').value) || 0),
-                            prepSetup: (parseFloat(document.getElementById('calc-prep-price-cover').value) || 0),
-                            changes: Math.max(0, (parseInt(document.getElementById('calc-plates-num-cover').value) || 0) - 1),
-                            prepChanges: Math.max(0, (parseInt(document.getElementById('calc-plates-num-cover').value) || 0) - 1) * (parseFloat(document.getElementById('calc-change-price-cover').value) || 0),
-                            washesNum: (parseInt(document.getElementById('calc-color-washes-cover') ? document.getElementById('calc-color-washes-cover').value : 0) || 0),
-                            washCost: ((parseInt(document.getElementById('calc-color-washes-cover') ? document.getElementById('calc-color-washes-cover').value : 0) || 0) * (parseFloat(document.getElementById('calc-wash-price-cover') ? document.getElementById('calc-wash-price-cover').value : 0) || 25)),
-                            mPrep: ((document.getElementById('calc-machine-prep-time-cover') && document.getElementById('calc-machine-prep-time-cover').value !== '') ? parseFloat(document.getElementById('calc-machine-prep-time-cover').value) : 10) / 60,
-                            mRate: (parseFloat(document.getElementById('calc-machine-rate-cover').value) || 0),
+                            mType: mTypeC,
+                            sheetsNeeded: sheetsNeededCover,
                             printHours: printHoursC,
-                            gripper: document.getElementById('calc-cover-gripper') ? document.getElementById('calc-cover-gripper').value : 10,
-                            print: totalPrintCostC,
-                            cost: totalPrepCostC + totalPrintCostC
-                        },
+                            gripperId: 'calc-cover-gripper',
+                            totalPrep: totalPrepCostC,
+                            totalPrint: totalPrintCostC
+                        }),
                         finish: {
                             cost: totalFinishCost,
                             items: finishItems
@@ -5477,6 +5512,38 @@
                         return isNaN(n) ? "0" : n.toFixed(dec);
                     };
 
+                    const renderEtiketePrintSpec = (p, cfg) => {
+                        if (!p || !p.active) return '';
+                        const isDigital = p.mType === 'digital';
+                        return `
+                    <div style="padding: 10px; background: ${cfg.prepBg}; border-radius: 8px; margin-bottom: 10px;">
+                        <div style="font-weight: bold; color: ${cfg.prepColor}; margin-bottom: 5px;">${isDigital ? cfg.prepTitleDigital : cfg.prepTitleOffset}</div>
+                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                            ${isDigital ? `
+                                <span>Priprava digitalnega tiska:</span> <span>${formatPrice(p.prepSetup)}</span>
+                            ` : `
+                                <span>Cena plošč (${p.plates} kos):</span> <span>${formatPrice(p.platesCost)}</span>
+                                <span>Pavšalna priprava:</span> <span>${formatPrice(p.prepSetup)}</span>
+                                ${p.changes > 0 ? `<span>Menjava plošč:</span> <span>${formatPrice(p.prepChanges)}</span>` : ''}
+                                ${p.washesNum > 0 ? `<span>Pranje stroja:</span> <span>${formatPrice(p.washCost)}</span>` : ''}
+                            `}
+                        </div>
+                    </div>
+
+                    <div style="padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 8px; margin-bottom: 10px;">
+                        <div style="font-weight: bold; color: #f59e0b; margin-bottom: 5px;">${cfg.printTitle}</div>
+                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
+                            ${isDigital ?
+                                `<span>Digitalni tisk (${formatQty(p.sheetsNeeded)} pol):</span> <span>${formatPrice(p.print)}</span>` :
+                                `<span>Neto čas tiska (${(p.printHours * 60).toFixed(0)} min):</span> <span>${formatPrice(p.printHours * p.mRate)}</span>`
+                            }
+                            <span>Prijemalec (gripper):</span> <span style="color: #fbbf24; font-weight: bold;">${p.gripper} mm</span>
+                            <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
+                            <span style="font-style: italic;">Skupaj strojno delo:</span> <span style="font-weight: bold;">${formatPrice(p.print)}</span>
+                        </div>
+                    </div>`;
+                    };
+
                     let html = `
                     <!-- MATERIAL -->
                     <div style="padding: 10px; background: rgba(59, 130, 246, 0.05); border-radius: 8px;">
@@ -5507,50 +5574,22 @@
                     </div>
 
                     <!-- TISK ETIKET -->
-                    ${d.leavesPrint.active ? `
-                    <div style="padding: 10px; background: rgba(167, 139, 250, 0.05); border-radius: 8px; margin-bottom: 10px;">
-                        <div style="font-weight: bold; color: #a78bfa; margin-bottom: 5px;">2. Priprava in Plošče (Etikete)</div>
-                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                            <span>Cena plošč (${d.leavesPrint.plates} kos):</span> <span>${formatPrice(d.leavesPrint.platesCost)}</span>
-                            <span>Pavšalna priprava:</span> <span>${formatPrice(d.leavesPrint.prepSetup)}</span>
-                            ${d.leavesPrint.changes > 0 ? `<span>Menjava plošč:</span> <span>${formatPrice(d.leavesPrint.prepChanges)}</span>` : ''}
-                            ${d.leavesPrint.washesNum > 0 ? `<span>Pranje stroja:</span> <span>${formatPrice(d.leavesPrint.washCost)}</span>` : ''}
-                        </div>
-                    </div>
-                    
-                    <div style="padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 8px; margin-bottom: 10px;">
-                        <div style="font-weight: bold; color: #f59e0b; margin-bottom: 5px;">3. Tisk (Strojno delo) (Etikete)</div>
-                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                            <span>Neto čas tiska (${(d.leavesPrint.printHours * 60).toFixed(0)} min):</span> <span>${formatPrice(d.leavesPrint.printHours * d.leavesPrint.mRate)}</span>
-                            <span>Prijemalec (gripper):</span> <span style="color: #fbbf24; font-weight: bold;">${d.leavesPrint.gripper} mm</span>
-                            <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
-                            <span style="font-style: italic;">Skupaj strojno delo:</span> <span style="font-weight: bold;">${formatPrice(d.leavesPrint.print)}</span>
-                        </div>
-                    </div>
-                    ` : ''}
+                    ${renderEtiketePrintSpec(d.leavesPrint, {
+                        prepBg: 'rgba(167, 139, 250, 0.05)',
+                        prepColor: '#a78bfa',
+                        prepTitleOffset: '2. Priprava in Plošče (Etikete)',
+                        prepTitleDigital: '2. Priprava (Etikete - Digital)',
+                        printTitle: '3. Tisk (Strojno delo) (Etikete)'
+                    })}
 
                     <!-- TISK OVITEK -->
-                    ${d.coverPrint.active ? `
-                    <div style="padding: 10px; background: rgba(244, 63, 94, 0.05); border-radius: 8px; margin-bottom: 10px;">
-                        <div style="font-weight: bold; color: #f43f5e; margin-bottom: 5px;">4. Priprava in Plošče (Ovitek)</div>
-                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                            <span>Cena plošč (${d.coverPrint.plates} kos):</span> <span>${formatPrice(d.coverPrint.platesCost)}</span>
-                            <span>Pavšalna priprava:</span> <span>${formatPrice(d.coverPrint.prepSetup)}</span>
-                            ${d.coverPrint.changes > 0 ? `<span>Menjava plošč:</span> <span>${formatPrice(d.coverPrint.prepChanges)}</span>` : ''}
-                            ${d.coverPrint.washesNum > 0 ? `<span>Pranje stroja:</span> <span>${formatPrice(d.coverPrint.washCost)}</span>` : ''}
-                        </div>
-                    </div>
-
-                    <div style="padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 8px;">
-                        <div style="font-weight: bold; color: #f59e0b; margin-bottom: 5px;">5. Tisk (Strojno delo) (Ovitek)</div>
-                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 5px; color: #cbd5e1;">
-                            <span>Neto čas tiska (${(d.coverPrint.printHours * 60).toFixed(0)} min):</span> <span>${formatPrice(d.coverPrint.printHours * d.coverPrint.mRate)}</span>
-                            <span>Prijemalec (gripper):</span> <span style="color: #fbbf24; font-weight: bold;">${d.coverPrint.gripper} mm</span>
-                            <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0;"></div>
-                            <span style="font-style: italic;">Skupaj strojno delo:</span> <span style="font-weight: bold;">${formatPrice(d.coverPrint.print)}</span>
-                        </div>
-                    </div>
-                    ` : ''}
+                    ${renderEtiketePrintSpec(d.coverPrint, {
+                        prepBg: 'rgba(244, 63, 94, 0.05)',
+                        prepColor: '#f43f5e',
+                        prepTitleOffset: '4. Priprava in Plošče (Ovitek)',
+                        prepTitleDigital: '4. Priprava (Ovitek - Digital)',
+                        printTitle: '5. Tisk (Strojno delo) (Ovitek)'
+                    })}
 
                     <!-- DODELAVA -->
                     <div style="padding: 10px; background: rgba(16, 185, 129, 0.05); border-radius: 8px;">

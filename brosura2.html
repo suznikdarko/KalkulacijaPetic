@@ -6253,6 +6253,9 @@
 
 
 
+            const flagName = comp === 'leaves' ? 'g_manualPlatesNumLeavesEdited' : 'g_manualPlatesNumCoverEdited';
+            window[flagName] = false;
+
             const inputsGroup = document.getElementById('machine-inputs-group-' + comp);
 
             if (inputsGroup) inputsGroup.style.display = 'block';
@@ -6273,9 +6276,13 @@
 
                 setV('calc-change-price-' + comp, profile.changePrice !== undefined ? profile.changePrice : 10.00);
 
+                if (mType === 'digital') {
+                    setV('calc-plates-num-' + comp, 0);
+                }
+
                 if (comp === 'leaves') {
 
-                    setV('calc-prep-price-' + comp, mType === 'CD UV' ? profile.prepPrice : 25.00);
+                    setV('calc-prep-price-' + comp, (mType === 'CD UV' || mType === 'digital') ? profile.prepPrice : 25.00);
 
                 } else {
 
@@ -6289,7 +6296,36 @@
 
         }
 
+        function parseNumberOrDefault(val, fallback) {
+            const parsed = parseFloat(val);
+            return isNaN(parsed) ? fallback : parsed;
+        }
 
+        function getLeavesSheetMultiplier() {
+            let multiplier = 1;
+            let wasteMultiplier = 1;
+            let fullSheets = 1;
+            let fraction = 0;
+            let hasValid = false;
+            const sEl = document.getElementById('sheets-per-brochure');
+            if (sEl && (sEl.dataset.val || sEl.innerText)) {
+                const val = parseFloat(sEl.dataset.val || sEl.innerText.replace(',', '.'));
+                if (!isNaN(val) && val > 0) {
+                    hasValid = true;
+                    multiplier = Math.ceil(val);
+                    fullSheets = Math.floor(val);
+                    fraction = val - fullSheets;
+                    wasteMultiplier = fullSheets + (fraction > 0 ? 0.5 : 0);
+                }
+            }
+            return { multiplier, wasteMultiplier, fullSheets, fraction, hasValid };
+        }
+
+        function getDigitalWaste(comp, frontVal, backVal, leavesMultiplier = 1) {
+            if ((frontVal + backVal) <= 0) return 0;
+            const sheetsMult = (comp === 'leaves') ? Math.max(1, leavesMultiplier || 1) : 1;
+            return 20 * sheetsMult;
+        }
 
         function updateWasteAndPrice(comp = 'leaves') {
 
@@ -6333,7 +6369,12 @@
 
 
 
-            if (cFrontVal > 0 || cBackVal > 0 || cFront !== "" || cBack !== "") {
+            if (mType === 'digital') {
+                const leavesMult = (comp === 'leaves') ? getLeavesSheetMultiplier().multiplier : 1;
+                setV('calc-plates-num-' + comp, 0);
+                setV('calc-paper-waste-' + comp, getDigitalWaste(comp, cFrontVal, cBackVal, leavesMult));
+                setV('calc-machine-prep-time-' + comp, profile.prep);
+            } else if (cFrontVal > 0 || cBackVal > 0 || cFront !== "" || cBack !== "") {
 
                 let key = (cFront !== "" ? cFront : "0") + '/' + (isOB ? 'OB' : (cBack !== "" ? cBack : "0"));
 
@@ -6350,51 +6391,24 @@
 
 
                 if (comp === 'leaves') {
+                    const sheetInfo = getLeavesSheetMultiplier();
+                    if (sheetInfo.hasValid) {
+                        multiplier = sheetInfo.multiplier;
+                        wasteMultiplier = sheetInfo.wasteMultiplier;
+                        platesNum = sheetInfo.fullSheets * (cFrontVal + (isOB ? 0 : cBackVal));
 
-                    let s = document.getElementById('sheets-per-brochure');
-
-                    if (s && (s.dataset.val || s.innerText)) {
-
-                        let val = parseFloat(s.dataset.val || s.innerText.replace(',', '.'));
-
-                        if (!isNaN(val) && val > 0) {
-
-                            multiplier = Math.ceil(val);
-
-                            let fullSheets = Math.floor(val);
-
-                            let fraction = val - fullSheets;
-
-                            wasteMultiplier = fullSheets + (fraction > 0 ? 0.5 : 0);
-
-                            platesNum = fullSheets * (cFrontVal + (isOB ? 0 : cBackVal));
-
-
-
-                            let partialSets = 0;
-
-                            if (fraction === 0.75 || fraction === 0.375 || fraction === 0.625) {
-
-                                partialSets = 2;
-
-                            } else if (fraction === 0.875) {
-
-                                partialSets = 3;
-
-                            } else if (fraction > 0) {
-
-                                partialSets = 1;
-
-                            }
-
-                            if (partialSets > 0) {
-
-                                platesNum += partialSets * cFrontVal; // Delne pole grejo na obrat
-
-                            }
-
+                        let partialSets = 0;
+                        if (sheetInfo.fraction === 0.75 || sheetInfo.fraction === 0.375 || sheetInfo.fraction === 0.625) {
+                            partialSets = 2;
+                        } else if (sheetInfo.fraction === 0.875) {
+                            partialSets = 3;
+                        } else if (sheetInfo.fraction > 0) {
+                            partialSets = 1;
                         }
 
+                        if (partialSets > 0) {
+                            platesNum += partialSets * cFrontVal; // Delne pole grejo na obrat
+                        }
                     }
 
                 } else {
@@ -6755,29 +6769,9 @@
 
 
 
-                let multiplierL = 1;
-
-                let wasteMultiplierL = 1;
-
-                let sEl = document.getElementById('sheets-per-brochure');
-
-                if (sEl && (sEl.dataset.val || sEl.innerText)) {
-
-                    let val = parseFloat(sEl.dataset.val || sEl.innerText.replace(',', '.'));
-
-                    if (!isNaN(val) && val > 0) {
-
-                        multiplierL = Math.ceil(val);
-
-                        let fullSheets = Math.floor(val);
-
-                        let fraction = val - fullSheets;
-
-                        wasteMultiplierL = fullSheets + (fraction > 0 ? 0.5 : 0);
-
-                    }
-
-                }
+                const leavesSheetInfo = getLeavesSheetMultiplier();
+                let multiplierL = leavesSheetInfo.multiplier;
+                let wasteMultiplierL = leavesSheetInfo.wasteMultiplier;
 
 
 
@@ -6789,6 +6783,10 @@
                     wasteL = manualWasteL;
                     if (document.getElementById('calc-paper-waste-leaves')) document.getElementById('calc-paper-waste-leaves').value = wasteL;
                     if (bossL && document.getElementById('calc-machine-speed-leaves')) document.getElementById('calc-machine-speed-leaves').value = bossL.speed;
+                } else if (mTypeL === 'digital') {
+                    wasteL = getDigitalWaste('leaves', frontL, backL, multiplierL);
+                    if (document.getElementById('calc-paper-waste-leaves')) document.getElementById('calc-paper-waste-leaves').value = wasteL;
+                    if (document.getElementById('calc-machine-speed-leaves')) document.getElementById('calc-machine-speed-leaves').value = machineProfiles['digital'].speed;
                 } else if (bossL) {
                     wasteL = Math.ceil(bossL.waste * wasteMultiplierL);
                     if (document.getElementById('calc-paper-waste-leaves')) document.getElementById('calc-paper-waste-leaves').value = wasteL;
@@ -6803,6 +6801,10 @@
                     wasteC = manualWasteC;
                     if (document.getElementById('calc-paper-waste-cover')) document.getElementById('calc-paper-waste-cover').value = wasteC;
                     if (bossC && document.getElementById('calc-machine-speed-cover')) document.getElementById('calc-machine-speed-cover').value = bossC.speed;
+                } else if (mTypeC === 'digital') {
+                    wasteC = getDigitalWaste('cover', frontC, backC, 1);
+                    if (document.getElementById('calc-paper-waste-cover')) document.getElementById('calc-paper-waste-cover').value = wasteC;
+                    if (document.getElementById('calc-machine-speed-cover')) document.getElementById('calc-machine-speed-cover').value = machineProfiles['digital'].speed;
                 } else if (bossC) {
                     wasteC = Math.ceil(bossC.waste);
                     if (document.getElementById('calc-paper-waste-cover')) document.getElementById('calc-paper-waste-cover').value = wasteC;
@@ -7132,6 +7134,7 @@
 
                     printHoursL = (sheetsNeededLeaves + wasteL) * mPassesL / mSpeedL;
                     if (mTypeL === 'digital') {
+                        plateChangeCostL = 0;
                         totalPrepCostL = 5;
                         let isColor = (frontL > 1 || backL > 1);
                         let isDoubleSided = (backL > 0 || isObratL);
@@ -7260,6 +7263,7 @@
 
                     printHoursC = (sheetsNeededCover + wasteC) * mPassesC / mSpeedC;
                     if (mTypeC === 'digital') {
+                        plateChangeCostC = 0;
                         totalPrepCostC = 5;
                         let isColor = (frontC > 1 || backC > 1);
                         let isDoubleSided = (backC > 0 || isObratC);
@@ -7890,6 +7894,36 @@
                     window.syncTariffWeightExternal();
                 }
 
+                const buildPrintDetails = (suffix, cfg) => {
+                    const isDigital = cfg.mType === 'digital';
+                    const mutNum = isDigital ? 0 : (parseInt(gV('calc-mut-num-' + suffix)) || 0);
+                    const mutPlates = isDigital ? 0 : (parseInt(gV('calc-mut-plates-' + suffix)) || 0);
+                    const mutChange = isDigital ? 0 : (parseFloat(gV('calc-mut-change-price-' + suffix)) || 0);
+                    return {
+                        active: cfg.active,
+                        mType: cfg.mType,
+                        prepHours: cfg.prepHours,
+                        printHours: cfg.printHours,
+                        mSpeed: cfg.mSpeed,
+                        mPasses: cfg.mPasses,
+                        waste: cfg.waste,
+                        sheetsNeeded: cfg.sheetsNeeded,
+                        totalSheets: cfg.sheetsNeeded + cfg.waste,
+                        platesNum: isDigital ? 0 : (parseInt(gV('calc-plates-num-' + suffix)) || 0),
+                        platesPrice: isDigital ? 0 : parseNumberOrDefault(gV('calc-plates-price-' + suffix), 10),
+                        changePrice: isDigital ? 0 : parseNumberOrDefault(gV('calc-change-price-' + suffix), 10),
+                        plateChangeCost: isDigital ? 0 : cfg.plateChangeCost,
+                        isPlatesActive: isDigital ? false : gC('calc-plates-active-' + suffix),
+                        prepPrice: isDigital ? cfg.totalPrep : (parseFloat(gV('calc-prep-price-' + suffix)) || 0),
+                        washCost: isDigital ? 0 : ((parseInt(gV('calc-color-washes-' + suffix)) || 0) * parseNumberOrDefault(gV('calc-wash-price-' + suffix), 25)),
+                        mutNum: mutNum,
+                        mutCost: isDigital ? 0 : (mutNum * (mutPlates * (parseFloat(gV('calc-plates-price-' + suffix)) || 0) + mutChange)),
+                        totalPrep: cfg.totalPrep,
+                        totalPrint: cfg.totalPrint,
+                        cost: cfg.totalPrep + cfg.totalPrint
+                    };
+                };
+
                 let details = {
 
                     weight: {
@@ -7958,97 +7992,33 @@
 
                     },
 
-                    leavesPrint: {
-
+                    leavesPrint: buildPrintDetails('leaves', {
                         active: (frontL + backL > 0),
-
                         mType: mTypeL,
-
                         prepHours: mPrepTimeL,
-
                         printHours: printHoursL,
-
                         mSpeed: mSpeedL,
-
                         mPasses: mPassesL,
-
                         waste: wasteL,
-
                         sheetsNeeded: sheetsNeededLeaves,
-
-                        totalSheets: sheetsNeededLeaves + wasteL,
-
-                        platesNum: (parseInt(gV('calc-plates-num-leaves')) || 0),
-
-                        platesPrice: parseFloat(gV('calc-plates-price-leaves')) || 10,
-
-                        changePrice: parseFloat(gV('calc-change-price-leaves')) || 10,
-
                         plateChangeCost: plateChangeCostL,
-
-                        isPlatesActive: gC('calc-plates-active-leaves'),
-
-                        prepPrice: (parseFloat(gV('calc-prep-price-leaves')) || 0),
-
-                        washCost: (parseInt(gV('calc-color-washes-leaves')) || 0) * (parseFloat(gV('calc-wash-price-leaves')) || 25),
-
-                        mutNum: (parseInt(gV('calc-mut-num-leaves')) || 0),
-
-                        mutCost: ((parseInt(gV('calc-mut-num-leaves')) || 0) * ((parseInt(gV('calc-mut-plates-leaves')) || 0) * (parseFloat(gV('calc-plates-price-leaves')) || 0) + (parseFloat(gV('calc-mut-change-price-leaves')) || 0))),
-
                         totalPrep: totalPrepCostL,
+                        totalPrint: totalPrintCostL
+                    }),
 
-                        totalPrint: totalPrintCostL,
-
-                        cost: totalPrepCostL + totalPrintCostL
-
-                    },
-
-                    coverPrint: {
-
+                    coverPrint: buildPrintDetails('cover', {
                         active: (frontC + backC > 0),
-
                         mType: mTypeC,
-
                         prepHours: mPrepTimeC,
-
                         printHours: printHoursC,
-
                         mSpeed: mSpeedC,
-
                         mPasses: mPassesC,
-
                         waste: wasteC,
-
                         sheetsNeeded: sheetsNeededCover,
-
-                        totalSheets: sheetsNeededCover + wasteC,
-
-                        platesNum: (parseInt(gV('calc-plates-num-cover')) || 0),
-
-                        platesPrice: parseFloat(gV('calc-plates-price-cover')) || 10,
-
-                        changePrice: parseFloat(gV('calc-change-price-cover')) || 10,
-
                         plateChangeCost: plateChangeCostC,
-
-                        isPlatesActive: gC('calc-plates-active-cover'),
-
-                        prepPrice: (parseFloat(gV('calc-prep-price-cover')) || 0),
-
-                        washCost: (parseInt(gV('calc-color-washes-cover')) || 0) * (parseFloat(gV('calc-wash-price-cover')) || 25),
-
-                        mutNum: (parseInt(gV('calc-mut-num-cover')) || 0),
-
-                        mutCost: ((parseInt(gV('calc-mut-num-cover')) || 0) * ((parseInt(gV('calc-mut-plates-cover')) || 0) * (parseFloat(gV('calc-plates-price-cover')) || 0) + (parseFloat(gV('calc-mut-change-price-cover')) || 0))),
-
                         totalPrep: totalPrepCostC,
-
-                        totalPrint: totalPrintCostC,
-
-                        cost: totalPrepCostC + totalPrintCostC
-
-                    },
+                        totalPrint: totalPrintCostC
+                    }),
 
                     finish: {
 
@@ -8137,6 +8107,34 @@
 
 
 
+                const renderPrintSpecCard = (p, cfg) => {
+                    if (!p || !p.active) return '';
+                    const isDigital = p.mType === 'digital';
+                    const prepLines = isDigital ? `
+                        <span style="padding-left:10px;">- Priprava digitalnega tiska:</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(p.totalPrep)}</span>
+                    ` : `
+                        ${p.isPlatesActive ?
+                            `<span style="padding-left:10px;">- Plošče (${p.platesNum} kos):</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(p.platesNum * p.platesPrice)}</span>` :
+                            `<span style="padding-left:10px; color: #94a3b8; font-style: italic;">- Plošče (brezplačno):</span> <span style="color: #94a3b8;">0,00 €</span>`
+                        }
+                        ${(p.isPlatesActive && p.plateChangeCost > 0) ? `<span style="padding-left:10px; color: ${cfg.changeColor};">- Menjava plošč (${Math.max(0, p.platesNum - 1)} kos):</span> <span style="font-weight: bold; color: ${cfg.changeColor};">${formatPrice(p.plateChangeCost)}</span>` : ''}
+                        <span style="padding-left:10px;">- Priprava stroja (pavšal in pranje):</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(p.prepPrice + p.washCost)}</span>
+                        ${p.mutNum > 0 ? `<span style="padding-left:10px; color: ${cfg.mutColor};">- Mutacije (${p.mutNum}x):</span> <span style="font-weight: bold; color: ${cfg.mutColor};">${formatPrice(p.mutCost)}</span>` : ''}
+                    `;
+                    return `
+                    <div style="padding: 12px; background: ${cfg.bg}; border: 1px solid ${cfg.border}; border-radius: 8px;">
+                        <div style="font-weight: bold; color: ${cfg.accent}; margin-bottom: 8px; font-size: 0.95rem;">${cfg.title}</div>
+                        <div style="display: grid; grid-template-columns: minmax(260px, 360px) auto; justify-content: start; gap: 5px 20px; color: #cbd5e1; font-size: 0.88rem;">
+                            ${prepLines}
+                            <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.05); margin: 3px 0;"></div>
+                            <span style="font-weight: bold;">${isDigital ? 'Skupaj priprava (digital):' : 'Skupaj priprava in plošče:'}</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(p.totalPrep)}</span>
+                            <span style="font-weight: bold; margin-top: 5px;">${cfg.printLabel}${isDigital ? ` (${formatQty(p.sheetsNeeded)} pol)` : ''}:</span> <span style="font-weight: bold; color: #f8fafc; margin-top: 5px;">${formatPrice(p.totalPrint)}</span>
+                            <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0;"></div>
+                            <span style="font-style: italic;">${cfg.totalLabel}:</span> <span style="font-weight: bold; color: ${cfg.accent};">${formatPrice(p.cost)}</span>
+                        </div>
+                    </div>`;
+                };
+
                 let html = `
                     <div style="max-width: 760px; display: flex; flex-direction: column; gap: 10px;">
                     <!-- MATERIAL -->
@@ -8168,46 +8166,28 @@
                     </div>
 
                     <!-- TISK LISTI -->
-                    ${d.leavesPrint.active ? `
-                    <div style="padding: 12px; background: rgba(167, 139, 250, 0.05); border: 1px solid rgba(167, 139, 250, 0.15); border-radius: 8px;">
-                        <div style="font-weight: bold; color: #a78bfa; margin-bottom: 8px; font-size: 0.95rem;">2. Tisk Listov</div>
-                        <div style="display: grid; grid-template-columns: minmax(260px, 360px) auto; justify-content: start; gap: 5px 20px; color: #cbd5e1; font-size: 0.88rem;">
-                            ${d.leavesPrint.isPlatesActive ?
-                            `<span style="padding-left:10px;">- Plošče (${d.leavesPrint.platesNum} kos):</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(d.leavesPrint.platesNum * d.leavesPrint.platesPrice)}</span>` :
-                            `<span style="padding-left:10px; color: #94a3b8; font-style: italic;">- Plošče (brezplačno):</span> <span style="color: #94a3b8;">0,00 €</span>`
-                        }
-                            ${(d.leavesPrint.isPlatesActive && d.leavesPrint.plateChangeCost > 0) ? `<span style="padding-left:10px; color: #818cf8;">- Menjava plošč (${Math.max(0, d.leavesPrint.platesNum - 1)} kos):</span> <span style="font-weight: bold; color: #818cf8;">${formatPrice(d.leavesPrint.plateChangeCost)}</span>` : ''}
-                            <span style="padding-left:10px;">- Priprava stroja (pavšal in pranje):</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(d.leavesPrint.prepPrice + d.leavesPrint.washCost)}</span>
-                            ${d.leavesPrint.mutNum > 0 ? `<span style="padding-left:10px; color: #60a5fa;">- Mutacije (${d.leavesPrint.mutNum}x):</span> <span style="font-weight: bold; color: #60a5fa;">${formatPrice(d.leavesPrint.mutCost)}</span>` : ''}
-                            <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.05); margin: 3px 0;"></div>
-                            <span style="font-weight: bold;">Skupaj priprava in plošče:</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(d.leavesPrint.totalPrep)}</span>
-                            <span style="font-weight: bold; margin-top: 5px;">Tisk listov:</span> <span style="font-weight: bold; color: #f8fafc; margin-top: 5px;">${formatPrice(d.leavesPrint.totalPrint)}</span>
-                            <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0;"></div>
-                            <span style="font-style: italic;">Skupaj stroški tiska (listi):</span> <span style="font-weight: bold; color: #a78bfa;">${formatPrice(d.leavesPrint.cost)}</span>
-                        </div>
-                    </div>
-                    ` : ''}
+                    ${renderPrintSpecCard(d.leavesPrint, {
+                        title: '2. Tisk Listov',
+                        accent: '#a78bfa',
+                        bg: 'rgba(167, 139, 250, 0.05)',
+                        border: 'rgba(167, 139, 250, 0.15)',
+                        changeColor: '#818cf8',
+                        mutColor: '#60a5fa',
+                        printLabel: 'Tisk listov',
+                        totalLabel: 'Skupaj stroški tiska (listi)'
+                    })}
 
                     <!-- TISK OVITEK -->
-                    ${d.coverPrint.active ? `
-                    <div style="padding: 12px; background: rgba(244, 63, 94, 0.05); border: 1px solid rgba(244, 63, 94, 0.15); border-radius: 8px;">
-                        <div style="font-weight: bold; color: #f43f5e; margin-bottom: 8px; font-size: 0.95rem;">3. Tisk Ovitka</div>
-                        <div style="display: grid; grid-template-columns: minmax(260px, 360px) auto; justify-content: start; gap: 5px 20px; color: #cbd5e1; font-size: 0.88rem;">
-                            ${d.coverPrint.isPlatesActive ?
-                            `<span style="padding-left:10px;">- Plošče (${d.coverPrint.platesNum} kos):</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(d.coverPrint.platesNum * d.coverPrint.platesPrice)}</span>` :
-                            `<span style="padding-left:10px; color: #94a3b8; font-style: italic;">- Plošče (brezplačno):</span> <span style="color: #94a3b8;">0,00 €</span>`
-                        }
-                            ${(d.coverPrint.isPlatesActive && d.coverPrint.plateChangeCost > 0) ? `<span style="padding-left:10px; color: #f472b6;">- Menjava plošč (${Math.max(0, d.coverPrint.platesNum - 1)} kos):</span> <span style="font-weight: bold; color: #f472b6;">${formatPrice(d.coverPrint.plateChangeCost)}</span>` : ''}
-                            <span style="padding-left:10px;">- Priprava stroja (pavšal in pranje):</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(d.coverPrint.prepPrice + d.coverPrint.washCost)}</span>
-                            ${d.coverPrint.mutNum > 0 ? `<span style="padding-left:10px; color: #f43f5e;">- Mutacije (${d.coverPrint.mutNum}x):</span> <span style="font-weight: bold; color: #f43f5e;">${formatPrice(d.coverPrint.mutCost)}</span>` : ''}
-                            <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.05); margin: 3px 0;"></div>
-                            <span style="font-weight: bold;">Skupaj priprava in plošče:</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(d.coverPrint.totalPrep)}</span>
-                            <span style="font-weight: bold; margin-top: 5px;">Tisk ovitka:</span> <span style="font-weight: bold; color: #f8fafc; margin-top: 5px;">${formatPrice(d.coverPrint.totalPrint)}</span>
-                            <div style="grid-column: 1/-1; height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0;"></div>
-                            <span style="font-style: italic;">Skupaj stroški tiska (ovitek):</span> <span style="font-weight: bold; color: #f43f5e;">${formatPrice(d.coverPrint.cost)}</span>
-                        </div>
-                    </div>
-                    ` : ''}
+                    ${renderPrintSpecCard(d.coverPrint, {
+                        title: '3. Tisk Ovitka',
+                        accent: '#f43f5e',
+                        bg: 'rgba(244, 63, 94, 0.05)',
+                        border: 'rgba(244, 63, 94, 0.15)',
+                        changeColor: '#f472b6',
+                        mutColor: '#f43f5e',
+                        printLabel: 'Tisk ovitka',
+                        totalLabel: 'Skupaj stroški tiska (ovitek)'
+                    })}
 
                     <!-- DODELAVA -->
                     <div style="padding: 12px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 8px;">
