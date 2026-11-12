@@ -1105,10 +1105,17 @@
                 <div
                     style="padding: 10px 15px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                     <div>
-                        <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa; display: flex; align-items: center; gap: 6px;">📁 KOŠARICA ZA PONUDBO</h3>
+                        <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa; display: flex; align-items: center; gap: 6px;">📁 KOŠARICA ZA PONUDBO <span id="basket-sync-status" style="font-size: 0.7rem; font-weight: 600; color: #34d399; opacity: 0; transition: opacity 0.25s;">✓ Shranjeno</span></h3>
                         <div id="basket-quote-subtext" style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;"></div>
                     </div>
-                    <div style="display: flex; gap: 6px; align-items: center;">
+                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; color: #cbd5e1; cursor: pointer; background: rgba(15, 23, 42, 0.45); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.25);" title="Ko je vklopljeno, se spremembe naložene postavke samodejno shranijo v košarico">
+                            <input type="checkbox" id="basket-auto-update-toggle" checked onchange="toggleBasketAutoUpdate(this.checked)" style="margin: 0; width: auto; height: auto; cursor: pointer; accent-color: #10b981;">
+                            Samodejno shrani
+                        </label>
+                        <button type="button" id="btn-basket-update-inline" onclick="updateActiveBasketItem()" style="display: none; background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;" title="Ročno posodobi trenutno naloženo postavko v košarici">
+                            💾 Posodobi
+                        </button>
                         <button type="button" onclick="toggleProjectsDropdown()" style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;" title="Preklopi med drugimi shranjenimi ponudbami">
                             📂 Druge ponudbe
                         </button>
@@ -2018,10 +2025,15 @@
                 title="Odpri cenik prevozov (PDF)">
                 🚚 CENIK PREVOZOV
             </button>
-            <button class="calculate-btn" onclick="addToBasket()"
+            <button class="calculate-btn btn-add-basket-action" onclick="addToBasket()"
                 style="margin: 0; width: auto; background: #f59e0b; padding: 0.6rem 1.4rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);"
                 title="Dodaj trenutno kalkulacijo v košarico za zbirno ponudbo z več pozicijami">
                 🛒 KOŠARICA
+            </button>
+            <button class="calculate-btn btn-update-basket-action" onclick="updateActiveBasketItem()"
+                style="display: none; margin: 0; width: auto; background: #10b981; padding: 0.6rem 1.35rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);"
+                title="Shrani spremembe v trenutno naloženo postavko košarice">
+                💾 POSODOBI
             </button>
             <button class="calculate-btn" onclick="printQuote()" id="btn-open-quote"
                 style="margin: 0; width: auto; background: #3b82f6; padding: 0.6rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);"
@@ -2319,6 +2331,12 @@
         }
         // Osvežuj predogled vsako sekundo (ker se podatki urejajo v drugem oknu)
         setInterval(updateCustomDocsPreview, 1000);
+        var g_activeBasketItemId = null;
+        var g_basketAutoUpdate = localStorage.getItem('petric_basket_auto_update') !== 'false';
+        var g_basketSyncTimer = null;
+        var g_basketStatusTimer = null;
+        window.g_suppressBasketAutoSync = false;
+
         let quoteBasket = [];
         localStorage.removeItem('petric_quote_basket');
         renderBasket();
@@ -2410,7 +2428,6 @@
             if (isChecked('f-delivery-active') || isChecked('f-del-fixed-active')) list.push('Dostava');
             return list.join(', ');
         }
-        var g_activeBasketItemId = null;
 
         function collectPolaProjectSnapshot() {
             function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
@@ -2545,6 +2562,7 @@
             try {
                 var item = quoteBasket.find(x => x.id === id);
                 if (!item) return;
+                if (g_basketSyncTimer) { clearTimeout(g_basketSyncTimer); g_basketSyncTimer = null; }
                 g_activeBasketItemId = id;
 
                 quoteBasket.forEach(it => {
@@ -2553,10 +2571,12 @@
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
 
                 window.g_loadingProject = true;
+                window.g_suppressBasketAutoSync = true;
 
                 if (item.snapshot && item.snapshot.inputs) {
                     var snap = JSON.parse(JSON.stringify(item.snapshot));
                     snap.quoteBasket = quoteBasket;
+                    snap.activeBasketItemId = id;
                     loadProjectData(snap);
                 } else {
                     function setV(elemId, val, isChk) {
@@ -2607,72 +2627,160 @@
                 if (typeof calculatePrice === 'function') calculatePrice();
                 else if (typeof calculate === 'function') calculate();
                 if (typeof updateCustomDocsPreview === 'function') updateCustomDocsPreview();
+                window.g_suppressBasketAutoSync = false;
 
                 renderBasket();
             } catch (err) {
+                window.g_loadingProject = false;
+                window.g_suppressBasketAutoSync = false;
                 console.error("loadBasketCalculation error:", err);
                 alert("Napaka pri nalaganju izračuna: " + err.message);
             }
         }
+        function buildCurrentBasketItem(existingId, silent = false) {
+            const projectName = (document.getElementById('calc-project-name') ? document.getElementById('calc-project-name').value : '') || 'Brez imena';
+            const qtyStr = (document.getElementById('quantity') ? document.getElementById('quantity').value : '') || '0';
+            const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+            const oqStr = (document.getElementById('ordered-quantity') ? document.getElementById('ordered-quantity').value : '') || "";
+            const oqArr = oqStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
+            if (qtyArr.length === 0) {
+                if (!silent) alert("Prosimo vnesite vsaj eno naklado.");
+                return null;
+            }
+            const results = [];
+            qtyArr.forEach((q, idx) => {
+                const oqVal = oqArr[idx] || q;
+                const res = calculateForSingleQty(q, undefined, undefined, undefined, oqVal, idx);
+                if (res) results.push(res);
+            });
+            if (results.length === 0) {
+                if (!silent) alert("Napaka pri izračunu cen. Preverite vnose.");
+                return null;
+            }
+            return {
+                id: existingId || Date.now(),
+                type: 'Tiskovna pola',
+                name: projectName,
+                projectName: projectName,
+                customer: (document.getElementById('calc-customer') ? document.getElementById('calc-customer').value : '') || '',
+                productCode: (document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : '') || '/',
+                materialCode: (document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '') || '/',
+                deliveryAddress: (document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '') || '',
+                quoteNum: (document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '') || '',
+                spec: {
+                    usePersonalization: document.getElementById('calc-use-personalization') ? document.getElementById('calc-use-personalization').checked : false,
+                    useManualWork: document.getElementById('calc-use-manual-work') ? document.getElementById('calc-use-manual-work').checked : false,
+                    wasteManual: document.getElementById('calc-paper-waste-manual') ? document.getElementById('calc-paper-waste-manual').value : '',
+                    mutPlates: document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : '',
+                    format: isProductRound()
+                        ? ('Ø ' + (document.getElementById('width') ? document.getElementById('width').value : '') + ' mm')
+                        : ((document.getElementById('width') ? document.getElementById('width').value : '') + ' x ' + (document.getElementById('height') ? document.getElementById('height').value : '') + ' mm'),
+                    paper: (document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value : '') + 'g ' + (document.getElementById('calc-paper-type') ? document.getElementById('calc-paper-type').value : '') +
+                        (document.getElementById('calc-paper2-enable') && document.getElementById('calc-paper2-enable').checked ?
+                            ' + Kaširano: ' + (document.getElementById('calc-paper2-weight') ? document.getElementById('calc-paper2-weight').value + 'g ' : '') + (document.getElementById('calc-paper2-type') ? document.getElementById('calc-paper2-type').value : 'Papir 2') : ''),
+                    colors: getFormattedColorsString(),
+                    finishing: getActiveFinishingList()
+                },
+                quantities: results.map((r, idx) => {
+                    const oqVal = oqArr[idx] || r.qty;
+                    return {
+                        qty: oqVal,
+                        priceTotal: r.totalPrice,
+                        pricePerUnit: r.perItemFinal
+                    };
+                }),
+                snapshot: collectPolaProjectSnapshot(),
+                isSelected: true
+            };
+        }
+        function showBasketSyncStatus(text) {
+            const el = document.getElementById('basket-sync-status');
+            if (!el) return;
+            el.textContent = text || '✓ Shranjeno';
+            el.style.opacity = '1';
+            if (g_basketStatusTimer) clearTimeout(g_basketStatusTimer);
+            g_basketStatusTimer = setTimeout(() => { el.style.opacity = '0'; }, 1800);
+        }
+        function syncActiveBasketItem(silent = true) {
+            if (g_basketSyncTimer) { clearTimeout(g_basketSyncTimer); g_basketSyncTimer = null; }
+            if (window.g_loadingProject || window.g_suppressBasketAutoSync) return false;
+            if (g_activeBasketItemId === null) return false;
+            const idx = quoteBasket.findIndex(x => x.id === g_activeBasketItemId);
+            if (idx === -1) return false;
+            const updatedItem = buildCurrentBasketItem(g_activeBasketItemId, silent);
+            if (!updatedItem) return false;
+            quoteBasket.forEach((it, i) => { it.isSelected = (i === idx); });
+            quoteBasket[idx] = updatedItem;
+            localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+            g_editedQuoteHTML = '';
+            g_editedQuoteATHTML = '';
+            renderBasket();
+            showBasketSyncStatus('✓ Shranjeno');
+            return true;
+        }
+        function scheduleBasketAutoSync() {
+            if (window.g_loadingProject || window.g_suppressBasketAutoSync) return;
+            if (!g_basketAutoUpdate || g_activeBasketItemId === null) return;
+            if (!quoteBasket.some(x => x.id === g_activeBasketItemId)) return;
+            if (g_basketSyncTimer) clearTimeout(g_basketSyncTimer);
+            g_basketSyncTimer = setTimeout(() => {
+                g_basketSyncTimer = null;
+                syncActiveBasketItem(true);
+            }, 120);
+        }
+        function flushBasketAutoSync() {
+            if (window.g_loadingProject || window.g_suppressBasketAutoSync) return;
+            if (g_activeBasketItemId === null) return;
+            if (g_basketSyncTimer || g_basketAutoUpdate) {
+                syncActiveBasketItem(true);
+            }
+        }
+        function toggleBasketAutoUpdate(enabled) {
+            g_basketAutoUpdate = !!enabled;
+            localStorage.setItem('petric_basket_auto_update', g_basketAutoUpdate ? 'true' : 'false');
+            if (g_basketAutoUpdate && g_activeBasketItemId !== null) {
+                syncActiveBasketItem(true);
+            } else {
+                updateBasketActionButtons();
+            }
+        }
+        function flashBasketButtons(selector, tempText) {
+            const btns = document.querySelectorAll(selector);
+            btns.forEach(btn => {
+                btn.dataset.tempStatus = '1';
+                btn.innerHTML = tempText;
+                setTimeout(() => {
+                    delete btn.dataset.tempStatus;
+                    updateBasketActionButtons();
+                }, 1500);
+            });
+        }
+        function updateActiveBasketItem() {
+            try {
+                window.g_suppressBasketAutoSync = true;
+                calculate();
+                window.g_suppressBasketAutoSync = false;
+                if (g_activeBasketItemId === null || !quoteBasket.some(x => x.id === g_activeBasketItemId)) {
+                    addToBasket();
+                    return;
+                }
+                const ok = syncActiveBasketItem(false);
+                if (!ok) return;
+                flashBasketButtons('.btn-update-basket-action', '✅ POSODOBLJENO');
+                flashBasketButtons('#btn-basket-update-inline', '✅ Posodobljeno');
+            } catch (e) {
+                window.g_suppressBasketAutoSync = false;
+                console.error("updateActiveBasketItem error:", e);
+                alert("Napaka pri posodabljanju košarice: " + e.message);
+            }
+        }
         function addToBasket() {
             try {
-                // Prepričaj se, da je izračun posodobljen
+                window.g_suppressBasketAutoSync = true;
                 calculate();
-                const projectName = (document.getElementById('calc-project-name') ? document.getElementById('calc-project-name').value : '') || 'Brez imena';
-                const qtyStr = (document.getElementById('quantity') ? document.getElementById('quantity').value : '') || '0';
-                const qtyArr = qtyStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
-                const oqStr = (document.getElementById('ordered-quantity') ? document.getElementById('ordered-quantity').value : '') || "";
-                const oqArr = oqStr.split(',').map(x => parseFloat(x.trim().replace(/\./g, ''))).filter(x => !isNaN(x) && x > 0);
-                if (qtyArr.length === 0) {
-                    alert("Prosimo vnesite vsaj eno naklado.");
-                    return;
-                }
-                // Pripravimo podatke za vsako naklado
-                const results = [];
-                qtyArr.forEach((q, idx) => {
-                    const oqVal = oqArr[idx] || q;
-                    const res = calculateForSingleQty(q, undefined, undefined, undefined, oqVal, idx);
-                    if (res) results.push(res);
-                });
-                if (results.length === 0) {
-                    alert("Napaka pri izračunu cen. Preverite vnose.");
-                    return;
-                }
-                const basketItem = {
-                    id: Date.now(),
-                    type: 'Tiskovna pola',
-                    name: projectName,
-                    projectName: projectName,
-                    customer: (document.getElementById('calc-customer') ? document.getElementById('calc-customer').value : '') || '',
-                    productCode: (document.getElementById('calc-product-code') ? document.getElementById('calc-product-code').value : '') || '/',
-                    materialCode: (document.getElementById('calc-material-code') ? document.getElementById('calc-material-code').value : '') || '/',
-                    deliveryAddress: (document.getElementById('calc-delivery-address') ? document.getElementById('calc-delivery-address').value : '') || '',
-                    quoteNum: (document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value : '') || '',
-                    spec: {
-                        usePersonalization: document.getElementById('calc-use-personalization') ? document.getElementById('calc-use-personalization').checked : false,
-                        useManualWork: document.getElementById('calc-use-manual-work') ? document.getElementById('calc-use-manual-work').checked : false,
-                        wasteManual: document.getElementById('calc-paper-waste-manual') ? document.getElementById('calc-paper-waste-manual').value : '',
-                        mutPlates: document.getElementById('calc-mut-plates') ? document.getElementById('calc-mut-plates').value : '',
-                        format: isProductRound()
-                            ? ('Ø ' + (document.getElementById('width') ? document.getElementById('width').value : '') + ' mm')
-                            : ((document.getElementById('width') ? document.getElementById('width').value : '') + ' x ' + (document.getElementById('height') ? document.getElementById('height').value : '') + ' mm'),
-                        paper: (document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value : '') + 'g ' + (document.getElementById('calc-paper-type') ? document.getElementById('calc-paper-type').value : '') +
-                            (document.getElementById('calc-paper2-enable') && document.getElementById('calc-paper2-enable').checked ?
-                                ' + Kaširano: ' + (document.getElementById('calc-paper2-weight') ? document.getElementById('calc-paper2-weight').value + 'g ' : '') + (document.getElementById('calc-paper2-type') ? document.getElementById('calc-paper2-type').value : 'Papir 2') : ''),
-                        colors: getFormattedColorsString(),
-                        finishing: getActiveFinishingList()
-                    },
-                    quantities: results.map((r, idx) => {
-                        const oqVal = oqArr[idx] || r.qty;
-                        return {
-                            qty: oqVal,
-                            priceTotal: r.totalPrice,
-                            pricePerUnit: r.perItemFinal
-                        };
-                    }),
-                    snapshot: collectPolaProjectSnapshot()
-                };
-
+                window.g_suppressBasketAutoSync = false;
+                const basketItem = buildCurrentBasketItem(null, false);
+                if (!basketItem) return;
                 quoteBasket.forEach(it => { it.isSelected = false; });
                 basketItem.isSelected = true;
                 g_activeBasketItemId = basketItem.id;
@@ -2681,27 +2789,24 @@
                 g_editedQuoteHTML = '';
                 g_editedQuoteATHTML = '';
                 renderBasket();
-                // Povratna informacija uporabniku
                 const btns = document.querySelectorAll('button[onclick="addToBasket()"]');
                 if (btns.length > 0) {
-                    btns.forEach(btn => {
-                        const originalText = btn.innerHTML;
-                        btn.innerHTML = "✅ DODANO";
-                        setTimeout(() => { btn.innerHTML = originalText; }, 1500);
-                    });
+                    flashBasketButtons('button[onclick="addToBasket()"]', '✅ DODANO');
                 } else {
                     alert("Dodano v košarico!");
                 }
             } catch (e) {
+                window.g_suppressBasketAutoSync = false;
                 alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack);
                 console.error("addToBasket error:", e);
                 alert("Napaka pri dodajanju v košarico: " + e.message);
             }
         }
         function removeFromBasket(id) {
+            if (g_basketSyncTimer) { clearTimeout(g_basketSyncTimer); g_basketSyncTimer = null; }
             quoteBasket = quoteBasket.filter(item => item.id !== id);
             if (g_activeBasketItemId === id) {
-                g_activeBasketItemId = quoteBasket.length > 0 ? quoteBasket[0].id : null;
+                g_activeBasketItemId = null;
             }
             localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
             g_editedQuoteHTML = '';
@@ -2710,6 +2815,7 @@
         }
         function clearBasket() {
             if (confirm("Izbrišem vse elemente iz košarice?")) {
+                if (g_basketSyncTimer) { clearTimeout(g_basketSyncTimer); g_basketSyncTimer = null; }
                 quoteBasket = [];
                 g_activeBasketItemId = null;
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
@@ -2718,8 +2824,29 @@
                 renderBasket();
             }
         }
+        function updateBasketActionButtons() {
+            const hasLoadedItem = g_activeBasketItemId !== null && quoteBasket.some(x => x.id === g_activeBasketItemId);
+            const autoToggle = document.getElementById('basket-auto-update-toggle');
+            if (autoToggle) autoToggle.checked = g_basketAutoUpdate;
+            document.querySelectorAll('button[onclick="addToBasket()"]').forEach(btn => {
+                if (!btn.dataset.tempStatus) {
+                    btn.innerHTML = hasLoadedItem ? '➕ DODAJ KOT NOVO' : '🛒 KOŠARICA';
+                    btn.title = hasLoadedItem
+                        ? 'Dodaj trenutni izračun kot novo postavko v košarico (obstoječa ostane)'
+                        : 'Dodaj trenutno kalkulacijo v košarico za zbirno ponudbo z več pozicijami';
+                }
+            });
+            document.querySelectorAll('.btn-update-basket-action').forEach(btn => {
+                btn.style.display = hasLoadedItem ? 'inline-block' : 'none';
+            });
+            const btnInline = document.getElementById('btn-basket-update-inline');
+            if (btnInline) {
+                btnInline.style.display = hasLoadedItem ? 'inline-flex' : 'none';
+            }
+        }
         function renderBasket() {
             try {
+                updateBasketActionButtons();
                 const badges = document.querySelectorAll('.basket-count-badge');
                 const count = (quoteBasket && quoteBasket.length) ? quoteBasket.length : 0;
                 badges.forEach(b => {
@@ -2744,13 +2871,15 @@
                 basketContainer.style.display = 'block';
                 container.innerHTML = quoteBasket.map(item => {
                     if (!item || !item.spec || !item.quantities) return '';
-                    var isActive = (item.id === g_activeBasketItemId) || (item.isSelected === true);
+                    var isLoaded = (item.id === g_activeBasketItemId);
+                    var isActive = isLoaded || (item.isSelected === true);
                     return `
                     <div style="padding: 10px; background: ${isActive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.05)'}; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-start; border-left: ${isActive ? '4px solid #10b981' : '3px solid #3b82f6'}; border: ${isActive ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255,255,255,0.05)'};">
                         <div style="flex: 1; cursor: pointer;" onclick="loadBasketCalculation(${item.id})">
                             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                 <div style="font-weight: bold; color: white; font-size: 0.9rem;">${item.name}</div>
                                 ${isActive ? `<span style="background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: bold; letter-spacing: 0.5px;">✓ IZDELANO PO PONUDBI</span>` : ''}
+                                ${isLoaded && g_basketAutoUpdate ? `<span style="background: rgba(59, 130, 246, 0.22); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); padding: 1px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">✏️ Urejanje</span>` : ''}
                             </div>
                             <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px;">${item.type} | ${item.spec.format} | ${item.spec.paper || ''}</div>
                             <div style="margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap;">
@@ -2758,8 +2887,8 @@
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 4px; margin-left: 8px;">
-                            <button type="button" onclick="loadBasketCalculation(${item.id})" style="background: ${isActive ? '#10b981' : 'rgba(16, 185, 129, 0.2)'}; border: 1px solid #10b981; color: ${isActive ? '#ffffff' : '#34d399'}; border-radius: 6px; cursor: pointer; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;" title="Preklopi na ta izračun / izberi kot izdelano po ponudbi za DN">
-                                📁 ${isActive ? 'Naloženo' : 'Izberi'}
+                            <button type="button" onclick="loadBasketCalculation(${item.id})" style="background: ${isLoaded ? '#10b981' : 'rgba(16, 185, 129, 0.2)'}; border: 1px solid #10b981; color: ${isLoaded ? '#ffffff' : '#34d399'}; border-radius: 6px; cursor: pointer; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;" title="Preklopi na ta izračun / izberi kot izdelano po ponudbi za DN">
+                                📁 ${isLoaded ? 'Naloženo' : 'Izberi'}
                             </button>
                             <button type="button" onclick="removeFromBasket(${item.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px 6px; font-size: 1rem;" title="Odstrani iz ponudbe">✕</button>
                         </div>
@@ -2771,6 +2900,24 @@
                 console.error("renderBasket error:", e);
             }
         }
+        (function initBasketAutoSyncListeners() {
+            const trackedIds = new Set([
+                'width', 'height', 'closed-width', 'closed-height', 'quantity', 'ordered-quantity',
+                'bleed', 'gripper', 'items-per-sheet', 'machine-format', 'item-orientation',
+                'group-cols', 'group-rows', 'block-gap', 'block-inner-gap', 'block-outer-margin', 'tool-number'
+            ]);
+            function onFieldEdited(e) {
+                if (window.g_loadingProject || window.g_suppressBasketAutoSync) return;
+                const t = e.target;
+                if (!t || !t.id) return;
+                if (t.id === 'basket-auto-update-toggle' || t.id === 'project-search-input' || t.id === 'file-input' || t.id === 'pdf-file-input') return;
+                if (trackedIds.has(t.id) || t.id.startsWith('calc-') || t.id.startsWith('f-')) {
+                    scheduleBasketAutoSync();
+                }
+            }
+            document.addEventListener('input', onFieldEdited);
+            document.addEventListener('change', onFieldEdited);
+        })();
         window.onerror = function (msg, url, lineNo, columnNo, error) {
             console.error("ERROR:", msg, "at line", lineNo);
             return false;
@@ -4367,6 +4514,7 @@
             if (spPrint) spPrint.innerText = formatPrice(r.totalPrintCost);
             if (spFinish) spFinish.innerText = formatPrice(r.totalFinishCost);
             renderDetailedSpec(r);
+            if (typeof scheduleBasketAutoSync === 'function') scheduleBasketAutoSync();
         }
         function renderDetailedSpec(r) {
             const container = document.getElementById('detailed-spec-container');
@@ -7805,6 +7953,7 @@
         } catch (e) { alert("Exception in " + "Function" + ": " + e.message + "\n" + e.stack); logDebug("Napaka pri povezovanju dogodkov: " + e.message, true); }
         function saveCurrentProject(btn = null, silent = false) {
             try {
+                if (typeof flushBasketAutoSync === 'function') flushBasketAutoSync();
                 if (typeof saveCurrentCustomerContact === 'function') saveCurrentCustomerContact();
                 let name = document.getElementById('calc-project-name').value.trim();
                 if (!name) {
@@ -8054,6 +8203,7 @@
 
         async function saveProjectToFile() {
             try {
+                if (typeof flushBasketAutoSync === 'function') flushBasketAutoSync();
                 let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
                 function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
                 function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
@@ -9422,6 +9572,7 @@
         // FILE EXPORT / IMPORT LOGIC
         async function exportToFile() {
             try {
+                if (typeof flushBasketAutoSync === 'function') flushBasketAutoSync();
                 let name = document.getElementById('calc-project-name').value.trim() || "Ponudba";
                 let customerName = document.getElementById('calc-customer').value.trim();
                 if (customerName) {
@@ -9881,6 +10032,7 @@
         }
 
 function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT = false) {
+            if (typeof flushBasketAutoSync === 'function') flushBasketAutoSync();
             const preparedBy = document.getElementById('calc-prepared-by').value || 'Darko Sužnik';
             const date = new Date().toLocaleDateString('sl-SI');
             const quoteNum = document.getElementById('calc-quote-number').value || '/';
@@ -12113,9 +12265,13 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                 style="margin: 0; width: auto; background: #0284c7; color: white; border: none; border-radius: 8px; padding: 0.6rem 1.4rem; font-size: 1rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);"
                 title="Odpri cenik prevozov (PDF)">
                 🚚 CENIK PREVOZOV</button>
-            <button class="calculate-btn" onclick="addToBasket()"
+            <button class="calculate-btn btn-add-basket-action" onclick="addToBasket()"
                 style="margin: 0; width: auto; background: #f59e0b; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);">
                 🛒 KOŠARICA</button>
+            <button class="calculate-btn btn-update-basket-action" onclick="updateActiveBasketItem()"
+                style="display: none; margin: 0; width: auto; background: #10b981; padding: 0.5rem 1.35rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);"
+                title="Shrani spremembe v trenutno naloženo postavko košarice">
+                💾 POSODOBI</button>
             <button class="calculate-btn" onclick="saveProjectToFile()"
                 style="margin: 0; width: auto; background: #6366f1; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
                 SHRANI</button>

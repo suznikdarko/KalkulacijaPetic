@@ -2183,10 +2183,20 @@
                     <div
                         style="padding: 10px 15px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                         <div>
-                            <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa; display: flex; align-items: center; gap: 6px;">📁 KOŠARICA ZA PONUDBO</h3>
+                            <h3 style="margin: 0; font-size: 0.9rem; color: #60a5fa; display: flex; align-items: center; gap: 6px;">
+                                📁 KOŠARICA ZA PONUDBO
+                                <span id="basket-sync-status" style="display: none; font-size: 0.7rem; color: #34d399; font-weight: 600; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); padding: 1px 6px; border-radius: 999px;">✓ Shranjeno</span>
+                            </h3>
                             <div id="basket-quote-subtext" style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;"></div>
                         </div>
-                        <div style="display: flex; gap: 6px; align-items: center;">
+                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; color: #cbd5e1; cursor: pointer; background: rgba(15, 23, 42, 0.45); border: 1px solid rgba(148, 163, 184, 0.25); padding: 3px 7px; border-radius: 6px;" title="Samodejno shranjuj spremembe aktivne naložene postavke v košarico">
+                                <input type="checkbox" id="basket-auto-update-toggle" checked onchange="toggleBasketAutoUpdate(this.checked)" style="cursor: pointer; accent-color: #10b981; margin: 0;">
+                                Samodejno shrani
+                            </label>
+                            <button type="button" id="btn-basket-update-inline" onclick="updateActiveBasketItem()" style="display: none; background: #10b981; border: none; color: #ffffff; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;" title="Ročno posodobi trenutno naloženo ponudbo v košarici">
+                                💾 Posodobi
+                            </button>
                             <button type="button" onclick="toggleProjectsDropdown()" style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;" title="Preklopi med drugimi shranjenimi ponudbami">
                                 📂 Druge ponudbe
                             </button>
@@ -2290,7 +2300,10 @@
             <button class="calculate-btn" onclick="printTechSpec()"
                 style="margin: 0; width: auto; background: #0284c7; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.4rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);" title="Pripravi in natisni tehnično specifikacijo">
                 📊 SPECIFIKACIJA</button>
-            <button class="calculate-btn" onclick="addToBasket()"
+            <button class="calculate-btn" id="btn-update-basket" onclick="updateActiveBasketItem()"
+                style="display: none; margin: 0; width: auto; background: #10b981; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.2rem; font-size: 0.9rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);" title="Shrani spremembe v trenutno naloženo ponudbo v košarici">
+                💾 POSODOBI</button>
+            <button class="calculate-btn" id="btn-add-basket" onclick="addToBasket()"
                 style="margin: 0; width: auto; background: #f59e0b; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.2rem; font-size: 0.9rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);" title="Dodaj trenutno kalkulacijo v skupno košarico">
                 🛒 KOŠARICA</button>
             <button class="calculate-btn" type="button" onclick="odpriCenikPDF()" style="margin: 0; width: auto; background: #0284c7; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.2rem; font-size: 0.9rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);" title="Odpri cenik prevozov (PDF)">🚚 CENIK PREVOZOV</button>
@@ -2541,6 +2554,11 @@
             ];
 
             let quoteBasket = [];
+            var g_activeBasketItemId = null;
+            var g_basketAutoUpdate = localStorage.getItem('petric_basket_auto_update') !== 'false';
+            var g_basketSyncTimer = null;
+            var g_basketStatusTimer = null;
+            window.g_suppressBasketAutoSync = false;
             localStorage.removeItem('petric_quote_basket');
             renderBasket();
 
@@ -5482,6 +5500,9 @@
                     };
 
                     renderDetailedSpec(details);
+                    if (typeof scheduleBasketAutoSync === 'function') {
+                        scheduleBasketAutoSync();
+                    }
 
                     return {
                         totalPrice: totalPrice,
@@ -5842,8 +5863,6 @@
                 return calculatePrice(sheetsNeededL, sheetsNeededC, q, drawW, drawH);
             }
 
-            var g_activeBasketItemId = null;
-
             function collectEtiketeProjectSnapshot() {
                 function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
                 function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
@@ -5989,6 +6008,7 @@
                 try {
                     var item = quoteBasket.find(x => x.id === id);
                     if (!item) return;
+                    clearTimeout(g_basketSyncTimer);
                     g_activeBasketItemId = id;
                     quoteBasket.forEach(it => { it.isSelected = (it.id === id); });
                     localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
@@ -5996,6 +6016,7 @@
                     if (item.snapshot && item.snapshot.inputs) {
                         var snap = JSON.parse(JSON.stringify(item.snapshot));
                         snap.quoteBasket = quoteBasket;
+                        snap.activeBasketItemId = id;
                         loadProjectData(snap);
                     } else {
                         function setV(elemId, val, isChk) {
@@ -6024,10 +6045,12 @@
                     if (typeof renderDetailedSpec === 'function') renderDetailedSpec();
                     renderBasket();
                 } catch(err) {
+                    window.g_loadingProject = false;
                     console.error("loadBasketCalculation error:", err);
                 }
             }
-            function addToBasket() {
+
+            function buildCurrentBasketItem(existingId) {
                 const qtyStr = document.getElementById('quantity').value || "";
                 const qList = qtyStr.split(',').map(s => parseFloat(s.trim().replace(/\./g, ''))).filter(n => !isNaN(n) && n >= 0);
 
@@ -6044,7 +6067,7 @@
                 let extentText = `${leaves} listov`;
 
                 const item = {
-                    id: Date.now(),
+                    id: existingId || Date.now(),
                     type: 'etikete',
                     name: projectName,
                     projectName: projectName,
@@ -6078,6 +6101,124 @@
                     });
                 });
 
+                return item;
+            }
+
+            function showBasketSyncStatus(msg) {
+                const el = document.getElementById('basket-sync-status');
+                if (!el) return;
+                el.textContent = msg || '✓ Shranjeno';
+                el.style.display = 'inline-block';
+                clearTimeout(g_basketStatusTimer);
+                g_basketStatusTimer = setTimeout(() => {
+                    el.style.display = 'none';
+                }, 2400);
+            }
+
+            function syncActiveBasketItem({ showStatus = true } = {}) {
+                if (window.g_suppressBasketAutoSync || window.g_loadingProject) return false;
+                if (!g_activeBasketItemId || !Array.isArray(quoteBasket) || quoteBasket.length === 0) return false;
+                const idx = quoteBasket.findIndex(x => x.id === g_activeBasketItemId);
+                if (idx === -1) return false;
+
+                let updated = null;
+                window.g_suppressBasketAutoSync = true;
+                try {
+                    updated = buildCurrentBasketItem(g_activeBasketItemId);
+                } finally {
+                    window.g_suppressBasketAutoSync = false;
+                }
+                if (!updated) return false;
+
+                updated.isSelected = quoteBasket[idx].isSelected !== false;
+                quoteBasket[idx] = updated;
+                localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+                g_editedQuoteHTML = '';
+                g_editedQuoteATHTML = '';
+                renderBasket();
+                if (showStatus) showBasketSyncStatus('✓ Shranjeno');
+                return true;
+            }
+
+            function scheduleBasketAutoSync(delayMs = 350) {
+                if (!g_basketAutoUpdate || !g_activeBasketItemId || window.g_loadingProject || window.g_suppressBasketAutoSync) return;
+                clearTimeout(g_basketSyncTimer);
+                g_basketSyncTimer = setTimeout(() => {
+                    syncActiveBasketItem({ showStatus: true });
+                }, delayMs);
+            }
+
+            function flushBasketAutoSync() {
+                clearTimeout(g_basketSyncTimer);
+                if (g_basketAutoUpdate && g_activeBasketItemId && !window.g_loadingProject) {
+                    syncActiveBasketItem({ showStatus: false });
+                }
+            }
+
+            function toggleBasketAutoUpdate(checked) {
+                g_basketAutoUpdate = !!checked;
+                localStorage.setItem('petric_basket_auto_update', g_basketAutoUpdate ? 'true' : 'false');
+                updateBasketActionButtons();
+                if (g_basketAutoUpdate && g_activeBasketItemId) {
+                    syncActiveBasketItem({ showStatus: true });
+                }
+            }
+
+            function flashBasketButton(btn, text, bg) {
+                if (!btn) return;
+                const oldText = btn.innerHTML;
+                const oldBg = btn.style.background;
+                btn.innerHTML = text;
+                btn.style.background = bg;
+                setTimeout(() => {
+                    btn.innerHTML = oldText;
+                    btn.style.background = oldBg || "";
+                    updateBasketActionButtons();
+                }, 2000);
+            }
+
+            function updateActiveBasketItem() {
+                try {
+                    clearTimeout(g_basketSyncTimer);
+                    if (!g_activeBasketItemId || !quoteBasket.some(x => x.id === g_activeBasketItemId)) {
+                        addToBasket();
+                        return;
+                    }
+                    const ok = syncActiveBasketItem({ showStatus: true });
+                    if (ok) {
+                        flashBasketButton(document.getElementById('btn-update-basket'), "✅ POSODOBLJENO", "#059669");
+                        flashBasketButton(document.getElementById('btn-basket-update-inline'), "✅ Posodobljeno", "#059669");
+                    }
+                } catch (e) {
+                    alert("Napaka pri posodabljanju košarice: " + e.message);
+                    console.error(e);
+                }
+            }
+
+            function updateBasketActionButtons() {
+                const hasActiveLoaded = !!(g_activeBasketItemId && Array.isArray(quoteBasket) && quoteBasket.some(x => x.id === g_activeBasketItemId));
+                const updateBtn = document.getElementById('btn-update-basket');
+                const inlineUpdateBtn = document.getElementById('btn-basket-update-inline');
+                const addBtn = document.getElementById('btn-add-basket') || document.querySelector('.sticky-footer button[onclick="addToBasket()"]');
+                const toggleEl = document.getElementById('basket-auto-update-toggle');
+                if (toggleEl) toggleEl.checked = g_basketAutoUpdate;
+                if (updateBtn) updateBtn.style.display = hasActiveLoaded ? 'inline-flex' : 'none';
+                if (inlineUpdateBtn) inlineUpdateBtn.style.display = hasActiveLoaded ? 'inline-flex' : 'none';
+                if (addBtn) {
+                    if (hasActiveLoaded) {
+                        addBtn.innerHTML = "➕ DODAJ KOT NOVO";
+                        addBtn.title = "Dodaj trenutne podatke kot novo dodatno ponudbo v košarici";
+                    } else {
+                        addBtn.innerHTML = "🛒 KOŠARICA";
+                        addBtn.title = "Dodaj trenutno kalkulacijo v skupno košarico";
+                    }
+                }
+            }
+
+            function addToBasket() {
+                clearTimeout(g_basketSyncTimer);
+                const item = buildCurrentBasketItem(null);
+
                 quoteBasket.forEach(it => { it.isSelected = false; });
                 item.isSelected = true;
                 g_activeBasketItemId = item.id;
@@ -6086,19 +6227,24 @@
                 if (typeof switchCalcTab === 'function') switchCalcTab('povzetek');
                 renderBasket();
 
-                const btn = document.querySelector('.sticky-footer button[onclick="addToBasket()"]');
-                if (btn) {
-                    const oldText = btn.innerHTML;
-                    btn.innerHTML = "✅ DODANO";
-                    btn.style.background = "#059669";
-                    setTimeout(() => {
-                        btn.innerHTML = oldText;
-                        btn.style.background = "";
-                    }, 2000);
-                }
+                flashBasketButton(document.getElementById('btn-add-basket') || document.querySelector('.sticky-footer button[onclick="addToBasket()"]'), "✅ DODANO", "#059669");
             }
 
+            document.addEventListener('input', function (e) {
+                const id = e.target && e.target.id ? e.target.id : '';
+                if (id.startsWith('calc-') || id.startsWith('f-') || id === 'width' || id === 'height' || id === 'quantity' || id === 'ordered-quantity' || id === 'bleed' || id === 'gripper' || id.startsWith('items-per-sheet') || id.startsWith('machine-format') || id.startsWith('item-orientation')) {
+                    scheduleBasketAutoSync(350);
+                }
+            });
+            document.addEventListener('change', function (e) {
+                const id = e.target && e.target.id ? e.target.id : '';
+                if (id.startsWith('calc-') || id.startsWith('f-') || id === 'width' || id === 'height' || id === 'quantity' || id === 'ordered-quantity' || id === 'bleed' || id === 'gripper' || id.startsWith('items-per-sheet') || id.startsWith('machine-format') || id.startsWith('item-orientation')) {
+                    scheduleBasketAutoSync(80);
+                }
+            });
+
             function renderBasket() {
+                updateBasketActionButtons();
                 const listDivModal = document.getElementById('basket-items-list-modal');
                 const listDivOld = document.getElementById('basket-items-list');
                 const basketContainer = document.getElementById('basket-container');
@@ -6126,7 +6272,8 @@
 
                 let itemsHtml = quoteBasket.map((item, index) => {
                     const itemIdOrIndex = item.id ? item.id : index;
-                    const isActive = (item.id === g_activeBasketItemId) || (item.isSelected === true);
+                    const isLoaded = (item.id === g_activeBasketItemId);
+                    const isActive = isLoaded || (item.isSelected === true);
                     let qHtml = "";
                     if (item.quantities && Array.isArray(item.quantities)) {
                         item.quantities.forEach(q => {
@@ -6152,6 +6299,7 @@
                             <div style="flex: 1; cursor: pointer;" onclick="loadBasketCalculation(${item.id})">
                                 <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                     <div style="font-weight: bold; color: #f8fafc; font-size: 0.95rem;">${projName}</div>
+                                    ${isLoaded ? `<span style="background: rgba(59, 130, 246, 0.25); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.45); padding: 1px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: bold;">✏️ Urejanje</span>` : ''}
                                     ${isActive ? `<span style="background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: bold; letter-spacing: 0.5px;">✓ IZDELANO PO PONUDBI</span>` : ''}
                                 </div>
                                 <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px; line-height: 1.4;">
@@ -6159,8 +6307,8 @@
                                 </div>
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px;">
-                                <button type="button" onclick="loadBasketCalculation(${item.id})" style="background: ${isActive ? '#10b981' : 'rgba(16, 185, 129, 0.2)'}; border: 1px solid #10b981; color: ${isActive ? '#ffffff' : '#34d399'}; border-radius: 6px; cursor: pointer; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;" title="Preklopi na ta izračun / izberi kot izdelano po ponudbi za DN">
-                                    📁 ${isActive ? 'Naloženo' : 'Izberi'}
+                                <button type="button" onclick="loadBasketCalculation(${item.id})" style="background: ${isLoaded ? '#10b981' : 'rgba(16, 185, 129, 0.2)'}; border: 1px solid #10b981; color: ${isLoaded ? '#ffffff' : '#34d399'}; border-radius: 6px; cursor: pointer; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;" title="Preklopi na ta izračun / izberi kot izdelano po ponudbi za DN">
+                                    📁 ${isLoaded ? 'Naloženo' : 'Izberi'}
                                 </button>
                                 <button type="button" onclick="removeFromBasket(${itemIdOrIndex})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 0 5px;" title="Odstrani iz košarice">✕</button>
                             </div>
@@ -6183,7 +6331,8 @@
                     quoteBasket.splice(targetId, 1);
                 }
                 if (g_activeBasketItemId === targetId) {
-                    g_activeBasketItemId = quoteBasket.length > 0 ? quoteBasket[0].id : null;
+                    clearTimeout(g_basketSyncTimer);
+                    g_activeBasketItemId = null;
                 }
                 localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
                 g_editedQuoteHTML = '';
@@ -6193,6 +6342,7 @@
 
             function clearBasket() {
                 if (confirm("Ali res želite izprazniti celotno košarico?")) {
+                    clearTimeout(g_basketSyncTimer);
                     quoteBasket = [];
                     g_activeBasketItemId = null;
                     localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
@@ -7993,6 +8143,7 @@ async function extractCustomersFromDisk() {
 
         async function saveCurrentProject(btn = null) {
                 try {
+                    if (typeof flushBasketAutoSync === 'function') flushBasketAutoSync();
                     if (typeof saveCurrentCustomerContact === 'function') saveCurrentCustomerContact();
                     function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
                     function gc(id) { var el = document.getElementById(id); return el ? el.checked : false; }
