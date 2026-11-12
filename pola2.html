@@ -5945,54 +5945,58 @@
 
             const canvas = document.getElementById('canvas-machine');
             if (!canvas) return;
-            const ctx = canvas.getContext('2d');
+            const isSVChecked = document.getElementById('calc-is-sv')?.checked || false;
+            const isObratChecked = document.getElementById('calc-is-obrat')?.checked || false;
+
+            function renderSingleMachineForm(targetCanvas, svSide = '') {
+            const ctx = targetCanvas.getContext('2d');
             const maxW = 600;
             const maxH = 400;
             const scale = Math.min(maxW / sheetW, maxH / sheetH);
-            canvas.width = sheetW * scale;
-            canvas.height = sheetH * scale;
+            targetCanvas.width = sheetW * scale;
+            targetCanvas.height = sheetH * scale;
             // 1. Draw Printing Sheet
             ctx.fillStyle = '#f8fafc';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
             ctx.strokeStyle = '#475569';
             ctx.lineWidth = 2;
-            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeRect(0, 0, targetCanvas.width, targetCanvas.height);
             // Gripper
             ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
             ctx.font = 'bold 10px Inter, sans-serif';
             if (layout && layout.gripEdge === 'W') {
-                ctx.fillRect(0, 0, gripper * scale, canvas.height);
+                ctx.fillRect(0, 0, gripper * scale, targetCanvas.height);
                 ctx.strokeStyle = '#f43f5e';
                 ctx.beginPath();
                 ctx.moveTo(gripper * scale, 0);
-                ctx.lineTo(gripper * scale, canvas.height);
+                ctx.lineTo(gripper * scale, targetCanvas.height);
                 ctx.stroke();
                 // Label for W gripper
                 ctx.save();
                 ctx.fillStyle = '#f43f5e';
-                ctx.translate(10, canvas.height / 2);
+                ctx.translate(10, targetCanvas.height / 2);
                 ctx.rotate(-Math.PI / 2);
                 ctx.textAlign = 'center';
                 ctx.fillText(`Prijemalec: ${gripper} mm`, 0, 0);
                 ctx.restore();
             } else {
-                ctx.fillRect(0, (canvas.height - gripper * scale), canvas.width, gripper * scale);
+                ctx.fillRect(0, (targetCanvas.height - gripper * scale), targetCanvas.width, gripper * scale);
                 ctx.strokeStyle = '#f43f5e';
                 ctx.beginPath();
-                ctx.moveTo(0, canvas.height - gripper * scale);
-                ctx.lineTo(canvas.width, canvas.height - gripper * scale);
+                ctx.moveTo(0, targetCanvas.height - gripper * scale);
+                ctx.lineTo(targetCanvas.width, targetCanvas.height - gripper * scale);
                 ctx.stroke();
                 // Label for H gripper
                 ctx.fillStyle = '#f43f5e';
                 ctx.textAlign = 'center';
-                ctx.fillText(`Prijemalec: ${gripper} mm`, canvas.width / 2, canvas.height - (gripper * scale) / 2 + 4);
+                ctx.fillText(`Prijemalec: ${gripper} mm`, targetCanvas.width / 2, targetCanvas.height - (gripper * scale) / 2 + 4);
             }
             // Sheet dimension labels (Moved up so they always draw)
             ctx.fillStyle = '#64748b';
             ctx.font = '11px Inter';
-            ctx.fillText(`${sheetW} mm`, canvas.width / 2 - 20, canvas.height - 10);
+            ctx.fillText(`${sheetW} mm`, targetCanvas.width / 2 - 20, targetCanvas.height - 10);
             ctx.save();
-            ctx.translate(15, canvas.height / 2 + 20);
+            ctx.translate(15, targetCanvas.height / 2 + 20);
             ctx.rotate(-Math.PI / 2);
             ctx.fillText(`${sheetH} mm`, 0, 0);
             ctx.restore();
@@ -6003,18 +6007,18 @@
             const y2_v = Math.floor(sw_v / sheetH) * Math.floor(sh_v / sheetW);
             const isGrainV = y1_v >= y2_v;
             ctx.save();
-            const midX = canvas.width / 3;
-            const midY = canvas.height / 3;
+            const midX = targetCanvas.width / 3;
+            const midY = targetCanvas.height / 3;
             if (isGrainV) {
                 // White shadow for contrast
                 ctx.strokeStyle = 'rgba(255,255,255,0.8)';
                 ctx.lineWidth = 4;
-                ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, canvas.height - 40); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, targetCanvas.height - 40); ctx.stroke();
                 // Main red dashed line
                 ctx.strokeStyle = '#ef4444';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([12, 6]);
-                ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, canvas.height - 40); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, targetCanvas.height - 40); ctx.stroke();
                 // Arrow heads
                 ctx.setLineDash([]);
                 ctx.fillStyle = '#ef4444';
@@ -6026,7 +6030,7 @@
                     ctx.restore();
                 };
                 drawArrV(25, 0);
-                drawArrV(canvas.height - 25, Math.PI);
+                drawArrV(targetCanvas.height - 25, Math.PI);
                 // Text Badge
                 ctx.save();
                 ctx.translate(midX, midY);
@@ -6046,12 +6050,12 @@
                 // White shadow
                 ctx.strokeStyle = 'rgba(255,255,255,0.8)';
                 ctx.lineWidth = 4;
-                ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(canvas.width - 40, midY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(targetCanvas.width - 40, midY); ctx.stroke();
                 // Main red dashed line
                 ctx.strokeStyle = '#ef4444';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([12, 6]);
-                ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(canvas.width - 40, midY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(targetCanvas.width - 40, midY); ctx.stroke();
                 // Arrow heads
                 ctx.setLineDash([]);
                 ctx.fillStyle = '#ef4444';
@@ -6063,7 +6067,7 @@
                     ctx.restore();
                 };
                 drawArrH(25, -Math.PI / 2);
-                drawArrH(canvas.width - 25, Math.PI / 2);
+                drawArrH(targetCanvas.width - 25, Math.PI / 2);
                 // Text Badge
                 ctx.save();
                 ctx.translate(midX, midY);
@@ -6085,7 +6089,7 @@
                 // Glow obroba
                 ctx.strokeStyle = '#3b82f6';
                 ctx.lineWidth = 4;
-                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeRect(0, 0, targetCanvas.width, targetCanvas.height);
                 // Elegantna značka (Glassmorphism effect)
                 ctx.save();
                 ctx.fillStyle = 'rgba(59, 130, 246, 0.9)';
@@ -6093,7 +6097,7 @@
                 ctx.shadowColor = 'rgba(0,0,0,0.5)';
                 const badgeWidth = 120;
                 const badgeHeight = 24;
-                const bx = (canvas.width - badgeWidth) / 2;
+                const bx = (targetCanvas.width - badgeWidth) / 2;
                 const by = 10;
                 // Narišemo zaobljen pravokotnik
                 ctx.beginPath();
@@ -6106,7 +6110,7 @@
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 10px Inter, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('ROČNI VNOS', canvas.width / 2, by + 15);
+                ctx.fillText('ROČNI VNOS', targetCanvas.width / 2, by + 15);
                 ctx.restore();
                 ctx.textAlign = 'left';
             }
@@ -6116,24 +6120,49 @@
                     const y = item.y * scale;
                     const iw = item.w * scale;
                     const ih = item.h * scale;
-                    ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
-                    ctx.strokeStyle = '#3b82f6';
+                    const isSideA = svSide === 'A';
+                    const isSideB = svSide === 'B';
+                    ctx.fillStyle = isSideA ? 'rgba(37, 99, 235, 0.20)' : (isSideB ? 'rgba(234, 88, 12, 0.20)' : 'rgba(96, 165, 250, 0.3)');
+                    ctx.strokeStyle = isSideA ? '#2563eb' : (isSideB ? '#ea580c' : '#3b82f6');
                     ctx.lineWidth = 1;
                     ctx.fillRect(x, y, iw, ih);
                     ctx.strokeRect(x, y, iw, ih);
                     const innerW = iw - (2 * item.bleed * scale);
                     const innerH = ih - (2 * item.bleed * scale);
                     ctx.setLineDash([2, 3]);
-                    ctx.strokeStyle = '#1e3a8a';
+                    ctx.strokeStyle = isSideB ? '#c2410c' : '#1e3a8a';
                     ctx.strokeRect(x + (item.bleed * scale), y + (item.bleed * scale), innerW, innerH);
                     ctx.setLineDash([]);
-                    // Add Dimensions (Centered)
-                    ctx.fillStyle = '#1e3a8a';
-                    ctx.font = 'bold 9px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
                     const dimLabel = `${Math.round(item.w - 2 * item.bleed)}x${Math.round(item.h - 2 * item.bleed)}`;
-                    ctx.fillText(dimLabel, x + iw / 2, y + ih / 2);
+                    if (isSideA || isSideB) {
+                        const badgeColor = isSideA ? '#2563eb' : '#ea580c';
+                        const badgeText = (iw >= 48 && ih >= 36) ? (isSideA ? 'STRAN A' : 'STRAN B') : (isSideA ? 'A' : 'B');
+                        ctx.save();
+                        ctx.font = 'bold 10px Inter, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        const tw = ctx.measureText(badgeText).width;
+                        const bw = tw + 8;
+                        const bh = 15;
+                        const bx = x + iw / 2 - bw / 2;
+                        const by = y + ih / 2 - 11;
+                        ctx.fillStyle = badgeColor;
+                        ctx.beginPath();
+                        if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 3); else ctx.rect(bx, by, bw, bh);
+                        ctx.fill();
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillText(badgeText, x + iw / 2, by + bh / 2 + 0.5);
+                        ctx.fillStyle = isSideA ? '#1d4ed8' : '#c2410c';
+                        ctx.font = 'bold 9px Arial';
+                        ctx.fillText(dimLabel, x + iw / 2, y + ih / 2 + 9);
+                        ctx.restore();
+                    } else {
+                        ctx.fillStyle = '#1e3a8a';
+                        ctx.font = 'bold 9px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(dimLabel, x + iw / 2, y + ih / 2);
+                    }
                     // Reset alignment for next items
                     ctx.textAlign = 'left';
                     ctx.textBaseline = 'alphabetic';
@@ -6150,7 +6179,6 @@
             let uniformCount = layout.isMixed ? (layout.cols * layout.rows) : targetCount;
             let bestC = Math.min(layout.cols, uniformCount);
             let bestR = Math.ceil(uniformCount / (bestC || 1));
-            const isObratChecked = (document.getElementById('calc-is-obrat')?.checked || document.getElementById('calc-is-sv')?.checked) || false;
             let foundPerfect = false;
             if (!layout.isMixed) {
                 let bestPerfectDiff = 999999;
@@ -6444,7 +6472,9 @@
                 const innerW = (layout.rot ? origH : origW);
                 const innerH = (layout.rot ? origW : origH);
                 let sideType = '';
-                if (isObratChecked) {
+                if (svSide === 'A' || svSide === 'B') {
+                    sideType = svSide;
+                } else if (isObratChecked) {
                     if (usedCols % 2 === 0) {
                         sideType = (slot.c < usedCols / 2) ? 'A' : 'B';
                     } else if (usedRows % 2 === 0) {
@@ -6466,7 +6496,7 @@
                         for (let c = 0; c < addCols && drawnSoFar < itemsToDraw; c++) {
                             const x = (startX + (layout.cols * layout.itemW) + c * layout.itemH) * scale;
                             const y = (startY + r * layout.itemW) * scale;
-                            drawOneItem(ctx, x, y, layout.itemH, layout.itemW, (layout.rot ? origW : origH), (layout.rot ? origH : origW), bleed, scale);
+                            drawOneItem(ctx, x, y, layout.itemH, layout.itemW, (layout.rot ? origW : origH), (layout.rot ? origH : origW), bleed, scale, svSide);
                             drawnSoFar++;
                         }
                     }
@@ -6477,7 +6507,7 @@
                         for (let c = 0; c < addCols && drawnSoFar < itemsToDraw; c++) {
                             const x = (startX + c * layout.itemH) * scale;
                             const y = (startY + (layout.rows * layout.itemH) + r * layout.itemW) * scale;
-                            drawOneItem(ctx, x, y, layout.itemH, layout.itemW, (layout.rot ? origW : origH), (layout.rot ? origH : origW), bleed, scale);
+                            drawOneItem(ctx, x, y, layout.itemH, layout.itemW, (layout.rot ? origW : origH), (layout.rot ? origH : origW), bleed, scale, svSide);
                             drawnSoFar++;
                         }
                     }
@@ -6485,16 +6515,16 @@
             }
             if (!layout.isMixed && targetCount > 0 && !foundPerfect) {
                 ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
-                ctx.fillRect(0, 0, canvas.width, 30);
+                ctx.fillRect(0, 0, targetCanvas.width, 30);
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 12px Inter, sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(`⚠️ OPOZORILO: ${targetCount} kosov ni mogoče simetrično razporediti na to polo!`, canvas.width / 2, 15);
+                ctx.fillText(`⚠️ OPOZORILO: ${targetCount} kosov ni mogoče simetrično razporediti na to polo!`, targetCanvas.width / 2, 15);
             }
 
-            // Nariši rezalno os / os obračanja (če je obračanje aktivno)
-            if (isObratChecked && itemsToDraw >= 2) {
+            // Nariši rezalno os / os obračanja (če je obračanje aktivno, brez ŠV)
+            if (isObratChecked && !svSide && itemsToDraw >= 2) {
                 ctx.save();
                 if (usedCols % 2 === 0) {
                     const cutX = (startX + (usedCols / 2) * layout.itemW) * scale;
@@ -6504,7 +6534,7 @@
                     ctx.lineWidth = 6;
                     ctx.beginPath();
                     ctx.moveTo(cutX, 0);
-                    ctx.lineTo(cutX, canvas.height);
+                    ctx.lineTo(cutX, targetCanvas.height);
                     ctx.stroke();
 
                     // Rdeča črtkana črta
@@ -6513,19 +6543,18 @@
                     ctx.setLineDash([8, 4]);
                     ctx.beginPath();
                     ctx.moveTo(cutX, 0);
-                    ctx.lineTo(cutX, canvas.height);
+                    ctx.lineTo(cutX, targetCanvas.height);
                     ctx.stroke();
                     ctx.setLineDash([]);
 
                     // Značka osi
-                    const isSVChecked = document.getElementById('calc-is-sv')?.checked || false;
-                    const badgeText = isSVChecked ? '✂ OS ŠV (STRAN A | STRAN B)' : '✂ OS OBRAČANJA (STRAN A | STRAN B)';
+                    const badgeText = '✂ OS OBRAČANJA (STRAN A | STRAN B)';
                     ctx.font = 'bold 10px Inter, sans-serif';
                     const tw = ctx.measureText(badgeText).width;
                     const bw = tw + 16;
                     const bh = 22;
                     const bx = cutX - bw / 2;
-                    const by = Math.max(10, (canvas.height - bh) / 2);
+                    const by = Math.max(10, (targetCanvas.height - bh) / 2);
 
                     ctx.fillStyle = '#dc2626';
                     ctx.shadowColor = 'rgba(0,0,0,0.3)';
@@ -6546,7 +6575,7 @@
                     ctx.lineWidth = 6;
                     ctx.beginPath();
                     ctx.moveTo(0, cutY);
-                    ctx.lineTo(canvas.width, cutY);
+                    ctx.lineTo(targetCanvas.width, cutY);
                     ctx.stroke();
 
                     ctx.strokeStyle = '#dc2626';
@@ -6554,17 +6583,16 @@
                     ctx.setLineDash([8, 4]);
                     ctx.beginPath();
                     ctx.moveTo(0, cutY);
-                    ctx.lineTo(canvas.width, cutY);
+                    ctx.lineTo(targetCanvas.width, cutY);
                     ctx.stroke();
                     ctx.setLineDash([]);
 
-                    const isSVChecked = document.getElementById('calc-is-sv')?.checked || false;
-                    const badgeText = isSVChecked ? '✂ OS ŠV (STRAN A | STRAN B)' : '✂ OS OBRAČANJA (STRAN A | STRAN B)';
+                    const badgeText = '✂ OS OBRAČANJA (STRAN A | STRAN B)';
                     ctx.font = 'bold 10px Inter, sans-serif';
                     const tw = ctx.measureText(badgeText).width;
                     const bw = tw + 16;
                     const bh = 22;
-                    const bx = (canvas.width - bw) / 2;
+                    const bx = (targetCanvas.width - bw) / 2;
                     const by = cutY - bh / 2;
 
                     ctx.fillStyle = '#dc2626';
@@ -6578,7 +6606,7 @@
                     ctx.fillStyle = '#ffffff';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(badgeText, canvas.width / 2, cutY + 0.5);
+                    ctx.fillText(badgeText, targetCanvas.width / 2, cutY + 0.5);
                 }
                 ctx.restore();
             }
@@ -6600,7 +6628,7 @@
                     ctx.lineWidth = 6;
                     ctx.beginPath();
                     ctx.moveTo(cutX, 0);
-                    ctx.lineTo(cutX, canvas.height);
+                    ctx.lineTo(cutX, targetCanvas.height);
                     ctx.stroke();
 
                     ctx.strokeStyle = '#dc2626';
@@ -6608,7 +6636,7 @@
                     ctx.setLineDash([8, 4]);
                     ctx.beginPath();
                     ctx.moveTo(cutX, 0);
-                    ctx.lineTo(cutX, canvas.height);
+                    ctx.lineTo(cutX, targetCanvas.height);
                     ctx.stroke();
                     ctx.setLineDash([]);
 
@@ -6617,7 +6645,7 @@
                     ctx.lineWidth = 6;
                     ctx.beginPath();
                     ctx.moveTo(0, cutY);
-                    ctx.lineTo(canvas.width, cutY);
+                    ctx.lineTo(targetCanvas.width, cutY);
                     ctx.stroke();
 
                     ctx.strokeStyle = '#dc2626';
@@ -6625,7 +6653,7 @@
                     ctx.setLineDash([8, 4]);
                     ctx.beginPath();
                     ctx.moveTo(0, cutY);
-                    ctx.lineTo(canvas.width, cutY);
+                    ctx.lineTo(targetCanvas.width, cutY);
                     ctx.stroke();
                     ctx.setLineDash([]);
 
@@ -6665,7 +6693,7 @@
                         ctx.lineWidth = 6;
                         ctx.beginPath();
                         ctx.moveTo(cutX, 0);
-                        ctx.lineTo(cutX, canvas.height);
+                        ctx.lineTo(cutX, targetCanvas.height);
                         ctx.stroke();
 
                         ctx.strokeStyle = '#dc2626';
@@ -6673,7 +6701,7 @@
                         ctx.setLineDash([8, 4]);
                         ctx.beginPath();
                         ctx.moveTo(cutX, 0);
-                        ctx.lineTo(cutX, canvas.height);
+                        ctx.lineTo(cutX, targetCanvas.height);
                         ctx.stroke();
                         ctx.setLineDash([]);
                     });
@@ -6685,7 +6713,7 @@
                     const bw = textMetrics.width + 20;
                     const bh = 24;
                     const bx = badgeX - bw / 2;
-                    const by = (canvas.height - bh) / 2;
+                    const by = (targetCanvas.height - bh) / 2;
 
                     ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
                     ctx.shadowColor = 'rgba(0,0,0,0.4)';
@@ -6707,7 +6735,7 @@
                         ctx.lineWidth = 6;
                         ctx.beginPath();
                         ctx.moveTo(0, cutY);
-                        ctx.lineTo(canvas.width, cutY);
+                        ctx.lineTo(targetCanvas.width, cutY);
                         ctx.stroke();
 
                         ctx.strokeStyle = '#dc2626';
@@ -6715,7 +6743,7 @@
                         ctx.setLineDash([8, 4]);
                         ctx.beginPath();
                         ctx.moveTo(0, cutY);
-                        ctx.lineTo(canvas.width, cutY);
+                        ctx.lineTo(targetCanvas.width, cutY);
                         ctx.stroke();
                         ctx.setLineDash([]);
                     });
@@ -6726,7 +6754,7 @@
                     const textMetrics = ctx.measureText(badgeText);
                     const bw = textMetrics.width + 20;
                     const bh = 24;
-                    const bx = (canvas.width - bw) / 2;
+                    const bx = (targetCanvas.width - bw) / 2;
                     const by = badgeY - bh / 2;
 
                     ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
@@ -6740,10 +6768,57 @@
                     ctx.fillStyle = '#ffffff';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(badgeText, canvas.width / 2, badgeY + 1);
+                    ctx.fillText(badgeText, targetCanvas.width / 2, badgeY + 1);
                 }
                 }
                 ctx.restore();
+            }
+            } // konec renderSingleMachineForm
+
+            if (isSVChecked) {
+                const cA = document.createElement('canvas');
+                const cB = document.createElement('canvas');
+                renderSingleMachineForm(cA, 'A');
+                renderSingleMachineForm(cB, 'B');
+
+                const headerH = 28;
+                const gap = 16;
+                canvas.width = Math.max(cA.width, cB.width);
+                canvas.height = (headerH + cA.height) + gap + (headerH + cB.height);
+                canvas.style.maxHeight = 'none';
+                canvas.style.height = 'auto';
+                canvas.style.backgroundColor = 'transparent';
+                canvas.style.boxShadow = 'none';
+
+                const mainCtx = canvas.getContext('2d');
+                mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Forma 1: Stran A
+                mainCtx.fillStyle = '#2563eb';
+                mainCtx.fillRect(0, 0, cA.width, headerH - 4);
+                mainCtx.fillStyle = '#ffffff';
+                mainCtx.font = 'bold 12px Inter, sans-serif';
+                mainCtx.textAlign = 'left';
+                mainCtx.textBaseline = 'middle';
+                mainCtx.fillText('FORMA 1 — STRAN A (ŠV)', 10, (headerH - 4) / 2);
+                mainCtx.drawImage(cA, 0, headerH);
+
+                // Forma 2: Stran B
+                const yB = headerH + cA.height + gap;
+                mainCtx.fillStyle = '#ea580c';
+                mainCtx.fillRect(0, yB, cB.width, headerH - 4);
+                mainCtx.fillStyle = '#ffffff';
+                mainCtx.font = 'bold 12px Inter, sans-serif';
+                mainCtx.textAlign = 'left';
+                mainCtx.textBaseline = 'middle';
+                mainCtx.fillText('FORMA 2 — STRAN B (ŠV)', 10, yB + (headerH - 4) / 2);
+                mainCtx.drawImage(cB, 0, yB + headerH);
+            } else {
+                canvas.style.maxHeight = '';
+                canvas.style.height = '';
+                canvas.style.backgroundColor = '';
+                canvas.style.boxShadow = '';
+                renderSingleMachineForm(canvas, '');
             }
         }
         // INITIAL CALLS ON LOAD (MOVED TO BOTTOM)

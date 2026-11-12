@@ -6228,8 +6228,11 @@
                 layout = _layout;
 
                 const canvas = document.getElementById(canvasId);
-                const ctx = canvas.getContext('2d');
+                if (!canvas) return;
                 canvas.style.display = 'block';
+
+                const svCbId = canvasId === 'canvas-leaves' ? 'calc-is-sv-leaves' : 'calc-is-sv-cover';
+                const isSVChecked = document.getElementById(svCbId)?.checked || false;
 
                 const wrapperId = (canvasId === 'canvas-leaves') ? 'canvas-wrapper-leaves' : 'canvas-wrapper-cover';
                 const wrapper = document.getElementById(wrapperId);
@@ -6240,33 +6243,36 @@
                 const maxCanvasH = 400;
                 const scale = Math.min(maxCanvasW / sheetW, maxCanvasH / sheetH) * 0.95;
 
-                canvas.width = sheetW * scale;
-                canvas.height = sheetH * scale;
+                function renderSingleForm(targetCanvas, svSide = '') {
+                const ctx = targetCanvas.getContext('2d');
+
+                targetCanvas.width = sheetW * scale;
+                targetCanvas.height = sheetH * scale;
 
                 // Ozadje
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
 
                 // Rob pole
                 ctx.strokeStyle = '#94a3b8';
                 ctx.lineWidth = 2;
-                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeRect(0, 0, targetCanvas.width, targetCanvas.height);
 
                 // Prijemalec
                 ctx.fillStyle = 'rgba(239, 68, 68, 0.1)';
                 ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
                 ctx.setLineDash([5, 5]);
                 if (layout.gripEdge === 'W') {
-                    ctx.fillRect(0, 0, gripper * scale, canvas.height);
+                    ctx.fillRect(0, 0, gripper * scale, targetCanvas.height);
                     ctx.beginPath();
                     ctx.moveTo(gripper * scale, 0);
-                    ctx.lineTo(gripper * scale, canvas.height);
+                    ctx.lineTo(gripper * scale, targetCanvas.height);
                     ctx.stroke();
                 } else {
-                    ctx.fillRect(0, canvas.height - (gripper * scale), canvas.width, gripper * scale);
+                    ctx.fillRect(0, targetCanvas.height - (gripper * scale), targetCanvas.width, gripper * scale);
                     ctx.beginPath();
-                    ctx.moveTo(0, canvas.height - (gripper * scale));
-                    ctx.lineTo(canvas.width, canvas.height - (gripper * scale));
+                    ctx.moveTo(0, targetCanvas.height - (gripper * scale));
+                    ctx.lineTo(targetCanvas.width, targetCanvas.height - (gripper * scale));
                     ctx.stroke();
                 }
                 ctx.setLineDash([]);
@@ -6276,24 +6282,24 @@
                 ctx.font = 'bold 12px Inter';
                 ctx.fillStyle = '#ef4444';
                 if (layout.gripEdge === 'W') {
-                    ctx.translate(15, canvas.height / 2);
+                    ctx.translate(15, targetCanvas.height / 2);
                     ctx.rotate(-Math.PI / 2);
                     ctx.textAlign = 'center';
                     ctx.fillText('Prijemalec: ' + gripper + ' mm', 0, 0);
                 } else {
                     ctx.textAlign = 'center';
-                    ctx.fillText('Prijemalec: ' + gripper + ' mm', canvas.width / 2, canvas.height - 5);
+                    ctx.fillText('Prijemalec: ' + gripper + ' mm', targetCanvas.width / 2, targetCanvas.height - 5);
                 }
                 ctx.restore();
 
                 // Vodni znak števila stavkov
                 ctx.save();
-                ctx.font = 'bold ' + (canvas.height * 0.3) + 'px Inter';
+                ctx.font = 'bold ' + (targetCanvas.height * 0.3) + 'px Inter';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = isManualMatch ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.08)';
                 let countToDisplay = (manualTarget > 0) ? manualTarget : layout.count;
-                ctx.fillText(countToDisplay, canvas.width / 2, canvas.height / 2);
+                ctx.fillText(countToDisplay, targetCanvas.width / 2, targetCanvas.height / 2);
                 ctx.restore();
 
                 // Mreža stavkov
@@ -6378,26 +6384,26 @@
                 }
 
                 ctx.save();
-                const midX = canvas.width / 3;
-                const midY = canvas.height / 3;
+                const midX = targetCanvas.width / 3;
+                const midY = targetCanvas.height / 3;
 
                 if (isGrainV) {
                     // White shadow for contrast
                     ctx.strokeStyle = 'rgba(255,255,255,0.8)';
                     ctx.lineWidth = 4;
-                    ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, canvas.height - 40); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, targetCanvas.height - 40); ctx.stroke();
 
                     // Main red dashed line
                     ctx.strokeStyle = '#ef4444';
                     ctx.lineWidth = 2;
                     ctx.setLineDash([5, 5]);
-                    ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, canvas.height - 40); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, targetCanvas.height - 40); ctx.stroke();
                     ctx.setLineDash([]);
 
                     // Arrows
                     ctx.fillStyle = '#ef4444';
                     ctx.beginPath(); ctx.moveTo(midX - 5, 45); ctx.lineTo(midX + 5, 45); ctx.lineTo(midX, 35); ctx.fill();
-                    ctx.beginPath(); ctx.moveTo(midX - 5, canvas.height - 45); ctx.lineTo(midX + 5, canvas.height - 45); ctx.lineTo(midX, canvas.height - 35); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(midX - 5, targetCanvas.height - 45); ctx.lineTo(midX + 5, targetCanvas.height - 45); ctx.lineTo(midX, targetCanvas.height - 35); ctx.fill();
 
                     // Text Badge
                     ctx.translate(midX, midY);
@@ -6416,17 +6422,17 @@
                 } else {
                     ctx.strokeStyle = 'rgba(255,255,255,0.8)';
                     ctx.lineWidth = 4;
-                    ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(canvas.width - 40, midY); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(targetCanvas.width - 40, midY); ctx.stroke();
 
                     ctx.strokeStyle = '#ef4444';
                     ctx.lineWidth = 2;
                     ctx.setLineDash([5, 5]);
-                    ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(canvas.width - 40, midY); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(targetCanvas.width - 40, midY); ctx.stroke();
                     ctx.setLineDash([]);
 
                     ctx.fillStyle = '#ef4444';
                     ctx.beginPath(); ctx.moveTo(45, midY - 5); ctx.lineTo(45, midY + 5); ctx.lineTo(35, midY); ctx.fill();
-                    ctx.beginPath(); ctx.moveTo(canvas.width - 45, midY - 5); ctx.lineTo(canvas.width - 45, midY + 5); ctx.lineTo(canvas.width - 35, midY); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(targetCanvas.width - 45, midY - 5); ctx.lineTo(targetCanvas.width - 45, midY + 5); ctx.lineTo(targetCanvas.width - 35, midY); ctx.fill();
 
                     ctx.translate(midX, midY);
                     ctx.fillStyle = 'white';
@@ -6480,36 +6486,65 @@
                     const w = layout.itemW * scale;
                     const h = layout.itemH * scale;
 
-                    ctx.fillStyle = isManualMatch ? 'rgba(245, 158, 11, 0.15)' : '#3b82f6';
+                    if (svSide === 'A') {
+                        ctx.fillStyle = 'rgba(37, 99, 235, 0.22)';
+                    } else if (svSide === 'B') {
+                        ctx.fillStyle = 'rgba(234, 88, 12, 0.22)';
+                    } else {
+                        ctx.fillStyle = isManualMatch ? 'rgba(245, 158, 11, 0.15)' : '#3b82f6';
+                    }
                     ctx.globalAlpha = 0.8;
                     ctx.fillRect(x, y, w, h);
                     ctx.globalAlpha = 1.0;
-                    ctx.strokeStyle = '#2563eb';
-                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = (svSide === 'A') ? '#2563eb' : (svSide === 'B' ? '#ea580c' : '#2563eb');
+                    ctx.lineWidth = (svSide === 'A' || svSide === 'B') ? 1.5 : 1;
                     ctx.strokeRect(x, y, w, h);
 
-                    ctx.strokeStyle = isManualMatch ? 'rgba(245, 158, 11, 0.5)' : 'rgba(59, 130, 246, 0.5)';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(x, y, w, h);
+                    if (!svSide) {
+                        ctx.strokeStyle = isManualMatch ? 'rgba(245, 158, 11, 0.5)' : 'rgba(59, 130, 246, 0.5)';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(x, y, w, h);
+                    }
 
                     const innerW = (layout.rot ? origH : origW) * scale;
                     const innerH = (layout.rot ? origW : origH) * scale;
                     const bX = bleed * scale;
                     const bY = bleed * scale;
 
-                    ctx.strokeStyle = isManualMatch ? '#d97706' : '#2563eb';
+                    ctx.strokeStyle = (svSide === 'A') ? '#2563eb' : (svSide === 'B' ? '#ea580c' : (isManualMatch ? '#d97706' : '#2563eb'));
                     ctx.setLineDash([2, 2]);
                     ctx.strokeRect(x + bX, y + bY, innerW, innerH);
                     ctx.setLineDash([]);
 
                     ctx.save();
-                    ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
-                    ctx.fillStyle = isManualMatch ? '#92400e' : '#1e40af';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
                     const labelW = layout.rot ? origH : origW;
                     const labelH = layout.rot ? origW : origH;
-                    ctx.fillText(`${labelW}x${labelH}`, x + (w / 2), y + (h / 2));
+                    if (svSide === 'A' || svSide === 'B') {
+                        const badgeColor = (svSide === 'A') ? '#2563eb' : '#ea580c';
+                        const sideText = (svSide === 'A') ? 'STRAN A' : 'STRAN B';
+                        ctx.fillStyle = badgeColor;
+                        ctx.beginPath();
+                        const bw = Math.min(w - 6, 56);
+                        const bh = 16;
+                        const bx = x + (w - bw) / 2;
+                        const by = y + (h / 2) - 18;
+                        if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 4); else ctx.rect(bx, by, bw, bh);
+                        ctx.fill();
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = (Math.min(w, h) < 40) ? 'bold 8px Inter' : 'bold 9px Inter';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(sideText, x + (w / 2), by + bh / 2 + 0.5);
+                        ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
+                        ctx.fillStyle = badgeColor;
+                        ctx.fillText(`${labelW}x${labelH}`, x + (w / 2), y + (h / 2) + 8);
+                    } else {
+                        ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
+                        ctx.fillStyle = isManualMatch ? '#92400e' : '#1e40af';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(`${labelW}x${labelH}`, x + (w / 2), y + (h / 2));
+                    }
                     ctx.restore();
                 });
 
@@ -6530,9 +6565,9 @@
                 ctx.font = 'bold 12px Inter';
                 ctx.fillStyle = '#64748b';
                 ctx.textAlign = 'center';
-                ctx.fillText(sheetW + ' mm', canvas.width / 2, 25);
+                ctx.fillText(sheetW + ' mm', targetCanvas.width / 2, 25);
                 ctx.save();
-                ctx.translate(canvas.width - 25, canvas.height / 2);
+                ctx.translate(targetCanvas.width - 25, targetCanvas.height / 2);
                 ctx.rotate(Math.PI / 2);
                 ctx.fillText(sheetH + ' mm', 0, 0);
                 ctx.restore();
@@ -6560,7 +6595,7 @@
                         ctx.lineWidth = 6;
                         ctx.beginPath();
                         ctx.moveTo(cutX, 0);
-                        ctx.lineTo(cutX, canvas.height);
+                        ctx.lineTo(cutX, targetCanvas.height);
                         ctx.stroke();
 
                         ctx.strokeStyle = '#dc2626';
@@ -6568,7 +6603,7 @@
                         ctx.setLineDash([8, 4]);
                         ctx.beginPath();
                         ctx.moveTo(cutX, 0);
-                        ctx.lineTo(cutX, canvas.height);
+                        ctx.lineTo(cutX, targetCanvas.height);
                         ctx.stroke();
                         ctx.setLineDash([]);
 
@@ -6585,7 +6620,7 @@
                         const bw = textMetrics.width + 20;
                         const bh = 24;
                         const bx = cutX - bw / 2;
-                        const by = (canvas.height - bh) / 2;
+                        const by = (targetCanvas.height - bh) / 2;
 
                         ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
                         ctx.shadowColor = 'rgba(0,0,0,0.4)';
@@ -6605,7 +6640,7 @@
                         ctx.lineWidth = 6;
                         ctx.beginPath();
                         ctx.moveTo(0, cutY);
-                        ctx.lineTo(canvas.width, cutY);
+                        ctx.lineTo(targetCanvas.width, cutY);
                         ctx.stroke();
 
                         ctx.strokeStyle = '#dc2626';
@@ -6613,7 +6648,7 @@
                         ctx.setLineDash([8, 4]);
                         ctx.beginPath();
                         ctx.moveTo(0, cutY);
-                        ctx.lineTo(canvas.width, cutY);
+                        ctx.lineTo(targetCanvas.width, cutY);
                         ctx.stroke();
                         ctx.setLineDash([]);
 
@@ -6629,7 +6664,7 @@
                         const textMetrics = ctx.measureText(badgeText);
                         const bw = textMetrics.width + 20;
                         const bh = 24;
-                        const bx = (canvas.width - bw) / 2;
+                        const bx = (targetCanvas.width - bw) / 2;
                         const by = cutY - bh / 2;
 
                         ctx.fillStyle = fitsDigital ? '#dc2626' : '#b91c1c';
@@ -6643,9 +6678,56 @@
                         ctx.fillStyle = '#ffffff';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        ctx.fillText(badgeText, canvas.width / 2, by + bh / 2 + 1);
+                        ctx.fillText(badgeText, targetCanvas.width / 2, by + bh / 2 + 1);
                     }
                     ctx.restore();
+                }
+                } // konec renderSingleForm
+
+                if (isSVChecked) {
+                    const cA = document.createElement('canvas');
+                    const cB = document.createElement('canvas');
+                    renderSingleForm(cA, 'A');
+                    renderSingleForm(cB, 'B');
+
+                    const headerH = 28;
+                    const gap = 16;
+                    canvas.width = Math.max(cA.width, cB.width);
+                    canvas.height = (headerH + cA.height) + gap + (headerH + cB.height);
+                    canvas.style.maxHeight = 'none';
+                    canvas.style.height = 'auto';
+                    canvas.style.backgroundColor = 'transparent';
+                    canvas.style.boxShadow = 'none';
+
+                    const mainCtx = canvas.getContext('2d');
+                    mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // Forma 1: Stran A
+                    mainCtx.fillStyle = '#2563eb';
+                    mainCtx.fillRect(0, 0, cA.width, headerH - 4);
+                    mainCtx.fillStyle = '#ffffff';
+                    mainCtx.font = 'bold 12px Inter, sans-serif';
+                    mainCtx.textAlign = 'left';
+                    mainCtx.textBaseline = 'middle';
+                    mainCtx.fillText('FORMA 1 — STRAN A (ŠV)', 10, (headerH - 4) / 2);
+                    mainCtx.drawImage(cA, 0, headerH);
+
+                    // Forma 2: Stran B
+                    const yB = headerH + cA.height + gap;
+                    mainCtx.fillStyle = '#ea580c';
+                    mainCtx.fillRect(0, yB, cB.width, headerH - 4);
+                    mainCtx.fillStyle = '#ffffff';
+                    mainCtx.font = 'bold 12px Inter, sans-serif';
+                    mainCtx.textAlign = 'left';
+                    mainCtx.textBaseline = 'middle';
+                    mainCtx.fillText('FORMA 2 — STRAN B (ŠV)', 10, yB + (headerH - 4) / 2);
+                    mainCtx.drawImage(cB, 0, yB + headerH);
+                } else {
+                    canvas.style.maxHeight = '';
+                    canvas.style.height = '';
+                    canvas.style.backgroundColor = '';
+                    canvas.style.boxShadow = '';
+                    renderSingleForm(canvas, '');
                 }
             }
 

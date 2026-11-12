@@ -1293,8 +1293,10 @@
             const emptyEl = document.getElementById(emptyStateId);
             if (emptyEl) emptyEl.style.display = 'none';
 
-            const ctx = canvas.getContext('2d');
             canvas.style.display = 'block';
+
+            const svCbId = (canvasId === 'canvas-leaves') ? 'calc-is-sv-leaves' : 'calc-is-sv-cover';
+            const isSVChecked = document.getElementById(svCbId)?.checked || false;
 
             const wrapperId = (canvasId === 'canvas-leaves') ? 'canvas-wrapper-leaves' : 'canvas-wrapper-cover';
             const wrapper = document.getElementById(wrapperId);
@@ -1305,28 +1307,31 @@
             const maxCanvasH = 320;
             const scale = Math.min(maxCanvasW / sheetW, maxCanvasH / sheetH) * 0.95;
 
+            function renderSingleForm(targetCanvas, svSide = '') {
+            const ctx = targetCanvas.getContext('2d');
+
             const targetW = Math.round(sheetW * scale);
             const targetH = Math.round(sheetH * scale);
-            if (canvas.width !== targetW) canvas.width = targetW;
-            if (canvas.height !== targetH) canvas.height = targetH;
+            if (targetCanvas.width !== targetW) targetCanvas.width = targetW;
+            if (targetCanvas.height !== targetH) targetCanvas.height = targetH;
 
             // Ozadje
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
 
             // Rob pole
             ctx.strokeStyle = '#94a3b8';
             ctx.lineWidth = 2;
-            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeRect(0, 0, targetCanvas.width, targetCanvas.height);
 
             // Prijemalec
             ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
             ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
             ctx.setLineDash([4, 4]);
-            ctx.fillRect(0, canvas.height - (gripper * scale), canvas.width, gripper * scale);
+            ctx.fillRect(0, targetCanvas.height - (gripper * scale), targetCanvas.width, gripper * scale);
             ctx.beginPath();
-            ctx.moveTo(0, canvas.height - (gripper * scale));
-            ctx.lineTo(canvas.width, canvas.height - (gripper * scale));
+            ctx.moveTo(0, targetCanvas.height - (gripper * scale));
+            ctx.lineTo(targetCanvas.width, targetCanvas.height - (gripper * scale));
             ctx.stroke();
             ctx.setLineDash([]);
 
@@ -1335,17 +1340,17 @@
             ctx.font = 'bold 11px Inter, sans-serif';
             ctx.fillStyle = '#ef4444';
             ctx.textAlign = 'center';
-            ctx.fillText('Prijemalec: ' + gripper + ' mm', canvas.width / 2, canvas.height - 4);
+            ctx.fillText('Prijemalec: ' + gripper + ' mm', targetCanvas.width / 2, targetCanvas.height - 4);
             ctx.restore();
 
             // Vodni znak števila stavkov
             ctx.save();
-            ctx.font = 'bold ' + (canvas.height * 0.28) + 'px Inter, sans-serif';
+            ctx.font = 'bold ' + (targetCanvas.height * 0.28) + 'px Inter, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = isManualMatch ? 'rgba(245, 158, 11, 0.12)' : 'rgba(59, 130, 246, 0.08)';
             let countToDisplay = (manualTarget > 0) ? manualTarget : layout.count;
-            ctx.fillText(countToDisplay, canvas.width / 2, canvas.height / 2);
+            ctx.fillText(countToDisplay, targetCanvas.width / 2, targetCanvas.height / 2);
             ctx.restore();
 
             // Mreža stavkov
@@ -1379,10 +1384,18 @@
                     const h = layout.itemH * scale;
 
                     // Stavek (Element)
-                    ctx.fillStyle = isManualMatch ? 'rgba(251, 191, 36, 0.25)' : 'rgba(59, 130, 246, 0.2)';
+                    if (svSide === 'A') {
+                        ctx.fillStyle = 'rgba(37, 99, 235, 0.20)';
+                        ctx.strokeStyle = '#2563eb';
+                    } else if (svSide === 'B') {
+                        ctx.fillStyle = 'rgba(234, 88, 12, 0.20)';
+                        ctx.strokeStyle = '#ea580c';
+                    } else {
+                        ctx.fillStyle = isManualMatch ? 'rgba(251, 191, 36, 0.25)' : 'rgba(59, 130, 246, 0.2)';
+                        ctx.strokeStyle = isManualMatch ? '#d97706' : '#2563eb';
+                    }
                     ctx.fillRect(x, y, w, h);
 
-                    ctx.strokeStyle = isManualMatch ? '#d97706' : '#2563eb';
                     ctx.lineWidth = 1.5;
                     ctx.strokeRect(x, y, w, h);
 
@@ -1391,20 +1404,41 @@
                     const bY = bleed * scale;
                     const innerW = Math.max(0, w - 2 * bX);
                     const innerH = Math.max(0, h - 2 * bY);
-                    ctx.strokeStyle = isManualMatch ? 'rgba(217, 119, 6, 0.4)' : 'rgba(37, 99, 235, 0.4)';
+                    ctx.strokeStyle = (svSide === 'A') ? 'rgba(37, 99, 235, 0.5)' : (svSide === 'B' ? 'rgba(234, 88, 12, 0.5)' : (isManualMatch ? 'rgba(217, 119, 6, 0.4)' : 'rgba(37, 99, 235, 0.4)'));
                     ctx.setLineDash([2, 2]);
                     ctx.strokeRect(x + bX, y + bY, innerW, innerH);
                     ctx.setLineDash([]);
 
-                    // Dimenzija stavka
+                    // Dimenzija stavka (ter STRAN A / STRAN B za ŠV)
                     ctx.save();
-                    ctx.font = (Math.min(w, h) < 30) ? '8px Inter, sans-serif' : '10px Inter, sans-serif';
-                    ctx.fillStyle = isManualMatch ? '#92400e' : '#1e40af';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
                     const labelW = layout.rot ? origH : origW;
                     const labelH = layout.rot ? origW : origH;
-                    ctx.fillText(`${labelW}x${labelH}`, x + (w / 2), y + (h / 2));
+                    if (svSide === 'A' || svSide === 'B') {
+                        const badgeColor = (svSide === 'A') ? '#2563eb' : '#ea580c';
+                        const sideText = (svSide === 'A') ? 'STRAN A' : 'STRAN B';
+                        ctx.fillStyle = badgeColor;
+                        ctx.beginPath();
+                        const bw = Math.min(w - 6, 56);
+                        const bh = 16;
+                        const bx = x + (w - bw) / 2;
+                        const by = y + (h / 2) - 18;
+                        if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 4); else ctx.rect(bx, by, bw, bh);
+                        ctx.fill();
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = (Math.min(w, h) < 40) ? 'bold 8px Inter, sans-serif' : 'bold 9px Inter, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(sideText, x + (w / 2), by + bh / 2 + 0.5);
+                        ctx.font = (Math.min(w, h) < 30) ? '8px Inter, sans-serif' : '10px Inter, sans-serif';
+                        ctx.fillStyle = badgeColor;
+                        ctx.fillText(`${labelW}x${labelH}`, x + (w / 2), y + (h / 2) + 8);
+                    } else {
+                        ctx.font = (Math.min(w, h) < 30) ? '8px Inter, sans-serif' : '10px Inter, sans-serif';
+                        ctx.fillStyle = isManualMatch ? '#92400e' : '#1e40af';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(`${labelW}x${labelH}`, x + (w / 2), y + (h / 2));
+                    }
                     ctx.restore();
                 }
             }
@@ -1414,8 +1448,55 @@
             ctx.font = 'bold 11px Inter, sans-serif';
             ctx.fillStyle = '#64748b';
             ctx.textAlign = 'right';
-            ctx.fillText(sheetW + ' mm', canvas.width - 10, 18);
+            ctx.fillText(sheetW + ' mm', targetCanvas.width - 10, 18);
             ctx.restore();
+            } // konec renderSingleForm
+
+            if (isSVChecked) {
+                const cA = document.createElement('canvas');
+                const cB = document.createElement('canvas');
+                renderSingleForm(cA, 'A');
+                renderSingleForm(cB, 'B');
+
+                const headerH = 28;
+                const gap = 16;
+                canvas.width = Math.max(cA.width, cB.width);
+                canvas.height = (headerH + cA.height) + gap + (headerH + cB.height);
+                canvas.style.maxHeight = 'none';
+                canvas.style.height = 'auto';
+                canvas.style.backgroundColor = 'transparent';
+                canvas.style.boxShadow = 'none';
+
+                const mainCtx = canvas.getContext('2d');
+                mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Forma 1: Stran A
+                mainCtx.fillStyle = '#2563eb';
+                mainCtx.fillRect(0, 0, cA.width, headerH - 4);
+                mainCtx.fillStyle = '#ffffff';
+                mainCtx.font = 'bold 12px Inter, sans-serif';
+                mainCtx.textAlign = 'left';
+                mainCtx.textBaseline = 'middle';
+                mainCtx.fillText('FORMA 1 — STRAN A (ŠV)', 10, (headerH - 4) / 2);
+                mainCtx.drawImage(cA, 0, headerH);
+
+                // Forma 2: Stran B
+                const yB = headerH + cA.height + gap;
+                mainCtx.fillStyle = '#ea580c';
+                mainCtx.fillRect(0, yB, cB.width, headerH - 4);
+                mainCtx.fillStyle = '#ffffff';
+                mainCtx.font = 'bold 12px Inter, sans-serif';
+                mainCtx.textAlign = 'left';
+                mainCtx.textBaseline = 'middle';
+                mainCtx.fillText('FORMA 2 — STRAN B (ŠV)', 10, yB + (headerH - 4) / 2);
+                mainCtx.drawImage(cB, 0, yB + headerH);
+            } else {
+                canvas.style.maxHeight = '';
+                canvas.style.height = 'auto';
+                canvas.style.backgroundColor = '';
+                canvas.style.boxShadow = '';
+                renderSingleForm(canvas, '');
+            }
         }
 
         function drawSourceLayoutCanvas(canvasId, sw, sh, pw, ph, color) {

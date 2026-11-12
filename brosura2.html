@@ -8984,12 +8984,11 @@
         function drawCanvas(canvasId, sheetW, sheetH, layout, gripper, origW, origH, bleed, isManualMatch = false, manualTarget = 0, themeColor = '#3b82f6', isCover = false) {
 
             const canvas = document.getElementById(canvasId);
-
-            const ctx = canvas.getContext('2d');
-
+            if (!canvas) return;
             canvas.style.display = 'block';
 
-
+            const svCbId = (canvasId === 'canvas-leaves') ? 'calc-is-sv-leaves' : 'calc-is-sv-cover';
+            const isSVChecked = document.getElementById(svCbId)?.checked || false;
 
             const wrapperId = (canvasId === 'canvas-leaves') ? 'canvas-wrapper-leaves' : 'canvas-wrapper-cover';
 
@@ -9007,11 +9006,13 @@
 
             const scale = Math.min(maxCanvasW / sheetW, maxCanvasH / sheetH) * 0.95;
 
+            function renderSingleForm(targetCanvas, svSide = '') {
 
+            const ctx = targetCanvas.getContext('2d');
 
-            canvas.width = sheetW * scale;
+            targetCanvas.width = sheetW * scale;
 
-            canvas.height = sheetH * scale;
+            targetCanvas.height = sheetH * scale;
 
 
 
@@ -9019,7 +9020,7 @@
 
             ctx.fillStyle = '#ffffff';
 
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
 
 
 
@@ -9029,7 +9030,7 @@
 
             ctx.lineWidth = 2;
 
-            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeRect(0, 0, targetCanvas.width, targetCanvas.height);
 
 
 
@@ -9043,25 +9044,25 @@
 
             if (layout.gripEdge === 'W') {
 
-                ctx.fillRect(0, 0, gripper * scale, canvas.height);
+                ctx.fillRect(0, 0, gripper * scale, targetCanvas.height);
 
                 ctx.beginPath();
 
                 ctx.moveTo(gripper * scale, 0);
 
-                ctx.lineTo(gripper * scale, canvas.height);
+                ctx.lineTo(gripper * scale, targetCanvas.height);
 
                 ctx.stroke();
 
             } else {
 
-                ctx.fillRect(0, canvas.height - (gripper * scale), canvas.width, gripper * scale);
+                ctx.fillRect(0, targetCanvas.height - (gripper * scale), targetCanvas.width, gripper * scale);
 
                 ctx.beginPath();
 
-                ctx.moveTo(0, canvas.height - (gripper * scale));
+                ctx.moveTo(0, targetCanvas.height - (gripper * scale));
 
-                ctx.lineTo(canvas.width, canvas.height - (gripper * scale));
+                ctx.lineTo(targetCanvas.width, targetCanvas.height - (gripper * scale));
 
                 ctx.stroke();
 
@@ -9081,7 +9082,7 @@
 
             if (layout.gripEdge === 'W') {
 
-                ctx.translate(15, canvas.height / 2);
+                ctx.translate(15, targetCanvas.height / 2);
 
                 ctx.rotate(-Math.PI / 2);
 
@@ -9093,7 +9094,7 @@
 
                 ctx.textAlign = 'center';
 
-                ctx.fillText('Prijemalec: ' + gripper + ' mm', canvas.width / 2, canvas.height - 5);
+                ctx.fillText('Prijemalec: ' + gripper + ' mm', targetCanvas.width / 2, targetCanvas.height - 5);
 
             }
 
@@ -9105,7 +9106,7 @@
 
             ctx.save();
 
-            ctx.font = 'bold ' + (canvas.height * 0.3) + 'px Inter';
+            ctx.font = 'bold ' + (targetCanvas.height * 0.3) + 'px Inter';
 
             ctx.textAlign = 'center';
 
@@ -9115,7 +9116,7 @@
 
             ctx.fillStyle = waterColor;
 
-            ctx.fillText(isManualMatch ? manualTarget : layout.count, canvas.width / 2, canvas.height / 2);
+            ctx.fillText(isManualMatch ? manualTarget : layout.count, targetCanvas.width / 2, targetCanvas.height / 2);
 
             ctx.restore();
 
@@ -9175,9 +9176,9 @@
 
             ctx.save();
 
-            const midX = canvas.width / 3;
+            const midX = targetCanvas.width / 3;
 
-            const midY = canvas.height / 3;
+            const midY = targetCanvas.height / 3;
 
 
 
@@ -9189,7 +9190,7 @@
 
                 ctx.lineWidth = 4;
 
-                ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, canvas.height - 40); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, targetCanvas.height - 40); ctx.stroke();
 
 
 
@@ -9201,7 +9202,7 @@
 
                 ctx.setLineDash([12, 6]);
 
-                ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, canvas.height - 40); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(midX, 40); ctx.lineTo(midX, targetCanvas.height - 40); ctx.stroke();
 
 
 
@@ -9227,7 +9228,7 @@
 
                 drawArrV(25, 0);
 
-                drawArrV(canvas.height - 25, Math.PI);
+                drawArrV(targetCanvas.height - 25, Math.PI);
 
 
 
@@ -9269,7 +9270,7 @@
 
                 ctx.lineWidth = 4;
 
-                ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(canvas.width - 40, midY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(targetCanvas.width - 40, midY); ctx.stroke();
 
 
 
@@ -9281,7 +9282,7 @@
 
                 ctx.setLineDash([12, 6]);
 
-                ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(canvas.width - 40, midY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(40, midY); ctx.lineTo(targetCanvas.width - 40, midY); ctx.stroke();
 
 
 
@@ -9307,7 +9308,7 @@
 
                 drawArrH(25, -Math.PI / 2);
 
-                drawArrH(canvas.width - 25, Math.PI / 2);
+                drawArrH(targetCanvas.width - 25, Math.PI / 2);
 
 
 
@@ -9365,6 +9366,8 @@
                     // Polnilo stavka
 
                     let rectFill = isCover ? 'rgba(244, 63, 94, 0.15)' : (isManualMatch ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)');
+                    if (svSide === 'A') rectFill = 'rgba(37, 99, 235, 0.20)';
+                    else if (svSide === 'B') rectFill = 'rgba(234, 88, 12, 0.20)';
 
                     ctx.fillStyle = rectFill;
 
@@ -9378,9 +9381,9 @@
 
                     // Bleed rob (rdeča barva za porez)
 
-                    ctx.strokeStyle = '#ef4444';
+                    ctx.strokeStyle = (svSide === 'A') ? '#2563eb' : (svSide === 'B' ? '#ea580c' : '#ef4444');
 
-                    ctx.lineWidth = 1;
+                    ctx.lineWidth = (svSide === 'A' || svSide === 'B') ? 1.5 : 1;
 
                     ctx.strokeRect(x, y, w, h);
 
@@ -9439,19 +9442,63 @@
 
 
 
-                    // Dimenzije v sredini vsakega stavka
+                    // Dimenzije v sredini vsakega stavka (ter STRAN A / STRAN B za ŠV)
 
                     ctx.save();
 
-                    ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
+                    const dimText = `${Math.round(innerW / scale)}x${Math.round(innerH / scale)}`;
 
-                    ctx.fillStyle = isCover ? '#9d174d' : (isManualMatch ? '#92400e' : '#1e40af');
+                    if (svSide === 'A' || svSide === 'B') {
 
-                    ctx.textAlign = 'center';
+                        const badgeColor = (svSide === 'A') ? '#2563eb' : '#ea580c';
 
-                    ctx.textBaseline = 'middle';
+                        const sideText = (svSide === 'A') ? 'STRAN A' : 'STRAN B';
 
-                    ctx.fillText(`${Math.round(innerW / scale)}x${Math.round(innerH / scale)}`, x + (w / 2), y + (h / 2));
+                        ctx.fillStyle = badgeColor;
+
+                        ctx.beginPath();
+
+                        const bw = Math.min(w - 6, 56);
+
+                        const bh = 16;
+
+                        const bx = x + (w - bw) / 2;
+
+                        const by = y + (h / 2) - 18;
+
+                        if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 4); else ctx.rect(bx, by, bw, bh);
+
+                        ctx.fill();
+
+                        ctx.fillStyle = '#ffffff';
+
+                        ctx.font = (Math.min(w, h) < 40) ? 'bold 8px Inter' : 'bold 9px Inter';
+
+                        ctx.textAlign = 'center';
+
+                        ctx.textBaseline = 'middle';
+
+                        ctx.fillText(sideText, x + (w / 2), by + bh / 2 + 0.5);
+
+                        ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
+
+                        ctx.fillStyle = badgeColor;
+
+                        ctx.fillText(dimText, x + (w / 2), y + (h / 2) + 8);
+
+                    } else {
+
+                        ctx.font = (Math.min(w, h) < 30) ? '8px Inter' : '10px Inter';
+
+                        ctx.fillStyle = isCover ? '#9d174d' : (isManualMatch ? '#92400e' : '#1e40af');
+
+                        ctx.textAlign = 'center';
+
+                        ctx.textBaseline = 'middle';
+
+                        ctx.fillText(dimText, x + (w / 2), y + (h / 2));
+
+                    }
 
                     ctx.restore();
 
@@ -9499,17 +9546,65 @@
 
             ctx.textAlign = 'center';
 
-            ctx.fillText(sheetW + ' mm', canvas.width / 2, 25);
+            ctx.fillText(sheetW + ' mm', targetCanvas.width / 2, 25);
 
             ctx.save();
 
-            ctx.translate(canvas.width - 25, canvas.height / 2);
+            ctx.translate(targetCanvas.width - 25, targetCanvas.height / 2);
 
             ctx.rotate(Math.PI / 2);
 
             ctx.fillText(sheetH + ' mm', 0, 0);
 
             ctx.restore();
+
+            } // konec renderSingleForm
+
+            if (isSVChecked) {
+                const cA = document.createElement('canvas');
+                const cB = document.createElement('canvas');
+                renderSingleForm(cA, 'A');
+                renderSingleForm(cB, 'B');
+
+                const headerH = 28;
+                const gap = 16;
+                canvas.width = Math.max(cA.width, cB.width);
+                canvas.height = (headerH + cA.height) + gap + (headerH + cB.height);
+                canvas.style.maxHeight = 'none';
+                canvas.style.height = 'auto';
+                canvas.style.backgroundColor = 'transparent';
+                canvas.style.boxShadow = 'none';
+
+                const mainCtx = canvas.getContext('2d');
+                mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Forma 1: Stran A
+                mainCtx.fillStyle = '#2563eb';
+                mainCtx.fillRect(0, 0, cA.width, headerH - 4);
+                mainCtx.fillStyle = '#ffffff';
+                mainCtx.font = 'bold 12px Inter, sans-serif';
+                mainCtx.textAlign = 'left';
+                mainCtx.textBaseline = 'middle';
+                mainCtx.fillText('FORMA 1 — STRAN A (ŠV)', 10, (headerH - 4) / 2);
+                mainCtx.drawImage(cA, 0, headerH);
+
+                // Forma 2: Stran B
+                const yB = headerH + cA.height + gap;
+                mainCtx.fillStyle = '#ea580c';
+                mainCtx.fillRect(0, yB, cB.width, headerH - 4);
+                mainCtx.fillStyle = '#ffffff';
+                mainCtx.font = 'bold 12px Inter, sans-serif';
+                mainCtx.textAlign = 'left';
+                mainCtx.textBaseline = 'middle';
+                mainCtx.fillText('FORMA 2 — STRAN B (ŠV)', 10, yB + (headerH - 4) / 2);
+                mainCtx.drawImage(cB, 0, yB + headerH);
+            } else {
+                canvas.style.maxHeight = '';
+                canvas.style.height = '';
+                canvas.style.backgroundColor = '';
+                canvas.style.boxShadow = '';
+                renderSingleForm(canvas, '');
+            }
 
         }
 
