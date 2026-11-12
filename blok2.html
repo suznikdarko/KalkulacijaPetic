@@ -5170,6 +5170,7 @@ window.addEventListener('error', function (e) {
                     let totalPrepCostL = 0;
                     let totalPrintCostL = 0;
                     let printHoursL = 0;
+                    let washCostL = 0;
 
                     if (frontL + backL > 0) {
                         let platesNumL = parseInt(document.getElementById('calc-plates-num-leaves').value) || 0;
@@ -5209,7 +5210,7 @@ window.addEventListener('error', function (e) {
 
                         let washesNumL = parseInt(document.getElementById('calc-color-washes-leaves') ? document.getElementById('calc-color-washes-leaves').value : 0) || 0;
                         let washPriceL = parseFloat(document.getElementById('calc-wash-price-leaves') ? document.getElementById('calc-wash-price-leaves').value : 0) || 25;
-                        let washCostL = washesNumL * washPriceL;
+                        washCostL = (washesNumL * washPriceL) + ((isSVL && mTypeL !== 'digital') ? 100 : 0);
 
                         totalPrepCostL += washCostL;
                         if (mTypeL === 'digital') {
@@ -5228,6 +5229,7 @@ window.addEventListener('error', function (e) {
                     let totalPrepCostC = 0;
                     let totalPrintCostC = 0;
                     let printHoursC = 0;
+                    let washCostC = 0;
 
                     if (frontC + backC > 0) {
                         let platesNumC = parseInt(document.getElementById('calc-plates-num-cover').value) || 0;
@@ -5273,7 +5275,7 @@ window.addEventListener('error', function (e) {
 
                         let washesNumC = parseInt(document.getElementById('calc-color-washes-cover') ? document.getElementById('calc-color-washes-cover').value : 0) || 0;
                         let washPriceC = parseFloat(document.getElementById('calc-wash-price-cover') ? document.getElementById('calc-wash-price-cover').value : 0) || 25;
-                        let washCostC = washesNumC * washPriceC;
+                        washCostC = (washesNumC * washPriceC) + ((isSVC && mTypeC !== 'digital') ? 100 : 0);
 
                         totalPrepCostC += washCostC;
                         if (mTypeC === 'digital') {
@@ -5815,9 +5817,7 @@ window.addEventListener('error', function (e) {
                         const platesPriceVal = isDigital ? 0 : (parseFloat(document.getElementById('calc-plates-price-' + suffix).value) || 0);
                         const prepEl = document.getElementById('calc-machine-prep-time-' + suffix);
                         const washNumEl = document.getElementById('calc-color-washes-' + suffix);
-                        const washPriceEl = document.getElementById('calc-wash-price-' + suffix);
                         const washesNumVal = isDigital ? 0 : (parseInt(washNumEl ? washNumEl.value : 0) || 0);
-                        const washPriceVal = isDigital ? 0 : (parseFloat(washPriceEl ? washPriceEl.value : 0) || 25);
                         return {
                             active: cfg.active,
                             isCoop: false,
@@ -5829,7 +5829,7 @@ window.addEventListener('error', function (e) {
                             changes: isDigital ? 0 : Math.max(0, platesVal - 1),
                             prepChanges: isDigital ? 0 : (Math.max(0, platesVal - 1) * (parseFloat(document.getElementById('calc-change-price-' + suffix).value) || 0)),
                             washesNum: washesNumVal,
-                            washCost: washesNumVal * washPriceVal,
+                            washCost: isDigital ? 0 : (cfg.washCost || 0),
                             mPrep: ((prepEl && prepEl.value !== '') ? parseFloat(prepEl.value) : 10) / 60,
                             mRate: (parseFloat(document.getElementById('calc-machine-rate-' + suffix).value) || 0),
                             printHours: cfg.printHours,
@@ -5875,6 +5875,7 @@ window.addEventListener('error', function (e) {
                             sheetsNeeded: sheetsNeededLeaves,
                             printHours: printHoursL,
                             gripperId: 'gripper',
+                            washCost: washCostL,
                             totalPrep: totalPrepCostL,
                             totalPrint: totalPrintCostL
                         }),
@@ -5884,6 +5885,7 @@ window.addEventListener('error', function (e) {
                             sheetsNeeded: sheetsNeededCover,
                             printHours: printHoursC,
                             gripperId: 'calc-cover-gripper',
+                            washCost: washCostC,
                             totalPrep: totalPrepCostC,
                             totalPrint: totalPrintCostC
                         }),
@@ -5946,7 +5948,7 @@ window.addEventListener('error', function (e) {
                                 <span>Cena plošč (${p.plates} kos):</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(p.platesCost)}</span>
                                 <span>Pavšalna priprava:</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(p.prepSetup)}</span>
                                 ${p.changes > 0 ? `<span>Menjava plošč:</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(p.prepChanges)}</span>` : ''}
-                                ${p.washesNum > 0 ? `<span>Pranje stroja:</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(p.washCost)}</span>` : ''}
+                                ${p.washCost > 0 ? `<span>Pranje stroja:</span> <span style="font-weight: bold; color: #f8fafc;">${formatPrice(p.washCost)}</span>` : ''}
                             `}
                         </div>
                     </div>
