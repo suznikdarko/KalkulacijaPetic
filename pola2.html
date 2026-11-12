@@ -1532,16 +1532,21 @@
                                 </div>
                             </div>
 
-                            <!-- Zasek Grafotehna -->
+                            <!-- Grafotehna -->
                             <div class="finish-item" id="row-finish-zasek-grafotehna">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
                                     <input type="checkbox" id="f-zasek-grafotehna-active"
                                         onchange="toggleFinishRow('zasek-grafotehna')">
-                                    Zasek-Grafotehna
+                                    Grafotehna
                                 </label>
                                 <div class="form-group" style="margin:0;">
                                     <label><small>Cena na komad (€)</small></label>
                                     <input type="number" id="f-zasek-grafotehna-price" value="0.00"
+                                        onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Cena skupno (€)</small></label>
+                                    <input type="number" id="f-zasek-grafotehna-total" value="0.00" step="0.01"
                                         onchange="calculatePrice()">
                                 </div>
                             </div>
@@ -2320,7 +2325,7 @@
                 list.push(desc ? `Dodatna dela (${desc})` : 'Dodatna dela');
             }
             if (isChecked('f-tool-active')) list.push('Orodje');
-            if (isChecked('f-zasek-grafotehna-active')) list.push('Zasek-Grafotehna');
+            if (isChecked('f-zasek-grafotehna-active')) list.push('Grafotehna');
             if (isChecked('f-uv-active')) {
                 const uvSidesEl = document.getElementById('f-uv-sides');
                 const uvSides = uvSidesEl ? uvSidesEl.value : '1/0';
@@ -2462,8 +2467,8 @@
                         extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate'), qty: gv('f-extra-qty') },
                         dodatnaDela: { active: gc('f-dodatna-dela-active'), desc: gv('f-dodatna-dela-desc'), sheets: gv('f-dodatna-dela-sheets'), kom: gv('f-dodatna-dela-kom'), price: gv('f-dodatna-dela-price') },
                         tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
-                        zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
-                        zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
+                        zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price'), total: gv('f-zasek-grafotehna-total') },
+                        zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price'), total: gv('f-zasek-grafotehna-total') },
                         uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type'), format: gv('f-uv-format'), extraWaste: gv('f-uv-extra-waste') },
                         uv2: { active: gc('f-uv2-active'), prep: gv('f-uv2-prep'), per1000: gv('f-uv2-per1000'), sides: gv('f-uv2-sides'), type: gv('f-uv2-type'), format: gv('f-uv2-format'), extraWaste: gv('f-uv2-extra-waste') },
                         personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price'), qty: gv('f-personalization-qty'), split: gv('f-personalization-split') },
@@ -5123,7 +5128,9 @@
                 totalFinishCost += (parseFloat(document.getElementById('f-tool-cost').value.replace(',', '.')) || 0);
             }
             if (document.getElementById('f-zasek-grafotehna-active') && document.getElementById('f-zasek-grafotehna-active').checked) {
-                totalFinishCost += (parseFloat(document.getElementById('f-zasek-grafotehna-price').value.replace(',', '.')) || 0) * qty;
+                let zPrice = parseFloat((document.getElementById('f-zasek-grafotehna-price').value || '').replace(',', '.')) || 0;
+                let zTotal = parseFloat((document.getElementById('f-zasek-grafotehna-total')?.value || '').replace(',', '.')) || 0;
+                totalFinishCost += (zPrice * qty) + zTotal;
             }
             if (document.getElementById('f-uv-active').checked) {
                 let uPrep = parseFloat(document.getElementById('f-uv-prep').value.replace(',', '.')) || 0;
@@ -5497,12 +5504,17 @@
                 });
             }
             if (document.getElementById('f-zasek-grafotehna-active') && document.getElementById('f-zasek-grafotehna-active').checked) {
-                let zPrice = parseFloat(document.getElementById('f-zasek-grafotehna-price').value.replace(',', '.')) || 0;
-                let zCost = zPrice * qty;
+                let zPrice = parseFloat((document.getElementById('f-zasek-grafotehna-price').value || '').replace(',', '.')) || 0;
+                let zTotal = parseFloat((document.getElementById('f-zasek-grafotehna-total')?.value || '').replace(',', '.')) || 0;
+                let zCost = (zPrice * qty) + zTotal;
+                let zBreakdownParts = [];
+                if (zPrice > 0) zBreakdownParts.push(`Cena na komad: ${formatPrice(zPrice)} x ${qty} kom`);
+                if (zTotal > 0) zBreakdownParts.push(`Cena skupno: ${formatPrice(zTotal)}`);
+                if (zBreakdownParts.length === 0) zBreakdownParts.push(`Cena na komad: ${formatPrice(zPrice)} x ${qty} kom`);
                 details.finish.items.push({
-                    name: 'Zasek-Grafotehna',
+                    name: 'Grafotehna',
                     cost: zCost,
-                    breakdown: `Cena na komad: ${formatPrice(zPrice)} x ${qty} kom`
+                    breakdown: zBreakdownParts.join(' + ')
                 });
             }
             if (document.getElementById('f-uv-active').checked) {
@@ -7615,8 +7627,8 @@
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate'), qty: gv('f-extra-qty') },
                             dodatnaDela: { active: gc('f-dodatna-dela-active'), desc: gv('f-dodatna-dela-desc'), sheets: gv('f-dodatna-dela-sheets'), kom: gv('f-dodatna-dela-kom'), price: gv('f-dodatna-dela-price') },
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
-                            zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
-                            zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
+                            zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price'), total: gv('f-zasek-grafotehna-total') },
+                            zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price'), total: gv('f-zasek-grafotehna-total') },
                             uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type'), format: gv('f-uv-format'), extraWaste: gv('f-uv-extra-waste') },
                             uv2: { active: gc('f-uv2-active'), prep: gv('f-uv2-prep'), per1000: gv('f-uv2-per1000'), sides: gv('f-uv2-sides'), type: gv('f-uv2-type'), format: gv('f-uv2-format'), extraWaste: gv('f-uv2-extra-waste') },
                             personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price'), qty: gv('f-personalization-qty'), split: gv('f-personalization-split') },
@@ -7877,8 +7889,8 @@
                             extra: { active: gc('f-extra-active'), speed: gv('f-extra-speed'), rate: gv('f-extra-rate'), qty: gv('f-extra-qty') },
                             dodatnaDela: { active: gc('f-dodatna-dela-active'), desc: gv('f-dodatna-dela-desc'), sheets: gv('f-dodatna-dela-sheets'), kom: gv('f-dodatna-dela-kom'), price: gv('f-dodatna-dela-price') },
                             tool: { active: gc('f-tool-active'), cost: gv('f-tool-cost') },
-                            zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
-                            zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
+                            zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price'), total: gv('f-zasek-grafotehna-total') },
+                            zasek: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price'), total: gv('f-zasek-grafotehna-total') },
                             uv: { active: gc('f-uv-active'), prep: gv('f-uv-prep'), per1000: gv('f-uv-per1000'), sides: gv('f-uv-sides'), type: gv('f-uv-type'), format: gv('f-uv-format'), extraWaste: gv('f-uv-extra-waste') },
                             uv2: { active: gc('f-uv2-active'), prep: gv('f-uv2-prep'), per1000: gv('f-uv2-per1000'), sides: gv('f-uv2-sides'), type: gv('f-uv2-type'), format: gv('f-uv2-format'), extraWaste: gv('f-uv2-extra-waste') },
                             personalization: { active: gc('f-personalization-active'), sides: gv('f-personalization-sides'), price: gv('f-personalization-price'), qty: gv('f-personalization-qty'), split: gv('f-personalization-split') },
@@ -8923,6 +8935,8 @@
                         setV('f-' + t + '-active', false, true);
                         if (typeof toggleFinishRow === 'function') toggleFinishRow(t);
                     });
+                    setV('f-zasek-grafotehna-price', '0.00');
+                    setV('f-zasek-grafotehna-total', '0.00');
                     setV('f-cilinder-zasek', false, true);
                     setV('f-cilinder-izsek', false, true);
                     setV('f-cilinder-perforacija', false, true);
@@ -9026,6 +9040,7 @@
                     if (zg) {
                         setV('f-zasek-grafotehna-active', zg.active, true);
                         if (zg.price !== undefined) setV('f-zasek-grafotehna-price', zg.price);
+                        setV('f-zasek-grafotehna-total', zg.total !== undefined ? zg.total : '0.00');
                         toggleFinishRow('zasek-grafotehna');
                     }
 
@@ -9265,8 +9280,8 @@
                             extra: { active: document.getElementById('f-extra-active').checked, speed: document.getElementById('f-extra-speed').value, rate: document.getElementById('f-extra-rate').value, qty: document.getElementById('f-extra-qty') ? document.getElementById('f-extra-qty').value : '' },
                             dodatnaDela: { active: document.getElementById('f-dodatna-dela-active') ? document.getElementById('f-dodatna-dela-active').checked : false, desc: document.getElementById('f-dodatna-dela-desc') ? document.getElementById('f-dodatna-dela-desc').value : '', sheets: document.getElementById('f-dodatna-dela-sheets') ? document.getElementById('f-dodatna-dela-sheets').value : '', kom: document.getElementById('f-dodatna-dela-kom') ? document.getElementById('f-dodatna-dela-kom').value : '', price: document.getElementById('f-dodatna-dela-price') ? document.getElementById('f-dodatna-dela-price').value : 0 },
                             tool: { active: document.getElementById('f-tool-active').checked, cost: document.getElementById('f-tool-cost').value },
-                            zasekGrafotehna: { active: document.getElementById('f-zasek-grafotehna-active') ? document.getElementById('f-zasek-grafotehna-active').checked : false, price: document.getElementById('f-zasek-grafotehna-price') ? document.getElementById('f-zasek-grafotehna-price').value : 0.05 },
-                            zasek: { active: document.getElementById('f-zasek-grafotehna-active') ? document.getElementById('f-zasek-grafotehna-active').checked : false, price: document.getElementById('f-zasek-grafotehna-price') ? document.getElementById('f-zasek-grafotehna-price').value : 0.05 },
+                            zasekGrafotehna: { active: document.getElementById('f-zasek-grafotehna-active') ? document.getElementById('f-zasek-grafotehna-active').checked : false, price: document.getElementById('f-zasek-grafotehna-price') ? document.getElementById('f-zasek-grafotehna-price').value : 0.05, total: document.getElementById('f-zasek-grafotehna-total') ? document.getElementById('f-zasek-grafotehna-total').value : '0.00' },
+                            zasek: { active: document.getElementById('f-zasek-grafotehna-active') ? document.getElementById('f-zasek-grafotehna-active').checked : false, price: document.getElementById('f-zasek-grafotehna-price') ? document.getElementById('f-zasek-grafotehna-price').value : 0.05, total: document.getElementById('f-zasek-grafotehna-total') ? document.getElementById('f-zasek-grafotehna-total').value : '0.00' },
                             uv: { active: document.getElementById('f-uv-active').checked, prep: document.getElementById('f-uv-prep').value, per1000: document.getElementById('f-uv-per1000').value, sides: document.getElementById('f-uv-sides') ? document.getElementById('f-uv-sides').value : '1/0', type: document.getElementById('f-uv-type') ? document.getElementById('f-uv-type').value : 'manual' },
                             uv2: { active: document.getElementById('f-uv2-active') ? document.getElementById('f-uv2-active').checked : false, prep: document.getElementById('f-uv2-prep') ? document.getElementById('f-uv2-prep').value : 90, per1000: document.getElementById('f-uv2-per1000') ? document.getElementById('f-uv2-per1000').value : 25, sides: document.getElementById('f-uv2-sides') ? document.getElementById('f-uv2-sides').value : '1/0', type: document.getElementById('f-uv2-type') ? document.getElementById('f-uv2-type').value : 'manual' },
                             personalization: { active: document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false, price: document.getElementById('f-personalization-price') ? document.getElementById('f-personalization-price').value : 0.03, qty: document.getElementById('f-personalization-qty') ? document.getElementById('f-personalization-qty').value : '', split: document.getElementById('f-personalization-split') ? document.getElementById('f-personalization-split').value : 'auto' },
@@ -10415,7 +10430,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             if (isChecked('f-zasek-grafotehna-active')) {
                 finishingRowsHtml += `
                     <tr>
-                        <td style="width: 15%;">Zasek-Grafotehna:</td>
+                        <td style="width: 15%;">Grafotehna:</td>
                         <td style="width: 35%;"></td>
                         <td style="width: 50%; text-align: right;" class="bold">/</td>
                     </tr>`;
