@@ -662,9 +662,15 @@
                     </div>
                 </div>
 
-                <div class="header-group" style="margin-bottom: 0.75rem;">
-                    <label for="krka-print-run">Naklada tiskovnih pol (formula)</label>
-                    <input type="text" id="krka-print-run" placeholder="Naklada tiskovnih pol..." value="" oninput="updateWorkOrderLive()">
+                <div class="grid-2" style="margin-bottom: 0.75rem;">
+                    <div class="header-group">
+                        <label for="krka-print-allowance" style="color: #fbbf24; font-weight: 700;">Dodatek za tisk (pol)</label>
+                        <input type="text" id="krka-print-allowance" placeholder="Vpiši dodatek..." value="" oninput="onPrintAllowanceChanged()" onblur="formatAllowanceInput()" onkeydown="if(event.key==='Enter') formatAllowanceInput();">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-print-run">Naklada tiskovnih pol (formula)</label>
+                        <input type="text" id="krka-print-run" placeholder="Naklada tiskovnih pol..." value="" oninput="updateWorkOrderLive()">
+                    </div>
                 </div>
 
                 <div class="grid-3">
@@ -1141,6 +1147,22 @@
         sv('krka-boxes-total', totalBoxes + ' kom.');
     }
 
+    function onPrintAllowanceChanged() {
+        recalculateSheets();
+        updateWorkOrderLive();
+    }
+
+    function formatAllowanceInput() {
+        const raw = gv('krka-print-allowance');
+        if (!raw.trim()) return;
+        const num = parseNumericQty(raw);
+        if (num > 0) {
+            sv('krka-print-allowance', formatNumberSlo(num));
+        }
+        recalculateSheets();
+        updateWorkOrderLive();
+    }
+
     function recalculateSheets() {
         const qty = parseNumericQty(gv('krka-quantity'));
         if (qty <= 0) {
@@ -1152,14 +1174,23 @@
         const itemsMatch = (gv('krka-items-per-sheet') || '4').match(/(\d+)/);
         const itemsPerSheet = (itemsMatch && parseInt(itemsMatch[1]) > 0) ? parseInt(itemsMatch[1]) : 1;
         const netSheets = Math.ceil(qty / itemsPerSheet);
-        let waste = Math.max(500, Math.round(netSheets * 0.04));
-        waste = Math.round(waste / 50) * 50;
-        const totalCutSheets = netSheets + waste;
-        const rawB1 = Math.ceil(totalCutSheets / 2);
 
-        sv('krka-print-run', `${formatNumberSlo(netSheets)} + ${formatNumberSlo(waste)} = ${formatNumberSlo(totalCutSheets)} tisk. pol (1x skozi stroj)`);
-        sv('krka-cut-sheets', `${formatNumberSlo(totalCutSheets)} pol na 69,8 x 49,8 cm (2 iz pole)`);
-        sv('krka-raw-sheets', `${formatNumberSlo(rawB1)} pol B1 SB`);
+        const allowanceRaw = gv('krka-print-allowance');
+        const allowance = parseNumericQty(allowanceRaw);
+
+        if (allowance > 0) {
+            const totalCutSheets = netSheets + allowance;
+            const rawB1 = Math.ceil(totalCutSheets / 2);
+            sv('krka-print-run', `${formatNumberSlo(netSheets)} + ${formatNumberSlo(allowance)} = ${formatNumberSlo(totalCutSheets)} tisk. pol (1x skozi stroj)`);
+            sv('krka-cut-sheets', `${formatNumberSlo(totalCutSheets)} pol na 69,8 x 49,8 cm (2 iz pole)`);
+            sv('krka-raw-sheets', `${formatNumberSlo(rawB1)} pol B1 SB`);
+        } else {
+            const totalCutSheets = netSheets;
+            const rawB1 = Math.ceil(totalCutSheets / 2);
+            sv('krka-print-run', `${formatNumberSlo(netSheets)} tisk. pol (1x skozi stroj)`);
+            sv('krka-cut-sheets', `${formatNumberSlo(totalCutSheets)} pol na 69,8 x 49,8 cm (2 iz pole)`);
+            sv('krka-raw-sheets', `${formatNumberSlo(rawB1)} pol B1 SB`);
+        }
     }
 
     // Calculate Krka Cenik price
@@ -1235,7 +1266,9 @@
         const deadline = gv('calc-dn-deadline');
         const projectName = gv('calc-project-name');
         const orderType = gv('calc-order-type') || 'Ponatis';
-        const qty = gv('krka-quantity');
+        const rawQty = gv('krka-quantity');
+        const numQty = parseNumericQty(rawQty);
+        const qtyDisplay = numQty > 0 ? formatNumberSlo(numQty) : rawQty;
         const oldDn = gv('calc-dn-old');
         const dimO = gv('krka-dim-o');
         const dimZ = gv('krka-dim-z');
@@ -1247,11 +1280,20 @@
         const cutSheets = gv('krka-cut-sheets');
         const platesCount = gv('krka-plates-count') || '5 kom. S8';
         const platesVarnish = gv('krka-plates-varnish') || '+ 1 plošča za lak';
+        const varnishSel = gv('krka-varnish-select');
+        let hasLak = false;
+        if (varnishSel === '1/0') {
+            hasLak = true;
+        } else if (varnishSel === 'brez') {
+            hasLak = false;
+        } else {
+            const vText = ((varnishDesc || '') + ' ' + (platesVarnish || '')).toLowerCase();
+            hasLak = !vText.includes('brez') && (vText.includes('lak') || vText.includes('plošča za lak') || vText.includes('1/0'));
+        }
         let platesTotalVal = gv('krka-plates-total');
         if (!platesTotalVal) {
             const pMatch = platesCount.match(/(\d+)/);
             const pNum = pMatch ? parseInt(pMatch[1]) : 5;
-            const hasLak = platesVarnish && !platesVarnish.includes('0 plošča') && (platesVarnish.includes('1') || platesVarnish.toLowerCase().includes('plošča'));
             platesTotalVal = (pNum + (hasLak ? 1 : 0)) + '';
         }
         const itemsPerSheet = gv('krka-items-per-sheet') || '4 sest. na poli';
@@ -1332,7 +1374,7 @@
             <!-- GLAVNE SPECIFIKACIJE -->
             <div style="display: grid; grid-template-columns: 90px 1fr 140px; row-gap: 2px; font-size: 10.5pt;">
                 <div style="font-weight: normal;">količina:</div>
-                <div style="font-weight: 900;">${qty ? `${qty} kos` : '—'}</div>
+                <div style="font-weight: 900;">${qtyDisplay ? `${qtyDisplay} kos` : '—'}</div>
                 <div style="text-align: right;">
                     ${oldDn ? `<span class="badge-yellow" style="font-size: 11pt;">${oldDn}</span>` : ''}
                 </div>
@@ -1346,7 +1388,7 @@
                 <div style="font-weight: normal;">tisk:</div>
                 <div style="grid-column: span 2;">
                     <div>${printDesc}</div>
-                    <div>${varnishDesc}</div>
+                    ${varnishDesc ? `<div>${varnishDesc}</div>` : ''}
                 </div>
 
                 <div style="font-weight: normal;">material:</div>
@@ -1375,9 +1417,10 @@
                 <div style="font-weight: bold; margin: 0 15px;">prvi-drugi</div>
                 <div style="font-weight: bold; text-align: right;">(${itemsPerSheet})</div>
             </div>
+            ${hasLak && platesVarnish ? `
             <div style="padding-left: 90px; font-size: 10.5pt;">
                 ${platesVarnish}
-            </div>
+            </div>` : ''}
 
             <div class="dn-sep-double"></div>
 
@@ -1395,9 +1438,9 @@
             <div style="display: flex; justify-content: space-between; font-size: 10.5pt;">
                 <div style="width: 120px;">${machine} of.priprava:</div>
                 <div style="flex: 1; padding: 0 10px;">
-                    <div>${printDesc} + 1/0 - nevtral lak</div>
+                    <div>${printDesc}${hasLak ? ' + 1/0 - nevtral lak' : ''}</div>
                     <div style="font-weight: 900; font-style: italic;">POZOR! Tisk po navodilih - MERITVE!</div>
-                    <div style="font-weight: 900; font-style: italic;">+ 1/0 - nevtral lak Z PLOŠČO samo na NASLOVNI STRANI!</div>
+                    ${hasLak ? `<div style="font-weight: 900; font-style: italic;">+ 1/0 - nevtral lak Z PLOŠČO samo na NASLOVNI STRANI!</div>` : ''}
                 </div>
                 <div style="text-align: right; font-weight: bold; width: 60px;">${prepHours}</div>
             </div>
@@ -1668,13 +1711,16 @@
                 colorsBack: gv('krka-colors-back'),
                 colorsCount: gv('krka-colors-count'),
                 printDesc: gv('krka-print-desc'),
+                varnishSelect: gv('krka-varnish-select'),
                 varnishDesc: gv('krka-varnish-desc'),
                 machine: gv('krka-machine'),
                 prepHours: gv('krka-prep-hours'),
+                printAllowance: gv('krka-print-allowance'),
                 printRun: gv('krka-print-run'),
                 printHours: gv('krka-print-hours'),
                 platesCount: gv('krka-plates-count'),
                 platesVarnish: gv('krka-plates-varnish'),
+                itemsSelect: gv('krka-items-select'),
                 itemsPerSheet: gv('krka-items-per-sheet'),
                 matDesc: gv('krka-material-desc'),
                 matStock: gv('krka-material-stock'),
@@ -1765,13 +1811,26 @@
         }
         if (inp.colorsCount) sv('krka-colors-count', inp.colorsCount);
         if (inp.printDesc) sv('krka-print-desc', inp.printDesc);
-        if (inp.varnishDesc) sv('krka-varnish-desc', inp.varnishDesc);
+        if (inp.varnishSelect) {
+            sv('krka-varnish-select', inp.varnishSelect);
+        } else if (inp.varnishDesc) {
+            if (inp.varnishDesc.toLowerCase().includes('brez')) {
+                sv('krka-varnish-select', 'brez');
+            } else if (inp.varnishDesc.includes('1/0')) {
+                sv('krka-varnish-select', '1/0');
+            }
+        }
+        if (inp.varnishDesc !== undefined) sv('krka-varnish-desc', inp.varnishDesc);
         if (inp.machine) sv('krka-machine', inp.machine);
         if (inp.prepHours) sv('krka-prep-hours', inp.prepHours);
+        if (inp.printAllowance !== undefined) sv('krka-print-allowance', inp.printAllowance);
         if (inp.printRun) sv('krka-print-run', inp.printRun);
         if (inp.printHours) sv('krka-print-hours', inp.printHours);
         if (inp.platesCount) sv('krka-plates-count', inp.platesCount);
-        if (inp.platesVarnish) sv('krka-plates-varnish', inp.platesVarnish);
+        if (inp.platesVarnish !== undefined) sv('krka-plates-varnish', inp.platesVarnish);
+        if (inp.itemsSelect) {
+            sv('krka-items-select', inp.itemsSelect);
+        }
         if (inp.itemsPerSheet) sv('krka-items-per-sheet', inp.itemsPerSheet);
         if (inp.matDesc) sv('krka-material-desc', inp.matDesc);
         if (inp.matStock) sv('krka-material-stock', inp.matStock);
@@ -2007,6 +2066,7 @@
         initFormatDropdown();
         recalculateBanding();
         recalculateBoxes();
+        recalculateSheets();
         calculateKrkaPrice();
         updateWorkOrderLive();
         fetchServerProjects().then(() => renderSavedProjects()).catch(()=>{});
