@@ -1,0 +1,1781 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KRKA - Nalog za izvedbo in Kalkulacija</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="tarife_prevozov.js?v=2"></script>
+    <script src="customer_contacts_seed.js?v=1"></script>
+    <script src="_projects_index.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --glass-bg: rgba(30, 41, 59, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent-color: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.4);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%);
+        }
+
+        body.light-mode {
+            --bg-color: #f1f5f9;
+            --glass-bg: rgba(255, 255, 255, 0.9);
+            --glass-border: rgba(203, 213, 225, 0.8);
+            --accent-color: #2563eb;
+            --accent-glow: rgba(37, 99, 235, 0.2);
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --card-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            zoom: 90%;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 1rem;
+            padding-bottom: 80px;
+            overflow-x: hidden;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            max-width: 1850px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* HEADER PANEL - IDENTIČNA KOT V POLI2 */
+        .header-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            padding: 1.25rem;
+            border-radius: 14px;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1.25rem;
+            box-shadow: var(--card-shadow);
+        }
+
+        .header-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        label {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.55rem 0.65rem;
+            background: #475569;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+
+        body.light-mode input, body.light-mode select, body.light-mode textarea {
+            background: #ffffff;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        /* 2-COLUMN MAIN LAYOUT */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 540px 1fr;
+            gap: 1.25rem;
+            align-items: start;
+        }
+
+        @media (max-width: 1400px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 1.25rem;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 1.25rem;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .calc-pill {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #38bdf8;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 6px;
+        }
+
+        /* WORK ORDER LIVE PREVIEW */
+        .preview-wrapper {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 1rem;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: sticky;
+            top: 1rem;
+        }
+
+        .preview-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 8px 12px;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 10px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #0284c7, #2563eb);
+            color: white;
+            border: none;
+            padding: 7px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(2, 132, 199, 0.4);
+        }
+
+        .action-btn.secondary {
+            background: #334155;
+            color: #cbd5e1;
+            box-shadow: none;
+        }
+
+        .action-btn.secondary:hover {
+            background: #475569;
+            color: #ffffff;
+        }
+
+        .action-btn.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .action-btn.danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        /* EXACT WORK ORDER SHEET (NALOG ZA IZVEDBO KRKA) */
+        .krka-dn-sheet {
+            background: #ffffff;
+            color: #000000;
+            width: 100%;
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 24px 28px;
+            border-radius: 4px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+            font-size: 11pt;
+            line-height: 1.35;
+            box-sizing: border-box;
+            border: 1px solid #cbd5e1;
+        }
+
+        .krka-dn-sheet * {
+            font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif !important;
+            color: #000000;
+        }
+
+        /* Divider lines */
+        .dn-sep-double {
+            border-bottom: 3px double #000000;
+            margin: 6px 0;
+            height: 0;
+        }
+
+        .dn-sep-single {
+            border-bottom: 1px solid #000000;
+            margin: 5px 0;
+            height: 0;
+        }
+
+        .dn-sep-dotted {
+            border-bottom: 1px dotted #555555;
+            margin: 4px 0;
+            height: 0;
+        }
+
+        /* Yellow and gray badges */
+        .badge-yellow {
+            background-color: #ffff00 !important;
+            color: #000000 !important;
+            padding: 1px 4px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .badge-gray {
+            background-color: #d1d5db !important;
+            color: #000000 !important;
+            padding: 1px 6px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .badge-warning-box {
+            background-color: #ffff00 !important;
+            color: #000000 !important;
+            text-align: center;
+            font-weight: 900;
+            font-style: italic;
+            font-size: 11.5pt;
+            letter-spacing: 0.5px;
+            padding: 3px 6px;
+            margin: 4px 0;
+            border: 1px dashed #000000;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .header-panel, .left-column, .preview-toolbar, .no-print {
+                display: none !important;
+            }
+            .main-layout {
+                display: block !important;
+            }
+            .preview-wrapper {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                background: transparent !important;
+            }
+            .krka-dn-sheet {
+                border: none !important;
+                box-shadow: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                font-size: 10pt;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- HEADER PANEL IDENTIČNA KOT V POLI2 -->
+    <div class="header-panel">
+        <!-- ROW 1: IZDELEK & GUMBI -->
+        <div class="header-group" style="grid-column: span 3;">
+            <label for="calc-project-name">Izdelek</label>
+            <div style="display: flex; gap: 0.2rem; position: relative;">
+                <input type="text" id="calc-project-name" placeholder="Vnesite izdelek" style="flex: 1;"
+                    value="VR.ENROXIL FLAV TBL 15MG NAV LT/LV/PL H - 621445 (PhC 84489)" oninput="updateWorkOrderLive()">
+                <button id="btn-my-projects" onclick="toggleProjectsDropdown()"
+                    style="width: auto; background: #64748b; border: none; border-radius: 8px; color: white; cursor: pointer; padding: 0 10px; font-size: 0.8rem; font-weight: bold;">
+                    MOJI PROJEKTI ˇ
+                </button>
+                <!-- DROPDOWN ZA PROJEKTE -->
+                <div id="projects-dropdown-list"
+                    style="display: none; position: absolute; top: 100%; right: 0; width: 420px; background: #1e293b; border: 2px solid #64748b; border-radius: 12px; max-height: 520px; overflow: hidden; z-index: 2000; margin-top: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); flex-direction: column;">
+                    <div style="padding: 10px; border-bottom: 2px solid #334155; background: #1e293b;">
+                        <input type="text" id="project-search-input" placeholder="🔍 Išči po vseh ponudbah (stranka, šifra, ime)..."
+                            style="width: 100%; padding: 8px 10px; border-radius: 6px; background: #0f172a; border: 1px solid #475569; color: white; font-size: 0.82rem;"
+                            oninput="renderSavedProjects()">
+                        <div style="margin-top: 8px; display: flex; gap: 5px; align-items: center;">
+                            <button type="button" id="btn-filter-all" onclick="setProjectFilterMode('all')"
+                                style="flex: 1.2; background: #3b82f6; color: white; border: none; padding: 5px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer;">
+                                🌐 VSE NA STREŽNIKU (<span id="count-filter-all">...</span>)
+                            </button>
+                            <button type="button" id="btn-filter-type" onclick="setProjectFilterMode('type')"
+                                style="flex: 1; background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 5px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer;">
+                                💊 KRKA (<span id="count-filter-type">...</span>)
+                            </button>
+                            <button type="button" onclick="fetchServerProjects().then(() => renderSavedProjects())"
+                                style="background: #0f172a; border: 1px solid #475569; color: #38bdf8; padding: 5px 8px; border-radius: 6px; font-size: 0.75rem; cursor: pointer;"
+                                title="Ponovno preveri strežnik">
+                                🔄
+                            </button>
+                        </div>
+                    </div>
+                    <div id="projects-list-content" style="overflow-y: auto; flex: 1; max-height: 300px;"></div>
+                </div>
+            </div>
+            <!-- GUMBI ZA E-POŠTO IN DATOTEKO -->
+            <div style="margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <button type="button" onclick="openEmailModal()" id="btn-open-email-modal"
+                    style="background: linear-gradient(135deg, #0284c7, #2563eb); border: none; border-radius: 8px; color: white; padding: 5px 12px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem;">
+                    ✉️ E-POŠTA STRANKE
+                </button>
+                <div id="attached-email-badge" style="display:none; align-items: center; gap: 6px; background: rgba(2, 132, 199, 0.2); border: 1px solid #0284c7; border-radius: 8px; padding: 4px 10px; font-size: 0.8rem; color: #38bdf8;">
+                    <span>✉️ <strong id="attached-email-summary">Mail stranke</strong></span>
+                    <button type="button" onclick="openEmailModal()" style="background: #0284c7; color: white; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 0.75rem;">👁️ Poglej</button>
+                    <button type="button" onclick="removeAttachedEmail()" style="background: rgba(239, 68, 68, 0.3); color: #f87171; border: 1px solid #ef4444; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.75rem;">✕</button>
+                </div>
+                <button type="button" onclick="document.getElementById('pdf-file-input').click()"
+                    style="background: linear-gradient(135deg, #ec4899, #8b5cf6); border: none; border-radius: 8px; color: white; padding: 5px 12px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem;">
+                    📎 PRIPNI DATOTEKO (PDF / Excel / Word / Slike)
+                </button>
+                <input type="file" id="pdf-file-input" accept=".pdf,.xlsx,.xls,.docx,.doc,.jpg,.jpeg,.png,.webp" multiple style="display:none;" onchange="handlePdfFileUpload(event)">
+                <div id="attached-pdfs-container" style="display:inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;"></div>
+            </div>
+        </div>
+
+        <!-- STRANKA -->
+        <div class="header-group" style="grid-column: span 3; position: relative;">
+            <label for="calc-customer">Stranka</label>
+            <div style="display: flex; gap: 0.2rem; position: relative;">
+                <input type="text" id="calc-customer" autocomplete="off" placeholder="Izberite stranko" style="flex: 1;"
+                    value="KRKA, d.d., Novo mesto" oninput="updateWorkOrderLive()">
+                <button onclick="toggleCustomerDropdown()" type="button"
+                    style="width: 35px; background: #3b82f6; border: none; border-radius: 8px; color: white; cursor: pointer;">▼</button>
+                <div id="cust-dropdown-list"
+                    style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 1000; margin-top: 5px;">
+                </div>
+            </div>
+        </div>
+
+        <!-- PRIPOMBE / POSEBNOSTI -->
+        <div class="header-group" style="grid-column: span 3;">
+            <label for="calc-notes">Pripombe / posebnosti</label>
+            <textarea id="calc-notes" placeholder="Vnesite posebnosti ali pripombe..." rows="3"
+                oninput="updateWorkOrderLive()"></textarea>
+        </div>
+
+        <!-- STOLPEC 1: PONUDBA, ŠIFRA, PAKIRANJE -->
+        <div class="header-group" style="grid-column: span 1; display: flex; flex-direction: column; gap: 0.5rem;">
+            <div>
+                <label for="calc-quote-number">Številka ponudbe</label>
+                <input type="text" id="calc-quote-number" placeholder="" value="1597/26" oninput="updateWorkOrderLive()">
+            </div>
+            <div>
+                <label for="calc-customer-code">Šifra stranke</label>
+                <input type="text" id="calc-customer-code" placeholder="" value="2892" oninput="updateWorkOrderLive()">
+            </div>
+            <div>
+                <label for="calc-product-code">Šifra izdelka</label>
+                <input type="text" id="calc-product-code" placeholder="" value="621445 (PhC 84489)" oninput="updateWorkOrderLive()">
+            </div>
+            <div>
+                <label for="calc-dn-packaging">Pakiranje (D.N.)</label>
+                <input type="text" id="calc-dn-packaging" placeholder="" value="ovoj po 20 kom.; v škatle po 43x 3.000 kos, 1x 1.420 kos + 1x Vzorci 80 kos" oninput="updateWorkOrderLive()">
+            </div>
+        </div>
+
+        <!-- STOLPEC 2: ŠT. DN, STARI DN, ROK, NUJNO -->
+        <div class="header-group" style="grid-column: span 1; display: flex; flex-direction: column; gap: 0.5rem;">
+            <div>
+                <label for="calc-dn-number">Številka D.N.</label>
+                <input type="text" id="calc-dn-number" placeholder="" value="1597/26" oninput="updateWorkOrderLive()">
+            </div>
+            <div>
+                <label for="calc-dn-old">Stari D.N. (za montažo)</label>
+                <input type="text" id="calc-dn-old" placeholder="" value="SDN 0559/26!" oninput="updateWorkOrderLive()">
+            </div>
+            <div>
+                <label for="calc-dn-deadline">Rok izdelave</label>
+                <input type="text" id="calc-dn-deadline" placeholder="" value="četrtek, 12.11.2026!" oninput="updateWorkOrderLive()">
+            </div>
+            <div style="display:flex; align-items:center; gap: 0.5rem; margin-top: 5px;">
+                <input type="checkbox" id="calc-dn-urgent" checked onchange="updateWorkOrderLive()" style="width:auto; height:auto;">
+                <label for="calc-dn-urgent" style="color: #ef4444; font-weight: bold; margin:0;">NUJNO! (OBVEZNO NA TA DATUM!)</label>
+            </div>
+        </div>
+
+        <!-- STOLPEC 3: PRIPRAVIL, TIP NAROČILA, PREDOGLED -->
+        <div class="header-group" style="grid-column: span 1;">
+            <div>
+                <label for="calc-prepared-by">Ponudbo pripravil</label>
+                <select id="calc-prepared-by">
+                    <option value="Darko Sužnik" selected>Darko Sužnik</option>
+                    <option value="Sašo Slemenšek">Sašo Slemenšek</option>
+                    <option value="Tilen Petrič">Tilen Petrič</option>
+                </select>
+            </div>
+            <div style="margin-top: 10px;">
+                <label for="calc-order-type">Tip naročila</label>
+                <select id="calc-order-type" onchange="updateWorkOrderLive()">
+                    <option value="Ponatis" selected>Ponatis</option>
+                    <option value="NOVO">NOVO</option>
+                    <option value="NOVO AK-JPG Montaže">NOVO AK-JPG Montaže</option>
+                    <option value="Sprememba">Sprememba</option>
+                    <option value="Sprememba AK-JPG Montaže">Sprememba AK-JPG Montaže</option>
+                    <option value="Ponatis AK-JPG Montaže">Ponatis AK-JPG Montaže</option>
+                </select>
+            </div>
+            <!-- Predogled kartic -->
+            <div id="custom-docs-preview" style="display: flex; gap: 10px; margin-top: 10px; justify-content: center;">
+                <div onclick="printKrkaWorkOrder()" style="width: 70px; height: 90px; border: 2px solid #8b5cf6; background: rgba(139, 92, 246, 0.15); border-radius: 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;" title="Klikni za tisk naloga">
+                    <span style="font-size: 20px;">📋</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #a78bfa;">D. NALOG</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- NASLOV IN E-MAIL VRSTICA -->
+        <div class="header-group" style="grid-column: span 6; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; background: rgba(15, 23, 42, 0.4); padding: 12px; border-radius: 10px; border: 1px dashed var(--glass-border);">
+            <div class="header-group">
+                <label for="calc-cust-address">Naslov stranke</label>
+                <textarea id="calc-cust-address" placeholder="Ulica in kraj" rows="2" oninput="updateWorkOrderLive()">Šmarješka cesta 6, 8501 Novo mesto</textarea>
+            </div>
+            <div class="header-group">
+                <label for="calc-delivery-address">Naslov za dostavo</label>
+                <textarea id="calc-delivery-address" placeholder="" rows="2" oninput="updateWorkOrderLive()">Krka Novo mesto: Skladišče embalaže!</textarea>
+            </div>
+            <div class="header-group" style="grid-column: span 2;">
+                <label for="calc-cust-email">E-mail stranke</label>
+                <input type="text" id="calc-cust-email" value="stanka.hudak@krka.biz; brigita.kermc-jeric@krka.biz">
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN 2-COLUMN VIEW -->
+    <div class="main-layout">
+        <!-- LEVI STOLPEC: VNOS PODATKOV ZA KRKO -->
+        <div class="left-column">
+            
+            <!-- PANEL 1: FORMAT IN NAKLADA -->
+            <div class="panel">
+                <div class="section-header">
+                    <div class="section-title">📦 1. Format izdelka & Količina</div>
+                    <span style="font-size: 0.75rem; color: #38bdf8; font-weight: bold;">KRKA CENIK 28.7.2026</span>
+                </div>
+
+                <div class="header-group" style="margin-bottom: 0.75rem;">
+                    <label for="krka-format-select" style="color: #60a5fa; font-weight: 700;">Izberite format iz cenika (spustni seznam):</label>
+                    <select id="krka-format-select" onchange="onKrkaFormatSelected()" style="font-weight: bold; border: 1.5px solid #3b82f6;">
+                        <!-- Populate dynamically from cenik -->
+                    </select>
+                </div>
+
+                <div class="grid-2" style="margin-bottom: 0.75rem;">
+                    <div class="header-group">
+                        <label for="krka-dim-o">Odprt format (mm)</label>
+                        <input type="text" id="krka-dim-o" value="398 x 148 mm" oninput="updateWorkOrderLive(); calculateKrkaPrice();">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-dim-z">Zgiban format (mm)</label>
+                        <input type="text" id="krka-dim-z" value="68 x 148 mm" oninput="updateWorkOrderLive();">
+                    </div>
+                </div>
+
+                <div class="grid-3" style="margin-bottom: 0.75rem;">
+                    <div class="header-group">
+                        <label for="krka-quantity" style="color: #4ade80; font-weight: 700;">Količina (kos)</label>
+                        <input type="text" id="krka-quantity" value="130.500" oninput="onQuantityChanged()">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-order-num">Naročilo št. / datum</label>
+                        <input type="text" id="krka-order-num" value="4700052146 / 22.10.2026" oninput="updateWorkOrderLive()">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-dn-date">Datum naloga</label>
+                        <input type="text" id="krka-dn-date" value="26. oktober 2026" oninput="updateWorkOrderLive()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL 2: TISK IN PLOŠČE -->
+            <div class="panel">
+                <div class="section-header">
+                    <div class="section-title">🎨 2. Tisk, Barve & Plošče</div>
+                </div>
+
+                <div class="grid-2" style="margin-bottom: 0.75rem;">
+                    <div class="header-group">
+                        <label for="krka-colors-count">Število barv (za cenik)</label>
+                        <select id="krka-colors-count" onchange="calculateKrkaPrice(); updateWorkOrderLive();">
+                            <option value="1">1 barva</option>
+                            <option value="2">2 barvi</option>
+                            <option value="3">3 barve</option>
+                            <option value="4" selected>4 barve (4/1)</option>
+                            <option value="5">5 barv</option>
+                            <option value="6">6 barv</option>
+                        </select>
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-machine">Tiskarski stroj</label>
+                        <input type="text" id="krka-machine" value="S8" oninput="updateWorkOrderLive()">
+                    </div>
+                </div>
+
+                <div class="header-group" style="margin-bottom: 0.75rem;">
+                    <label for="krka-print-desc">Opis tiska v nalogu</label>
+                    <input type="text" id="krka-print-desc" value="4/1 - color / črna" oninput="updateWorkOrderLive()">
+                </div>
+
+                <div class="header-group" style="margin-bottom: 0.75rem;">
+                    <label for="krka-varnish-desc">Lakiranje & opombe</label>
+                    <input type="text" id="krka-varnish-desc" value="+ 1/0 - nevtral lak samo na NASLOVNI STRANI" oninput="updateWorkOrderLive()">
+                </div>
+
+                <div class="grid-2" style="margin-bottom: 0.75rem;">
+                    <div class="header-group">
+                        <label for="krka-prep-hours">Priprava (ure)</label>
+                        <input type="text" id="krka-prep-hours" value="1,25" oninput="updateWorkOrderLive()">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-print-hours">Tisk (ure)</label>
+                        <input type="text" id="krka-print-hours" value="10,00" oninput="updateWorkOrderLive()">
+                    </div>
+                </div>
+
+                <div class="header-group" style="margin-bottom: 0.75rem;">
+                    <label for="krka-print-run">Naklada tiskovnih pol (formula)</label>
+                    <input type="text" id="krka-print-run" value="32.650 + 1.350 = 34.000 tisk. pol (1x skozi stroj)" oninput="updateWorkOrderLive()">
+                </div>
+
+                <div class="grid-3">
+                    <div class="header-group">
+                        <label for="krka-plates-count">Plošče tisk</label>
+                        <input type="text" id="krka-plates-count" value="5 kom. S8" oninput="updateWorkOrderLive()">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-plates-varnish">Plošča za lak</label>
+                        <input type="text" id="krka-plates-varnish" value="+ 1 plošča za lak" oninput="updateWorkOrderLive()">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-items-per-sheet">Sestavkov na poli</label>
+                        <input type="text" id="krka-items-per-sheet" value="4 sest. na poli" oninput="updateWorkOrderLive()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL 3: MATERIAL IN RAZREZ -->
+            <div class="panel">
+                <div class="section-header">
+                    <div class="section-title">📄 3. Material & Razrez</div>
+                </div>
+
+                <div class="grid-3" style="margin-bottom: 0.75rem;">
+                    <div class="header-group">
+                        <label for="krka-material-desc">Material (opis)</label>
+                        <input type="text" id="krka-material-desc" value="90g mat" oninput="updateWorkOrderLive()">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-material-stock">Material zaloga</label>
+                        <input type="text" id="krka-material-stock" value="90g Magno satin B1 SB" oninput="updateWorkOrderLive()">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-material-code">Šifra skladišča</label>
+                        <input type="text" id="krka-material-code" value="2892" oninput="updateWorkOrderLive()">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="header-group">
+                        <label for="krka-raw-sheets">Vhodne pole B1</label>
+                        <input type="text" id="krka-raw-sheets" value="17.000 pol B1 SB" oninput="updateWorkOrderLive()">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-cut-sheets">Razrezane pole</label>
+                        <input type="text" id="krka-cut-sheets" value="34.000 pol na 69,8 x 49,8 cm (2 iz pole)" oninput="updateWorkOrderLive()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL 4: DODELAVA, PASIČENJE IN ŠKATLE -->
+            <div class="panel">
+                <div class="section-header">
+                    <div class="section-title">📦 4. Dodelava, Pasičenje & Škatle</div>
+                </div>
+
+                <div class="header-group" style="margin-bottom: 0.75rem;">
+                    <label for="krka-finishing-desc">Dodelava opis</label>
+                    <input type="text" id="krka-finishing-desc" value="obrez; lepljenje; zgibanje" oninput="updateWorkOrderLive()">
+                </div>
+
+                <div class="grid-3" style="margin-bottom: 0.75rem;">
+                    <div class="header-group">
+                        <label for="krka-band-size" style="color: #fbbf24; font-weight: 700;">Pasičenje (ovoj po)</label>
+                        <select id="krka-band-size" onchange="onBandingChanged(); calculateKrkaPrice();">
+                            <option value="100">100 kos</option>
+                            <option value="50">50 kos</option>
+                            <option value="32">32 kos</option>
+                            <option value="30">30 kos</option>
+                            <option value="20" selected>20 kos</option>
+                            <option value="12">12 kos</option>
+                            <option value="10">10 kos</option>
+                            <option value="8">8 kos</option>
+                            <option value="6">6 kos</option>
+                            <option value="5">5 kos</option>
+                            <option value="4">4 kos</option>
+                        </select>
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-bands-count">Število pasic</label>
+                        <input type="text" id="krka-bands-count" value="6.525 kos" oninput="updateWorkOrderLive()">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-samples-count">Vzorčenje (kos)</label>
+                        <input type="text" id="krka-samples-count" value="80" oninput="recalculateBoxes(); updateWorkOrderLive();">
+                    </div>
+                </div>
+
+                <div class="grid-2" style="margin-bottom: 0.75rem;">
+                    <div class="header-group">
+                        <label for="krka-box-cap">Kapaciteta škatle (kos)</label>
+                        <input type="number" id="krka-box-cap" value="3000" oninput="recalculateBoxes(); updateWorkOrderLive();">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-box-dim">Dimenzija škatel</label>
+                        <input type="text" id="krka-box-dim" value="škatle 240 x 320 x 250mm" oninput="updateWorkOrderLive()">
+                    </div>
+                </div>
+
+                <div class="header-group" style="margin-bottom: 0.75rem;">
+                    <label for="krka-boxes-calc">Razporeditev škatel (v nalogu)</label>
+                    <input type="text" id="krka-boxes-calc" value="ovoj po 20 kom.; v škatle po 43x 3.000 kos, 1x 1.420 kos + 1x Vzorci 80 kos" oninput="updateWorkOrderLive()">
+                </div>
+
+                <div class="grid-2">
+                    <div class="header-group">
+                        <label for="krka-boxes-total">Skupaj škatel</label>
+                        <input type="text" id="krka-boxes-total" value="44 kom." oninput="updateWorkOrderLive()">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-samples-text">Opis vzorcev</label>
+                        <input type="text" id="krka-samples-text" value="80 kom zgibanih vrečk za VZORČENJE! V KUVERTO A4 + ETIKETA" oninput="updateWorkOrderLive()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL 5: IZRAČUN CENIK KRKA -->
+            <div class="panel">
+                <div class="section-header">
+                    <div class="section-title">💶 5. Cenik Krka (Izračun)</div>
+                </div>
+
+                <div class="grid-2" style="margin-bottom: 0.5rem;">
+                    <div class="calc-pill">
+                        <span>FIX (na dobavo):</span>
+                        <strong id="label-fix-price">196,63 €</strong>
+                    </div>
+                    <div class="calc-pill">
+                        <span>VAR (na 100 kos):</span>
+                        <strong id="label-var-price">3,6426 €</strong>
+                    </div>
+                </div>
+
+                <div class="grid-2" style="margin-bottom: 0.75rem;">
+                    <div class="header-group">
+                        <label for="krka-price-unit" style="color: #38bdf8; font-weight: bold;">Cena na 100 kos</label>
+                        <input type="text" id="krka-price-unit" value="3,79 €/ 100 kos" oninput="updateWorkOrderLive()" style="font-weight: bold; font-size: 1rem; color: #38bdf8;">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-price-total" style="color: #4ade80; font-weight: bold;">Skupni znesek dobave</label>
+                        <input type="text" id="krka-price-total" value="4.950,17 €" style="font-weight: bold; font-size: 1rem; color: #4ade80;">
+                    </div>
+                </div>
+
+                <div class="header-group">
+                    <label for="krka-footer-cenik-row">Vrstica cenika na dnu naloga</label>
+                    <input type="text" id="krka-footer-cenik-row" value="Cenik 2023:     398x148mm    41b    130.500 kos    3,79 €/ 100 kos" oninput="updateWorkOrderLive()">
+                </div>
+            </div>
+        </div>
+
+        <!-- DESNI STOLPEC: ŽIVI PREDOGLED NALOGA ZA IZVEDBO (A4 NALOG) -->
+        <div class="preview-wrapper">
+            <div class="preview-toolbar">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="action-btn" onclick="printKrkaWorkOrder()">
+                        <span>🖨️</span> Natisni Nalog
+                    </button>
+                    <button class="action-btn secondary" onclick="exportKrkaWordDoc()">
+                        <span>📄</span> Word (.doc)
+                    </button>
+                    <button class="action-btn secondary" onclick="resetWorkOrderToDefault()">
+                        <span>🔄</span> Ponastavi
+                    </button>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="action-btn success" onclick="saveKrkaProject()">
+                        <span>💾</span> Shrani Projekt
+                    </button>
+                </div>
+            </div>
+
+            <!-- WYSIWYG A4 SHEET -->
+            <div class="krka-dn-sheet" id="krka-work-order-sheet" contenteditable="true" spellcheck="false" oninput="onWorkOrderDirectEdit()">
+                <!-- RENDERED BY JAVASCRIPT TO MATCH USER IMAGE 100% -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODALNO OKNO ZA E-POŠTO STRANKE -->
+<div id="email-modal-overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: #1e293b; border: 1px solid #475569; border-radius: 14px; width: 90%; max-width: 650px; padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 8px;">
+            <h3 style="color: white; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">✉️ E-pošta stranke (povpraševanje / naročilo)</h3>
+            <button onclick="closeEmailModal()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">✕</button>
+        </div>
+        <div>
+            <label style="color: #cbd5e1; font-size: 0.82rem; margin-bottom: 4px; display: block;">Vsebina e-pošte:</label>
+            <textarea id="calc-email-content" rows="10" placeholder="Prilepite besedilo e-pošte stranke Krka..." style="width: 100%; font-family: monospace; font-size: 0.85rem; padding: 10px;"></textarea>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="email-char-count" style="font-size: 0.75rem; color: #94a3b8;">0 znakov</span>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="closeEmailModal()" style="background: #475569; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer;">Zapri</button>
+                <button onclick="saveEmailModalData()" style="background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: bold;">Shrani e-pošto</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // PODATKI IZ KRKA CENIK 28.7.2026
+    // ==========================================
+    const KRKA_CENIK_DATA = [{"dimO": "173x150", "dimZ": "70x150", "barve": 1, "fix": 171.9508, "var": {"100": 2.681182, "50": 2.83073, "32": 2.916186, "30": 2.916186, "20": 3.01154, "12": 4.956448, "10": 4.956448, "8": 5.992602, "6": 5.992602}}, {"dimO": "173x150", "dimZ": "70x150", "barve": 2, "fix": 181.7018, "var": {"100": 2.681182, "50": 2.83073, "32": 2.916186, "30": 2.916186, "20": 3.012324, "12": 4.956448, "10": 4.956448, "8": 5.992602, "6": 5.992602}}, {"dimO": "173x150", "dimZ": "70x150", "barve": 3, "fix": 190.2964, "var": {"100": 2.681182, "50": 2.83073, "32": 2.916186, "30": 2.916186, "20": 3.012324, "12": 4.956448, "10": 4.956448, "8": 5.992602, "6": 5.992602}}, {"dimO": "173x150", "dimZ": "70x150", "barve": 4, "fix": 196.6272, "var": {"100": 2.681182, "50": 2.83073, "32": 2.916186, "30": 2.916186, "20": 3.012324, "12": 4.956448, "10": 4.956448, "8": 5.992602, "6": 5.992602}}, {"dimO": "173x150", "dimZ": "70x150", "barve": 5, "fix": 239.561, "var": {"100": 2.681182, "50": 2.83073, "32": 2.916186, "30": 2.916186, "20": 3.012324, "12": 4.956448, "10": 4.956448, "8": 5.992602, "6": 5.992602}}, {"dimO": "293x110", "dimZ": "50x110", "barve": 1, "fix": 171.9508, "var": {"100": 2.809366, "50": 2.958914, "32": 3.04437, "30": 3.04437, "20": 3.140508, "12": 5.084632, "10": 5.084632, "8": 6.120786, "6": 6.120786}}, {"dimO": "293x110", "dimZ": "50x110", "barve": 2, "fix": 181.7018, "var": {"100": 2.809366, "50": 2.958914, "32": 3.04437, "30": 3.04437, "20": 3.140508, "12": 5.084632, "10": 5.084632, "8": 6.120786, "6": 6.120786}}, {"dimO": "293x110", "dimZ": "50x110", "barve": 3, "fix": 190.2964, "var": {"100": 2.809366, "50": 2.958914, "32": 3.04437, "30": 3.04437, "20": 3.140508, "12": 5.084632, "10": 5.084632, "8": 6.120786, "6": 6.120786}}, {"dimO": "293x110", "dimZ": "50x110", "barve": 4, "fix": 196.6272, "var": {"100": 2.809366, "50": 2.958914, "32": 3.04437, "30": 3.04437, "20": 3.140508, "12": 5.084632, "10": 5.084632, "8": 6.120786, "6": 6.120786}}, {"dimO": "293x110", "dimZ": "50x110", "barve": 5, "fix": 239.561, "var": {"100": 2.809366, "50": 2.958914, "32": 3.04437, "30": 3.04437, "20": 3.140508, "12": 5.084632, "10": 5.084632, "8": 6.120786, "6": 6.120786}}, {"dimO": "269x148", "dimZ": "68x148", "barve": 1, "fix": 171.9508, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878}}, {"dimO": "269x148", "dimZ": "68x148", "barve": 2, "fix": 181.7018, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878}}, {"dimO": "269x148", "dimZ": "68x148", "barve": 3, "fix": 190.2964, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878}}, {"dimO": "269x148", "dimZ": "68x148", "barve": 4, "fix": 196.6272, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878}}, {"dimO": "269x148", "dimZ": "68x148", "barve": 5, "fix": 239.561, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878}}, {"dimO": "269x154", "dimZ": "68x154", "barve": 1, "fix": 171.9508, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878}}, {"dimO": "269x154", "dimZ": "68x154", "barve": 2, "fix": 181.7018, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878}}, {"dimO": "269x154", "dimZ": "68x154", "barve": 3, "fix": 190.2964, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878}}, {"dimO": "269x154", "dimZ": "68x154", "barve": 4, "fix": 196.6272, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878}}, {"dimO": "269x154", "dimZ": "68x154", "barve": 5, "fix": 239.561, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878}}, {"dimO": "269x154", "dimZ": "68x154", "barve": 6, "fix": 282.49, "var": {"6": 6.18}}, {"dimO": "260x154", "dimZ": "65x154", "barve": 1, "fix": 171.9508, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878, "4": 7.4088}}, {"dimO": "260x154", "dimZ": "65x154", "barve": 2, "fix": 181.7018, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878, "4": 7.4088}}, {"dimO": "260x154", "dimZ": "65x154", "barve": 3, "fix": 190.2964, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878, "4": 7.4088}}, {"dimO": "260x154", "dimZ": "65x154", "barve": 4, "fix": 196.6272, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878, "4": 7.4088}}, {"dimO": "260x154", "dimZ": "65x154", "barve": 5, "fix": 239.561, "var": {"100": 2.873458, "50": 3.023006, "32": 3.119144, "30": 3.119144, "20": 3.215282, "12": 5.159406, "10": 5.159406, "8": 6.184878, "6": 6.184878, "4": 7.4088}}, {"dimO": "380x154", "dimZ": "65x154", "barve": 1, "fix": 171.9508, "var": {"5": 7.35, "4": 7.7714}}, {"dimO": "380x154", "dimZ": "65x154", "barve": 2, "fix": 181.7018, "var": {"5": 7.35, "4": 7.7714}}, {"dimO": "380x154", "dimZ": "65x154", "barve": 3, "fix": 190.2964, "var": {"5": 7.35, "4": 7.7714}}, {"dimO": "380x154", "dimZ": "65x154", "barve": 4, "fix": 196.6272, "var": {"5": 7.35, "4": 7.7714}}, {"dimO": "380x154", "dimZ": "65x154", "barve": 5, "fix": 239.561, "var": {"5": 7.35, "4": 7.7714}}, {"dimO": "399x154", "dimZ": "68x154", "barve": 1, "fix": 171.9508, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "399x154", "dimZ": "68x154", "barve": 2, "fix": 181.7018, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "399x154", "dimZ": "68x154", "barve": 3, "fix": 190.2964, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "399x154", "dimZ": "68x154", "barve": 4, "fix": 196.6272, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "399x154", "dimZ": "68x154", "barve": 5, "fix": 239.561, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "413x110", "dimZ": "104x110", "barve": 1, "fix": 171.9508, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "413x110", "dimZ": "104x110", "barve": 2, "fix": 181.7018, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "413x110", "dimZ": "104x110", "barve": 3, "fix": 190.2964, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "413x110", "dimZ": "104x110", "barve": 4, "fix": 196.6272, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "413x110", "dimZ": "104x110", "barve": 5, "fix": 239.561, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "514x110", "dimZ": "104x110", "barve": 1, "fix": 171.9508, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "514x110", "dimZ": "104x110", "barve": 2, "fix": 181.7018, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "514x110", "dimZ": "104x110", "barve": 3, "fix": 190.2964, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "514x110", "dimZ": "104x110", "barve": 4, "fix": 196.6272, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "514x110", "dimZ": "104x110", "barve": 5, "fix": 239.561, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "532x154", "dimZ": "68x154", "barve": 1, "fix": 171.9508, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "532x154", "dimZ": "68x154", "barve": 2, "fix": 181.7018, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "532x154", "dimZ": "68x154", "barve": 3, "fix": 190.2964, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "532x154", "dimZ": "68x154", "barve": 4, "fix": 196.6272, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "532x154", "dimZ": "68x154", "barve": 5, "fix": 239.561, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "615x110", "dimZ": "104x110", "barve": 1, "fix": 171.9508, "var": {"100": 2.468612, "50": 2.605757, "32": 2.93755, "30": 2.93755, "20": 3.023006, "12": 4.96713, "10": 4.96713, "8": 6.003284, "6": 6.003284}}, {"dimO": "615x110", "dimZ": "104x110", "barve": 2, "fix": 181.7018, "var": {"100": 2.468612, "50": 2.605757, "32": 2.93755, "30": 2.93755, "20": 3.023006, "12": 4.96713, "10": 4.96713, "8": 6.003284, "6": 6.003284}}, {"dimO": "615x110", "dimZ": "104x110", "barve": 3, "fix": 190.2964, "var": {"100": 2.468612, "50": 2.605757, "32": 2.93755, "30": 2.93755, "20": 3.023006, "12": 4.96713, "10": 4.96713, "8": 6.003284, "6": 6.003284}}, {"dimO": "615x110", "dimZ": "104x110", "barve": 4, "fix": 196.6272, "var": {"100": 2.468612, "50": 2.605757, "32": 2.93755, "30": 2.93755, "20": 3.023006, "12": 4.96713, "10": 4.96713, "8": 6.003284, "6": 6.003284}}, {"dimO": "615x110", "dimZ": "104x110", "barve": 5, "fix": 239.561, "var": {"100": 2.468612, "50": 2.605757, "32": 2.93755, "30": 2.93755, "20": 3.023006, "12": 4.96713, "10": 4.96713, "8": 6.003284, "6": 6.003284}}, {"dimO": "650x154", "dimZ": "65x154", "barve": 1, "fix": 171.9508, "var": {"100": 5.2626, "50": 5.4096, "32": 5.5076, "30": 5.5076, "20": 5.5958, "12": 7.546, "10": 7.546, "8": 8.5652, "6": 8.5652, "5": 8.91, "4": 9.2414}}, {"dimO": "650x154", "dimZ": "65x154", "barve": 2, "fix": 181.7018, "var": {"100": 5.2626, "50": 5.4096, "32": 5.5076, "30": 5.5076, "20": 5.5958, "12": 7.546, "10": 7.546, "8": 8.5652, "6": 8.5652, "5": 8.91, "4": 9.2414}}, {"dimO": "650x154", "dimZ": "65x154", "barve": 3, "fix": 190.2964, "var": {"100": 5.2626, "50": 5.4096, "32": 5.5076, "30": 5.5076, "20": 5.5958, "12": 7.546, "10": 7.546, "8": 8.5652, "6": 8.5652, "5": 8.91, "4": 9.2414}}, {"dimO": "650x154", "dimZ": "65x154", "barve": 4, "fix": 196.6272, "var": {"100": 5.2626, "50": 5.4096, "32": 5.5076, "30": 5.5076, "20": 5.5958, "12": 7.546, "10": 7.546, "8": 8.5652, "6": 8.5652, "5": 8.91, "4": 9.2414}}, {"dimO": "650x154", "dimZ": "65x154", "barve": 5, "fix": 239.561, "var": {"100": 5.2626, "50": 5.4096, "32": 5.5076, "30": 5.5076, "20": 5.5958, "12": 7.546, "10": 7.546, "8": 8.5652, "6": 8.5652, "5": 8.91, "4": 9.2414}}, {"dimO": "398x148", "dimZ": "68x148", "barve": 1, "fix": 171.9508, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "398x148", "dimZ": "68x148", "barve": 2, "fix": 181.7018, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "398x148", "dimZ": "68x148", "barve": 3, "fix": 190.2964, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "398x148", "dimZ": "68x148", "barve": 4, "fix": 196.6272, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "398x148", "dimZ": "68x148", "barve": 5, "fix": 239.561, "var": {"100": 3.026989, "50": 3.168732, "32": 3.546424, "30": 3.546424, "20": 3.642562, "12": 5.586686, "10": 5.586686, "8": 6.62284, "6": 6.62284}}, {"dimO": "532x148", "dimZ": "68x148", "barve": 1, "fix": 171.9508, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "532x148", "dimZ": "68x148", "barve": 2, "fix": 181.7018, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "532x148", "dimZ": "68x148", "barve": 3, "fix": 190.2964, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "532x148", "dimZ": "68x148", "barve": 4, "fix": 196.6272, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}, {"dimO": "532x148", "dimZ": "68x148", "barve": 5, "fix": 239.561, "var": {"100": 3.213114, "50": 3.350259, "32": 3.7387, "30": 3.7387, "20": 3.834838, "12": 5.778962, "10": 5.778962, "8": 6.815116, "6": 6.815116}}];
+
+    const STORAGE_KEY = 'petric_krka_arhiv';
+    let g_serverProjects = [];
+    let g_projectFilterMode = 'type';
+    let g_isUserDirectEditing = false;
+
+    // Helper functions
+    function gv(id) {
+        const el = document.getElementById(id);
+        return el ? el.value : '';
+    }
+
+    function sv(id, val) {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    }
+
+    // Initialize Format Dropdown
+    function initFormatDropdown() {
+        const select = document.getElementById('krka-format-select');
+        select.innerHTML = '';
+
+        // Extract unique dimension pairs
+        const uniqueDims = [];
+        const seen = new Set();
+        KRKA_CENIK_DATA.forEach(item => {
+            const key = item.dimO + '|' + item.dimZ;
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueDims.push({ dimO: item.dimO, dimZ: item.dimZ });
+            }
+        });
+
+        uniqueDims.forEach((dim, idx) => {
+            const opt = document.createElement('option');
+            opt.value = dim.dimO + '|' + dim.dimZ;
+            opt.textContent = `${dim.dimO} mm (zgiban ${dim.dimZ} mm)`;
+            if (dim.dimO === '398x148') opt.selected = true;
+            select.appendChild(opt);
+        });
+
+        // Add custom option
+        const customOpt = document.createElement('option');
+        customOpt.value = 'custom';
+        customOpt.textContent = '✏️ Po meri (ročni vnos)';
+        select.appendChild(customOpt);
+    }
+
+    // Format selection changed
+    function onKrkaFormatSelected() {
+        const val = gv('krka-format-select');
+        if (val === 'custom') {
+            return;
+        }
+        const parts = val.split('|');
+        if (parts.length === 2) {
+            sv('krka-dim-o', parts[0] + ' mm');
+            sv('krka-dim-z', parts[1] + ' mm');
+            calculateKrkaPrice();
+            updateWorkOrderLive();
+        }
+    }
+
+    // Handle quantity changes & automatic box/banding calculations
+    function onQuantityChanged() {
+        recalculateBanding();
+        recalculateBoxes();
+        calculateKrkaPrice();
+        updateWorkOrderLive();
+    }
+
+    function onBandingChanged() {
+        recalculateBanding();
+        recalculateBoxes();
+        calculateKrkaPrice();
+        updateWorkOrderLive();
+    }
+
+    function parseNumericQty(str) {
+        if (!str) return 0;
+        const cleaned = str.toString().replace(/\./g, '').replace(/,/g, '.').replace(/[^0-9.]/g, '');
+        const val = parseFloat(cleaned);
+        return isNaN(val) ? 0 : val;
+    }
+
+    function formatNumberSlo(num) {
+        return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    function recalculateBanding() {
+        const qty = parseNumericQty(gv('krka-quantity'));
+        const bandSize = parseInt(gv('krka-band-size')) || 20;
+        if (qty > 0 && bandSize > 0) {
+            const totalBands = Math.ceil(qty / bandSize);
+            sv('krka-bands-count', formatNumberSlo(totalBands) + ' kos');
+        }
+    }
+
+    function recalculateBoxes() {
+        const qty = parseNumericQty(gv('krka-quantity'));
+        const bandSize = parseInt(gv('krka-band-size')) || 20;
+        const samples = parseInt(gv('krka-samples-count')) || 80;
+        const cap = parseInt(gv('krka-box-cap')) || 3000;
+
+        if (qty <= 0 || cap <= 0) return;
+
+        // Vzorci so všteti ali ločeni
+        const netForBoxes = Math.max(0, qty - samples);
+        const fullBoxes = Math.floor(netForBoxes / cap);
+        const remainder = netForBoxes % cap;
+
+        let parts = [];
+        let totalBoxes = fullBoxes;
+
+        if (fullBoxes > 0) {
+            parts.push(`${fullBoxes}x ${formatNumberSlo(cap)} kos`);
+        }
+        if (remainder > 0) {
+            parts.push(`1x ${formatNumberSlo(remainder)} kos`);
+            totalBoxes += 1;
+        }
+        if (samples > 0) {
+            parts.push(`1x Vzorci ${samples} kos`);
+        }
+
+        const boxesCalcStr = `ovoj po ${bandSize} kom.; v škatle po ${parts.join(', ')}`;
+        sv('krka-boxes-calc', boxesCalcStr);
+        sv('krka-boxes-total', totalBoxes + ' kom.');
+    }
+
+    // Calculate Krka Cenik price
+    function calculateKrkaPrice() {
+        const dimOInput = gv('krka-dim-o').replace(/\s*mm/gi, '').trim();
+        const colors = parseInt(gv('krka-colors-count')) || 4;
+        const bandSize = gv('krka-band-size') || '20';
+        const qty = parseNumericQty(gv('krka-quantity'));
+
+        // Match cenik item
+        // Try exact match or cleaned match (e.g. 398x148)
+        const cleanDimO = dimOInput.replace(/\s+/g, '').toLowerCase();
+
+        let matched = KRKA_CENIK_DATA.find(item => {
+            const itemO = item.dimO.replace(/\s+/g, '').toLowerCase();
+            return itemO === cleanDimO && item.barve === colors;
+        });
+
+        // Fallback without colors if not matched
+        if (!matched) {
+            matched = KRKA_CENIK_DATA.find(item => {
+                const itemO = item.dimO.replace(/\s+/g, '').toLowerCase();
+                return itemO === cleanDimO;
+            });
+        }
+
+        if (matched) {
+            const fix = matched.fix || 0;
+            const varPrice = matched.var[bandSize] || matched.var['20'] || Object.values(matched.var)[0] || 0;
+
+            document.getElementById('label-fix-price').textContent = fix.toFixed(2).replace('.', ',') + ' €';
+            document.getElementById('label-var-price').textContent = varPrice.toFixed(4).replace('.', ',') + ' €';
+
+            if (qty > 0) {
+                // Formula: Cena na 100 kos = FIX / (naklada / 100) + VAR
+                const units100 = qty / 100;
+                const unitPrice = (fix / units100) + varPrice;
+                const totalPrice = unitPrice * units100;
+
+                const unitPriceStr = unitPrice.toFixed(2).replace('.', ',') + ' €/ 100 kos';
+                const totalPriceStr = totalPrice.toLocaleString('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+
+                sv('krka-price-unit', unitPriceStr);
+                sv('krka-price-total', totalPriceStr);
+
+                // Footer cenik line
+                const footerLine = `Cenik 2026:     ${cleanDimO}mm    ${colors}1b    ${formatNumberSlo(qty)} kos    ${unitPriceStr}`;
+                sv('krka-footer-cenik-row', footerLine);
+            }
+        }
+    }
+
+    // Generate Work Order HTML according to the user image
+    function renderKrkaWorkOrderHTML() {
+        const isUrgent = document.getElementById('calc-dn-urgent')?.checked;
+        const dnNumber = gv('calc-dn-number') || '1597/26';
+        const dnDate = gv('krka-dn-date') || '26. oktober 2026';
+        const deadline = gv('calc-dn-deadline') || 'četrtek, 12.11.2026!';
+        const projectName = gv('calc-project-name') || 'VR.ENROXIL FLAV TBL 15MG NAV LT/LV/PL H - 621445 (PhC 84489)';
+        const orderType = gv('calc-order-type') || 'Ponatis';
+        const qty = gv('krka-quantity') || '130.500';
+        const oldDn = gv('calc-dn-old') || 'SDN 0559/26!';
+        const dimO = gv('krka-dim-o') || '398 x 148 mm';
+        const dimZ = gv('krka-dim-z') || '68 x 148 mm';
+        const printDesc = gv('krka-print-desc') || '4/1 - color / črna';
+        const varnishDesc = gv('krka-varnish-desc') || '+ 1/0 - nevtral lak samo na NASLOVNI STRANI';
+        const matDesc = gv('krka-material-desc') || '90g mat';
+        const finishingDesc = gv('krka-finishing-desc') || 'obrez; lepljenje; zgibanje';
+        const rawSheets = gv('krka-raw-sheets') || '17.000 pol B1 SB';
+        const cutSheets = gv('krka-cut-sheets') || '34.000 pol na 69,8 x 49,8 cm (2 iz pole)';
+        const platesCount = gv('krka-plates-count') || '5 kom. S8';
+        const platesVarnish = gv('krka-plates-varnish') || '+ 1 plošča za lak';
+        const itemsPerSheet = gv('krka-items-per-sheet') || '4 sest. na poli';
+        const machine = gv('krka-machine') || 'S8';
+        const prepHours = gv('krka-prep-hours') || '1,25';
+        const printRun = gv('krka-print-run') || '32.650 + 1.350 = 34.000 tisk. pol (1x skozi stroj)';
+        const printHours = gv('krka-print-hours') || '10,00';
+        const bandsCount = gv('krka-bands-count') || '6.525 kos';
+        const boxesCalc = gv('krka-boxes-calc') || 'ovoj po 20 kom.; v škatle po 43x 3.000 kos, 1x 1.420 kos + 1x Vzorci 80 kos';
+        const samplesText = gv('krka-samples-text') || '80 kom zgibanih vrečk za VZORČENJE! V KUVERTO A4 + ETIKETA';
+        const deliveryAddress = gv('calc-delivery-address') || 'Krka Novo mesto: Skladišče embalaže!';
+        const matStock = gv('krka-material-stock') || '90g Magno satin B1 SB';
+        const matCode = gv('krka-material-code') || '2892';
+        const boxesDim = gv('krka-box-dim') || 'škatle 240 x 320 x 250mm';
+        const boxesTotal = gv('krka-boxes-total') || '44 kom.';
+        const orderNum = gv('krka-order-num') || '4700052146 / 22.10.2026';
+        const footerCenik = gv('krka-footer-cenik-row') || 'Cenik 2023:     398x148mm    41b    130.500 kos    3,79 €/ 100 kos';
+
+        // PhC highlight in title if present
+        let formattedTitle = projectName;
+        if (formattedTitle.includes('(PhC')) {
+            formattedTitle = formattedTitle.replace(/(PhC\s*[0-9]+)/g, '<span class="badge-yellow">$1</span>');
+        }
+
+        return `
+            <!-- HEADER VRSTICA 1: STRANKA & TISKARNA -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <div style="font-weight: bold; font-size: 11pt;">KRKA, d.d., Novo mesto</div>
+                    <div style="font-size: 9.5pt;">Šmarješka cesta 6, 8501 Novo mesto</div>
+                </div>
+                <div style="text-align: right; font-weight: bold; font-size: 12pt; text-transform: uppercase;">
+                    Tiskarna PETRIČ
+                </div>
+            </div>
+
+            <div class="dn-sep-double"></div>
+
+            <!-- ROK & DN -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <div style="color: ${isUrgent ? '#000000' : '#444444'}; font-weight: 900; font-style: italic; font-size: 11pt;">
+                        ${isUrgent ? 'OBVEZNO NA TA DATUM!' : 'Rok izdelave:'}
+                    </div>
+                    <div style="font-style: italic; font-size: 11pt;">
+                        Rok izdelave: <strong style="font-style: italic;">${deadline}</strong>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 14pt; font-weight: 900;">
+                        D.N.: <span style="font-size: 15pt;">${dnNumber}</span>
+                    </div>
+                    <div style="font-size: 10pt;">${dnDate}</div>
+                </div>
+            </div>
+
+            <div class="dn-sep-double"></div>
+
+            <!-- KLINI OPOZORILO -->
+            <div style="font-weight: 900; font-style: italic; font-size: 10.5pt;">
+                POZOR! OBVEZNO KOMPLET KLINI (po celi širini tiskarske pole) NA TISKOVNO POLO!
+            </div>
+
+            <div class="dn-sep-single"></div>
+
+            <!-- NAZIV IZDELKA & STATUS -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-weight: 900; font-size: 10.5pt;">
+                    »${formattedTitle}«
+                </div>
+                <div style="font-weight: 900; font-style: italic; font-size: 11pt; margin-left: 10px; white-space: nowrap;">
+                    ${orderType}!
+                </div>
+            </div>
+
+            <div class="dn-sep-single"></div>
+
+            <!-- GLAVNE SPECIFIKACIJE -->
+            <div style="display: grid; grid-template-columns: 90px 1fr 140px; row-gap: 2px; font-size: 10.5pt;">
+                <div style="font-weight: normal;">količina:</div>
+                <div style="font-weight: 900;">${qty} kos</div>
+                <div style="text-align: right;">
+                    <span class="badge-yellow" style="font-size: 11pt;">${oldDn}</span>
+                </div>
+
+                <div style="font-weight: normal;">format:</div>
+                <div style="grid-column: span 2;">
+                    <div>${dimO} - odprt format</div>
+                    <div>${dimZ} - zgiban format</div>
+                </div>
+
+                <div style="font-weight: normal;">tisk:</div>
+                <div style="grid-column: span 2;">
+                    <div>${printDesc}</div>
+                    <div>${varnishDesc}</div>
+                </div>
+
+                <div style="font-weight: normal;">material:</div>
+                <div style="grid-column: span 2;">${matDesc}</div>
+
+                <div style="font-weight: normal;">dodelava:</div>
+                <div style="grid-column: span 2;">${finishingDesc}</div>
+            </div>
+
+            <div class="dn-sep-double"></div>
+
+            <!-- RAZREZ POL -->
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10.5pt;">
+                <div style="width: 90px;">06 razrez:</div>
+                <div style="font-weight: bold;">${rawSheets}</div>
+                <div style="margin: 0 10px;">na</div>
+                <div style="font-weight: bold; flex: 1; text-align: right;">${cutSheets}</div>
+            </div>
+
+            <div class="dn-sep-single"></div>
+
+            <!-- KOPIRANJE PLOŠČ -->
+            <div style="display: flex; justify-content: space-between; font-size: 10.5pt;">
+                <div style="width: 90px;">kop.plošč:</div>
+                <div style="font-weight: bold;">${platesCount}</div>
+                <div style="font-weight: bold; margin: 0 15px;">prvi-drugi</div>
+                <div style="font-weight: bold; text-align: right;">(${itemsPerSheet})</div>
+            </div>
+            <div style="padding-left: 90px; font-size: 10.5pt;">
+                ${platesVarnish}
+            </div>
+
+            <div class="dn-sep-double"></div>
+
+            <!-- DELTA E OPOZORILO -->
+            <div style="font-weight: 900; font-style: italic; font-size: 10.5pt;">
+                POZOR!(0290) Ta nalog se meri po metodi delta E2000! Delta pod 4!
+            </div>
+            <div style="font-weight: 900; font-style: italic; font-size: 10.5pt;">
+                MERI PO PANTONE LESTVICI - PAZI NA VREDOSTI!
+            </div>
+
+            <div class="dn-sep-single"></div>
+
+            <!-- OFSET PRIPRAVA IN TISK -->
+            <div style="display: flex; justify-content: space-between; font-size: 10.5pt;">
+                <div style="width: 120px;">${machine} of.priprava:</div>
+                <div style="flex: 1; padding: 0 10px;">
+                    <div>${printDesc} + 1/0 - nevtral lak</div>
+                    <div style="font-weight: 900; font-style: italic;">POZOR! Tisk po navodilih - MERITVE!</div>
+                    <div style="font-weight: 900; font-style: italic;">+ 1/0 - nevtral lak Z PLOŠČO samo na NASLOVNI STRANI!</div>
+                </div>
+                <div style="text-align: right; font-weight: bold; width: 60px;">${prepHours}</div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; font-size: 10.5pt; margin-top: 4px;">
+                <div style="width: 120px;">tisk:</div>
+                <div style="flex: 1; padding: 0 10px; font-weight: bold;">
+                    ${printRun}
+                </div>
+                <div style="text-align: right; font-weight: bold; width: 60px;">${printHours}</div>
+            </div>
+
+            <div class="dn-sep-double"></div>
+
+            <!-- RAZREZ PREVERI -->
+            <div style="display: flex; font-size: 10.5pt;">
+                <div style="width: 90px;">06 razrez:</div>
+                <div style="font-style: italic;">preveri zgibanje - lepljenje!</div>
+            </div>
+
+            <div class="dn-sep-single"></div>
+
+            <!-- LEPILNE SOBE OPOZORILO -->
+            <div class="badge-warning-box">
+                !!OBVEZNA KONTROLA LEPILNIH SOB PRED LEPLJENJEM!!
+            </div>
+
+            <div class="dn-sep-single"></div>
+
+            <!-- ZGIBALKA -->
+            <div style="display: flex; font-size: 10.5pt;">
+                <div style="width: 90px;">07 zgibalka:</div>
+                <div>priprava  /  lepljenje  /  zgibanje</div>
+            </div>
+
+            <div class="dn-sep-single"></div>
+
+            <!-- PASICE IN PAKIRANJE -->
+            <div style="font-size: 10.5pt;">
+                <div>
+                    <strong style="font-style: italic;">PAZI ZAHTEVO PASIČENJA!</strong>
+                    &nbsp;&nbsp;Pasice <strong>${bandsCount}</strong>
+                </div>
+                <div style="margin-top: 2px;">
+                    Pakiranje: <strong>${boxesCalc}</strong>
+                </div>
+                <div style="margin: 3px 0;">
+                    <span class="badge-gray" style="font-size: 10.5pt;">${samplesText}</span>
+                </div>
+                <div style="font-weight: 900; font-style: italic;">
+                    POZOR! Dostaviti ENO DVOSTRANSKO stiskano polo s klinom naročniku!
+                </div>
+            </div>
+
+            <div class="dn-sep-double"></div>
+
+            <!-- DOSTAVA -->
+            <div style="display: flex; font-size: 10.5pt;">
+                <div style="width: 90px;">Dostava:</div>
+                <div style="font-weight: bold;">${deliveryAddress}</div>
+            </div>
+
+            <div class="dn-sep-double"></div>
+
+            <!-- MATERIAL PORABA -->
+            <div style="display: grid; grid-template-columns: 80px 1fr 100px; font-size: 10.5pt; row-gap: 2px;">
+                <div>material:</div>
+                <div>of. plošče - ${machine}</div>
+                <div style="text-align: right; font-weight: bold;">${gv('krka-plates-total') || '6'} kom.</div>
+
+                <div>
+                    <span class="badge-yellow">${matCode}</span>
+                </div>
+                <div>${matStock}</div>
+                <div style="text-align: right; font-weight: bold;">${rawSheets.replace(' pol B1 SB', '')} pol</div>
+
+                <div></div>
+                <div>${boxesDim}</div>
+                <div style="text-align: right; font-weight: bold;">${boxesTotal}</div>
+            </div>
+
+            <div class="dn-sep-double"></div>
+
+            <!-- NAROČILO IN FAKTURA -->
+            <div style="display: flex; justify-content: space-between; font-size: 10.5pt;">
+                <div>
+                    <div style="font-weight: 900; font-style: italic;">Izdobaviti naklado!</div>
+                    <div>Obvezno vzorce tiskovine v nalog;</div>
+                </div>
+                <div style="text-align: right;">
+                    <div>Naročilo: <strong>${orderNum}</strong></div>
+                    <div style="font-weight: 900; font-style: italic;">POZOR! Zraven Fakture podpisano dobavnico!</div>
+                </div>
+            </div>
+
+            <div class="dn-sep-single"></div>
+
+            <!-- CENIK VRSTICA -->
+            <div style="font-size: 9.5pt; color: #111111; padding-top: 2px;">
+                ${footerCenik}
+            </div>
+        `;
+    }
+
+    // Update Live Work Order
+    function updateWorkOrderLive() {
+        if (g_isUserDirectEditing) return;
+        const sheet = document.getElementById('krka-work-order-sheet');
+        if (sheet) {
+            sheet.innerHTML = renderKrkaWorkOrderHTML();
+        }
+    }
+
+    function onWorkOrderDirectEdit() {
+        g_isUserDirectEditing = true;
+    }
+
+    function resetWorkOrderToDefault() {
+        g_isUserDirectEditing = false;
+        updateWorkOrderLive();
+    }
+
+    // Print Work Order (Clean A4 Print Window)
+    function printKrkaWorkOrder() {
+        const sheetHtml = document.getElementById('krka-work-order-sheet').innerHTML;
+        const printWin = window.open('', '_blank', 'width=900,height=950');
+        if (!printWin) {
+            alert('Pojavno okno je bilo blokirano. Dovolite pojavna okna za tisk.');
+            return;
+        }
+
+        printWin.document.write(`
+            <!DOCTYPE html>
+            <html lang="sl">
+            <head>
+                <meta charset="UTF-8">
+                <title>Delovni Nalog - KRKA - ${gv('calc-dn-number')}</title>
+                <style>
+                    @page {
+                        size: A4 portrait;
+                        margin: 10mm;
+                    }
+                    * {
+                        box-sizing: border-box;
+                        font-family: Arial, Helvetica, sans-serif !important;
+                        color: #000000;
+                    }
+                    body {
+                        margin: 0;
+                        padding: 0;
+                        background: #fff;
+                    }
+                    .dn-sep-double {
+                        border-bottom: 3px double #000000;
+                        margin: 6px 0;
+                    }
+                    .dn-sep-single {
+                        border-bottom: 1px solid #000000;
+                        margin: 5px 0;
+                    }
+                    .dn-sep-dotted {
+                        border-bottom: 1px dotted #555555;
+                        margin: 4px 0;
+                    }
+                    .badge-yellow {
+                        background-color: #ffff00 !important;
+                        color: #000000 !important;
+                        padding: 1px 4px;
+                        font-weight: bold;
+                        display: inline-block;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    .badge-gray {
+                        background-color: #d1d5db !important;
+                        color: #000000 !important;
+                        padding: 1px 6px;
+                        font-weight: bold;
+                        display: inline-block;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    .badge-warning-box {
+                        background-color: #ffff00 !important;
+                        color: #000000 !important;
+                        text-align: center;
+                        font-weight: 900;
+                        font-style: italic;
+                        font-size: 11.5pt;
+                        letter-spacing: 0.5px;
+                        padding: 3px 6px;
+                        margin: 4px 0;
+                        border: 1px dashed #000000;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    .no-print {
+                        display: none !important;
+                    }
+                </style>
+            </head>
+            <body onload="window.print()">
+                <div style="max-width: 800px; margin: 0 auto; line-height: 1.35; font-size: 10.5pt;">
+                    ${sheetHtml}
+                </div>
+            </body>
+            </html>
+        `);
+        printWin.document.close();
+    }
+
+    // Export to Word Document (.doc)
+    function exportKrkaWordDoc() {
+        const sheetHtml = document.getElementById('krka-work-order-sheet').innerHTML;
+        const dn = (gv('calc-dn-number') || 'KRKA').replace(/[/\\?%*:|"<> \t]/g, '_');
+        const filename = `DN_KRKA_${dn}.doc`;
+
+        const fullHtml = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head><meta charset='utf-8'><title>Delovni Nalog KRKA</title>
+            <style>
+                body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.3; }
+                .dn-sep-double { border-bottom: 2px solid #000; margin: 6px 0; }
+                .dn-sep-single { border-bottom: 1px solid #000; margin: 5px 0; }
+                .badge-yellow { background-color: #ffff00; font-weight: bold; }
+                .badge-gray { background-color: #e5e7eb; font-weight: bold; }
+                .badge-warning-box { background-color: #ffff00; text-align: center; font-weight: bold; padding: 4px; border: 1px dashed #000; }
+            </style>
+            </head>
+            <body>${sheetHtml}</body></html>
+        `;
+
+        const blob = new Blob(['\ufeff', fullHtml], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // Save Krka Project Snapshot
+    function saveKrkaProject() {
+        const projName = gv('calc-project-name').trim() || 'KRKA Navodila';
+        const dn = gv('calc-dn-number').trim();
+        const dateStr = new Date().toLocaleString('sl-SI');
+
+        const projectData = {
+            id: 'krka_' + Date.now(),
+            name: projName,
+            customer: gv('calc-customer').trim() || 'KRKA, d.d., Novo mesto',
+            date: dateStr,
+            _source: 'krka',
+            quoteNum: gv('calc-quote-number'),
+            dnNumber: dn,
+            deadline: gv('calc-dn-deadline'),
+            urgent: document.getElementById('calc-dn-urgent')?.checked,
+            inputs: {
+                formatSelect: gv('krka-format-select'),
+                dimO: gv('krka-dim-o'),
+                dimZ: gv('krka-dim-z'),
+                quantity: gv('krka-quantity'),
+                orderNum: gv('krka-order-num'),
+                dnDate: gv('krka-dn-date'),
+                colorsCount: gv('krka-colors-count'),
+                printDesc: gv('krka-print-desc'),
+                varnishDesc: gv('krka-varnish-desc'),
+                machine: gv('krka-machine'),
+                prepHours: gv('krka-prep-hours'),
+                printRun: gv('krka-print-run'),
+                printHours: gv('krka-print-hours'),
+                platesCount: gv('krka-plates-count'),
+                platesVarnish: gv('krka-plates-varnish'),
+                itemsPerSheet: gv('krka-items-per-sheet'),
+                matDesc: gv('krka-material-desc'),
+                matStock: gv('krka-material-stock'),
+                matCode: gv('krka-material-code'),
+                rawSheets: gv('krka-raw-sheets'),
+                cutSheets: gv('krka-cut-sheets'),
+                finishingDesc: gv('krka-finishing-desc'),
+                bandSize: gv('krka-band-size'),
+                bandsCount: gv('krka-bands-count'),
+                samplesCount: gv('krka-samples-count'),
+                boxCap: gv('krka-box-cap'),
+                boxDim: gv('krka-box-dim'),
+                boxesCalc: gv('krka-boxes-calc'),
+                boxesTotal: gv('krka-boxes-total'),
+                samplesText: gv('krka-samples-text'),
+                priceUnit: gv('krka-price-unit'),
+                priceTotal: gv('krka-price-total'),
+                footerCenikRow: gv('krka-footer-cenik-row'),
+                notes: gv('calc-notes'),
+                customerCode: gv('calc-customer-code'),
+                productCode: gv('calc-product-code'),
+                packaging: gv('calc-dn-packaging'),
+                oldDn: gv('calc-dn-old'),
+                preparedBy: gv('calc-prepared-by'),
+                orderType: gv('calc-order-type'),
+                custAddress: gv('calc-cust-address'),
+                deliveryAddress: gv('calc-delivery-address'),
+                custEmail: gv('calc-cust-email')
+            }
+        };
+
+        // Save to local storage
+        let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        arhiv.unshift(projectData);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(arhiv));
+
+        // Save to server if reachable
+        saveProjectToServer(projectData);
+
+        alert(`✅ Projekt "${projName}" (D.N. ${dn}) je bil uspešno shranjen!`);
+    }
+
+    async function saveProjectToServer(projectData) {
+        try {
+            const res = await fetch('http://127.0.0.1:8095/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(projectData)
+            });
+            if (res.ok) console.log("Shranjeno na lokalni strežnik.");
+        } catch(e) {
+            console.log("Strežnik ni dosegljiv, shranjeno samo v brskalnik.");
+        }
+    }
+
+    // Load Project Snapshot
+    function loadKrkaProject(proj) {
+        if (!proj || !proj.inputs) return;
+        const inp = proj.inputs;
+
+        sv('calc-project-name', proj.name || '');
+        sv('calc-customer', proj.customer || 'KRKA, d.d., Novo mesto');
+        sv('calc-quote-number', proj.quoteNum || '');
+        sv('calc-dn-number', proj.dnNumber || '');
+        sv('calc-dn-deadline', proj.deadline || '');
+        if (document.getElementById('calc-dn-urgent')) {
+            document.getElementById('calc-dn-urgent').checked = !!proj.urgent;
+        }
+
+        // Inputs
+        if (inp.formatSelect) sv('krka-format-select', inp.formatSelect);
+        if (inp.dimO) sv('krka-dim-o', inp.dimO);
+        if (inp.dimZ) sv('krka-dim-z', inp.dimZ);
+        if (inp.quantity) sv('krka-quantity', inp.quantity);
+        if (inp.orderNum) sv('krka-order-num', inp.orderNum);
+        if (inp.dnDate) sv('krka-dn-date', inp.dnDate);
+        if (inp.colorsCount) sv('krka-colors-count', inp.colorsCount);
+        if (inp.printDesc) sv('krka-print-desc', inp.printDesc);
+        if (inp.varnishDesc) sv('krka-varnish-desc', inp.varnishDesc);
+        if (inp.machine) sv('krka-machine', inp.machine);
+        if (inp.prepHours) sv('krka-prep-hours', inp.prepHours);
+        if (inp.printRun) sv('krka-print-run', inp.printRun);
+        if (inp.printHours) sv('krka-print-hours', inp.printHours);
+        if (inp.platesCount) sv('krka-plates-count', inp.platesCount);
+        if (inp.platesVarnish) sv('krka-plates-varnish', inp.platesVarnish);
+        if (inp.itemsPerSheet) sv('krka-items-per-sheet', inp.itemsPerSheet);
+        if (inp.matDesc) sv('krka-material-desc', inp.matDesc);
+        if (inp.matStock) sv('krka-material-stock', inp.matStock);
+        if (inp.matCode) sv('krka-material-code', inp.matCode);
+        if (inp.rawSheets) sv('krka-raw-sheets', inp.rawSheets);
+        if (inp.cutSheets) sv('krka-cut-sheets', inp.cutSheets);
+        if (inp.finishingDesc) sv('krka-finishing-desc', inp.finishingDesc);
+        if (inp.bandSize) sv('krka-band-size', inp.bandSize);
+        if (inp.bandsCount) sv('krka-bands-count', inp.bandsCount);
+        if (inp.samplesCount) sv('krka-samples-count', inp.samplesCount);
+        if (inp.boxCap) sv('krka-box-cap', inp.boxCap);
+        if (inp.boxDim) sv('krka-box-dim', inp.boxDim);
+        if (inp.boxesCalc) sv('krka-boxes-calc', inp.boxesCalc);
+        if (inp.boxesTotal) sv('krka-boxes-total', inp.boxesTotal);
+        if (inp.samplesText) sv('krka-samples-text', inp.samplesText);
+        if (inp.priceUnit) sv('krka-price-unit', inp.priceUnit);
+        if (inp.priceTotal) sv('krka-price-total', inp.priceTotal);
+        if (inp.footerCenikRow) sv('krka-footer-cenik-row', inp.footerCenikRow);
+
+        if (inp.notes) sv('calc-notes', inp.notes);
+        if (inp.customerCode) sv('calc-customer-code', inp.customerCode);
+        if (inp.productCode) sv('calc-product-code', inp.productCode);
+        if (inp.packaging) sv('calc-dn-packaging', inp.packaging);
+        if (inp.oldDn) sv('calc-dn-old', inp.oldDn);
+        if (inp.preparedBy) sv('calc-prepared-by', inp.preparedBy);
+        if (inp.orderType) sv('calc-order-type', inp.orderType);
+        if (inp.custAddress) sv('calc-cust-address', inp.custAddress);
+        if (inp.deliveryAddress) sv('calc-delivery-address', inp.deliveryAddress);
+        if (inp.custEmail) sv('calc-cust-email', inp.custEmail);
+
+        g_isUserDirectEditing = false;
+        updateWorkOrderLive();
+        toggleProjectsDropdown(false);
+    }
+
+    // Projects list and dropdown
+    function toggleProjectsDropdown(forceState) {
+        const drop = document.getElementById('projects-dropdown-list');
+        if (!drop) return;
+        const isShow = (forceState !== undefined) ? forceState : (drop.style.display !== 'flex');
+        drop.style.display = isShow ? 'flex' : 'none';
+        if (isShow) {
+            renderSavedProjects();
+            setTimeout(() => document.getElementById('project-search-input')?.focus(), 100);
+        }
+    }
+
+    function setProjectFilterMode(mode) {
+        g_projectFilterMode = mode;
+        const btnAll = document.getElementById('btn-filter-all');
+        const btnType = document.getElementById('btn-filter-type');
+        if (mode === 'all') {
+            btnAll.style.background = '#3b82f6';
+            btnAll.style.color = 'white';
+            btnType.style.background = '#334155';
+            btnType.style.color = '#94a3b8';
+        } else {
+            btnType.style.background = '#3b82f6';
+            btnType.style.color = 'white';
+            btnAll.style.background = '#334155';
+            btnAll.style.color = '#94a3b8';
+        }
+        renderSavedProjects();
+    }
+
+    async function fetchServerProjects() {
+        try {
+            const res = await fetch('http://127.0.0.1:8095/list');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.status === 'success' && Array.isArray(data.projects)) {
+                    g_serverProjects = data.projects;
+                }
+            }
+        } catch(e) {
+            if (window.__SERVER_PROJECTS_INDEX && Array.isArray(window.__SERVER_PROJECTS_INDEX)) {
+                g_serverProjects = window.__SERVER_PROJECTS_INDEX;
+            }
+        }
+    }
+
+    function renderSavedProjects() {
+        const listDiv = document.getElementById('projects-list-content');
+        if (!listDiv) return;
+        const q = (gv('project-search-input') || '').trim().toLowerCase();
+
+        // Local storage archive
+        const localArhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        const allProjects = [...localArhiv, ...g_serverProjects];
+
+        // Update counts
+        const countAllEl = document.getElementById('count-filter-all');
+        const countTypeEl = document.getElementById('count-filter-type');
+        if (countAllEl) countAllEl.textContent = allProjects.length;
+
+        const krkaOnly = allProjects.filter(p => {
+            const src = (p._source || p.source || '').toLowerCase();
+            const cust = (p.customer || '').toLowerCase();
+            const name = (p.name || '').toLowerCase();
+            return src.includes('krka') || cust.includes('krka') || name.includes('krka');
+        });
+        if (countTypeEl) countTypeEl.textContent = krkaOnly.length;
+
+        const listToDisplay = (g_projectFilterMode === 'type') ? krkaOnly : allProjects;
+        const filtered = listToDisplay.filter(p => {
+            if (!q) return true;
+            const fullStr = `${p.name || ''} ${p.customer || ''} ${p.quoteNum || ''} ${p.dnNumber || ''}`.toLowerCase();
+            return fullStr.includes(q);
+        });
+
+        listDiv.innerHTML = '';
+        if (filtered.length === 0) {
+            listDiv.innerHTML = '<div style="padding: 15px; color: #94a3b8; font-size: 0.8rem; text-align: center;">Ni shranjenih projektov</div>';
+            return;
+        }
+
+        filtered.slice(0, 50).forEach(p => {
+            const item = document.createElement('div');
+            item.style.padding = '8px 12px';
+            item.style.borderBottom = '1px solid #334155';
+            item.style.cursor = 'pointer';
+            item.style.transition = 'background 0.2s';
+            item.onmouseover = () => item.style.background = '#334155';
+            item.onmouseout = () => item.style.background = 'transparent';
+
+            item.innerHTML = `
+                <div style="font-weight: bold; color: #f8fafc; font-size: 0.85rem;">${p.name || 'Brez imena'}</div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">
+                    <span>${p.customer || 'KRKA'}</span>
+                    <span>${p.date || ''}</span>
+                </div>
+            `;
+            item.onclick = () => loadKrkaProject(p);
+            listDiv.appendChild(item);
+        });
+    }
+
+    // Customer Dropdown
+    function toggleCustomerDropdown() {
+        const list = document.getElementById('cust-dropdown-list');
+        if (!list) return;
+        const isShow = list.style.display !== 'block';
+        list.style.display = isShow ? 'block' : 'none';
+        if (isShow) renderCustomerList('');
+    }
+
+    function renderCustomerList(filter) {
+        const listDiv = document.getElementById('cust-dropdown-list');
+        if (!listDiv) return;
+        listDiv.innerHTML = '';
+
+        let customers = ['KRKA, d.d., Novo mesto'];
+        if (window.PETRIC_CONTACTS_SEED) {
+            Object.values(window.PETRIC_CONTACTS_SEED).forEach(c => {
+                if (c && c.name && !customers.includes(c.name)) customers.push(c.name);
+            });
+        }
+
+        const q = (filter || '').toLowerCase();
+        customers.filter(c => !q || c.toLowerCase().includes(q)).slice(0, 20).forEach(c => {
+            const d = document.createElement('div');
+            d.style.padding = '8px 12px';
+            d.style.color = '#ffffff';
+            d.style.cursor = 'pointer';
+            d.style.fontSize = '0.82rem';
+            d.textContent = c;
+            d.onmouseover = () => d.style.background = '#334155';
+            d.onmouseout = () => d.style.background = 'transparent';
+            d.onclick = () => {
+                sv('calc-customer', c);
+                listDiv.style.display = 'none';
+                updateWorkOrderLive();
+            };
+            listDiv.appendChild(d);
+        });
+    }
+
+    // Email Modal
+    function openEmailModal() {
+        const m = document.getElementById('email-modal-overlay');
+        if (m) m.style.display = 'flex';
+    }
+
+    function closeEmailModal() {
+        const m = document.getElementById('email-modal-overlay');
+        if (m) m.style.display = 'none';
+    }
+
+    function saveEmailModalData() {
+        const content = gv('calc-email-content');
+        if (content.trim()) {
+            document.getElementById('attached-email-badge').style.display = 'inline-flex';
+            document.getElementById('attached-email-summary').textContent = `${content.length} znakov`;
+        }
+        closeEmailModal();
+    }
+
+    function removeAttachedEmail() {
+        sv('calc-email-content', '');
+        document.getElementById('attached-email-badge').style.display = 'none';
+    }
+
+    function handlePdfFileUpload(e) {
+        const files = e.target.files;
+        if (!files || !files.length) return;
+        const cont = document.getElementById('attached-pdfs-container');
+        Array.from(files).forEach(f => {
+            const badge = document.createElement('div');
+            badge.style.cssText = 'background: rgba(236, 72, 153, 0.2); border: 1px solid #ec4899; color: #f472b6; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;';
+            badge.innerHTML = `<span>📎 ${f.name}</span><span style="cursor:pointer; font-weight:bold;" onclick="this.parentElement.remove()">✕</span>`;
+            cont.appendChild(badge);
+        });
+    }
+
+    // Global click listener to close dropdowns
+    document.addEventListener('click', (e) => {
+        const projDrop = document.getElementById('projects-dropdown-list');
+        if (projDrop && projDrop.style.display === 'flex') {
+            if (!e.target.closest('#projects-dropdown-list') && !e.target.closest('#btn-my-projects')) {
+                projDrop.style.display = 'none';
+            }
+        }
+        const custDrop = document.getElementById('cust-dropdown-list');
+        if (custDrop && custDrop.style.display === 'block') {
+            if (!e.target.closest('#cust-dropdown-list') && !e.target.closest('button[onclick*="toggleCustomerDropdown"]') && !e.target.closest('#calc-customer')) {
+                custDrop.style.display = 'none';
+            }
+        }
+    });
+
+    // Initial setup on load
+    window.addEventListener('DOMContentLoaded', () => {
+        initFormatDropdown();
+        recalculateBanding();
+        recalculateBoxes();
+        calculateKrkaPrice();
+        updateWorkOrderLive();
+        fetchServerProjects().then(() => renderSavedProjects()).catch(()=>{});
+    });
+</script>
+
+</body>
+</html>
