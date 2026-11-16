@@ -4349,6 +4349,81 @@
             }
         }
 
+        function removeCustomerEmail(custKey, emailToDelete) {
+            try {
+                var contactsCache = JSON.parse(localStorage.getItem('petric_customer_contacts_cache') || '{}');
+                for (var k in contactsCache) {
+                    if (k === custKey || k === custKey.replace(/\s+/g, '') || (custKey.length > 4 && k.indexOf(custKey) === 0)) {
+                        var contact = contactsCache[k];
+                        if (contact && Array.isArray(contact.emails)) {
+                            contact.emails = contact.emails.filter(function(e) {
+                                return e.toLowerCase() !== emailToDelete.toLowerCase();
+                            });
+                        }
+                        if (contact && contact.email && contact.email.toLowerCase() === emailToDelete.toLowerCase()) {
+                            contact.email = (contact.emails && contact.emails.length > 0) ? contact.emails[contact.emails.length - 1] : "";
+                        }
+                    }
+                }
+                localStorage.setItem('petric_customer_contacts_cache', JSON.stringify(contactsCache));
+                var custName = (document.getElementById('calc-customer') || {}).value || '';
+                if (typeof handleCustomerUpdate === 'function') handleCustomerUpdate(custName);
+                if (typeof renderEmailList === 'function') renderEmailList();
+            } catch (e) { console.error("removeCustomerEmail napaka:", e); }
+        }
+
+        function cleanupCustomerContactsCache() {
+            try {
+                var raw = localStorage.getItem('petric_customer_contacts_cache');
+                if (!raw) return;
+                var cache = JSON.parse(raw);
+                var changed = false;
+                var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+                for (var cKey in cache) {
+                    var contact = cache[cKey];
+                    if (!contact) continue;
+                    if (Array.isArray(contact.emails)) {
+                        var validEmails = contact.emails.filter(function(e) {
+                            return typeof e === 'string' && emailRegex.test(e.trim());
+                        }).map(function(e) { return e.trim(); });
+
+                        var uniqueList = [];
+                        validEmails.forEach(function(e) {
+                            if (!uniqueList.some(function(u) { return u.toLowerCase() === e.toLowerCase(); })) {
+                                uniqueList.push(e);
+                            }
+                        });
+
+                        // Odstrani nepopolne vmesne nize pri tipkanju (isti poštni strežnik in delno natipkano ime pred @)
+                        var filtered = uniqueList.filter(function(e1) {
+                            var p1 = e1.toLowerCase().split('@');
+                            if (p1.length !== 2) return false;
+                            var u1 = p1[0], d1 = p1[1];
+                            var hasLonger = uniqueList.some(function(e2) {
+                                if (e1.toLowerCase() === e2.toLowerCase()) return false;
+                                var p2 = e2.toLowerCase().split('@');
+                                if (p2.length !== 2) return false;
+                                var u2 = p2[0], d2 = p2[1];
+                                return d1 === d2 && u2.startsWith(u1);
+                            });
+                            return !hasLonger;
+                        });
+
+                        if (JSON.stringify(contact.emails) !== JSON.stringify(filtered)) {
+                            contact.emails = filtered;
+                            if (contact.email && !filtered.some(function(e) { return e.toLowerCase() === contact.email.toLowerCase(); })) {
+                                contact.email = filtered.length > 0 ? filtered[filtered.length - 1] : "";
+                            }
+                            changed = true;
+                        }
+                    }
+                }
+                if (changed) {
+                    localStorage.setItem('petric_customer_contacts_cache', JSON.stringify(cache));
+                }
+            } catch(e) { console.warn("cleanupCustomerContactsCache napaka:", e); }
+        }
+
         function getUnifiedCustomersData() {
             var keys = [
                 'tisk_kalkulator_arhiv',
@@ -4547,16 +4622,17 @@
                     var em = emailEl.value ? emailEl.value.trim() : "";
                     if (em) {
                         var emParts = em.split(/[;,]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+                        var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
                         for (var ep = 0; ep < emParts.length; ep++) {
                             var itemEm = emParts[ep];
-                            if (itemEm.indexOf('@') > 0 && itemEm.indexOf('.') > 0) {
-                                if (contact.emails.indexOf(itemEm) === -1) {
+                            if (emailRegex.test(itemEm)) {
+                                if (!contact.emails.some(function(ce) { return ce.toLowerCase() === itemEm.toLowerCase(); })) {
                                     contact.emails.push(itemEm);
                                     updated = true;
                                 }
                             }
                         }
-                        if (contact.email !== em) {
+                        if (emailRegex.test(em) && contact.email !== em) {
                             contact.email = em;
                             updated = true;
                         }
@@ -4590,18 +4666,11 @@
                     // Posodobi datalist, da so novi e-maili takoj na voljo
                     var emailDatalist = document.getElementById('email-list');
                     if (emailDatalist && contact.emails) {
+                        emailDatalist.innerHTML = "";
                         contact.emails.forEach(function (ce) {
-                            var exists = false;
-                            for (var oi = 0; oi < emailDatalist.options.length; oi++) {
-                                if (emailDatalist.options[oi].value.toLowerCase() === ce.toLowerCase()) {
-                                    exists = true; break;
-                                }
-                            }
-                            if (!exists) {
-                                var opt = document.createElement('option');
-                                opt.value = ce;
-                                emailDatalist.appendChild(opt);
-                            }
+                            var opt = document.createElement('option');
+                            opt.value = ce;
+                            emailDatalist.appendChild(opt);
                         });
                     }
                 }
@@ -4695,15 +4764,19 @@
             }
             var emailInput = document.getElementById('calc-cust-email');
             if (emailInput) {
-                emailInput.addEventListener('input', saveCurrentCustomerContact);
+                // Odstranjen 'input' poslušalec, da se ne shranjuje ob vsaki vtipkani črki med tipkanjem
                 emailInput.addEventListener('change', saveCurrentCustomerContact);
                 emailInput.addEventListener('blur', saveCurrentCustomerContact);
             }
             var addrInput = document.getElementById('calc-cust-address');
             if (addrInput) {
-                addrInput.addEventListener('input', saveCurrentCustomerContact);
                 addrInput.addEventListener('change', saveCurrentCustomerContact);
                 addrInput.addEventListener('blur', saveCurrentCustomerContact);
+            }
+
+            // Samodejno očisti morebitne nedokončane vmesne e-maile iz predpomnilnika
+            if (typeof cleanupCustomerContactsCache === 'function') {
+                cleanupCustomerContactsCache();
             }
             if (custListDiv) {
                 custListDiv.addEventListener('mousedown', function (e) {
