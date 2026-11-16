@@ -6339,7 +6339,7 @@
                     multiplier = Math.ceil(val);
                     fullSheets = Math.floor(val);
                     fraction = val - fullSheets;
-                    wasteMultiplier = fullSheets + (fraction > 0 ? 0.5 : 0);
+                    wasteMultiplier = Math.max(1, fullSheets + (fraction > 0 ? 0.5 : 0));
                 }
             }
             return { multiplier, wasteMultiplier, fullSheets, fraction, hasValid };
@@ -7403,6 +7403,16 @@
 
 
 
+                // Razrez materiala (pred tiskom)
+                if (document.getElementById('f-precut-active') && document.getElementById('f-precut-active').checked) {
+                    let prePrep = parseFloat(document.getElementById('f-precut-prep').value.replace(',', '.')) || 0;
+                    let prePer1000 = parseFloat(document.getElementById('f-precut-per1000').value.replace(',', '.')) || 0;
+                    let totalParentSheets = (pParentSheetsNeeded || 0) + (cbParentSheetsNeeded || 0);
+                    let preCost = prePrep + (totalParentSheets / 1000) * prePer1000;
+                    totalFinishCost += preCost;
+                    finishItems.push({ name: 'Razrez materiala (pred tiskom)', cost: preCost, breakdown: `Priprava: ${formatPrice(prePrep)} | Delo: ${formatQty(totalParentSheets)} pol × ${formatPrice(prePer1000)}/1000 = ${formatPrice(preCost)}` });
+                }
+
                 // Razrez na format
 
                 if (document.getElementById('f-razrez-format-active').checked) {
@@ -7768,9 +7778,13 @@
 
                 let marginPercent = parseFloat(document.getElementById('calc-margin').value) || 0;
 
-                let totalMargin = subtotal * (marginPercent / 100);
-
-                let totalPrice = subtotal + totalMargin;
+                let totalPrice = subtotal;
+                if (marginPercent > 0 && marginPercent < 100) {
+                    totalPrice = subtotal / (1 - (marginPercent / 100)); // RVC izračun
+                } else if (marginPercent >= 100 || marginPercent < 0) {
+                    totalPrice = subtotal * (1 + marginPercent / 100);
+                }
+                let totalMargin = totalPrice - subtotal;
 
 
 
