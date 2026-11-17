@@ -779,7 +779,7 @@
                     </div>
                     <div class="header-group">
                         <label for="krka-samples-count">Vzorčenje (kos)</label>
-                        <input type="text" id="krka-samples-count" value="80" oninput="recalculateBoxes(); updateWorkOrderLive();">
+                        <input type="text" id="krka-samples-count" value="80" oninput="onSamplesCountChanged();">
                     </div>
                 </div>
 
@@ -805,7 +805,7 @@
                         <input type="text" id="krka-boxes-total" placeholder="Skupaj škatel" value="" oninput="updateWorkOrderLive()">
                     </div>
                     <div class="header-group">
-                        <label for="krka-samples-text">Opis vzorcev</label>
+                        <label for="krka-samples-text">Opis vzorcev <span style="font-weight: normal; font-size: 0.75rem; color: #94a3b8;">(samodejno po Krka tabeli)</span></label>
                         <input type="text" id="krka-samples-text" value="80 kom zgibanih vrečk za VZORČENJE! V KUVERTO A4 + ETIKETA" oninput="updateWorkOrderLive()">
                     </div>
                 </div>
@@ -1018,8 +1018,55 @@
         }
     }
 
+    // Tabela za vzorce KRKA glede na velikost serije (naklade)
+    function getKrkaSampleCount(qty) {
+        if (!qty || qty <= 0) return 0;
+        if (qty === 1) return 1;
+        if (qty <= 90) return 2;
+        if (qty <= 150) return 3;
+        if (qty <= 280) return 5;
+        if (qty <= 500) return 8;
+        if (qty <= 1200) return 13;
+        if (qty <= 3200) return 20;
+        if (qty <= 10000) return 32;
+        if (qty <= 35000) return 50;
+        if (qty <= 150000) return 80;
+        if (qty <= 500000) return 125;
+        return 200;
+    }
+
+    function updateSamplesTextWithCount(count) {
+        const cur = gv('krka-samples-text');
+        if (!cur.trim() || /^\d+\s*kom\b/i.test(cur.trim())) {
+            const rest = cur.replace(/^\d+\s*kom\b/i, '').trim();
+            const suffix = rest ? ` kom ${rest}` : ` kom zgibanih vrečk za VZORČENJE! V KUVERTO A4 + ETIKETA`;
+            sv('krka-samples-text', `${count}${suffix}`);
+        } else if (/^\d+/.test(cur.trim())) {
+            sv('krka-samples-text', cur.replace(/^\d+/, count));
+        } else {
+            sv('krka-samples-text', `${count} kom zgibanih vrečk za VZORČENJE! V KUVERTO A4 + ETIKETA`);
+        }
+    }
+
+    function recalculateSamples() {
+        const qty = parseNumericQty(gv('krka-quantity'));
+        if (qty > 0) {
+            const samples = getKrkaSampleCount(qty);
+            sv('krka-samples-count', samples);
+            updateSamplesTextWithCount(samples);
+        }
+    }
+
+    function onSamplesCountChanged() {
+        const samples = parseInt(gv('krka-samples-count'), 10) || 0;
+        updateSamplesTextWithCount(samples);
+        recalculateBoxes();
+        updateWorkOrderLive();
+    }
+
     // Handle quantity changes & automatic box/banding calculations
     function onQuantityChanged() {
+        recalculateSamples();
         recalculateBanding();
         recalculateBoxes();
         recalculateSheets();
@@ -1123,7 +1170,8 @@
     function recalculateBoxes() {
         const qty = parseNumericQty(gv('krka-quantity'));
         const bandSize = parseInt(gv('krka-band-size')) || 20;
-        const samples = parseInt(gv('krka-samples-count')) || 80;
+        const samplesVal = gv('krka-samples-count');
+        const samples = samplesVal === '' ? getKrkaSampleCount(qty) : (parseInt(samplesVal, 10) || 0);
         const cap = parseInt(gv('krka-box-cap')) || 3000;
 
         if (qty <= 0 || cap <= 0) {
@@ -2095,6 +2143,7 @@
     // Initial setup on load
     window.addEventListener('DOMContentLoaded', () => {
         initFormatDropdown();
+        recalculateSamples();
         recalculateBanding();
         recalculateBoxes();
         recalculateSheets();
