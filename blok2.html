@@ -8347,6 +8347,69 @@ window.addEventListener('error', function (e) {
                                     lastEmail = emParts[ei];
                                 }
                             }
+                            // 2. Zbiranje naslovov
+                            if (p.custAddress && p.custAddress.trim() !== "") {
+                                var adr = p.custAddress.trim();
+                                uniqueAddresses.add(adr);
+                                lastAddress = adr;
+                            }
+
+                            // 3. Avtomatsko izpolnjevanje šifre
+                            if (!foundMaterialCode && p.materialCode && p.materialCode.trim().length > 1) {
+                                var target = document.getElementById('calc-material-code');
+                                if (target && (!target.value || target.value.trim() === "" || target.value.indexOf("npr.") !== -1)) {
+                                    target.value = p.materialCode;
+                                    foundMaterialCode = true;
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Zbiranje iz cache-a kontaktnih podatkov z diska in baze
+                    try {
+                        var contactsCache = JSON.parse(localStorage.getItem('petric_customer_contacts_cache') || '{}');
+                        for (var cKey in contactsCache) {
+                            if (cKey === search || cKey === search.replace(/\s+/g, '') || (search.length > 4 && cKey.indexOf(search) === 0)) {
+                                var diskContact = contactsCache[cKey];
+                                if (diskContact) {
+                                    if (Array.isArray(diskContact.emails)) {
+                                        for (var di = 0; di < diskContact.emails.length; di++) {
+                                            var dem = diskContact.emails[di];
+                                            if (dem && dem.trim()) {
+                                                uniqueEmails.add(dem.trim());
+                                                lastEmail = dem.trim();
+                                            }
+                                        }
+                                    }
+                                    if (diskContact.email && diskContact.email.trim() !== "") {
+                                        var dParts = diskContact.email.split(/[;,]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+                                        for (var dpi = 0; dpi < dParts.length; dpi++) {
+                                            uniqueEmails.add(dParts[dpi]);
+                                            lastEmail = dParts[dpi];
+                                        }
+                                    }
+                                    if (diskContact.address && diskContact.address.trim() !== "") {
+                                        var da = diskContact.address.trim();
+                                        uniqueAddresses.add(da);
+                                        lastAddress = da;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) { }
+
+                    var emailTarget = document.getElementById('calc-cust-email');
+                    var emailDatalist = document.getElementById('email-list');
+                    if (emailDatalist) {
+                        emailDatalist.innerHTML = "";
+                        var emailsArray = Array.from(uniqueEmails);
+                        emailsArray.forEach(function (em) {
+                            var opt = document.createElement('option');
+                            opt.value = em;
+                            emailDatalist.appendChild(opt);
+                        });
+                    }
+
                     // Preveri, ali se je stranka dejansko spremenila
                     var lastCustomer = custInput ? (custInput.dataset.lastCustomer || "") : "";
                     var hasChanged = (val.trim().toLowerCase() !== lastCustomer.toLowerCase());
