@@ -223,6 +223,21 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
+### T. Odprava Neodzivnosti "MOJI PROJEKTI" v `TENOVIS2.html` in `etikete2.html` (Analiza Vzroka)
+- **Težava:** V programih `TENOVIS2.html` in `etikete2.html` se ob kliku na gumb "MOJI PROJEKTI" spustni seznam projektov ni odprl. V konzoli brskalnika se je pojavila napaka `ReferenceError: toggleProjectsDropdown is not defined`.
+- **Zakaj se to zgodi, ko se naredi sprememba (Podrobna diagnoza):**
+  Vsaka datoteka kalkulatorja vsebuje obsežen monolitni JavaScript blok (več kot 10.000 vrstic). V JavaScriptu velja pravilo: **če se kjerkoli v istem `<script>` bloku pojavi ena sama sintaktična napaka (`SyntaxError`) ali pa se blok ne zaključi pravilno (`</script>`), brskalnikov JavaScript pogon (V8) zavrže in prekliče prevajanje celotnega bloka kode**. Nobena funkcija iz tistega bloka se ne registrira v globalni pomnilnik (`window`). Zato vse funkcije (vključno s `toggleProjectsDropdown()`) postanejo `undefined`.
+- **Konkretna vzroka v obeh datotekah:**
+  1. **V `TENOVIS2.html`:** V funkciji `getWorkOrderHTML()` (okoli vrstice 12360) je pri prejšnjem urejanju ostala podvojena koda (`finalSourceSheets = ... } let prepPasses ...`), v kateri je bila odvečna zaključna zavita oklepaj (`}`). Ta oklepaj je funkcijo `getWorkOrderHTML()` predčasno zaprl, zato je kasnejša vrstica `return html;` (na vrstici 13090) pristala izven funkcije. To je sprožilo `SyntaxError: Illegal return statement`, kar je sesulo prevajanje celotne 10.000-vrstične skripte.
+  2. **V `etikete2.html`:** Pri prejšnjem vnosu je orodje za urejanje na vrstici 8790 pomotoma odrezalo preostanek datoteke (`... [truncated for diff preview]`). Zaradi tega se glavni `<script>` blok nikoli ni zaprl s `</script>`, manjkale pa so tudi vse zaključne funkcije (za izvoz, tisk, pregled zalog in zaključek HTML dokumenta).
+- **Izvedena rešitev:**
+  1. V `TENOVIS2.html` je bil odstranjen podvojeni blok z odvečnim oklepajem `}`. Funkcija `getWorkOrderHTML()` se sedaj pravilno zaključi, vsi skriptni bloki se prevedejo z 0 napakami.
+  2. V `etikete2.html` je bil v celoti obnovljen manjkajoči rep datoteke (vključno z `loadProjectData`, `getQuoteHTML`, `printQuote`, `printQuoteAT`, `printProductionOrder`, `printWorkOrder`, modalnim oknom zalog Simon ter pravilnimi zaključnimi oznakami `</script></body></html>`), hkrati pa je bila dodana podpora za shranjevanje Word ponudb na strežnik Srečko prek `getServerBaseUrl()` ter zaščita praznih šifer stranke/izdelka.
+  3. Preverjeno s testnim orodjem Chrome CDP: V obeh programih je `typeof toggleProjectsDropdown === 'function'`, ob kliku na "MOJI PROJEKTI" se meni brezhibno odpre (`display: flex`) in zapre (`display: none`), brez kakršnekoli napake v konzoli.
+  4. Obe datoteki sta sinhronizirani na lokalni disk `C:\` in omrežni pogon `S:\`.
+
+---
+
 ## 2. Hitri Diagnostični Protokol (Če se zavihek spet ne odziva)
 
 Ko uporabnik sporoči, da se zavihek ne odziva, izvedi naslednje korake:
