@@ -3448,10 +3448,117 @@
             };
         }
 
+        function getItemCalcType(item) {
+            if (!item) return 'tenovis';
+            const src = String((item.snapshot && (item.snapshot._source || item.snapshot.source)) || item.type || '').toLowerCase();
+            if (src.includes('tenovis') || src.includes('_230') || src.includes('_240')) return 'tenovis';
+            if (src.includes('kuvert')) return 'kuverte';
+            if (src.includes('etiket')) return 'etikete';
+            if (src.includes('brosur') || src.includes('brošur') || src.includes('broura')) return 'brosura';
+            if (src.includes('blok')) return 'blok';
+            if (src.includes('krka')) return 'krka';
+            if (src.includes('koledar')) return 'koledar';
+            return 'pola';
+        }
+
+        async function syncMultiCalculatorSaves(currentCalcType, skipMultiSync) {
+            if (skipMultiSync) return;
+            if (typeof quoteBasket === 'undefined' || !Array.isArray(quoteBasket) || quoteBasket.length === 0) return;
+
+            const otherTypes = new Set();
+            quoteBasket.forEach(it => {
+                const t = getItemCalcType(it);
+                if (t && t !== currentCalcType) {
+                    otherTypes.add(t);
+                }
+            });
+
+            if (otherTypes.size === 0) return;
+
+            for (const ot of otherTypes) {
+                let savedViaIframe = false;
+                if (window.parent && window.parent !== window && typeof window.parent.document !== 'undefined') {
+                    try {
+                        const ifr = window.parent.document.getElementById('iframe_' + ot);
+                        if (ifr && ifr.contentWindow) {
+                            if (typeof ifr.contentWindow.saveProjectToFile === 'function') {
+                                await ifr.contentWindow.saveProjectToFile(null, true, true);
+                                savedViaIframe = true;
+                            } else if (typeof ifr.contentWindow.saveCurrentProject === 'function') {
+                                await ifr.contentWindow.saveCurrentProject(null, true, true);
+                                savedViaIframe = true;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn("Iframe save failed for " + ot + ":", e);
+                    }
+                }
+
+                if (!savedViaIframe) {
+                    try {
+                        const itemsOfOt = quoteBasket.filter(it => getItemCalcType(it) === ot);
+                        if (itemsOfOt.length > 0) {
+                            const lastItem = itemsOfOt[itemsOfOt.length - 1];
+                            if (lastItem.snapshot && lastItem.snapshot.inputs) {
+                                const projData = JSON.parse(JSON.stringify(lastItem.snapshot));
+                                projData.id = lastItem.id || Date.now();
+                                projData.quoteBasket = quoteBasket;
+                                projData.activeBasketItemId = lastItem.id;
+                                projData.date = projData.date || new Date().toLocaleString('sl-SI');
+                                if (!projData._source) {
+                                    projData._source = (ot === 'blok' ? 'darko-blok' : (ot === 'brosura' ? 'darko-brosura' : (ot === 'tenovis' ? 'darko-tenovis' : (ot === 'kuverte' ? 'darko-kuverte' : ot))));
+                                }
+
+                                const qNum = String(projData.quoteNum || (projData.inputs && projData.inputs.quote_num) || '').replace(/[/\\?%*:|"<> \t]/g, '-').trim();
+                                const s_pon = qNum ? ('pon.' + qNum) : 'pon';
+                                const s_cust = String(projData.customer || (projData.inputs && projData.inputs.customer) || '').replace(/[/\\?%*:|"<> \t]/g, '_').trim();
+                                let s_prod = String(projData.name || lastItem.name || ot).replace(/[/\\?%*:|"<> \t]/g, '_').trim();
+                                if (ot === 'blok' && !s_prod.toLowerCase().includes('blok')) s_prod += '_blok';
+                                if (ot === 'brosura' && !s_prod.toLowerCase().includes('brosur')) s_prod += '_brosura';
+                                if (ot === 'pola' && !s_prod.toLowerCase().includes('pola')) s_prod += '_pola';
+
+                                let s_nakl = '';
+                                if (lastItem.quantities && lastItem.quantities.length > 0) {
+                                    s_nakl = 'nakl.' + lastItem.quantities.map(q => q.qty).join('-');
+                                }
+                                const outName = [s_pon, s_cust, s_prod, s_nakl].filter(Boolean).join('_').replace(/_+/g, '_') + '.json';
+
+                                const srvUrl = typeof getServerBaseUrl === 'function' ? await getServerBaseUrl() : 'http://127.0.0.1:8095';
+                                await fetch(srvUrl, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ type: 'json', filename: outName, content: JSON.stringify(projData, null, 2) })
+                                });
+                            }
+                        }
+                    } catch (snapErr) {
+                        console.warn("Direct snapshot save failed for " + ot + ":", snapErr);
+                    }
+                }
+            }
+        }
+
         function loadBasketCalculation(id) {
             try {
                 var item = quoteBasket.find(x => x.id === id);
                 if (!item) return;
+
+                const itemCalc = typeof getItemCalcType === 'function' ? getItemCalcType(item) : 'tenovis';
+                if (itemCalc !== 'tenovis' && window.parent && window.parent !== window && typeof window.parent.switchTab === 'function') {
+                    try {
+                        window.parent.switchTab(itemCalc);
+                        const ifr = window.parent.document.getElementById('iframe_' + itemCalc);
+                        if (ifr && ifr.contentWindow && typeof ifr.contentWindow.loadBasketCalculation === 'function') {
+                            setTimeout(() => {
+                                try { ifr.contentWindow.loadBasketCalculation(id); } catch(e) {}
+                            }, 100);
+                            return;
+                        }
+                    } catch (tabErr) {
+                        console.warn("Preklop na zavihek " + itemCalc + " ni uspel:", tabErr);
+                    }
+                }
+
                 if (g_basketSyncTimer) { clearTimeout(g_basketSyncTimer); g_basketSyncTimer = null; }
                 g_activeBasketItemId = id;
                 quoteBasket.forEach(it => { it.isSelected = (it.id === id); });
@@ -8706,7 +8813,11 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
             });
         } catch (e) { logDebug("Napaka pri povezovanju dogodkov: " + e.message, true); }
 
-        function saveCurrentProject(btn = null) {
+        function saveCurrentProject(btn = null, silent = false, skipMultiSync = false) {
+            return saveProjectToFile(btn, silent, skipMultiSync);
+        }
+
+        function _saveCurrentProjectLocal(btn = null) {
 
             try {
                 if (typeof flushBasketAutoSync === 'function') flushBasketAutoSync();
@@ -9114,7 +9225,7 @@ async function autoSaveQuoteWordToServer(suggestedJsonName) {
             } catch (e) {}
         })();
 
-        async function saveProjectToFile() {
+        async function saveProjectToFile(btn = null, silent = false, skipMultiSync = false) {
 
             try {
                 if (typeof flushBasketAutoSync === 'function') flushBasketAutoSync();
@@ -9358,12 +9469,26 @@ async function autoSaveQuoteWordToServer(suggestedJsonName) {
                                     });
                                 }
                             if (typeof renderSavedProjects === 'function') renderSavedProjects();
-                            let wordSavedName = await autoSaveQuoteWordToServer(suggestedName);
+                            let wordSavedName = !silent ? await autoSaveQuoteWordToServer(suggestedName) : null;
+                            if (!skipMultiSync && typeof syncMultiCalculatorSaves === 'function') {
+                                await syncMultiCalculatorSaves('tenovis', skipMultiSync);
+                            }
+                            if (btn && !silent) {
+                                const oldHTML = btn.innerHTML;
+                                btn.innerHTML = "✅ SHRANJENO";
+                                btn.style.background = "#10b981";
+                                setTimeout(() => {
+                                    btn.innerHTML = oldHTML;
+                                    btn.style.background = "";
+                                }, 2000);
+                            }
                             const currYr = new Date().getFullYear();
-                            if (wordSavedName) {
-                                alert("✓ Shranjeno v srečko-server:\n\n• Kalkulacija (PONUDBE TEST):\n  " + suggestedName + "\n\n• Word ponudba (PONUDBE " + currYr + "):\n  " + wordSavedName);
-                            } else {
-                                alert("✓ Shranjeno v JSON na server Srečko (PONUDBE TEST):\nDatoteka: " + suggestedName);
+                            if (!silent) {
+                                if (wordSavedName) {
+                                    alert("✓ Shranjeno v srečko-server:\n\n• Kalkulacija (PONUDBE TEST):\n  " + suggestedName + "\n\n• Word ponudba (PONUDBE " + currYr + "):\n  " + wordSavedName);
+                                } else {
+                                    alert("✓ Shranjeno v JSON na server Srečko (PONUDBE TEST):\nDatoteka: " + suggestedName);
+                                }
                             }
                             return;
                         }
@@ -10410,6 +10535,22 @@ async function extractCustomersFromDisk() {
     g_activeBasketItemId = (proj && proj.activeBasketItemId) ? proj.activeBasketItemId : (quoteBasket.length > 0 ? quoteBasket[0].id : null);
     localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
     if (typeof renderBasket === 'function') renderBasket();
+
+    // Če projekt prihaja iz drugega kalkulatorja, v košarici pa imamo postavko za Tenovis:
+    const projSrc = String((proj && (proj._source || proj.source)) || '').toLowerCase();
+    if (!projSrc.includes('tenovis') && Array.isArray(quoteBasket) && quoteBasket.length > 0) {
+        const tenovisItem = quoteBasket.find(it => (typeof getItemCalcType === 'function' ? getItemCalcType(it) : 'tenovis') === 'tenovis');
+        if (tenovisItem && tenovisItem.snapshot && tenovisItem.snapshot.inputs) {
+            g_activeBasketItemId = tenovisItem.id;
+            localStorage.setItem('petric_quote_basket', JSON.stringify(quoteBasket));
+            if (typeof renderBasket === 'function') renderBasket();
+            const snap = JSON.parse(JSON.stringify(tenovisItem.snapshot));
+            snap.quoteBasket = quoteBasket;
+            snap.activeBasketItemId = tenovisItem.id;
+            loadProjectData(snap);
+            return;
+        }
+    }
 
     g_editedQuoteHTML = proj.editedQuoteHTML || '';
     g_editedWorkOrderHTML = proj.editedWorkOrderHTML || '';
