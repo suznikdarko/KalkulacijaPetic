@@ -1046,27 +1046,9 @@
 
                 </div>
 
-                <div>
-
-                    <label for="calc-customer-code" style="font-size: 0.75rem; margin-bottom: 0.2rem;">Šifra
-
-                        stranke</label>
-
-                    <input type="text" id="calc-customer-code" placeholder=""
-                        style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
-
-                    <input type="hidden" id="calc-cust-id" value="">
-
-                </div>
-
-                <div>
-
-                    <label style="font-size: 0.75rem; margin-bottom: 0.2rem;">Šifra izdelka</label>
-
-                    <input type="text" id="calc-product-code" placeholder=""
-                        style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
-
-                </div>
+                <input type="hidden" id="calc-customer-code" value="">
+                <input type="hidden" id="calc-cust-id" value="">
+                <input type="hidden" id="calc-product-code" value="">
 
                 <div>
 
@@ -11346,7 +11328,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
 
                             <td style="width: 50%; vertical-align: top;"><span style="font-size: 11pt;"><strong>${customer}</strong></span><br>${custAddress ? custAddress.replace(/\n/g, '<br>') + '<br>' : ''}${custEmail ? custEmail + '<br>' : ''}${deliveryAddress ? '<br><strong>' + (isAT ? 'Lieferadresse:' : 'Dostava na naslov:') + '</strong><br>' + deliveryAddress.replace(/\n/g, '<br>') : ''}</td>
 
-                            <td style="width: 50%; vertical-align: top;" align="right"><table class="info-table" cellpadding="0" cellspacing="0"><tr><td>Datum</td><td>${date}</td></tr><tr><td>${isAT ? 'Kunde' : 'Šifra stranke'}</td><td>${customerCode}</td></tr><tr><td>${isAT ? 'Angebot' : 'Ponudba'}</td><td>${quoteNum}</td></tr></table></td>
+                            <td style="width: 50%; vertical-align: top;" align="right"><table class="info-table" cellpadding="0" cellspacing="0"><tr><td>Datum</td><td>${date}</td></tr>${customerCode && customerCode !== '/' ? `<tr><td>${isAT ? 'Kunde' : 'Šifra stranke'}</td><td>${customerCode}</td></tr>` : ''}<tr><td>${isAT ? 'Angebot' : 'Ponudba'}</td><td>${quoteNum}</td></tr></table></td>
 
                         </tr>
 
@@ -12009,7 +11991,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                             <td style="width: 50%; vertical-align: top;" align="right">
                                 <table class="info-table" cellpadding="0" cellspacing="0">
                                     <tr><td>Datum:</td><td>${date}</td></tr>
-                                    <tr><td>Šifra stranke:</td><td>${customerCode || '/'}</td></tr>
+                                    ${customerCode && customerCode !== '/' ? `<tr><td>Šifra stranke:</td><td>${customerCode}</td></tr>` : ''}
                                     <tr><td>Ponudba št.:</td><td>${quoteNum || '/'}</td></tr>
                                     ${orderType ? `<tr><td>Tip naloga:</td><td style="color:#ef4444; font-weight:bold;">${orderType}</td></tr>` : ''}
                                 </table>
@@ -12377,6 +12359,20 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
 
             let dnPrintHours = (finalTotalSheets * mPasses) / 6000;
 
+                finalSourceSheets = Math.ceil(finalTotalSheets / sourceYield);
+
+            }
+
+            let prepPasses = front > 0 ? (Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0)) : 1;
+
+            let colorMode = front + '/' + (isObrat ? 'OB' : back);
+
+            let rule = prepRules[colorMode] || { passes: prepPasses };
+
+            let mPasses = rule.passes;
+
+            let dnPrintHours = (finalTotalSheets * mPasses) / 6000;
+
             let roundedPrepTime = Math.round(d.print.prepTime * 4) / 4;
 
             let roundedPrintTime = Math.round(dnPrintHours * 4) / 4;
@@ -12527,7 +12523,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
 
                     <div style="width: 50%;">
 
-                        <div class="bold" style="font-size: 11pt;">${customer} &nbsp;&nbsp;&nbsp; (Šifra stranke: ${customerCode})</div>
+                        <div class="bold" style="font-size: 11pt;">${customer}${customerCode && customerCode !== '/' ? ` &nbsp;&nbsp;&nbsp; (Šifra stranke: ${customerCode})` : ''}</div>
 
                         <div>${custAddress.replace(/\n/g, '<br>')}</div>
 
@@ -15416,17 +15412,17 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                     </div>
 
                     <!-- Šifra stranke -->
-                    <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                    <div style="display:none; background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; flex-direction:column; gap:6px;">
                         <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#fbbf24;">
-                            <input type="checkbox" id="pdf-chk-cust-code" checked style="width:16px; height:16px;"> Šifra stranke
+                            <input type="checkbox" id="pdf-chk-cust-code" style="width:16px; height:16px;"> Šifra stranke
                         </label>
                         <input type="text" id="pdf-val-cust-code" style="width:100%; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
                     </div>
 
                     <!-- Šifra izdelka -->
-                    <div style="background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
+                    <div style="display:none; background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid #334155; flex-direction:column; gap:6px;">
                         <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#fbbf24;">
-                            <input type="checkbox" id="pdf-chk-product-code" checked style="width:16px; height:16px;"> Šifra izdelka
+                            <input type="checkbox" id="pdf-chk-product-code" style="width:16px; height:16px;"> Šifra izdelka
                         </label>
                         <input type="text" id="pdf-val-product-code" style="width:100%; padding:7px; border-radius:6px; background:#0f172a; border:1px solid #475569; color:white;" />
                     </div>

@@ -196,6 +196,19 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
+### R. Odstranitev Šifre Stranke in Šifre Izdelka iz Vseh Kalkulatorjev
+- **Zahteva uporabnika:** Iz vseh kalkulatorjev odstrani polji "Šifra stranke" in "Šifra izdelka".
+- **Izvedba:**
+  1. V vseh 8 delovnih kalkulatorjih (`pola2.html`, `blok2.html`, `brosura2.html`, `TENOVIS2.html`, `krka2.html`, `kuverte2.html`, `etikete2.html`, `koledar2.html`):
+     - Odstranjeni so vizualni vnosni elementi in oznake (`<label>`, `<input>`) za "Šifra stranke" in "Šifra izdelka" iz glave kalkulatorja.
+     - Elementa sta ohranjena kot skriti polji (`<input type="hidden" id="calc-customer-code" value="">` ter `<input type="hidden" id="calc-product-code" value="">`), kar preprečuje kakršnekoli `TypeError: null` napake pri klicih obstoječih skript za shranjevanje ali branje projektov.
+     - V `kuverte2.html` je bila oznaka materiala preimenovana v "Šifra materiala" (brez besede "izdelka").
+     - V modalnih oknih za uvoz/izvoz PDF so bila polja/kljukice za šifro stranke in izdelka skrita (`display: none;`).
+     - V generiranih ponudbah in delovnih nalogih se oznaka "Šifra stranke:" prikazuje izključno takrat, ko je dejansko izpolnjena (torej ne prikazuje več praznih vrednosti ali `/`).
+  2. Vse spremembe so posodobljene na `C:\DARKO\KalkulacijaPetric\` in sinhronizirane na omrežni pogon `S:\DARKO\KalkulacijaPetric\`. Predloge (`pola.html`, `blok.html`, ...) so ostale nedotaknjene po pravilu uporabnika.
+
+---
+
 ## 2. Hitri Diagnostični Protokol (Če se zavihek spet ne odziva)
 
 Ko uporabnik sporoči, da se zavihek ne odziva, izvedi naslednje korake:
