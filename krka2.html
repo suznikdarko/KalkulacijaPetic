@@ -547,7 +547,7 @@
                 <div class="grid-2" style="margin-bottom: 0.75rem;">
                     <div class="header-group">
                         <label for="krka-dim-o">Odprt format (mm)</label>
-                        <input type="text" id="krka-dim-o" placeholder="Odprt format (mm)" value="" oninput="updateWorkOrderLive(); calculateKrkaPrice();">
+                        <input type="text" id="krka-dim-o" placeholder="Odprt format (mm)" value="" oninput="onDimOInput();">
                     </div>
                     <div class="header-group">
                         <label for="krka-dim-z">Zgiban format (mm)</label>
@@ -686,6 +686,7 @@
                                 <option value="4" selected>4</option>
                                 <option value="6">6</option>
                                 <option value="8">8</option>
+                                <option value="9">9</option>
                                 <option value="10">10</option>
                                 <option value="12">12</option>
                                 <option value="custom">Po meri</option>
@@ -717,17 +718,25 @@
                     </div>
                 </div>
 
-                <div class="grid-3">
+                <div class="grid-2" style="margin-bottom: 0.75rem;">
                     <div class="header-group">
-                        <label for="krka-razrez-format" style="color: #60a5fa; font-weight: 700;">Format za razrez</label>
+                        <label for="krka-print-sheet" style="color: #60a5fa; font-weight: 700;">Format tiskovne pole (pola)</label>
+                        <input type="text" id="krka-print-sheet" placeholder="Format tiska (pola)" value="598 x 498 mm" oninput="onPrintSheetChanged(); updateWorkOrderLive();">
+                    </div>
+                    <div class="header-group">
+                        <label for="krka-razrez-format" style="color: #60a5fa; font-weight: 700;">Format za razrez (iz česa se reže)</label>
                         <select id="krka-razrez-format" onchange="onRazrezFormatChanged()" style="font-weight: bold; border: 1.5px solid #3b82f6;">
-                            <option value="598x498" selected>598 x 498 (2 iz pole)</option>
-                            <option value="700x1060">700 x 1060 (1 iz pole)</option>
-                            <option value="1000x700">1000 x 700 (1 iz pole)</option>
-                            <option value="698x498">698 x 498 (2 iz pole)</option>
+                            <option value="598x498">598 x 498 mm</option>
+                            <option value="700x1000">700 x 1000 mm</option>
+                            <option value="1000x700">1000 x 700 mm</option>
+                            <option value="700x1060">700 x 1060 mm</option>
+                            <option value="698x498">698 x 498 mm</option>
                             <option value="custom">✏️ Po meri (ročni vnos)</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="grid-2">
                     <div class="header-group">
                         <label for="krka-raw-sheets">Vhodne pole (zaloga)</label>
                         <input type="text" id="krka-raw-sheets" placeholder="Vhodne pole" value="" oninput="updateWorkOrderLive()">
@@ -958,6 +967,30 @@
         updateWorkOrderLive();
     }
 
+    // Tabela formatov Krka: Pakirano v škatli, Na poli, Pola (format tiska), Razrez (iz česa se reže)
+    const KRKA_FORMAT_SPECS = {
+        "173x150": { boxCap: 2000, itemsPerSheet: 9, pola: "598x498", razrez: "598x498" },
+        "293x110": { boxCap: 4200, itemsPerSheet: 8, pola: "698x498", razrez: "700x1000" },
+        "269x148": { boxCap: 4500, itemsPerSheet: 6, pola: "598x498", razrez: "598x498" },
+        "269x154": { boxCap: 4500, itemsPerSheet: 6, pola: "598x498", razrez: "598x498" },
+        "260x154": { boxCap: 4500, itemsPerSheet: 6, pola: "598x498", razrez: "598x498" },
+        "380x154": { boxCap: 3000, itemsPerSheet: 4, pola: "698x498", razrez: "700x1000" },
+        "399x154": { boxCap: 3000, itemsPerSheet: 4, pola: "698x498", razrez: "700x1000" },
+        "413x110": { boxCap: 4500, itemsPerSheet: 6, pola: "698x498", razrez: "700x1000" },
+        "514x110": { boxCap: 2500, itemsPerSheet: 4, pola: "698x498", razrez: "1000x700" },
+        "532x154": { boxCap: 2400, itemsPerSheet: 3, pola: "598x498", razrez: "598x498" },
+        "615x110": { boxCap: 3000, itemsPerSheet: 4, pola: "698x498", razrez: "700x1000" },
+        "650x154": { boxCap: 1680, itemsPerSheet: 2, pola: "698x352", razrez: "700x1060" },
+        "398x148": { boxCap: 3000, itemsPerSheet: 4, pola: "698x498", razrez: "700x1000" },
+        "532x148": { boxCap: 2400, itemsPerSheet: 3, pola: "598x498", razrez: "598x498" }
+    };
+
+    function getKrkaFormatSpec(dimO) {
+        if (!dimO) return null;
+        const clean = dimO.replace(/\s*mm/gi, '').replace(/\s+/g, '').toLowerCase();
+        return KRKA_FORMAT_SPECS[clean] || null;
+    }
+
     // Initialize Format Dropdown
     function initFormatDropdown() {
         const select = document.getElementById('krka-format-select');
@@ -985,7 +1018,12 @@
         uniqueDims.forEach((dim, idx) => {
             const opt = document.createElement('option');
             opt.value = dim.dimO + '|' + dim.dimZ;
-            opt.textContent = `${dim.dimO} mm (zgiban ${dim.dimZ} mm)`;
+            const spec = KRKA_FORMAT_SPECS[dim.dimO];
+            if (spec) {
+                opt.textContent = `${dim.dimO} mm (zg. ${dim.dimZ}) — ${spec.itemsPerSheet} na poli, pola ${spec.pola}, škatla ${formatNumberSlo(spec.boxCap)}`;
+            } else {
+                opt.textContent = `${dim.dimO} mm (zgiban ${dim.dimZ} mm)`;
+            }
             select.appendChild(opt);
         });
 
@@ -1005,11 +1043,58 @@
         }
         const parts = val.split('|');
         if (parts.length === 2) {
-            sv('krka-dim-o', parts[0] + ' mm');
-            sv('krka-dim-z', parts[1] + ' mm');
+            const dimOStr = parts[0];
+            const dimZStr = parts[1];
+            sv('krka-dim-o', dimOStr + ' mm');
+            sv('krka-dim-z', dimZStr + ' mm');
+
+            const spec = getKrkaFormatSpec(dimOStr);
+            if (spec) {
+                // 1. Pakirano v škatli
+                sv('krka-box-cap', spec.boxCap);
+                sv('calc-dn-packaging', `v škatle po ${formatNumberSlo(spec.boxCap)} kos`);
+                recalculateBoxes();
+
+                // 2. Na poli (sestavkov na poli)
+                sv('krka-items-select', spec.itemsPerSheet);
+                sv('krka-items-per-sheet', `${spec.itemsPerSheet} sest. na poli`);
+
+                // 3. Format na katerem se tiska (pola)
+                sv('krka-print-sheet', spec.pola.replace(/x/i, ' x ') + ' mm');
+
+                // 4. Iz česa se reže (razrez)
+                sv('krka-razrez-format', spec.razrez);
+
+                // Preračunaj pole
+                recalculateSheets();
+            }
+
             calculateKrkaPrice();
             updateWorkOrderLive();
         }
+    }
+
+    function onDimOInput() {
+        const spec = getKrkaFormatSpec(gv('krka-dim-o'));
+        if (spec) {
+            sv('krka-box-cap', spec.boxCap);
+            sv('calc-dn-packaging', `v škatle po ${formatNumberSlo(spec.boxCap)} kos`);
+            recalculateBoxes();
+
+            sv('krka-items-select', spec.itemsPerSheet);
+            sv('krka-items-per-sheet', `${spec.itemsPerSheet} sest. na poli`);
+
+            sv('krka-print-sheet', spec.pola.replace(/x/i, ' x ') + ' mm');
+            sv('krka-razrez-format', spec.razrez);
+            recalculateSheets();
+        }
+        calculateKrkaPrice();
+        updateWorkOrderLive();
+    }
+
+    function onPrintSheetChanged() {
+        recalculateSheets();
+        updateWorkOrderLive();
     }
 
     // Tabela za vzorce KRKA glede na velikost serije (naklade)
@@ -1140,7 +1225,7 @@
         const match = val.match(/(\d+)/);
         const sel = document.getElementById('krka-items-select');
         if (sel) {
-            if (match && ['1','2','3','4','6','8','10','12'].includes(match[1])) {
+            if (match && ['1','2','3','4','6','8','9','10','12'].includes(match[1])) {
                 sel.value = match[1];
             } else {
                 sel.value = 'custom';
@@ -1243,24 +1328,53 @@
             sv('krka-print-run', `${formatNumberSlo(netSheets)} tisk. pol (1x skozi stroj)`);
         }
 
-        // Format za razrez
+        // Pola (tiskovni format)
+        let printSheetFmt = gv('krka-print-sheet') || '';
+        printSheetFmt = printSheetFmt.replace(/\s*mm/gi, '').replace(/\s+/g, '').trim();
+        if (!printSheetFmt) {
+            const spec = getKrkaFormatSpec(gv('krka-dim-o'));
+            printSheetFmt = spec ? spec.pola : '598x498';
+        }
+
+        // Format za razrez (iz česa se reže)
         const razrezFmt = gv('krka-razrez-format') || '598x498';
+
+        let ratio = 1;
+        let rawSheetLabel = '';
+
         if (razrezFmt === '598x498') {
-            const rawSheets = Math.ceil(totalCutSheets / 2);
-            sv('krka-cut-sheets', `${formatNumberSlo(totalCutSheets)} pol na 598 x 498 mm (2 iz pole)`);
-            sv('krka-raw-sheets', `${formatNumberSlo(rawSheets)} pol B1 SB`);
-        } else if (razrezFmt === '700x1060') {
-            const rawSheets = totalCutSheets;
-            sv('krka-cut-sheets', `${formatNumberSlo(totalCutSheets)} pol na 700 x 1060 mm (1 iz pole)`);
-            sv('krka-raw-sheets', `${formatNumberSlo(rawSheets)} pol 700x1060 SB`);
+            ratio = 1;
+            rawSheetLabel = '598 x 498 mm';
+        } else if (razrezFmt === '700x1000') {
+            ratio = 2;
+            rawSheetLabel = '700 x 1000 mm (B1)';
         } else if (razrezFmt === '1000x700') {
-            const rawSheets = totalCutSheets;
-            sv('krka-cut-sheets', `${formatNumberSlo(totalCutSheets)} pol na 1000 x 700 mm (1 iz pole)`);
-            sv('krka-raw-sheets', `${formatNumberSlo(rawSheets)} pol B1 SB`);
+            ratio = 2;
+            rawSheetLabel = '1000 x 700 mm (B1 SB)';
+        } else if (razrezFmt === '700x1060') {
+            if (printSheetFmt.includes('352')) {
+                ratio = 3;
+            } else {
+                ratio = 2;
+            }
+            rawSheetLabel = '700 x 1060 mm SB';
         } else if (razrezFmt === '698x498') {
-            const rawSheets = Math.ceil(totalCutSheets / 2);
-            sv('krka-cut-sheets', `${formatNumberSlo(totalCutSheets)} pol na 69,8 x 49,8 cm (2 iz pole)`);
-            sv('krka-raw-sheets', `${formatNumberSlo(rawSheets)} pol B1 SB`);
+            ratio = 1;
+            rawSheetLabel = '698 x 498 mm';
+        } else {
+            ratio = 1;
+            rawSheetLabel = razrezFmt;
+        }
+
+        const rawSheets = Math.ceil(totalCutSheets / ratio);
+        const displayPola = printSheetFmt.replace(/x/i, ' x ') + ' mm';
+
+        if (ratio > 1) {
+            sv('krka-cut-sheets', `${formatNumberSlo(totalCutSheets)} pol na ${displayPola} (${ratio} iz pole)`);
+            sv('krka-raw-sheets', `${formatNumberSlo(rawSheets)} pol ${rawSheetLabel}`);
+        } else {
+            sv('krka-cut-sheets', `${formatNumberSlo(totalCutSheets)} pol na ${displayPola} (1 iz pole)`);
+            sv('krka-raw-sheets', `${formatNumberSlo(rawSheets)} pol ${rawSheetLabel}`);
         }
     }
 
@@ -1797,6 +1911,7 @@
                 matStock: gv('krka-material-stock'),
                 matCode: gv('krka-material-code'),
                 razrezFormat: gv('krka-razrez-format'),
+                printSheet: gv('krka-print-sheet'),
                 rawSheets: gv('krka-raw-sheets'),
                 cutSheets: gv('krka-cut-sheets'),
                 finishingDesc: gv('krka-finishing-desc'),
@@ -1908,6 +2023,7 @@
         if (inp.matStock) sv('krka-material-stock', inp.matStock);
         if (inp.matCode) sv('krka-material-code', inp.matCode);
         if (inp.razrezFormat) sv('krka-razrez-format', inp.razrezFormat);
+        if (inp.printSheet) sv('krka-print-sheet', inp.printSheet);
         if (inp.rawSheets) sv('krka-raw-sheets', inp.rawSheets);
         if (inp.cutSheets) sv('krka-cut-sheets', inp.cutSheets);
         if (inp.finishingDesc) sv('krka-finishing-desc', inp.finishingDesc);

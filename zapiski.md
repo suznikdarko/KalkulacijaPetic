@@ -209,6 +209,20 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
+### S. Krka2: Avtomatska Tabela Pakiranja, Števila na Poli, Tiskovne Pole in Razreza
+- **Zahteva uporabnika:** V `krka2.html` implementirati tabelo s 14 Krka formati (pakirano v škatli, število na poli, tiskovna pola in format razreza) ter omogočiti ročno izbiro formata za razrez iz spustnega seznama.
+- **Izvedba:**
+  1. Vgrajena tabela specifikacij `KRKA_FORMAT_SPECS` za vseh 14 formatov (173x150, 293x110, 269x148, 269x154, 260x154, 380x154, 399x154, 413x110, 514x110, 532x154, 615x110, 650x154, 398x148, 532x148).
+  2. Ob izbiri formata iz spustnega seznama (ali ročnem vpisu odprtega formata) se samodejno nastavijo:
+     - Kapaciteta škatle (`krka-box-cap`) in opomba pakiranja
+     - Število sestavkov na poli (`krka-items-select` in `krka-items-per-sheet`, dodana je tudi možnost `9` sestavkov)
+     - Tiskovna pola (`krka-print-sheet`: 598x498, 698x498, 698x352 mm)
+     - Privzeti format za razrez (`krka-razrez-format`: 598x498, 700x1000, 1000x700, 700x1060)
+  3. Uporabnik lahko format za razrez kadarkoli samostojno spremeni v spustnem seznamu (npr. izbira med 598x498, 700x1000, 1000x700, 700x1060, 698x498 ali po meri), preračun razreza (vhodne pole in razrezane pole) pa se takoj dinamično posodobi glede na izbrani format in razmerje izrezov.
+  4. Posodobljeni `krka2.html` je sinhroniziran na `C:\DARKO\KalkulacijaPetric\` in `S:\DARKO\KalkulacijaPetric\`.
+
+---
+
 ## 2. Hitri Diagnostični Protokol (Če se zavihek spet ne odziva)
 
 Ko uporabnik sporoči, da se zavihek ne odziva, izvedi naslednje korake:
