@@ -3663,13 +3663,38 @@
                 document.getElementById('calc-source-yield').value = Math.max(y1, y2, 1);
             }
         }
-        function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceMode) {
+        function checkSymmetricFit(cCols, cRows, target, twoSided) {
+            if (target <= 0 || cCols <= 0 || cRows <= 0) return false;
+            if (cCols * cRows < target) return false;
+            for (let tempC = 1; tempC <= cCols; tempC++) {
+                if (target % tempC === 0) {
+                    let tempR = target / tempC;
+                    if (tempR <= cRows) {
+                        if (twoSided && (tempC % 2 !== 0 && tempR % 2 !== 0)) {
+                            continue;
+                        }
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function optimizeLayout(sheetW, sheetH, itemW, itemH, gripper, forceMode, targetCount = 0) {
             const isObrat = document.getElementById('calc-is-obrat') ? document.getElementById('calc-is-obrat').checked : false;
             const isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false;
             const isTwoSided = isObrat || isSV;
             const isPers = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
             const splitSelect = document.getElementById('f-personalization-split');
             const userSplit = splitSelect ? splitSelect.value : 'auto';
+
+            if (!targetCount) {
+                const ipsEl = document.getElementById('items-per-sheet');
+                const parsedTarget = ipsEl ? parseInt(ipsEl.value) : 0;
+                if (parsedTarget > 0 && parsedTarget !== window.g_autoCount) {
+                    targetCount = parsedTarget;
+                }
+            }
 
             let isB2Sheet = (sheetW >= 650 && sheetW <= 720 && sheetH >= 450 && sheetH <= 520) || (sheetH >= 650 && sheetH <= 720 && sheetW >= 450 && sheetW <= 520);
             let maxSheetDim = Math.max(sheetW, sheetH);
@@ -3794,18 +3819,51 @@
                         finalCount = 0;
                     }
                 }
-                if (finalCount > 0 && (!best || finalCount > best.count)) {
-                    best = {
-                        count: finalCount,
-                        cols: cols,
-                        rows: rows,
-                        itemW: cfg.iw,
-                        itemH: cfg.ih,
-                        rot: cfg.rot,
-                        gripEdge: cfg.edge,
-                        isMixed: isMixed,
-                        digCutFactor: chosen.factor
-                    };
+                let candidate = {
+                    count: finalCount,
+                    cols: cols,
+                    rows: rows,
+                    itemW: cfg.iw,
+                    itemH: cfg.ih,
+                    rot: cfg.rot,
+                    gripEdge: cfg.edge,
+                    isMixed: isMixed,
+                    digCutFactor: chosen.factor
+                };
+
+                if (finalCount > 0) {
+                    if (!best) {
+                        best = candidate;
+                    } else if (targetCount > 0) {
+                        let candSym = checkSymmetricFit(candidate.cols, candidate.rows, targetCount, isTwoSided);
+                        let bestSym = checkSymmetricFit(best.cols, best.rows, targetCount, isTwoSided);
+
+                        if (candSym && !bestSym) {
+                            best = candidate;
+                        } else if (!candSym && bestSym) {
+                            // Prejšnja konfiguracija že omogoča simetrično razporeditev
+                        } else if (candSym && bestSym) {
+                            if (candidate.count > best.count) {
+                                best = candidate;
+                            } else if (candidate.count === best.count && !candidate.rot && best.rot) {
+                                best = candidate;
+                            }
+                        } else {
+                            let candFits = candidate.count >= targetCount;
+                            let bestFits = best.count >= targetCount;
+                            if (candFits && !bestFits) {
+                                best = candidate;
+                            } else if (candidate.count > best.count) {
+                                best = candidate;
+                            }
+                        }
+                    } else {
+                        if (candidate.count > best.count) {
+                            best = candidate;
+                        } else if (candidate.count === best.count && !candidate.rot && best.rot) {
+                            best = candidate;
+                        }
+                    }
                 }
             });
             return best;
@@ -4051,6 +4109,7 @@
                 } else {
                     const rawFamily = getPaperFamily(sw, sh);
                     const isPers = document.getElementById('f-personalization-active') ? document.getElementById('f-personalization-active').checked : false;
+                    const isTwoSidedCalc = (document.getElementById('calc-is-obrat')?.checked || document.getElementById('calc-is-sv')?.checked) || false;
                     const checkSheet = (s) => {
                         let fitsSource = (sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w);
                         let fitsMachine = true;
@@ -4060,7 +4119,7 @@
                         let familyMatches = isSheetFamilyMatching(rawFamily, s.family, mType, s.name);
                         let persMatches = !isPers || isSheetCompatibleWithPers(s);
                         if (!fitsSource || !fitsMachine || !familyMatches || !persMatches) return;
-                        let currLayout = optimizeLayout(s.w, s.h, itemW, itemH, g, fMode);
+                        let currLayout = optimizeLayout(s.w, s.h, itemW, itemH, g, fMode, targetCount);
                         if (!currLayout) return;
                         const y1 = Math.floor(sw / s.w) * Math.floor(sh / s.h);
                         const y2 = Math.floor(sw / s.h) * Math.floor(sh / s.w);
@@ -4071,11 +4130,13 @@
                         const standardBonus = isStandard ? 10000000 : 0;
                         const standardBonusNormal = isStandard ? 500 : 0;
                         const persBonus = (isPers && mType === 'digital' && s.family === 'DIGITAL') ? 5000 : 0;
+                        let isSym = (targetCount > 0) ? checkSymmetricFit(currLayout.cols, currLayout.rows, targetCount, isTwoSidedCalc) : true;
+                        let symBonus = (targetCount > 0 && isSym) ? 500000000 : 0;
 
                         if (targetCount > 0) {
                             if (isSatisfied) {
                                 const sheetArea = s.w * s.h;
-                                score = (sYield * 1000000000) + (1000000000000 / sheetArea) + currLayout.count + standardBonus + persBonus;
+                                score = (sYield * 1000000000) + (1000000000000 / sheetArea) + currLayout.count + standardBonus + persBonus + symBonus;
                             } else {
                                 score = currLayout.count + (isStandard ? 0.1 : 0) + persBonus;
                             }
@@ -4099,11 +4160,11 @@
                                 if (profile && profile.maxW) fM = (s.w <= profile.maxW && s.h <= profile.maxH) || (s.h <= profile.maxW && s.w <= profile.maxH);
                                 return ((sw >= s.w && sh >= s.h) || (sw >= s.h && sh >= s.w)) && fM;
                             }) || sheets[0];
-                            bestLayout = optimizeLayout(bestSheet.w, bestSheet.h, itemW, itemH, g, fMode);
+                            bestLayout = optimizeLayout(bestSheet.w, bestSheet.h, itemW, itemH, g, fMode, targetCount);
                         }
                     } else {
                         bestSheet = sheets.find(s => s.name === mFormat) || sheets[0];
-                        bestLayout = optimizeLayout(bestSheet.w, bestSheet.h, itemW, itemH, g, fMode);
+                        bestLayout = optimizeLayout(bestSheet.w, bestSheet.h, itemW, itemH, g, fMode, targetCount);
                     }
                 }
                 if (bestSheet) {
@@ -6034,12 +6095,8 @@
             };
         }
         function updatePriceFromManualCount() {
-            let manualCount = parseInt(document.getElementById('items-per-sheet').value) || 0;
-            if (manualCount > 0) {
-                // Če uporabnik ročno vnese število, počistimo grafično postavitev, ker ni več veljavna
-                g_manualLayout = null;
-                calculatePrice();
-            }
+            g_manualLayout = null;
+            calculatePrice();
         }
         function toggleFinishRow(type) {
             const row = document.getElementById('row-finish-' + type);
