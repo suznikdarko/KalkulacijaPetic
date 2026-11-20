@@ -238,6 +238,16 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 
 ---
 
+### U. Premik Polja RVC / Marža in Minus Cena na Zavihek "Povzetek & RVC" (`blok2.html` in `brosura2.html`)
+- **Zahteva:** Polje z maržo (`calc-margin`) in minus ceno 4,8% (`calc-minus-price`) premakniti iz zavihka Dodelava na zavihek »💶 Povzetek & RVC« zraven tehnične specifikacije.
+- **Izvedba:**
+  1. V `blok2.html` in `brosura2.html` je bil element odstranjen iz zavihka Dodelava (`calc-tab-dodelava`).
+  2. V zavihku »Povzetek & RVC« (`calc-tab-povzetek`) je bil blok za specifikacijo (`detailed-spec-content`) in blok za RVC (`row-rvc-margin`) postavljen v prilagodljivo postavitev (`display: flex; gap: 1.5rem; justify-content: space-between; flex-wrap: wrap;`), kjer se polje za RVC nahaja desno zraven specifikacije, s podporo za lepljivo vidnost (`position: sticky; top: 1rem;`) ob drsenju po specifikaciji.
+  3. Ohranjen je celoten nabor ID-jev in dogodkov (`onchange="calculatePrice()"` / `calculate()`), tako da kalkulacije, samodejni preračuni in shranjevanje v košarico/projekte delujejo 100% nespremenjeno.
+  4. Obe datoteki sta posodobljeni na `C:\` in sinhronizirani na omrežni pogon `S:\`.
+
+---
+
 ## 2. Hitri Diagnostični Protokol (Če se zavihek spet ne odziva)
 
 Ko uporabnik sporoči, da se zavihek ne odziva, izvedi naslednje korake:
