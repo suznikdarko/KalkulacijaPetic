@@ -2820,7 +2820,7 @@
                 style="display: none; margin: 0; width: auto; background: #10b981; padding: 0.5rem 1.35rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);"
                 title="Shrani spremembe v trenutno naloženo postavko košarice">
                 💾 POSODOBI</button>
-            <button class="calculate-btn" onclick="saveProjectToFile()"
+            <button class="calculate-btn" onclick="saveProjectToFile(this)"
                 style="margin: 0; width: auto; background: #6366f1; padding: 0.5rem 1.5rem; font-size:1rem; font-weight: bold; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
                 SHRANI</button>
             <button class="calculate-btn" onclick="printProductionOrder()"
@@ -9242,6 +9242,15 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
         async function saveProjectToFile(btn = null, silent = false, skipMultiSync = false) {
 
             try {
+                if (!btn && typeof document !== 'undefined') {
+                    btn = document.querySelector('button[onclick*="saveProjectToFile"]') || document.querySelector('button[onclick*="saveCurrentProject"]');
+                }
+                const oldBtnHTML = btn ? btn.innerHTML : '';
+                const oldBtnBg = btn ? btn.style.background : '';
+                if (btn && !silent) {
+                    btn.innerHTML = "⏳ SHRANJUJEM...";
+                }
+
                 if (typeof flushBasketAutoSync === 'function') flushBasketAutoSync();
 
                 let name = document.getElementById('calc-project-name')?.value.trim() || "Ponudba";
@@ -9470,32 +9479,29 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     if (srvRes.ok) {
                         const srvData = await srvRes.json();
                         if (srvData.status === 'success') {
-                            if (typeof updateIndexWithProject === 'function') {
-                                await updateIndexWithProject({
-                                    name: suggestedName,
-                                    customer: (gv('calc-customer') || '').trim(),
-                                    quoteNum: (gv('calc-quote-number') || '').trim(),
-                                    date: data.date || new Date().toLocaleString('sl-SI'),
-                                    total: (data.results && data.results.total) ? String(data.results.total) : '',
-                                    sourceFormat: '',
-                                    isTenovis: true,
-                                    mtime: Date.now()
-                                });
+                            window.g_currentLoadedFileName = suggestedName;
+
+                            // 1. Shranjevanje Word ponudbe takoj!
+                            let wordSavedName = null;
+                            if (!silent) {
+                                try {
+                                    wordSavedName = await autoSaveQuoteWordToServer(suggestedName);
+                                } catch (wordErr) {
+                                    console.warn("Napaka pri samodejnem shranjevanju Word:", wordErr);
+                                }
                             }
-                            if (typeof renderSavedProjects === 'function') renderSavedProjects();
-                            let wordSavedName = !silent ? await autoSaveQuoteWordToServer(suggestedName) : null;
-                            if (!skipMultiSync && typeof syncMultiCalculatorSaves === 'function') {
-                                await syncMultiCalculatorSaves('tenovis', skipMultiSync);
-                            }
+
+                            // 2. Vizualna potrditev na gumbu
                             if (btn && !silent) {
-                                const oldHTML = btn.innerHTML;
                                 btn.innerHTML = "✅ SHRANJENO";
                                 btn.style.background = "#10b981";
                                 setTimeout(() => {
-                                    btn.innerHTML = oldHTML;
-                                    btn.style.background = "";
-                                }, 2000);
+                                    btn.innerHTML = oldBtnHTML || "SHRANI";
+                                    btn.style.background = oldBtnBg || "";
+                                }, 2500);
                             }
+
+                            // 3. Obvestilo uporabniku
                             const currYr = new Date().getFullYear();
                             if (!silent) {
                                 if (wordSavedName) {
@@ -9504,11 +9510,58 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                                     alert("✓ Shranjeno v JSON na server Srečko (PONUDBE TEST):\nDatoteka: " + suggestedName);
                                 }
                             }
+
+                            // 4. Sinhronizacija več kalkulatorjev, če so postavke v košarici
+                            if (!skipMultiSync && typeof syncMultiCalculatorSaves === 'function') {
+                                try {
+                                    await syncMultiCalculatorSaves('tenovis', skipMultiSync);
+                                } catch (msErr) { console.warn("MultiSync error:", msErr); }
+                            }
+
+                            // 5. Asinhrono shranjevanje v lokalni arhiv in osvežitev seznama
+                            try {
+                                let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                                arhiv = arhiv.filter(p => (p.name || '') !== (data.name || '') && (p.name || '') !== suggestedName);
+                                arhiv.unshift(makeStorageSafeProject(data));
+                                saveArhivToStorage(STORAGE_KEY, arhiv);
+                            } catch (e) { }
+
+                            if (typeof updateIndexWithProject === 'function') {
+                                try {
+                                    await updateIndexWithProject({
+                                        name: suggestedName,
+                                        customer: (gv('calc-customer') || '').trim(),
+                                        quoteNum: (gv('calc-quote-number') || '').trim(),
+                                        date: data.date || new Date().toLocaleString('sl-SI'),
+                                        total: (data.results && data.results.total) ? String(data.results.total) : '',
+                                        sourceFormat: '',
+                                        isTenovis: true,
+                                        mtime: Date.now()
+                                    });
+                                } catch (idxErr) { }
+                            }
+
+                            if (typeof fetchServerProjects === 'function') {
+                                fetchServerProjects().then(() => {
+                                    if (typeof renderSavedProjects === 'function') renderSavedProjects();
+                                }).catch(() => {});
+                            } else if (typeof renderSavedProjects === 'function') {
+                                renderSavedProjects();
+                            }
+
                             return;
                         }
                     }
                 } catch (srvErr) {
-                    console.log("Save server error:", srvErr);
+                    console.error("Save server error:", srvErr);
+                    if (btn && !silent) {
+                        btn.innerHTML = "❌ NAPAKA";
+                        btn.style.background = "#ef4444";
+                        setTimeout(() => {
+                            btn.innerHTML = oldBtnHTML || "SHRANI";
+                            btn.style.background = oldBtnBg || "";
+                        }, 3000);
+                    }
                 }
 
                 if (typeof g_projectsDirHandle !== 'undefined' && g_projectsDirHandle) {
@@ -10253,6 +10306,9 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
         }
 
         function getProjectCategoryInfo(p) {
+            if (!p || typeof p !== 'object') {
+                return { type: 'tenovis', label: 'TENOVIS', color: '#c084fc', bg: 'rgba(192, 132, 252, 0.15)', icon: '⚡' };
+            }
             const src = (p.source || p._source || '').toLowerCase();
             const fname = (p.file || p.name || '').toLowerCase();
             if (src.includes('tenovis') || fname.includes('tenovis') || fname.includes('_230') || fname.includes('_240')) {
@@ -10566,8 +10622,9 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                 }
             }
 
-            g_editedQuoteHTML = proj.editedQuoteHTML || '';
-            g_editedWorkOrderHTML = proj.editedWorkOrderHTML || '';
+            g_editedQuoteHTML = (proj.editedQuoteHTML || '').replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+            g_editedQuoteATHTML = (proj.editedQuoteATHTML || '').replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+            g_editedWorkOrderHTML = (proj.editedWorkOrderHTML || '').replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
 
             function sv(id, val) {
                 var el = document.getElementById(id);
@@ -11377,14 +11434,15 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     <p class="notes">${isAT ? 'Dieses Angebot ist gültig für 30 Tage. Zahlung erfolgt nach 30 Tagen ab Lieferung der Ware. Wir danken Ihnen für Ihre mögliche Bestellung, and wünschen Ihnen einen angenehmen Tag.' : 'Opcijski rok ponudbe je 30 dni. V ceni ni vračunan DDV. Rok plačila 30 dni po prejemu tiskovin. Ponudba je izdelana na osnovi znanih tehničnih podatkov in cen repromaterialov. V primeru odstopanja od zgoraj navedenih parametrov se cena izdelave lahko kadarkoli naknadno popravi.'}</p>
 
                     <div style="margin-top: 10px; font-family: Arial, sans-serif; font-size: 9pt; font-style: italic;">${isAT ? 'Dieses Angebot hat für Sie erstellt:' : 'Kalkulacijo pripravil:'} ${preparedBy}</div>
-
+                    </div>
             `;
 
             const editedHTMLVar = isAT ? 'g_editedQuoteATHTML' : 'g_editedQuoteHTML';
             var contentToRender = (isAT && typeof g_editedQuoteATHTML !== 'undefined' && g_editedQuoteATHTML) ? g_editedQuoteATHTML :
                 (!isAT && typeof g_editedQuoteHTML !== 'undefined' && g_editedQuoteHTML) ? g_editedQuoteHTML : defaultContent;
 
-            if (contentToRender) {
+            if (contentToRender && typeof contentToRender === 'string') {
+                contentToRender = contentToRender.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
                 contentToRender = contentToRender.replace(/(<td[^>]*>(?:Tisk[^<]*|Druck[^<]*)<\/td>\s*<td[^>]*>)(.*?)(<\/td>)/gi, function (match, td1, colorVal, td2) {
                     return td1 + formatQuoteColor(colorVal, isAT) + td2;
                 });
@@ -11447,7 +11505,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                         ${contentToRender}
 
                     </div>
-
+                    ${!isWord ? `
                     <` + `script>
         // g_lastSaveHandle declared at top
 
@@ -11626,13 +11684,27 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                             try {
                                 var area = document.querySelector('.editable-area');
                                 var content = area ? area.innerHTML : document.body.innerHTML;
-                                var fileName = (window.opener && typeof window.opener.buildStandardFileName === 'function')
-                                    ? window.opener.buildStandardFileName('.doc')
-                                    : (typeof buildStandardFileName === 'function' ? buildStandardFileName('.doc') : 'ponudba.doc');
+                                var fileName = 'ponudba.doc';
+                                try {
+                                    if (window.opener && typeof window.opener.buildStandardFileName === 'function') {
+                                        fileName = window.opener.buildStandardFileName('.doc');
+                                    } else if (typeof buildStandardFileName === 'function') {
+                                        fileName = buildStandardFileName('.doc');
+                                    } else {
+                                        fileName = (document.title || 'ponudba').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.doc';
+                                    }
+                                } catch (nameErr) {
+                                    fileName = (document.title || 'ponudba').replace(/[/\\?%*:|"<> \t]/g, '_').replace(/_+/g, '_') + '.doc';
+                                }
+                                if (!fileName.endsWith('.doc')) fileName += '.doc';
 
-                                if (window.opener && !window.opener.closed && typeof window.opener.downloadWordDoc === 'function') {
-                                    window.opener.downloadWordDoc(fileName, content);
-                                    return;
+                                try {
+                                    if (window.opener && !window.opener.closed && typeof window.opener.downloadWordDoc === 'function') {
+                                        window.opener.downloadWordDoc(fileName, content);
+                                        return;
+                                    }
+                                } catch (opErr) {
+                                    console.warn('Opener downloadWordDoc call failed:', opErr);
                                 }
 
                                 if (typeof downloadWordDoc === 'function') {
@@ -11644,24 +11716,44 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                         }
 
                         async function downloadWordDoc(filename, htmlContent) {
-            try {
-                let name = filename || 'dokument';
-                if (!name.endsWith('.doc')) name += '.doc';
-                let fullHtml = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + name + "</title><style>body { font-family: Arial, sans-serif; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + htmlContent + "</body></html>";
-                let base64 = btoa(unescape(encodeURIComponent('\ufeff' + fullHtml)));
-                let dataUri = 'data:application/msword;base64,' + base64;
-                let a = document.createElement('a');
-                a.href = dataUri;
-                a.download = name;
-                document.body.appendChild(a);
-                a.click();
-                setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 300);
-            } catch (e) {
-                alert("Napaka pri prenosu Word datoteke: " + e.message);
-            }
-        }
+                            try {
+                                let name = filename || 'dokument.doc';
+                                if (!name.endsWith('.doc')) name += '.doc';
+                                let fullHtml = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + name + "</title><style>body { font-family: Arial, sans-serif; margin: 0; padding: 10px; } table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; }</style></head><body>" + htmlContent + "</body></html>";
+                                
+                                try {
+                                    const srvRes = await fetch('http://127.0.0.1:8095', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ filename: name, content: fullHtml, type: 'word' })
+                                    });
+                                    if (srvRes.ok) {
+                                        const srvData = await srvRes.json();
+                                        if (srvData && srvData.status === 'success') {
+                                            const currYr = new Date().getFullYear();
+                                            alert("✓ Shranjeno v Word na server Srečko (PONUDBE " + currYr + "):\nDatoteka: " + name);
+                                            return;
+                                        }
+                                    }
+                                } catch (srvErr) {
+                                    console.log('Server save word failed from popup:', srvErr);
+                                }
+
+                                let base64 = btoa(unescape(encodeURIComponent('\ufeff' + fullHtml)));
+                                let dataUri = 'data:application/msword;base64,' + base64;
+                                let a = document.createElement('a');
+                                a.href = dataUri;
+                                a.download = name;
+                                document.body.appendChild(a);
+                                a.click();
+                                setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 300);
+                            } catch (e) {
+                                alert("Napaka pri prenosu Word datoteke: " + e.message);
+                            }
+                        }
 
                     <` + `/script>
+                    ` : ''}
 
                 </body></html>`;
 
