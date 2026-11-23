@@ -605,14 +605,7 @@
             <div class="panel no-print">
                 <div class="panel-heading">
                     <span>⚙️ Vnos Podatkov &amp; Količin</span>
-                    <div style="display: flex; gap: 6px;">
-                        <button class="btn btn-secondary btn-sm" onclick="resetToUserDefault()" title="Ponastavi na vprašanih 8 sort">
-                            🔄 8 sort
-                        </button>
-                        <button class="btn btn-secondary btn-sm" onclick="load25SortsExample()" title="Naloži vaš primer s 25 sortami (188.500 pol)">
-                            📋 25 sort
-                        </button>
-                    </div>
+
                 </div>
 
                 <!-- SLOTS PER SHEET -->
@@ -753,56 +746,7 @@
                 </div>
 
                 <!-- COMPARISON PANEL -->
-                <div class="panel">
-                    <div class="panel-heading">
-                        <span>⚖️ Primerjalna Analiza Možnih Strategij za Vaše Naročilo</span>
-                    </div>
-
-                    <div style="overflow-x: auto;">
-                        <table class="comparison-table">
-                            <thead>
-                                <tr>
-                                    <th>Strategija</th>
-                                    <th>Št. Form</th>
-                                    <th>Skupaj Pol</th>
-                                    <th>Natisnjeno</th>
-                                    <th>Višek Kosov</th>
-                                    <th>% Viška</th>
-                                    <th>Priporočilo za tiskarno</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr style="background: rgba(59, 130, 246, 0.08);">
-                                    <td><strong>⭐ 4 Forme (Optimalno)</strong></td>
-                                    <td><strong style="color: #60a5fa;">4</strong></td>
-                                    <td><strong>7.050 pol</strong></td>
-                                    <td>21.150 kosov</td>
-                                    <td><strong style="color: #34d399;">850 kosov</strong></td>
-                                    <td><strong>4,0 %</strong></td>
-                                    <td><strong>NAJBOLJŠA IZBIRA:</strong> Prihrani 1.750 pol papirja ob samo 1 dodatni formi. 4 od 8 sort so točno v nulo!</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>⚡ 3 Forme (Min. menjav)</strong></td>
-                                    <td><strong style="color: #f59e0b;">3</strong></td>
-                                    <td>8.800 pol</td>
-                                    <td>26.400 kosov</td>
-                                    <td>6.100 kosov</td>
-                                    <td>23,1 %</td>
-                                    <td>Izberite le, če je menjava plošč izjemno draga (npr. 8 plošč 4/4) in je papir zelo poceni.</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>🎯 Globalni Optimum</strong></td>
-                                    <td>9 form</td>
-                                    <td>6.767 pol</td>
-                                    <td>20.301 kosov</td>
-                                    <td>1 kos</td>
-                                    <td>0,0 %</td>
-                                    <td>Teoretični minimum papirja, a zahteva preveč menjav plošč (9 priprav). V praksi neekonomično.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                
 
             </div>
         </div>
@@ -816,17 +760,9 @@
             '#84cc16', '#a855f7', '#14b8a6', '#e11d48'
         ];
 
-        // Default data requested by user:
-        // 2800, 5500, 2600, 7500, 800, 700, 300, 100
         let g_sorts = [
-            { id: 1, name: "Sorta 1", qty: 2800, color: COLOR_PALETTE[0] },
-            { id: 2, name: "Sorta 2", qty: 5500, color: COLOR_PALETTE[1] },
-            { id: 3, name: "Sorta 3", qty: 2600, color: COLOR_PALETTE[2] },
-            { id: 4, name: "Sorta 4", qty: 7500, color: COLOR_PALETTE[3] },
-            { id: 5, name: "Sorta 5", qty: 800,  color: COLOR_PALETTE[4] },
-            { id: 6, name: "Sorta 6", qty: 700,  color: COLOR_PALETTE[5] },
-            { id: 7, name: "Sorta 7", qty: 300,  color: COLOR_PALETTE[6] },
-            { id: 8, name: "Sorta 8", qty: 100,  color: COLOR_PALETTE[7] }
+            { id: 1, name: "Sorta 1", qty: 1000, color: COLOR_PALETTE[0] },
+            { id: 2, name: "Sorta 2", qty: 1000, color: COLOR_PALETTE[1] }
         ];
 
         let g_strategy = 'rec'; // 'rec' (4 forme), 'minf' (3 forme), 'minp' (global min sheets)
@@ -858,12 +794,20 @@
                 if (saved) {
                     const data = JSON.parse(saved);
                     if (data && data.sorts && data.sorts.length > 0) {
+                        // Če je bila shranjena stara demo baza s 25 ali 8 sortami oz. vsiljenimi 8 formami, jo počistimo
+                        if (data.sorts.length === 25 || data.sorts.length === 8 || data.customM == 8) {
+                            localStorage.removeItem('petric_razpored_v2_data');
+                            if (document.getElementById('custom-forms-count')) document.getElementById('custom-forms-count').value = '';
+                            return false;
+                        }
                         g_sorts = data.sorts;
                         if (data.slots && document.getElementById('slots-count')) {
                             document.getElementById('slots-count').value = data.slots;
                         }
                         if (data.customM && document.getElementById('custom-forms-count')) {
                             document.getElementById('custom-forms-count').value = data.customM;
+                        } else if (document.getElementById('custom-forms-count')) {
+                            document.getElementById('custom-forms-count').value = '';
                         }
                         if (data.strategy) {
                             setStrategy(data.strategy);
@@ -876,42 +820,6 @@
                 }
             } catch(e) {}
             return false;
-        }
-
-        function load25SortsExample() {
-            g_sorts = [
-                { id: 1, name: "Sorta 1", qty: 60000, color: COLOR_PALETTE[0] },
-                { id: 2, name: "Sorta 2", qty: 30000, color: COLOR_PALETTE[1] },
-                { id: 3, name: "Sorta 3", qty: 75000, color: COLOR_PALETTE[2] },
-                { id: 4, name: "Sorta 4", qty: 85000, color: COLOR_PALETTE[3] },
-                { id: 5, name: "Sorta 5", qty: 100000, color: COLOR_PALETTE[4] },
-                { id: 6, name: "Sorta 6", qty: 30000, color: COLOR_PALETTE[5] },
-                { id: 7, name: "Sorta 7", qty: 6000, color: COLOR_PALETTE[6] },
-                { id: 8, name: "Sorta 8", qty: 6000, color: COLOR_PALETTE[7] },
-                { id: 9, name: "Sorta 9", qty: 7000, color: COLOR_PALETTE[8] },
-                { id: 10, name: "Sorta 10", qty: 6000, color: COLOR_PALETTE[9] },
-                { id: 11, name: "Sorta 11", qty: 45000, color: COLOR_PALETTE[10] },
-                { id: 12, name: "Sorta 12", qty: 15000, color: COLOR_PALETTE[11] },
-                { id: 13, name: "Sorta 13", qty: 10000, color: COLOR_PALETTE[0] },
-                { id: 14, name: "Sorta 14", qty: 20000, color: COLOR_PALETTE[1] },
-                { id: 15, name: "Sorta 15", qty: 10000, color: COLOR_PALETTE[2] },
-                { id: 16, name: "Sorta 16", qty: 35000, color: COLOR_PALETTE[3] },
-                { id: 17, name: "Sorta 17", qty: 35000, color: COLOR_PALETTE[4] },
-                { id: 18, name: "Sorta 18", qty: 3500, color: COLOR_PALETTE[5] },
-                { id: 19, name: "Sorta 19", qty: 3500, color: COLOR_PALETTE[6] },
-                { id: 20, name: "Sorta 20", qty: 1500, color: COLOR_PALETTE[7] },
-                { id: 21, name: "Sorta 21", qty: 2500, color: COLOR_PALETTE[8] },
-                { id: 22, name: "Sorta 22", qty: 25000, color: COLOR_PALETTE[9] },
-                { id: 23, name: "Sorta 23", qty: 8000, color: COLOR_PALETTE[10] },
-                { id: 24, name: "Sorta 24", qty: 17000, color: COLOR_PALETTE[11] },
-                { id: 25, name: "Sorta 25", qty: 40000, color: COLOR_PALETTE[0] }
-            ];
-            document.getElementById('slots-count').value = 4;
-            const customM = document.getElementById('custom-forms-count');
-            if (customM) customM.value = 8;
-            renderSortsTable();
-            recalculate();
-            saveToLocalStorage();
         }
 
         function setStrategy(strat) {
@@ -999,27 +907,15 @@
 
         function clearAllSorts() {
             if (confirm("Ali res želite počistiti vse sorte?")) {
-                g_sorts = [{ id: 1, name: "Sorta 1", qty: 1000, color: COLOR_PALETTE[0] }];
+                g_sorts = [
+                    { id: 1, name: "Sorta 1", qty: 1000, color: COLOR_PALETTE[0] },
+                    { id: 2, name: "Sorta 2", qty: 1000, color: COLOR_PALETTE[1] }
+                ];
+                if (document.getElementById('custom-forms-count')) document.getElementById('custom-forms-count').value = '';
                 renderSortsTable();
                 recalculate();
+                saveToLocalStorage();
             }
-        }
-
-        function resetToUserDefault() {
-            g_sorts = [
-                { id: 1, name: "Sorta 1", qty: 2800, color: COLOR_PALETTE[0] },
-                { id: 2, name: "Sorta 2", qty: 5500, color: COLOR_PALETTE[1] },
-                { id: 3, name: "Sorta 3", qty: 2600, color: COLOR_PALETTE[2] },
-                { id: 4, name: "Sorta 4", qty: 7500, color: COLOR_PALETTE[3] },
-                { id: 5, name: "Sorta 5", qty: 800,  color: COLOR_PALETTE[4] },
-                { id: 6, name: "Sorta 6", qty: 700,  color: COLOR_PALETTE[5] },
-                { id: 7, name: "Sorta 7", qty: 300,  color: COLOR_PALETTE[6] },
-                { id: 8, name: "Sorta 8", qty: 100,  color: COLOR_PALETTE[7] }
-            ];
-            document.getElementById('slots-count').value = 3;
-            renderSortsTable();
-            recalculate();
-            saveToLocalStorage();
         }
 
         // ==========================================
@@ -1032,95 +928,7 @@
             const totalRequired = Q.reduce((a, b) => a + b, 0);
 
             // Special handling if current data matches the user's exact default problem:
-            const isUserDefault = (
-                K === 3 && N === 8 &&
-                Q[0] === 2800 && Q[1] === 5500 && Q[2] === 2600 && Q[3] === 7500 &&
-                Q[4] === 800  && Q[5] === 700  && Q[6] === 300  && Q[7] === 100
-            );
-
-            let solution = null;
-
-            if (isUserDefault) {
-                if (g_strategy === 'rec') {
-                    // Exact Proven Optimal 4 Forms: 7050 sheets, 850 waste
-                    solution = {
-                        strategyName: "4 Forme (Priporočeno - Optimalen kompromis)",
-                        totalSheets: 7050,
-                        forms: [
-                            {
-                                id: 1,
-                                name: "Forma 1",
-                                sheets: 3350,
-                                slots: [ { sortIdx: 0, mult: 1 }, { sortIdx: 3, mult: 2 } ]
-                            },
-                            {
-                                id: 2,
-                                name: "Forma 2",
-                                sheets: 2750,
-                                slots: [ { sortIdx: 1, mult: 2 }, { sortIdx: 2, mult: 1 } ]
-                            },
-                            {
-                                id: 3,
-                                name: "Forma 3",
-                                sheets: 800,
-                                slots: [ { sortIdx: 3, mult: 1 }, { sortIdx: 4, mult: 1 }, { sortIdx: 5, mult: 1 } ]
-                            },
-                            {
-                                id: 4,
-                                name: "Forma 4",
-                                sheets: 150,
-                                slots: [ { sortIdx: 6, mult: 2 }, { sortIdx: 7, mult: 1 } ]
-                            }
-                        ]
-                    };
-                } else if (g_strategy === 'minf') {
-                    // Exact Proven Optimal 3 Forms: 8800 sheets
-                    solution = {
-                        strategyName: "3 Forme (Minimalno menjav plošč)",
-                        totalSheets: 8800,
-                        forms: [
-                            {
-                                id: 1,
-                                name: "Forma 1",
-                                sheets: 5500,
-                                slots: [ { sortIdx: 0, mult: 1 }, { sortIdx: 1, mult: 1 }, { sortIdx: 3, mult: 1 } ]
-                            },
-                            {
-                                id: 2,
-                                name: "Forma 2",
-                                sheets: 2600,
-                                slots: [ { sortIdx: 2, mult: 1 }, { sortIdx: 3, mult: 1 }, { sortIdx: 4, mult: 1 } ]
-                            },
-                            {
-                                id: 3,
-                                name: "Forma 3",
-                                sheets: 700,
-                                slots: [ { sortIdx: 5, mult: 1 }, { sortIdx: 6, mult: 1 }, { sortIdx: 7, mult: 1 } ]
-                            }
-                        ]
-                    };
-                } else {
-                    // Global Minimum Sheets: 6767 sheets
-                    solution = {
-                        strategyName: "Globalni Optimum (Minimalen papir - 9 form)",
-                        totalSheets: 6767,
-                        forms: [
-                            { id: 1, name: "Forma 1", sheets: 1400, slots: [{ sortIdx: 0, mult: 2 }, { sortIdx: 3, mult: 1 }] },
-                            { id: 2, name: "Forma 2", sheets: 1342, slots: [{ sortIdx: 1, mult: 2 }, { sortIdx: 3, mult: 1 }] },
-                            { id: 3, name: "Forma 3", sheets: 1116, slots: [{ sortIdx: 1, mult: 1 }, { sortIdx: 2, mult: 1 }, { sortIdx: 3, mult: 1 }] },
-                            { id: 4, name: "Forma 4", sheets: 1483, slots: [{ sortIdx: 2, mult: 1 }, { sortIdx: 3, mult: 2 }] },
-                            { id: 5, name: "Forma 5", sheets: 700,  slots: [{ sortIdx: 1, mult: 2 }, { sortIdx: 5, mult: 1 }] },
-                            { id: 6, name: "Forma 6", sheets: 375,  slots: [{ sortIdx: 3, mult: 1 }, { sortIdx: 4, mult: 2 }] },
-                            { id: 7, name: "Forma 7", sheets: 300,  slots: [{ sortIdx: 1, mult: 1 }, { sortIdx: 3, mult: 1 }, { sortIdx: 6, mult: 1 }] },
-                            { id: 8, name: "Forma 8", sheets: 50,   slots: [{ sortIdx: 4, mult: 1 }, { sortIdx: 7, mult: 2 }] },
-                            { id: 9, name: "Forma 9", sheets: 1,    slots: [{ sortIdx: 0, mult: 1 }, { sortIdx: 2, mult: 1 }, { sortIdx: 3, mult: 1 }] }
-                        ]
-                    };
-                }
-            } else {
-                // Generalized dynamic solver for any arbitrary user inputs:
-                solution = solveGenericImposition(N, K, Q, g_strategy);
-            }
+            const solution = solveGenericImposition(N, K, Q, g_strategy);
 
             g_currentSolution = solution;
             renderResults(solution, Q, totalRequired, K);

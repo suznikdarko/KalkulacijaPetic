@@ -36,6 +36,21 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
 - **Posledica:** JavaScript pogon (V8) sproži `SyntaxError: Identifier 'STORAGE_KEY' has already been declared` med parsiranjem. Celoten skriptni blok se prekine in **nobena funkcija v tistem bloku se ne registrira** (`toggleProjectsDropdown is not defined`, `calculate is not defined`, ...).
 - **Rešitev:** Vse globalne ključe deklariraj enotno z `var` ali pa uporabi različna imena (npr. `STORAGE_KEY_KUVERTE`).
 
+
+
+## Y. Odstranitev Testnih Gumbov "8 Sort" in "25 Sort" ter Preprečitev Vsiljevanja 8 Form (`razporeditev_sort.html` in `pola2.html`)
+- **Zahteva uporabnika:**
+  - V zavihku »SORTE NA POLO« odstraniti ponujeni možnosti/gumba »8 sort« in »25 sort«, saj je to motilo uporabnika in mu samodejno vsiljevalo 8 tiskarskih form.
+- **Vzrok težave:**
+  - Klik na demo gumb »25 sort« je v polje `custom-forms-count` fiksno nastavil vrednost `8` (8 tiskarskih form) in to shranil v `localStorage`.
+  - Ob naslednjih obiskih ali vnosih lastnih količin je kalkulator še naprej fiksiral izračun na 8 form, namesto da bi izračunal samodejni minimum.
+  - Poleg tega je bil na dnu strani statičen predogled tabele za stari primer 8 sort.
+- **Izvedene rešitve:**
+  1. **Odstranjeni gumbi:** Iz `razporeditev_sort.html` odstranjena gumba `🔄 8 sort` in `📋 25 sort`. Iz modala v `pola2.html` odstranjena gumba `Primer 8` in `Primer 25`.
+  2. **Čist privzeti začetek:** Začetna tabela se naloži čista z 2 privzetima sortama brez prednastavljenih testnih količin.
+  3. **Auto število form:** Polje za fiksno število form (`custom-forms-count`) je privzeto prazno (`placeholder="Auto"`), tako da sistem vedno samodejno izračuna optimalno (najmanjše možno) število form.
+  4. **Čiščenje starega pomnilnika:** Če je bil v `localStorage` shranjen stari testni primer z 8 formami ali 25/8 sortami, se samodejno počisti.
+  5. **Odstranjena statična primerjalna tabela:** Odstranjen je statični panel za primerjavo starega naročila, tako da stran prikazuje le dejanske rezultate uporabnikovega izračuna.
 ---
 
 ### B. Uporaba `await` v Navadni (Ne-Async) Funkciji (`SyntaxError`)
