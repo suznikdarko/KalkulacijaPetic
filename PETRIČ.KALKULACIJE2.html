@@ -340,8 +340,8 @@
                 <span class="status-dot"></span>
                 SISTEM PRIPRAVLJEN
             </div>
-            <div class="version-pill" title="Zadnja posodobitev sistema">
-                <span>📅 23. 11. 2026</span>
+            <div class="version-pill" id="version-pill-box" title="Zadnja posodobitev sistema">
+                <span id="last-update-date">📅 23. 11. 2026</span>
             </div>
         </div>
 
@@ -487,11 +487,53 @@
                 }
             }
         }
+        let g_latestModDate = null;
+
+        function considerModDate(rawDateStr) {
+            if (!rawDateStr) return;
+            const d = new Date(rawDateStr);
+            if (isNaN(d.getTime()) || d.getFullYear() < 2020) return;
+            if (!g_latestModDate || d.getTime() > g_latestModDate.getTime()) {
+                g_latestModDate = d;
+                const el = document.getElementById('last-update-date');
+                if (el) {
+                    el.textContent = `📅 ${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
+                }
+                const box = document.getElementById('version-pill-box');
+                if (box) {
+                    const hh = String(d.getHours()).padStart(2, '0');
+                    const mm = String(d.getMinutes()).padStart(2, '0');
+                    box.title = `Zadnja posodobitev sistema: ${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()} ob ${hh}:${mm}`;
+                }
+            }
+        }
+
+        function refreshLastUpdateDate() {
+            considerModDate(document.lastModified);
+            document.querySelectorAll('.calc-frame').forEach(frame => {
+                try {
+                    if (frame.contentDocument && frame.contentDocument.lastModified) {
+                        considerModDate(frame.contentDocument.lastModified);
+                    }
+                } catch(e) {}
+            });
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             try {
                 const saved = localStorage.getItem('petric_active_tab');
                 if (saved) switchTab(saved);
             } catch(e){}
+            refreshLastUpdateDate();
+            document.querySelectorAll('.calc-frame').forEach(frame => {
+                frame.addEventListener('load', () => {
+                    try {
+                        if (frame.contentDocument && frame.contentDocument.lastModified) {
+                            considerModDate(frame.contentDocument.lastModified);
+                        }
+                    } catch(e) {}
+                });
+            });
         });
     </script>
 </body>
