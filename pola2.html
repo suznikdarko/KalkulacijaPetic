@@ -605,8 +605,16 @@
                 <input type="hidden" id="calc-cust-id" value="">
                 <input type="hidden" id="calc-product-code" value="">
                 <div>
-                    <label for="calc-dn-packaging">Pakiranje (D.N.)</label>
-                    <input type="text" id="calc-dn-packaging" placeholder="">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                        <label for="calc-dn-packaging" style="margin-bottom: 0;">Pakiranje (D.N.)</label>
+                        <button type="button" onclick="openPolaPackagingModal()" style="background: none; border: none; color: #60a5fa; cursor: pointer; font-size: 0.74rem; font-weight: 700; padding: 0; display: inline-flex; align-items: center; gap: 3px;" title="Podrobni izračun škatel in Euro palet">
+                            <span>📦</span> Škatle & Paleta
+                        </button>
+                    </div>
+                    <div style="display: flex; gap: 4px;">
+                        <input type="text" id="calc-dn-packaging" placeholder="Pakiranje...">
+                        <button type="button" class="btn-action" onclick="quickAutoCalcPolaPackaging()" style="padding: 0 9px; font-size: 0.75rem; white-space: nowrap; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #93c5fd; border-radius: 4px; cursor: pointer;" title="Samodejni izračun škatel in palet">⚡ Auto</button>
+                    </div>
                 </div>
             </div>
             <div class="header-group" style="grid-column: span 1; display: flex; flex-direction: column; gap: 0.75rem;">
@@ -779,6 +787,18 @@
                             <option value="200">Fi 200 mm</option>
                         </datalist>
                         <span style="color:var(--text-muted); font-size: 0.85rem;">mm</span>
+                    </div>
+                    <div id="dim-folded-container" style="margin-top: 5px; display: flex; flex-direction: column; gap: 2px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.72rem; color: #a78bfa; font-weight: 700;" title="Vnesite dimenzije končnega zloženga ali zgibanega izdelka (npr. vrečke, mape, zgibanke)">Zložen format (vrečke/zgib):</span>
+                            <span style="font-size: 0.65rem; color: #94a3b8;">neobvezno</span>
+                        </div>
+                        <div style="display: flex; gap: 0.35rem; align-items: center;">
+                            <input type="text" id="folded-width" placeholder="Zlož. Š" oninput="syncFoldedDims('main')" style="font-size: 0.85rem; font-weight: 600; padding: 4px 6px; border-color: rgba(167, 139, 250, 0.5); background: rgba(167, 139, 250, 0.1); color: #f8fafc; border-radius: 5px; flex: 1;" title="Zložena širina izdelka v mm">
+                            <span style="color: #a78bfa; font-weight: bold; font-size: 0.8rem;">x</span>
+                            <input type="text" id="folded-height" placeholder="Zlož. V" oninput="syncFoldedDims('main')" style="font-size: 0.85rem; font-weight: 600; padding: 4px 6px; border-color: rgba(167, 139, 250, 0.5); background: rgba(167, 139, 250, 0.1); color: #f8fafc; border-radius: 5px; flex: 1;" title="Zložena višina izdelka v mm">
+                            <span style="color: #94a3b8; font-size: 0.72rem;">mm</span>
+                        </div>
                     </div>
                 </div>
                 <div style="display: flex; flex-direction: column;">
@@ -2492,6 +2512,8 @@
                     dnOld: gv('calc-dn-old'),
                     deadline: gv('calc-dn-deadline'),
                     packaging: gv('calc-dn-packaging'),
+                    foldedWidth: gv('folded-width'),
+                    foldedHeight: gv('folded-height'),
                     orderedSheets: gv('calc-ordered-sheets'),
                     paperPackEnabled: gc('calc-paper-pack-enabled'),
                     paperPackSize: gv('calc-paper-pack-size'),
@@ -8291,6 +8313,8 @@
                         productShape: gv('calc-product-shape') || 'rect',
                         item_w: gv('width'),
                         item_h: gv('height'),
+                        foldedWidth: gv('folded-width'),
+                        foldedHeight: gv('folded-height'),
                         quantity: gv('quantity'),
                         bleed: gv('bleed'),
                         pPrice: gv('calc-paper-price'),
@@ -9623,6 +9647,10 @@
                 if (typeof onPaperPackToggle === 'function') onPaperPackToggle();
                 if (inp.item_w !== undefined) setV('width', inp.item_w);
                 if (inp.item_h !== undefined) setV('height', inp.item_h);
+                if (inp.foldedWidth !== undefined) setV('folded-width', inp.foldedWidth);
+                else if (proj.foldedWidth !== undefined) setV('folded-width', proj.foldedWidth);
+                if (inp.foldedHeight !== undefined) setV('folded-height', inp.foldedHeight);
+                else if (proj.foldedHeight !== undefined) setV('folded-height', proj.foldedHeight);
                 const loadedShape = inp.productShape || proj.productShape ||
                     (((proj.materialDesc || (inp && inp.materialDesc) || proj.productDesc || (inp && inp.productDesc) || '').match(/(?:^|\s|\()(?:fi|ø)\s*[:=]?\s*\d+/i)) ? 'round' : 'rect');
                 if (typeof syncProductShapeUI === 'function') syncProductShapeUI(loadedShape, false);
@@ -15680,6 +15708,754 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
 
         </div>
     </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL: IZRAČUN ŠKATEL IN EURO PALET ZA PAKIRANJE          -->
+    <!-- ======================================================== -->
+    <div id="modal-pola-packaging-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px); z-index: 100000; justify-content: center; align-items: center;">
+        <div style="background: #0f172a; border: 1.5px solid #3b82f6; border-radius: 14px; width: 780px; max-width: 95vw; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; box-shadow: 0 25px 60px rgba(0,0,0,0.85); color: #f8fafc;">
+            <!-- Header -->
+            <div style="padding: 14px 20px; background: #1e293b; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.4rem;">📦</span>
+                    <div>
+                        <div style="font-size: 1.1rem; font-weight: 800; color: #f8fafc;">Izračun Škatel in Palet za Pakiranje</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">Škatla 240×320×250 mm (0,50 € / max 15 kg) • Natron papir (preveliki formati) • Euro paleta (10,00 €)</div>
+                    </div>
+                </div>
+                <button type="button" onclick="closePolaPackagingModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">✕</button>
+            </div>
+            
+            <!-- Body -->
+            <div style="padding: 18px 22px; overflow-y: auto; flex-grow: 1;">
+                <!-- Grid: Izdelek & Nastavitve -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                    <!-- Levi stolpec: Podatki o izdelku -->
+                    <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid #334155; border-radius: 10px; padding: 12px;">
+                        <div style="font-size: 0.8rem; font-weight: 700; color: #60a5fa; margin-bottom: 8px;">📑 Podatki o izdelku</div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px;">
+                            <span style="color: #94a3b8;">Format tiska (plašč):</span>
+                            <span style="font-weight: 700;" id="pola-pkg-disp-format">—</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px;">
+                            <span style="color: #94a3b8;">Gramatura papirja:</span>
+                            <span style="font-weight: 700;" id="pola-pkg-disp-gsm">—</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px;">
+                            <span style="color: #94a3b8;">Ocenjena teža 1 kosa:</span>
+                            <span style="font-weight: 700; color: #fbbf24;" id="pola-pkg-disp-weight">—</span>
+                        </div>
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                                <label style="font-size: 0.75rem; color: #a78bfa; font-weight: 700;">Zložen format (vrečka/zgib):</label>
+                                <span style="font-size: 0.65rem; color: #94a3b8;">neobvezno (mm)</span>
+                            </div>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <input type="text" id="pola-pkg-inp-folded-w" placeholder="Š" oninput="syncFoldedDims('modal')" style="flex: 1; background: #0f172a; border: 1px solid rgba(167, 139, 250, 0.6); color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 600;" title="Zložena širina">
+                                <span style="color: #a78bfa; font-weight: bold;">×</span>
+                                <input type="text" id="pola-pkg-inp-folded-h" placeholder="V" oninput="syncFoldedDims('modal')" style="flex: 1; background: #0f172a; border: 1px solid rgba(167, 139, 250, 0.6); color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 600;" title="Zložena višina">
+                            </div>
+                        </div>
+                        <div style="margin-top: 8px;">
+                            <label style="display: block; font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px;">Naklada za pakiranje (kos):</label>
+                            <input type="number" id="pola-pkg-inp-qty" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.9rem; font-weight: 700;" oninput="runPolaPackagingCalc(false)">
+                        </div>
+                    </div>
+
+                    <!-- Desni stolpec: Nastavitve pakiranja -->
+                    <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid #334155; border-radius: 10px; padding: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div style="font-size: 0.8rem; font-weight: 700; color: #34d399;">📦 Embalaža & Paleta</div>
+                            <span id="pola-pkg-badge" style="font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6;">Auto</span>
+                        </div>
+
+                        <!-- Opozorilni / informativni okvirček o embalaži -->
+                        <div id="pola-pkg-status-box" style="margin-bottom: 8px; padding: 7px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; display: flex; align-items: center; gap: 7px; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.3); color: #93c5fd;">
+                            <span id="pola-pkg-status-icon" style="font-size: 1.1rem;">📦</span>
+                            <span id="pola-pkg-status-text">Kartonska škatla (240×320×250 mm)</span>
+                        </div>
+
+                        <div style="margin-bottom: 6px;">
+                            <label style="display: block; font-size: 0.72rem; color: #94a3b8; margin-bottom: 2px;">Način pakiranja:</label>
+                            <select id="pola-pkg-sel-mode" onchange="runPolaPackagingCalc(false)" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 0.82rem; cursor: pointer;">
+                                <option value="auto">⚡ Samodejno (glede na dimenzijo)</option>
+                                <option value="box">📦 Kartonska škatla (240×320×250 mm - 0,50 €)</option>
+                                <option value="natron">📜 Natron papir (zavitki - 0,00 €)</option>
+                            </select>
+                        </div>
+
+                        <div style="margin-top: 6px; padding: 4px 0;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #f8fafc; cursor: pointer; font-weight: 600;">
+                                <input type="checkbox" id="pola-pkg-chk-pallet" onchange="runPolaPackagingCalc(false)" style="accent-color: #3b82f6; width: 15px; height: 15px;">
+                                Naloži na Euro paleto (+10,00 €)
+                            </label>
+                        </div>
+                        <div style="margin-top: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                                <label style="font-size: 0.75rem; color: #94a3b8;" id="pola-pkg-lbl-box-cap">Kosov v škatli / zavitku:</label>
+                                <span id="pola-pkg-cap-hint" style="font-size: 0.7rem; color: #34d399;">Auto</span>
+                            </div>
+                            <input type="number" id="pola-pkg-inp-box-cap" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.9rem; font-weight: 700;" oninput="runPolaPackagingCalc(true)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rezultati (KPI Kartice) -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px;">
+                    <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; border-radius: 8px; padding: 10px; text-align: center;">
+                        <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;" id="pola-pkg-lbl-boxes">Število škatel</div>
+                        <div style="font-size: 1.4rem; font-weight: 900; color: #60a5fa;" id="pola-pkg-res-boxes">0</div>
+                        <div style="font-size: 0.7rem; color: #64748b;" id="pola-pkg-res-boxes-sub">0 polnih</div>
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; border-radius: 8px; padding: 10px; text-align: center;">
+                        <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;" id="pola-pkg-lbl-box-weight">Teža škatle</div>
+                        <div style="font-size: 1.4rem; font-weight: 900; color: #fbbf24;" id="pola-pkg-res-box-weight">0 kg</div>
+                        <div style="font-size: 0.7rem; color: #64748b;">(max 15 kg)</div>
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; border-radius: 8px; padding: 10px; text-align: center;">
+                        <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Euro palet</div>
+                        <div style="font-size: 1.4rem; font-weight: 900; color: #34d399;" id="pola-pkg-res-pallets">0</div>
+                        <div style="font-size: 0.7rem; color: #64748b;" id="pola-pkg-res-height">0 cm</div>
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; border-radius: 8px; padding: 10px; text-align: center;">
+                        <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Skupaj embalaža</div>
+                        <div style="font-size: 1.4rem; font-weight: 900; color: #f43f5e;" id="pola-pkg-res-cost">0,00 €</div>
+                        <div style="font-size: 0.7rem; color: #64748b;" id="pola-pkg-res-cost-sub">0,50€ škatla + 10€ paleta</div>
+                    </div>
+                </div>
+
+                <!-- Predogled besedila za Delovni Nalog -->
+                <div style="background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;">Besedilo za Delovni Nalog (D.N.):</div>
+                    <textarea id="pola-pkg-res-dn-text" style="width: 100%; height: 50px; background: #0f172a; border: 1px solid #475569; color: #93c5fd; padding: 8px; border-radius: 6px; font-family: monospace; font-size: 0.8rem; resize: none;"></textarea>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding: 12px 20px; background: #1e293b; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+                <button type="button" onclick="openFullPackagingTab()" style="background: rgba(59, 130, 246, 0.15); border: 1px solid #3b82f6; color: #60a5fa; border-radius: 6px; padding: 8px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <span>↗️</span> Odpri zavihek ŠKATLE & PALETE
+                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" onclick="closePolaPackagingModal()" style="background: #475569; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer;">Prekliči</button>
+                    <button type="button" onclick="applyPolaPackagingToDN()" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; border-radius: 6px; padding: 8px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
+                        <span>💾</span> Vnesi v Delovni Nalog
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT ZA PAKIRANJE IN PALETIZACIJO POLA2 -->
+    <script>
+        const POLA_PETRIC_PKG = {
+            boxW: 320,
+            boxL: 240,
+            boxH: 250,
+            boxMaxWeightKg: 15.0,
+            boxTareKg: 0.40,
+            boxPrice: 0.50,
+            palletPrice: 10.00,
+            palletBaseH: 144,
+            palletTareKg: 22.0,
+            palletMaxHMm: 1600,
+            boxesPerLayer: 10,
+            maxLayers: 5
+        };
+
+        function syncFoldedDims(source) {
+            if (source === 'main') {
+                const fw = document.getElementById('folded-width') ? document.getElementById('folded-width').value : '';
+                const fh = document.getElementById('folded-height') ? document.getElementById('folded-height').value : '';
+                const modalFw = document.getElementById('pola-pkg-inp-folded-w');
+                const modalFh = document.getElementById('pola-pkg-inp-folded-h');
+                if (modalFw) modalFw.value = fw;
+                if (modalFh) modalFh.value = fh;
+            } else if (source === 'modal') {
+                const modalFw = document.getElementById('pola-pkg-inp-folded-w') ? document.getElementById('pola-pkg-inp-folded-w').value : '';
+                const modalFh = document.getElementById('pola-pkg-inp-folded-h') ? document.getElementById('pola-pkg-inp-folded-h').value : '';
+                const fw = document.getElementById('folded-width');
+                const fh = document.getElementById('folded-height');
+                if (fw) fw.value = modalFw;
+                if (fh) fh.value = modalFh;
+                runPolaPackagingCalc(false);
+            }
+        }
+
+        function calculatePolaPackagingData(targetQty = null, manualCap = null, customUsePallet = null, customMode = null) {
+            let w = parseFloat(document.getElementById('width') ? document.getElementById('width').value : 210) || 210;
+            let h = parseFloat(document.getElementById('height') ? document.getElementById('height').value : 297) || 297;
+
+            // Zložen / zgiban format izdelka (npr. zložena vrečka, mapa)
+            const fwEl = document.getElementById('folded-width');
+            const fhEl = document.getElementById('folded-height');
+            let foldedW = fwEl ? (parseFloat(fwEl.value) || 0) : 0;
+            let foldedH = fhEl ? (parseFloat(fhEl.value) || 0) : 0;
+
+            const isFolded = (foldedW > 0 && foldedH > 0);
+            const effW = isFolded ? foldedW : w;
+            const effH = isFolded ? foldedH : h;
+
+            // Preverjanje ali zloženi/končni format gre v standardno škatlo 240 x 320 mm
+            const fitsInBox = (Math.min(effW, effH) <= 240 && Math.max(effW, effH) <= 320);
+
+            // Določitev načina pakiranja: 'box' ali 'natron'
+            const modeSel = document.getElementById('pola-pkg-sel-mode');
+            const chosenMode = customMode || (modeSel ? modeSel.value : 'auto');
+            let pkgMode = 'box';
+            if (chosenMode === 'box') {
+                pkgMode = 'box';
+            } else if (chosenMode === 'natron') {
+                pkgMode = 'natron';
+            } else {
+                pkgMode = fitsInBox ? 'box' : 'natron';
+            }
+
+            // Gramatura
+            let gsm = parseFloat(document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value.replace(',', '.') : 0) || 0;
+            if (gsm <= 0) {
+                const selEl = document.getElementById('calc-paper-select') || document.getElementById('calc-paper-type');
+                if (selEl) {
+                    const selTxt = (selEl.options && selEl.selectedIndex >= 0) ? selEl.options[selEl.selectedIndex].text : selEl.value;
+                    const gsmM = (selTxt || '').match(/(\d{2,3})\s*g/i);
+                    if (gsmM) gsm = parseFloat(gsmM[1]) || 0;
+                }
+            }
+            if (gsm <= 0 && window.d && window.d.paper && window.d.paper.weight) {
+                gsm = parseFloat(window.d.paper.weight) || 0;
+            }
+            if (gsm <= 0) gsm = 135;
+
+            // Teža 1 kosa v gramih (glede na format surovega tiska w x h)
+            let singleGrams = 0;
+            if (window.d && window.d.weight && window.d.weight.singleKg > 0) {
+                singleGrams = window.d.weight.singleKg * 1000;
+            } else if (window.d && window.d.productWeight && window.d.productWeight.oneProductGrams > 0) {
+                singleGrams = window.d.productWeight.oneProductGrams;
+            } else {
+                singleGrams = (w / 1000) * (h / 1000) * gsm;
+            }
+            singleGrams = Math.max(0.1, singleGrams);
+
+            // Dejanska debelina lista (v mm) - volumetrično 1.0 (0.001 mm na g/m²)
+            const sheetThicknessMm = Math.max(0.04, (gsm * 1.0) / 1000);
+
+            // Naklada
+            let qty = 1000;
+            if (targetQty !== null && targetQty > 0) {
+                qty = targetQty;
+            } else {
+                const rawQStr = document.getElementById('quantity') ? document.getElementById('quantity').value : '1000';
+                const firstNumMatch = rawQStr.match(/\d[\d\.]*/);
+                if (firstNumMatch) {
+                    qty = parseInt(firstNumMatch[0].replace(/\./g, '')) || 1000;
+                }
+            }
+
+            // =========================================================================
+            // NAČIN 1: NATRON PAPIR (ZAVITKI) - za prevelike formate ali vrečke
+            // =========================================================================
+            if (pkgMode === 'natron') {
+                let itemsPerPack = 100;
+                if (manualCap !== null && manualCap > 0) {
+                    itemsPerPack = manualCap;
+                } else {
+                    if (isFolded) {
+                        // Zložena vrečka z vrvicami in dnom: debelina zložene vrečke je cca 2,5 - 3,5 mm
+                        // Idealen zavitek je 100 kos (kup cca 25-28 cm, teža cca 6,5 kg) ali 50 kos
+                        if (qty <= 100) {
+                            itemsPerPack = qty;
+                        } else if (qty % 100 === 0) {
+                            itemsPerPack = 100;
+                        } else if (qty % 50 === 0 && qty <= 500) {
+                            itemsPerPack = 50;
+                        } else {
+                            itemsPerPack = (qty > 100) ? 100 : 50;
+                        }
+                    } else {
+                        // Raven velik format (plakati, večje pole)
+                        const maxByWeight = Math.floor((POLA_PETRIC_PKG.boxMaxWeightKg * 1000) / singleGrams);
+                        const standardPacks = [1000, 500, 250, 200, 100, 50, 25];
+                        let best = 100;
+                        for (let sp of standardPacks) {
+                            if (sp <= maxByWeight) { best = sp; break; }
+                        }
+                        if (qty <= best) {
+                            itemsPerPack = qty;
+                        } else if (qty % 500 === 0 && 500 <= maxByWeight) {
+                            itemsPerPack = 500;
+                        } else if (qty % 250 === 0 && 250 <= maxByWeight) {
+                            itemsPerPack = 250;
+                        } else if (qty % 100 === 0 && 100 <= maxByWeight) {
+                            itemsPerPack = 100;
+                        } else {
+                            itemsPerPack = best;
+                        }
+                    }
+                }
+
+                const fullPacks = Math.floor(qty / itemsPerPack);
+                const remainder = qty % itemsPerPack;
+                const totalPacks = fullPacks + (remainder > 0 ? 1 : 0);
+
+                const netPackWeightKg = (itemsPerPack * singleGrams) / 1000;
+                const packTareKg = 0.05; // Lahek kraft/natron ovoj
+                const grossPackWeightKg = netPackWeightKg + packTareKg;
+
+                const totalNetWeightKg = (qty * singleGrams) / 1000;
+                const totalGrossPacksOnlyKg = totalNetWeightKg + (totalPacks * packTareKg);
+
+                // Paleta za natron papir: priporočena pri teži >= 70 kg ali >= 8 zavitkov
+                let needPallet = false;
+                if (customUsePallet !== null) {
+                    needPallet = !!customUsePallet;
+                } else {
+                    needPallet = (totalPacks >= 8 || totalGrossPacksOnlyKg >= 70);
+                }
+
+                let totalPallets = needPallet ? 1 : 0;
+                let actualPalletHeightCm = 0;
+                let palletsCost = 0;
+                let totalGrossWeightKg = totalGrossPacksOnlyKg;
+
+                if (needPallet) {
+                    palletsCost = totalPallets * POLA_PETRIC_PKG.palletPrice;
+                    totalGrossWeightKg = totalGrossPacksOnlyKg + (totalPallets * POLA_PETRIC_PKG.palletTareKg);
+                    actualPalletHeightCm = Math.min(160, Math.round(15 + (totalPacks * 7)));
+                }
+
+                const boxesCost = 0; // Natron ovoj je brezplačen / vključen
+                const packagingTotalCost = boxesCost + palletsCost;
+
+                function declPacksSlo(n) {
+                    if (n === 1) return '1 zavitek';
+                    if (n === 2) return '2 zavitka';
+                    if (n === 3 || n === 4) return `${n} zavitke`;
+                    return `${n} zavitkov`;
+                }
+                function declPalletsSlo(n) {
+                    if (n === 1) return '1 Euro paleta';
+                    if (n === 2) return '2 Euro paleti';
+                    if (n === 3 || n === 4) return `${n} Euro palete`;
+                    return `${n} Euro palet`;
+                }
+
+                let dnText = '';
+                if (totalPacks === 1) {
+                    dnText = `v 1 zavitek (natron papir) po ${qty.toLocaleString('sl-SI')} kos`;
+                } else if (remainder === 0) {
+                    dnText = `v ${declPacksSlo(totalPacks)} (natron papir) po ${itemsPerPack.toLocaleString('sl-SI')} kos`;
+                } else {
+                    dnText = `v ${declPacksSlo(fullPacks)} po ${itemsPerPack.toLocaleString('sl-SI')} kos + 1 zavitek ${remainder.toLocaleString('sl-SI')} kos (natron papir)`;
+                }
+
+                if (needPallet) {
+                    let pDecl = (totalPacks === 1) ? 'zavitek' : ((totalPacks === 2) ? 'zavitka' : ((totalPacks === 3 || totalPacks === 4) ? 'zavitki' : 'zavitkov'));
+                    dnText += `; ${declPalletsSlo(totalPallets)} (${totalPacks} ${pDecl}, bruto ${Math.round(totalGrossWeightKg)} kg)`;
+                }
+
+                return {
+                    pkgMode: 'natron',
+                    fitsInBox,
+                    w, h, foldedW, foldedH, isFolded, effW, effH,
+                    gsm, singleGrams, qty,
+                    itemsPerBox: itemsPerPack,
+                    fullBoxes: fullPacks,
+                    remainder,
+                    totalBoxes: totalPacks,
+                    grossBoxWeightKg: grossPackWeightKg,
+                    totalNetWeightKg,
+                    totalGrossBoxesOnlyKg: totalGrossPacksOnlyKg,
+                    totalGrossWeightKg,
+                    needPallet,
+                    totalPallets,
+                    actualLayers: 0,
+                    actualPalletHeightCm,
+                    boxesCost: 0,
+                    palletsCost,
+                    packagingTotalCost,
+                    dnText
+                };
+            }
+
+            // =========================================================================
+            // NAČIN 2: KARTONSKA ŠKATLA (240 x 320 x 250 mm)
+            // =========================================================================
+            let cols = 1;
+            if (effW <= 160 && effH <= 240) cols = 2; // A5
+            else if (effW <= 120 && effH <= 160) cols = 4; // A6
+            else if (effW <= 105 && effH <= 215) cols = 3; // DL
+
+            const maxStackHMm = Math.max(50, POLA_PETRIC_PKG.boxH - 20); // 230 mm
+            const maxByVol = Math.floor((maxStackHMm / sheetThicknessMm) * cols);
+            const maxByWeight = Math.floor((POLA_PETRIC_PKG.boxMaxWeightKg * 1000) / singleGrams);
+            const absoluteMaxCap = Math.max(50, Math.min(maxByWeight, maxByVol));
+
+            let itemsPerBox = 500;
+            if (manualCap !== null && manualCap > 0) {
+                itemsPerBox = manualCap;
+            } else {
+                if (qty <= absoluteMaxCap) {
+                    itemsPerBox = qty;
+                } else {
+                    const standardPacks = [2500, 2000, 1500, 1000, 750, 500, 250, 200, 100, 50];
+                    let bestStandard = 500;
+                    for (let p of standardPacks) {
+                        if (p <= absoluteMaxCap) {
+                            bestStandard = p;
+                            break;
+                        }
+                    }
+                    itemsPerBox = bestStandard;
+
+                    if (qty % 1000 === 0 && 1000 <= absoluteMaxCap) {
+                        itemsPerBox = 1000;
+                    } else if (qty % 500 === 0 && 500 <= absoluteMaxCap) {
+                        itemsPerBox = 500;
+                    } else if (qty % 250 === 0 && 250 <= absoluteMaxCap && absoluteMaxCap < 500) {
+                        itemsPerBox = 250;
+                    } else {
+                        const minBoxes = Math.max(1, Math.ceil(qty / absoluteMaxCap));
+                        let evenQty = Math.ceil(qty / minBoxes);
+                        if (evenQty > 200 && evenQty % 50 !== 0) evenQty = Math.ceil(evenQty / 50) * 50;
+                        if (evenQty <= absoluteMaxCap && (minBoxes - 1) * evenQty < qty) {
+                            itemsPerBox = evenQty;
+                        }
+                    }
+                }
+            }
+
+            const fullBoxes = Math.floor(qty / itemsPerBox);
+            const remainder = qty % itemsPerBox;
+            const totalBoxes = fullBoxes + (remainder > 0 ? 1 : 0);
+
+            const netBoxWeightKg = (itemsPerBox * singleGrams) / 1000;
+            const grossBoxWeightKg = netBoxWeightKg + POLA_PETRIC_PKG.boxTareKg;
+
+            const totalNetWeightKg = (qty * singleGrams) / 1000;
+            const totalBoxesWeightKg = totalBoxes * POLA_PETRIC_PKG.boxTareKg;
+            const totalGrossBoxesOnlyKg = totalNetWeightKg + totalBoxesWeightKg;
+
+            let needPallet = false;
+            if (customUsePallet !== null) {
+                needPallet = !!customUsePallet;
+            } else {
+                needPallet = (totalBoxes >= 8 || totalGrossBoxesOnlyKg >= 70);
+            }
+
+            const boxesPerPallet = POLA_PETRIC_PKG.boxesPerLayer * POLA_PETRIC_PKG.maxLayers;
+            let fullPallets = 0;
+            let remainderBoxes = 0;
+            let totalPallets = 0;
+            let actualLayers = 0;
+            let actualPalletHeightCm = 0;
+            let palletsCost = 0;
+            let totalGrossWeightKg = totalGrossBoxesOnlyKg;
+
+            if (needPallet) {
+                fullPallets = Math.floor(totalBoxes / boxesPerPallet);
+                remainderBoxes = totalBoxes % boxesPerPallet;
+                totalPallets = Math.max(1, fullPallets + (remainderBoxes > 0 ? 1 : 0));
+
+                const boxesOnMainPallet = fullPallets > 0 ? boxesPerPallet : totalBoxes;
+                actualLayers = Math.min(POLA_PETRIC_PKG.maxLayers, Math.ceil(boxesOnMainPallet / POLA_PETRIC_PKG.boxesPerLayer));
+                const actualPalletHeightMm = POLA_PETRIC_PKG.palletBaseH + (actualLayers * POLA_PETRIC_PKG.boxH);
+                actualPalletHeightCm = Math.round(actualPalletHeightMm / 10);
+
+                totalGrossWeightKg = totalGrossBoxesOnlyKg + (totalPallets * POLA_PETRIC_PKG.palletTareKg);
+                palletsCost = totalPallets * POLA_PETRIC_PKG.palletPrice;
+            }
+
+            const boxesCost = totalBoxes * POLA_PETRIC_PKG.boxPrice;
+            const packagingTotalCost = boxesCost + palletsCost;
+
+            function declBoxesSlo(n) {
+                if (n === 1) return '1 škatlo';
+                if (n === 2) return '2 škatli';
+                if (n === 3 || n === 4) return `${n} škatle`;
+                return `${n} škatel`;
+            }
+            function declPalletsSlo(n) {
+                if (n === 1) return '1 Euro paleta';
+                if (n === 2) return '2 Euro paleti';
+                if (n === 3 || n === 4) return `${n} Euro palete`;
+                return `${n} Euro palet`;
+            }
+
+            let dnText = '';
+            if (totalBoxes === 1) {
+                dnText = `v 1 škatlo po ${qty.toLocaleString('sl-SI')} kos (${POLA_PETRIC_PKG.boxL}x${POLA_PETRIC_PKG.boxW}x${POLA_PETRIC_PKG.boxH} mm)`;
+            } else if (remainder === 0) {
+                dnText = `v ${declBoxesSlo(totalBoxes)} po ${itemsPerBox.toLocaleString('sl-SI')} kos (${POLA_PETRIC_PKG.boxL}x${POLA_PETRIC_PKG.boxW}x${POLA_PETRIC_PKG.boxH} mm)`;
+            } else {
+                dnText = `v ${declBoxesSlo(fullBoxes)} po ${itemsPerBox.toLocaleString('sl-SI')} kos + 1 škatla ${remainder.toLocaleString('sl-SI')} kos (${POLA_PETRIC_PKG.boxL}x${POLA_PETRIC_PKG.boxW}x${POLA_PETRIC_PKG.boxH} mm)`;
+            }
+
+            if (needPallet) {
+                let boxDecl = (totalBoxes === 1) ? 'škatla' : ((totalBoxes === 2) ? 'škatli' : ((totalBoxes === 3 || totalBoxes === 4) ? 'škatle' : 'škatel'));
+                dnText += `; ${declPalletsSlo(totalPallets)} (${totalBoxes} ${boxDecl}, v: ${actualPalletHeightCm} cm, bruto ${Math.round(totalGrossWeightKg)} kg)`;
+            }
+
+            return {
+                pkgMode: 'box',
+                fitsInBox,
+                w, h, foldedW, foldedH, isFolded, effW, effH,
+                gsm, singleGrams, qty,
+                itemsPerBox, fullBoxes, remainder, totalBoxes,
+                grossBoxWeightKg, totalNetWeightKg, totalGrossBoxesOnlyKg, totalGrossWeightKg,
+                needPallet, totalPallets, actualLayers, actualPalletHeightCm,
+                boxesCost, palletsCost, packagingTotalCost,
+                dnText
+            };
+        }
+
+        function quickAutoCalcPolaPackaging() {
+            const res = calculatePolaPackagingData();
+            const inputEl = document.getElementById('calc-dn-packaging');
+            if (inputEl) {
+                inputEl.value = res.dnText;
+                inputEl.style.transition = 'all 0.3s';
+                inputEl.style.borderColor = '#10b981';
+                setTimeout(() => { inputEl.style.borderColor = ''; }, 1200);
+            }
+            if (typeof g_editedWorkOrderHTML !== 'undefined') g_editedWorkOrderHTML = '';
+            
+            let info = '';
+            if (res.pkgMode === 'natron') {
+                info = `✅ Izračunano pakiranje (Natron papir):
+
+• ${res.totalBoxes} zavitkov: ${res.dnText}`;
+                if (res.isFolded) {
+                    info += `
+• Zložen format ${res.effW}×${res.effH} mm presega standardno škatlo (240×320 mm)`;
+                } else if (!res.fitsInBox) {
+                    info += `
+• Format ${res.effW}×${res.effH} mm presega škatlo (240×320 mm)`;
+                }
+                info += `
+• Teža zavitka: ${res.grossBoxWeightKg.toFixed(1)} kg`;
+                info += `
+• Skupna bruto teža: ${Math.round(res.totalGrossWeightKg)} kg`;
+                if (res.needPallet) {
+                    info += `
+• ${res.totalPallets} Euro paleta`;
+                } else {
+                    info += `
+• Paleta ni potrebna (majhna teža/količina)`;
+                }
+                info += `
+• Strošek embalaže: ${res.packagingTotalCost.toFixed(2)} € (natron papir)`;
+            } else {
+                info = `✅ Izračunano pakiranje (Škatle):
+
+• ${res.totalBoxes} škatel: ${res.dnText}
+• Teža škatle: ${res.grossBoxWeightKg.toFixed(1)} kg (max 15 kg)
+• Skupna bruto teža: ${Math.round(res.totalGrossWeightKg)} kg`;
+                if (res.needPallet) {
+                    info += `
+• ${res.totalPallets} Euro paleta (višina ${res.actualPalletHeightCm} cm)`;
+                } else {
+                    info += `
+• Paleta ni potrebna (majhna teža/količina)`;
+                }
+                info += `
+• Strošek embalaže: ${res.packagingTotalCost.toFixed(2)} €`;
+            }
+            alert(info);
+        }
+
+        let g_polaManualCap = null;
+        let g_polaUserPalletChoice = null;
+
+        function openPolaPackagingModal() {
+            g_polaManualCap = null;
+            g_polaUserPalletChoice = null;
+
+            // Sinhroniziraj zloženi format iz glavnega obrazca v modal
+            const fw = document.getElementById('folded-width') ? document.getElementById('folded-width').value : '';
+            const fh = document.getElementById('folded-height') ? document.getElementById('folded-height').value : '';
+            const modalFw = document.getElementById('pola-pkg-inp-folded-w');
+            const modalFh = document.getElementById('pola-pkg-inp-folded-h');
+            if (modalFw) modalFw.value = fw;
+            if (modalFh) modalFh.value = fh;
+
+            const res = calculatePolaPackagingData();
+
+            const fEl = document.getElementById('pola-pkg-disp-format');
+            if (fEl) fEl.textContent = `${res.w} × ${res.h} mm`;
+            const gEl = document.getElementById('pola-pkg-disp-gsm');
+            if (gEl) gEl.textContent = `${res.gsm} g/m²`;
+            const wEl = document.getElementById('pola-pkg-disp-weight');
+            if (wEl) wEl.textContent = `${res.singleGrams.toFixed(2)} g / kos`;
+
+            const qEl = document.getElementById('pola-pkg-inp-qty');
+            if (qEl) qEl.value = res.qty;
+            const capEl = document.getElementById('pola-pkg-inp-box-cap');
+            if (capEl) capEl.value = res.itemsPerBox;
+            const hintEl = document.getElementById('pola-pkg-cap-hint');
+            if (hintEl) {
+                hintEl.textContent = 'Auto';
+                hintEl.style.color = '#34d399';
+            }
+
+            const chkPal = document.getElementById('pola-pkg-chk-pallet');
+            if (chkPal) chkPal.checked = res.needPallet;
+
+            updatePolaPackagingModalUI(res);
+
+            const modal = document.getElementById('modal-pola-packaging-overlay');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closePolaPackagingModal() {
+            const modal = document.getElementById('modal-pola-packaging-overlay');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function runPolaPackagingCalc(isManualCap = false) {
+            const qty = parseFloat(document.getElementById('pola-pkg-inp-qty').value) || 1000;
+            let manualCap = null;
+            if (isManualCap) {
+                manualCap = parseFloat(document.getElementById('pola-pkg-inp-box-cap').value) || null;
+                g_polaManualCap = manualCap;
+                const hintEl = document.getElementById('pola-pkg-cap-hint');
+                if (hintEl) {
+                    hintEl.textContent = 'Ročno';
+                    hintEl.style.color = '#fbbf24';
+                }
+            } else if (g_polaManualCap) {
+                manualCap = g_polaManualCap;
+            }
+
+            const chkPal = document.getElementById('pola-pkg-chk-pallet');
+            const customPal = chkPal ? chkPal.checked : null;
+
+            const res = calculatePolaPackagingData(qty, manualCap, customPal);
+            if (!isManualCap) {
+                const capEl = document.getElementById('pola-pkg-inp-box-cap');
+                if (capEl) capEl.value = res.itemsPerBox;
+            }
+            updatePolaPackagingModalUI(res);
+        }
+
+        function updatePolaPackagingModalUI(res) {
+            // Posodobitev badge-a in informacijskega okvirčka
+            const statusBox = document.getElementById('pola-pkg-status-box');
+            const statusIcon = document.getElementById('pola-pkg-status-icon');
+            const statusText = document.getElementById('pola-pkg-status-text');
+            const badgeEl = document.getElementById('pola-pkg-badge');
+            const lblBoxes = document.getElementById('pola-pkg-lbl-boxes');
+            const lblBoxW = document.getElementById('pola-pkg-lbl-box-weight');
+            const lblCap = document.getElementById('pola-pkg-lbl-box-cap');
+
+            if (res.pkgMode === 'natron') {
+                if (badgeEl) {
+                    badgeEl.textContent = 'Natron papir';
+                    badgeEl.style.background = 'rgba(168, 85, 247, 0.2)';
+                    badgeEl.style.color = '#c084fc';
+                    badgeEl.style.border = '1px solid #a855f7';
+                }
+                if (statusBox) {
+                    statusBox.style.background = 'rgba(168, 85, 247, 0.15)';
+                    statusBox.style.border = '1px solid rgba(168, 85, 247, 0.4)';
+                    statusBox.style.color = '#e9d5ff';
+                }
+                if (statusIcon) statusIcon.textContent = '📜';
+                if (statusText) {
+                    if (res.isFolded) {
+                        statusText.textContent = `Zloženo (${res.effW}×${res.effH} mm) presega škatlo → Natron papir (zavitki)`;
+                    } else {
+                        statusText.textContent = `Format (${res.effW}×${res.effH} mm) presega škatlo → Natron papir (zavitki)`;
+                    }
+                }
+                if (lblBoxes) lblBoxes.textContent = 'ŠTEVILO ZAVITKOV';
+                if (lblBoxW) lblBoxW.textContent = 'TEŽA ZAVITKA';
+                if (lblCap) lblCap.textContent = 'Kosov v zavitku (natron):';
+            } else {
+                if (badgeEl) {
+                    badgeEl.textContent = 'Škatla';
+                    badgeEl.style.background = 'rgba(59, 130, 246, 0.2)';
+                    badgeEl.style.color = '#60a5fa';
+                    badgeEl.style.border = '1px solid #3b82f6';
+                }
+                if (statusBox) {
+                    statusBox.style.background = 'rgba(59, 130, 246, 0.12)';
+                    statusBox.style.border = '1px solid rgba(59, 130, 246, 0.3)';
+                    statusBox.style.color = '#93c5fd';
+                }
+                if (statusIcon) statusIcon.textContent = '📦';
+                if (statusText) statusText.textContent = 'Kartonska škatla (240×320×250 mm)';
+                if (lblBoxes) lblBoxes.textContent = 'ŠTEVILO ŠKATEL';
+                if (lblBoxW) lblBoxW.textContent = 'TEŽA ŠKATLE';
+                if (lblCap) lblCap.textContent = 'Kosov v škatli:';
+            }
+
+            const elBoxes = document.getElementById('pola-pkg-res-boxes');
+            if (elBoxes) elBoxes.textContent = res.totalBoxes;
+            const elBoxesSub = document.getElementById('pola-pkg-res-boxes-sub');
+            if (elBoxesSub) elBoxesSub.textContent = `${res.fullBoxes} polnih` + (res.remainder > 0 ? ` + 1 ost. (${res.remainder})` : '');
+
+            const elW = document.getElementById('pola-pkg-res-box-weight');
+            if (elW) elW.textContent = `${res.grossBoxWeightKg.toFixed(1)} kg`;
+
+            const elPal = document.getElementById('pola-pkg-res-pallets');
+            const elH = document.getElementById('pola-pkg-res-height');
+            if (res.needPallet) {
+                if (elPal) elPal.textContent = res.totalPallets;
+                if (elH) elH.textContent = (res.actualPalletHeightCm > 0) ? `Višina cca ${res.actualPalletHeightCm} cm` : 'Na paleti';
+            } else {
+                if (elPal) elPal.textContent = 'Brez palete';
+                if (elH) elH.textContent = 'Paketno (kombi)';
+            }
+
+            const elCost = document.getElementById('pola-pkg-res-cost');
+            if (elCost) elCost.textContent = `${res.packagingTotalCost.toFixed(2)} €`;
+            const elCostSub = document.getElementById('pola-pkg-res-cost-sub');
+            if (elCostSub) {
+                if (res.pkgMode === 'natron') {
+                    if (res.needPallet) {
+                        elCostSub.textContent = `0,00€ natron + ${res.palletsCost.toFixed(2)}€ paleta`;
+                    } else {
+                        elCostSub.textContent = `0,00 € (natron papir)`;
+                    }
+                } else {
+                    if (res.needPallet) {
+                        elCostSub.textContent = `${res.boxesCost.toFixed(2)}€ škatle + ${res.palletsCost.toFixed(2)}€ paleta`;
+                    } else {
+                        elCostSub.textContent = `${res.boxesCost.toFixed(2)}€ (${res.totalBoxes} škatel po 0,50€)`;
+                    }
+                }
+            }
+
+            const elDn = document.getElementById('pola-pkg-res-dn-text');
+            if (elDn) elDn.value = res.dnText;
+        }
+
+        function applyPolaPackagingToDN() {
+            const textEl = document.getElementById('pola-pkg-res-dn-text');
+            const inputEl = document.getElementById('calc-dn-packaging');
+            if (inputEl && textEl) {
+                inputEl.value = textEl.value;
+            }
+            if (typeof g_editedWorkOrderHTML !== 'undefined') g_editedWorkOrderHTML = '';
+            closePolaPackagingModal();
+        }
+
+        function openFullPackagingTab() {
+            closePolaPackagingModal();
+            if (window.parent && typeof window.parent.switchTab === 'function') {
+                window.parent.switchTab('pakiranje');
+                setTimeout(() => {
+                    const pkgFrame = window.parent.document.getElementById('iframe_pakiranje');
+                    if (pkgFrame && pkgFrame.contentWindow && typeof pkgFrame.contentWindow.importFromActiveCalculator === 'function') {
+                        pkgFrame.contentWindow.importFromActiveCalculator();
+                    }
+                }, 300);
+            } else {
+                alert('Prosimo preklopite na zavihek ŠKATLE & PALETE v zgornji navigaciji.');
+            }
+        }
+    </script>
 
     <!-- JAVASCRIPT ZA OPTIMALNO RAZPOREDITEV SORT -->
     <script>

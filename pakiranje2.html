@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Izračun Škatel in Palet za Pakiranje | Tiskarna Petrič</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-canvas: #07090e;
+            --bg-mesh: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.15) 0%, rgba(124, 58, 237, 0.08) 40%, rgba(7, 9, 14, 1) 85%);
+            --panel-bg: rgba(15, 23, 42, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --panel-border-top: rgba(255, 255, 255, 0.18);
+            --card-bg: #0f172a;
+            --card-border: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%);
+            --accent-solid: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.35);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --radius-main: 16px;
+        }
+
+        body.light-mode {
+            --bg-canvas: #f1f5f9;
+            --bg-mesh: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.1) 0%, rgba(241, 245, 249, 1) 75%);
+            --panel-bg: rgba(255, 255, 255, 0.9);
+            --panel-border: rgba(203, 213, 225, 0.8);
+            --panel-border-top: rgba(255, 255, 255, 1);
+            --card-bg: #ffffff;
+            --card-border: #cbd5e1;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --text-dim: #94a3b8;
+            --accent-solid: #2563eb;
+            --accent-glow: rgba(37, 99, 235, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-canvas);
+            background-image: var(--bg-mesh);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 20px 28px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1560px;
+            margin: 0 auto;
+        }
+
+        /* HEADER */
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-top: 1px solid var(--panel-border-top);
+            backdrop-filter: blur(16px);
+            padding: 14px 22px;
+            border-radius: var(--radius-main);
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .brand-title {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 1.35rem;
+            letter-spacing: -0.5px;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-action:hover {
+            border-color: var(--accent-solid);
+            color: #60a5fa;
+            transform: translateY(-1px);
+        }
+        .btn-primary {
+            background: var(--accent-gradient);
+            border: none;
+            color: #ffffff;
+            box-shadow: 0 4px 14px var(--accent-glow);
+        }
+        .btn-primary:hover {
+            color: #ffffff;
+            opacity: 0.95;
+            box-shadow: 0 6px 20px var(--accent-glow);
+        }
+
+        /* MAIN GRID */
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 360px 1fr 400px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        @media (max-width: 1400px) {
+            .layout-grid {
+                grid-template-columns: 340px 1fr;
+            }
+            .col-side {
+                grid-column: span 2;
+            }
+        }
+        @media (max-width: 900px) {
+            .layout-grid {
+                grid-template-columns: 1fr;
+            }
+            .col-side {
+                grid-column: span 1;
+            }
+        }
+
+        .panel-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-top: 1px solid var(--panel-border-top);
+            backdrop-filter: blur(16px);
+            border-radius: var(--radius-main);
+            padding: 18px 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-control, .form-select {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid #334155;
+            color: var(--text-main);
+            border-radius: 8px;
+            padding: 7px 11px;
+            font-size: 0.88rem;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .form-control:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--accent-solid);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        .badge-info {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+            font-size: 0.72rem;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .badge-success {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+            font-size: 0.72rem;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .badge-warning {
+            display: inline-block;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fbbf24;
+            font-size: 0.72rem;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        /* KPI STATS CARDS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--accent-gradient);
+            opacity: 0.7;
+        }
+        .stat-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+        .stat-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.2;
+        }
+        .stat-sub {
+            font-size: 0.74rem;
+            color: var(--text-dim);
+        }
+
+        /* PALLET VISUALIZER CANVAS */
+        .visualizer-box {
+            background: rgba(11, 17, 32, 0.85);
+            border: 1px solid #1e293b;
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 380px;
+            position: relative;
+        }
+
+        .canvas-toolbar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        #palletCanvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            background: #090d16;
+        }
+
+        /* SIDE SUMMARY */
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 0;
+            font-size: 0.84rem;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+        }
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+        .summary-label {
+            color: var(--text-muted);
+        }
+        .summary-val {
+            font-weight: 700;
+            color: var(--text-main);
+            text-align: right;
+        }
+        .summary-val.highlight {
+            color: #60a5fa;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+        }
+        .summary-val.warning {
+            color: #f59e0b;
+        }
+        .summary-val.success {
+            color: #10b981;
+        }
+
+        .dn-text-box {
+            width: 100%;
+            height: 70px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid #334155;
+            color: #93c5fd;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            resize: none;
+            margin-top: 6px;
+            margin-bottom: 8px;
+        }
+
+        /* MODAL STYLES */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            max-width: 820px;
+            width: 100%;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.7);
+            overflow: hidden;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #1e293b;
+        }
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid #1e293b;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* PRINT STYLES */
+        @media print {
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                padding: 0 !important;
+            }
+            .app-header, .layout-grid, .btn-action, .modal-footer {
+                display: none !important;
+            }
+            .print-only-sheet {
+                display: block !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                width: 100% !important;
+                padding: 20mm !important;
+            }
+        }
+        .print-only-sheet {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- APP HEADER -->
+    <header class="app-header">
+        <div>
+            <div class="brand-title">
+                <span>📦</span>
+                <span>IZRAČUN ŠKATEL & EURO PALET</span>
+            </div>
+            <div class="brand-subtitle">
+                Tiskarna Petrič • Škatle 240×320×250 mm (max 15 kg) • Euro paleta (max višina 160 cm)
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-action" onclick="importFromActiveCalculator()" title="Samodejno prenesi format, naklado in podatke iz aktivnega kalkulatorja v krovnem oknu">
+                <span>🔄</span> Uvozi iz kalkulatorja
+            </button>
+            <button class="btn-action" onclick="copyDNText()">
+                <span>📋</span> Kopiraj za D.N.
+            </button>
+            <button class="btn-action" onclick="openLabelsModal()">
+                <span>🏷️</span> Nalepke za škatle
+            </button>
+            <button class="btn-action btn-primary" onclick="openPalletSheetModal()">
+                <span>📄</span> Paletni list (A4)
+            </button>
+        </div>
+    </header>
+
+    <!-- KPI STATS -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <span class="stat-label">Skupaj škatel</span>
+            <span class="stat-value" id="kpi-total-boxes">0</span>
+            <span class="stat-sub" id="kpi-boxes-detail">0 polnih + 0 ost.</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Kosov v škatli</span>
+            <span class="stat-value" id="kpi-items-per-box" style="color: #60a5fa;">0</span>
+            <span class="stat-sub" id="kpi-box-weight">0,0 kg / škatlo (max 15 kg)</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Število Euro palet</span>
+            <span class="stat-value" id="kpi-pallets-count" style="color: #34d399;">0</span>
+            <span class="stat-sub" id="kpi-pallets-detail">50 škatel / paleto</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Višina palete</span>
+            <span class="stat-value" id="kpi-pallet-height">0 cm</span>
+            <span class="stat-sub" id="kpi-height-status">Omejitev max 160 cm</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Skupna bruto teža</span>
+            <span class="stat-value" id="kpi-total-gross-weight" style="color: #fbbf24;">0 kg</span>
+            <span class="stat-sub" id="kpi-weight-breakdown">Tiskovine + škatle + paleta</span>
+        </div>
+    </div>
+
+    <!-- MAIN 3-COLUMN WORKSPACE -->
+    <div class="layout-grid">
+        
+        <!-- COLUMN 1: PARAMETRI IZDELKA & ŠKATLE -->
+        <div class="col-inputs">
+            <!-- PANEL 1: IZDELEK -->
+            <div class="panel-card">
+                <div class="card-header">
+                    <div class="card-title"><span>📑</span> 1. Podatki o izdelku</div>
+                    <span class="badge-info" id="badge-imported">Ročni vnos</span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inp-job-title">Naziv tiskovine / Izdelka</label>
+                    <input type="text" id="inp-job-title" class="form-control" placeholder="npr. Brošura A4 64 str. ali Letak" oninput="recalculateAll()">
+                </div>
+
+                <div class="grid-2 form-group">
+                    <div>
+                        <label class="form-label" for="inp-customer">Naročnik / Stranka</label>
+                        <input type="text" id="inp-customer" class="form-control" placeholder="Kupec..." oninput="recalculateAll()">
+                    </div>
+                    <div>
+                        <label class="form-label" for="inp-dn-number">Št. D.N. / Ponudbe</label>
+                        <input type="text" id="inp-dn-number" class="form-control" placeholder="npr. 26-1045" oninput="recalculateAll()">
+                    </div>
+                </div>
+
+                <div class="grid-2 form-group">
+                    <div>
+                        <label class="form-label" for="inp-width">Širina (mm)</label>
+                        <input type="number" id="inp-width" class="form-control" value="210" min="10" step="1" oninput="recalculateAll()">
+                    </div>
+                    <div>
+                        <label class="form-label" for="inp-height">Višina (mm)</label>
+                        <input type="number" id="inp-height" class="form-control" value="297" min="10" step="1" oninput="recalculateAll()">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inp-preset-format">Hiter format</label>
+                    <select id="inp-preset-format" class="form-select" onchange="applyPresetFormat()">
+                        <option value="210x297" selected>A4 (210 × 297 mm)</option>
+                        <option value="148x210">A5 (148 × 210 mm)</option>
+                        <option value="105x148">A6 (105 × 148 mm)</option>
+                        <option value="99x210">Amerikanka DL (99 × 210 mm)</option>
+                        <option value="297x420">A3 (297 × 420 mm)</option>
+                        <option value="custom">Po meri...</option>
+                    </select>
+                </div>
+
+                <div class="grid-2 form-group">
+                    <div>
+                        <label class="form-label" for="inp-quantity">Naklada (kos)</label>
+                        <input type="number" id="inp-quantity" class="form-control" value="5000" min="1" step="1" oninput="recalculateAll()">
+                    </div>
+                    <div>
+                        <label class="form-label" for="inp-single-weight">Teža 1 kosa (g)</label>
+                        <input type="number" id="inp-single-weight" class="form-control" value="12.5" min="0.1" step="0.1" oninput="recalculateAll()">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-size: 0.76rem; color: var(--text-muted); font-weight: 600;">ALI IZRAČUN IZ PAPIRJA:</span>
+                        <a href="javascript:void(0)" onclick="togglePaperCalc()" style="font-size: 0.74rem; color: #60a5fa; text-decoration: none;">⚙️ Pokaži / Skrij</a>
+                    </div>
+                    <div id="paper-calc-box" style="display: none; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 8px; margin-top: 6px;">
+                        <div class="grid-2 form-group">
+                            <div>
+                                <label class="form-label" for="inp-paper-gsm">Gramatura (g/m²)</label>
+                                <input type="number" id="inp-paper-gsm" class="form-control" value="135" min="40" step="5" oninput="calcWeightFromPaper()">
+                            </div>
+                            <div>
+                                <label class="form-label" for="inp-item-pages">Št. strani (obseg)</label>
+                                <input type="number" id="inp-item-pages" class="form-control" value="2" min="1" step="1" oninput="calcWeightFromPaper()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL 2: ŠKATLA -->
+            <div class="panel-card">
+                <div class="card-header">
+                    <div class="card-title"><span>📦</span> 2. Dimenzija & Omejitve Škatle</div>
+                    <span class="badge-success">Standard Petrič</span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Format škatle (D × Š × V mm)</label>
+                    <div class="grid-3">
+                        <input type="number" id="inp-box-w" class="form-control" value="320" title="Dolžina škatle v mm" oninput="recalculateAll()">
+                        <input type="number" id="inp-box-l" class="form-control" value="240" title="Širina škatle v mm" oninput="recalculateAll()">
+                        <input type="number" id="inp-box-h" class="form-control" value="250" title="Višina škatle v mm" oninput="recalculateAll()">
+                    </div>
+                    <span style="font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; display: block;">Standardna škatla Petrič: 320 × 240 × 250 mm</span>
+                </div>
+
+                <div class="grid-2 form-group">
+                    <div>
+                        <label class="form-label" for="inp-max-box-weight" style="color: #fbbf24;">Max teža škatle</label>
+                        <div style="position: relative;">
+                            <input type="number" id="inp-max-box-weight" class="form-control" value="15" min="1" max="30" step="0.5" oninput="recalculateAll()">
+                            <span style="position: absolute; right: 8px; top: 7px; font-size: 0.78rem; color: var(--text-dim);">kg</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label" for="inp-box-tare">Tara škatle</label>
+                        <div style="position: relative;">
+                            <input type="number" id="inp-box-tare" class="form-control" value="0.40" min="0" max="2" step="0.05" oninput="recalculateAll()">
+                            <span style="position: absolute; right: 8px; top: 7px; font-size: 0.78rem; color: var(--text-dim);">kg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label class="form-label" for="inp-items-per-box" style="color: #60a5fa;">Kosov v škatli (kapaciteta)</label>
+                        <span id="auto-cap-hint" style="font-size: 0.72rem; color: #34d399; font-weight: 600;">Avtomatsko</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="inp-items-per-box" class="form-control" value="1000" min="1" step="50" oninput="onManualBoxCapChange()">
+                        <button class="btn-action" style="padding: 6px 10px;" onclick="recalculateAutoBoxCap()" title="Samodejno ponastavi na optimalno število do 15 kg">Auto</button>
+                    </div>
+                </div>
+
+                <div class="grid-2 form-group">
+                    <div>
+                        <label class="form-label" for="inp-box-price">Cena škatle (€/kos)</label>
+                        <input type="number" id="inp-box-price" class="form-control" value="0.50" min="0" step="0.05" oninput="recalculateAll()">
+                    </div>
+                    <div>
+                        <label class="form-label" for="inp-pallet-price">Cena palete (€/kos)</label>
+                        <input type="number" id="inp-pallet-price" class="form-control" value="10.00" min="0" step="0.5" oninput="recalculateAll()">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inp-banding-size">Pasičenje (po)</label>
+                    <select id="inp-banding-size" class="form-select" onchange="recalculateAll()">
+                        <option value="0">Brez pasic</option>
+                        <option value="25">po 25 kos</option>
+                        <option value="50">po 50 kos</option>
+                        <option value="100">po 100 kos</option>
+                        <option value="250">po 250 kos</option>
+                        <option value="500">po 500 kos</option>
+                    </select>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- COLUMN 2: VIZUALIZACIJA EURO PALETE & POSTAVITEV -->
+        <div class="col-visualizer">
+            <div class="panel-card" style="height: 100%; display: flex; flex-direction: column;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span>🏗️</span> 3. Razporeditev na Euro Paleto (1200 × 800 mm)
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn-action" id="btn-layout-10" onclick="setLayoutMode('10')" style="padding: 4px 10px; font-size: 0.74rem;">10 škatel / sloj</button>
+                        <button class="btn-action" id="btn-layout-11" onclick="setLayoutMode('11')" style="padding: 4px 10px; font-size: 0.74rem;">11 škatel / sloj</button>
+                    </div>
+                </div>
+
+                <!-- PALLET SETTINGS BAR -->
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 8px; margin-bottom: 14px; font-size: 0.78rem;">
+                    <div>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #fff; font-weight: 700;">
+                            <input type="checkbox" id="inp-use-pallet" onchange="onPalletToggleManual()" style="accent-color: #3b82f6; width: 15px; height: 15px;">
+                            Euro paleta (10 €)
+                        </label>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted);">Max višina:</span>
+                        <strong style="color: #60a5fa;" id="disp-max-height">160 cm</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted);">Višina škatle:</span>
+                        <strong id="disp-box-h">25 cm</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted);">Max plasti:</span>
+                        <strong style="color: #34d399;" id="disp-max-layers">5 plasti</strong>
+                    </div>
+                </div>
+
+                <!-- CANVAS VISUALIZER -->
+                <div class="visualizer-box">
+                    <div class="canvas-toolbar">
+                        <span>📐 Tloris Euro palete (1200 mm × 800 mm)</span>
+                        <span id="canvas-layer-info">1. Plast (10 škatel 320×240 mm)</span>
+                    </div>
+                    <canvas id="palletCanvas" width="620" height="440"></canvas>
+                    <div style="margin-top: 10px; display: flex; justify-content: space-between; width: 100%; font-size: 0.74rem; color: var(--text-dim);">
+                        <span>Zeleni rob: tloris Euro palete 1200 × 800 mm</span>
+                        <span>Modri pravokotniki: škatle 320 × 240 mm</span>
+                        <span id="pallet-utilization">Izkoristek tlorisa: 80%</span>
+                    </div>
+                </div>
+
+                <!-- SIDE VIEW ELEVATION BARS -->
+                <div style="margin-top: 16px; background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: 10px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 700; margin-bottom: 8px;">
+                        <span>🏢 Stranski pogled višine (Zlaganje slojev):</span>
+                        <span id="elevation-height-text">Višina: 139,4 cm / Omejitev 160 cm</span>
+                    </div>
+                    <div style="width: 100%; height: 24px; background: #1e293b; border-radius: 6px; overflow: hidden; display: flex; border: 1px solid #334155; position: relative;">
+                        <!-- Pallet base -->
+                        <div style="width: 9%; background: #78350f; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: #fde68a; font-weight: bold;" title="Euro paleta (14,4 cm)">PALETA</div>
+                        <!-- Layers 1 to 5 -->
+                        <div id="bar-layer-1" style="width: 15.6%; background: #2563eb; border-right: 1px solid #1e293b; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: #fff;">1. sloj</div>
+                        <div id="bar-layer-2" style="width: 15.6%; background: #3b82f6; border-right: 1px solid #1e293b; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: #fff;">2. sloj</div>
+                        <div id="bar-layer-3" style="width: 15.6%; background: #60a5fa; border-right: 1px solid #1e293b; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: #000;">3. sloj</div>
+                        <div id="bar-layer-4" style="width: 15.6%; background: #93c5fd; border-right: 1px solid #1e293b; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: #000;">4. sloj</div>
+                        <div id="bar-layer-5" style="width: 15.6%; background: #bfdbfe; border-right: 1px solid #1e293b; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: #000;">5. sloj</div>
+                        <!-- Remaining margin -->
+                        <div style="flex-grow: 1; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: var(--text-dim);" title="Prostora do 160 cm">REZERVA DO 160 cm</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- COLUMN 3: REZULTATI, TEKST ZA D.N., POVZETEK & AKCIJE -->
+        <div class="col-side">
+            <!-- PANEL 4: POVZETEK PAKIRANJA -->
+            <div class="panel-card">
+                <div class="card-header">
+                    <div class="card-title"><span>📋</span> Povzetek Specifikacije</div>
+                    <span class="badge-info">Pripravljeno</span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">Skupna naklada:</span>
+                    <span class="summary-val" id="sum-qty">5.000 kos</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Teža tiskovin (neto):</span>
+                    <span class="summary-val" id="sum-net-weight">62,5 kg</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Kapaciteta 1 škatle:</span>
+                    <span class="summary-val highlight" id="sum-box-cap">1.000 kos</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Teža 1 polne škatle:</span>
+                    <span class="summary-val" id="sum-single-box-gross">12,9 kg (neto 12,5 kg)</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Polnih škatel:</span>
+                    <span class="summary-val" id="sum-full-boxes">5 škatel</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Zadnja delna škatla:</span>
+                    <span class="summary-val" id="sum-partial-box">0 kos</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Skupaj škatel:</span>
+                    <span class="summary-val highlight" id="sum-total-boxes">5 škatel</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Škatel na Euro paleto:</span>
+                    <span class="summary-val" id="sum-boxes-per-pallet">50 škatel (5 slojev po 10)</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Potrebno Euro palet:</span>
+                    <span class="summary-val success" id="sum-total-pallets">1 Euro paleta (1 delna)</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Skupna višina s paleto:</span>
+                    <span class="summary-val" id="sum-final-height">39,4 cm</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Skupna bruto teža (odprema):</span>
+                    <span class="summary-val highlight" id="sum-grand-gross">86,5 kg</span>
+                </div>
+                <div class="summary-row" style="background: rgba(59, 130, 246, 0.08); margin: 4px -8px; padding: 6px 8px; border-radius: 6px;">
+                    <span class="summary-label" style="color: #93c5fd; font-weight: 600;" id="sum-boxes-cost-label">Strošek škatel (0,50 €/kos):</span>
+                    <span class="summary-val" style="color: #60a5fa;" id="sum-boxes-cost">0,00 €</span>
+                </div>
+                <div class="summary-row" style="background: rgba(16, 185, 129, 0.08); margin: 4px -8px; padding: 6px 8px; border-radius: 6px;">
+                    <span class="summary-label" style="color: #6ee7b7; font-weight: 600;" id="sum-pallets-cost-label">Strošek palet (10,00 €/kos):</span>
+                    <span class="summary-val" style="color: #34d399;" id="sum-pallets-cost">0,00 €</span>
+                </div>
+                <div class="summary-row" style="background: rgba(245, 158, 11, 0.12); margin: 6px -8px; padding: 7px 8px; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.25);">
+                    <span class="summary-label" style="color: #fde68a; font-weight: 800;">SKUPAJ EMBALAŽA:</span>
+                    <span class="summary-val" style="color: #fbbf24; font-size: 1.05rem;" id="sum-packaging-total-cost">0,00 €</span>
+                </div>
+            </div>
+
+            <!-- PANEL 5: BESEDILO ZA DELOVNI NALOG -->
+            <div class="panel-card">
+                <div class="card-header">
+                    <div class="card-title"><span>✍️</span> Za Delovni Nalog (D.N.)</div>
+                    <button class="btn-action" style="padding: 4px 8px; font-size: 0.72rem;" onclick="copyDNText()">Kopiraj</button>
+                </div>
+                <span style="font-size: 0.72rem; color: var(--text-dim);">To besedilo se vpiše v polje »Pakiranje (D.N.)«:</span>
+                <textarea id="box-dn-text" class="dn-text-box" readonly onclick="this.select()"></textarea>
+                <button class="btn-action btn-primary" style="width: 100%; justify-content: center;" onclick="copyDNText()">
+                    <span>📋</span> Kopiraj v odložišče
+                </button>
+            </div>
+
+            <!-- PANEL 6: HITRI TISK & OZNAČBE -->
+            <div class="panel-card">
+                <div class="card-header">
+                    <div class="card-title"><span>🖨️</span> Tiskanje Dokumentov</div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <button class="btn-action" style="justify-content: center; padding: 10px;" onclick="openLabelsModal()">
+                        <span>🏷️</span> Natisni nalepke za škatle
+                    </button>
+                    <button class="btn-action" style="justify-content: center; padding: 10px;" onclick="openPalletSheetModal()">
+                        <span>📄</span> Natisni spremni paletni list
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- MODAL: NALEPKE ZA ŠKATLE -->
+<div class="modal-overlay" id="modalLabels">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 style="font-family: 'Outfit'; font-size: 1.15rem; color: #fff;">🏷️ Predogled Nalepk za Škatle</h3>
+            <button class="btn-action" onclick="closeModal('modalLabels')">✕</button>
+        </div>
+        <div class="modal-body" id="labelsPreviewContainer">
+            <!-- Dinamično generirane nalepke -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn-action" onclick="closeModal('modalLabels')">Zapri</button>
+            <button class="btn-action btn-primary" onclick="printElement('labelsPreviewContainer')">🖨️ Natisni nalepke</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: PALETNI LIST -->
+<div class="modal-overlay" id="modalPalletSheet">
+    <div class="modal-card" style="max-width: 750px;">
+        <div class="modal-header">
+            <h3 style="font-family: 'Outfit'; font-size: 1.15rem; color: #fff;">📄 Predogled Paletnega Lista (A4)</h3>
+            <button class="btn-action" onclick="closeModal('modalPalletSheet')">✕</button>
+        </div>
+        <div class="modal-body" id="palletSheetPreviewContainer">
+            <!-- Dinamično generiran paletni list -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn-action" onclick="closeModal('modalPalletSheet')">Zapri</button>
+            <button class="btn-action btn-primary" onclick="printElement('palletSheetPreviewContainer')">🖨️ Natisni paletni list</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // GLOBAL STATE & PETRIC SPECIFICATION CONSTANTS
+    const PETRIC_BOX_DEFAULT = {
+        w: 320,  // mm dolžina
+        l: 240,  // mm širina
+        h: 250,  // mm višina
+        maxWeightKg: 15.0, // Največja dovoljena teža v škatli
+        tareKg: 0.40,      // Teža prazne škatle
+        priceEur: 0.50     // Cena škatle (0,5 €)
+    };
+
+    const EURO_PALLET = {
+        w: 1200, // mm
+        l: 800,  // mm
+        h: 144,  // mm višina same lesene palete
+        tareKg: 22.0, // teža lesene palete
+        maxHeightMm: 1600, // 160 cm omejitev po navodilu Darka
+        maxGrossKg: 800.0, // standardna nosilnost
+        priceEur: 10.00    // Cena palete (10 €)
+    };
+
+    let currentLayoutMode = '10'; // '10' ali '11' škatel na sloj
+    let isManualBoxCap = false;
+
+    // Helper functions
+    function gv(id) {
+        const el = document.getElementById(id);
+        return el ? el.value : '';
+    }
+    function gn(id, def = 0) {
+        const v = parseFloat(gv(id));
+        return isNaN(v) ? def : v;
+    }
+    function sv(id, val) {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    }
+    function st(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.innerText = text;
+    }
+    function formatSlo(num, decimals = 0) {
+        if (isNaN(num)) return '0';
+        return Number(num).toLocaleString('sl-SI', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+
+    // Toggle paper calculator
+    function togglePaperCalc() {
+        const box = document.getElementById('paper-calc-box');
+        if (box) {
+            box.style.display = box.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+
+    // Apply preset format
+    function applyPresetFormat() {
+        const sel = gv('inp-preset-format');
+        if (sel === 'custom') return;
+        const parts = sel.split('x');
+        if (parts.length === 2) {
+            sv('inp-width', parts[0]);
+            sv('inp-height', parts[1]);
+            calcWeightFromPaper();
+            recalculateAll();
+        }
+    }
+
+    // Calculate item weight from paper gsm & pages
+    function calcWeightFromPaper() {
+        const wMm = gn('inp-width', 210);
+        const hMm = gn('inp-height', 297);
+        const gsm = gn('inp-paper-gsm', 135);
+        const pages = gn('inp-item-pages', 2);
+
+        const areaM2 = (wMm / 1000) * (hMm / 1000);
+        const sheets = Math.ceil(pages / 2);
+        const weightG = areaM2 * gsm * sheets;
+
+        sv('inp-single-weight', Math.max(0.1, Math.round(weightG * 10) / 10));
+        recalculateAll();
+    }
+
+    // Set layout mode: 10 vs 11 boxes per layer
+    function setLayoutMode(mode) {
+        currentLayoutMode = mode;
+        const b10 = document.getElementById('btn-layout-10');
+        const b11 = document.getElementById('btn-layout-11');
+        if (mode === '10') {
+            b10.classList.add('btn-primary');
+            b11.classList.remove('btn-primary');
+        } else {
+            b11.classList.add('btn-primary');
+            b10.classList.remove('btn-primary');
+        }
+        recalculateAll();
+    }
+
+    // Recalculate auto box capacity
+    function recalculateAutoBoxCap() {
+        isManualBoxCap = false;
+        document.getElementById('auto-cap-hint').innerText = 'Avtomatsko';
+        document.getElementById('auto-cap-hint').style.color = '#34d399';
+        recalculateAll();
+    }
+
+    function onManualBoxCapChange() {
+        isManualBoxCap = true;
+        document.getElementById('auto-cap-hint').innerText = 'Ročno nastavljeno';
+        document.getElementById('auto-cap-hint').style.color = '#fbbf24';
+        recalculateAll();
+    }
+
+    function onPalletToggleManual() {
+        const chk = document.getElementById('inp-use-pallet');
+        if (chk) chk.dataset.manual = 'true';
+        recalculateAll();
+    }
+
+    // MAIN RECALCULATION FUNCTION
+    function recalculateAll() {
+        const widthMm = gn('inp-width', 210);
+        const heightMm = gn('inp-height', 297);
+        const quantity = Math.max(1, gn('inp-quantity', 5000));
+        const singleWeightG = Math.max(0.01, gn('inp-single-weight', 12.5));
+
+        const boxW = gn('inp-box-w', PETRIC_BOX_DEFAULT.w);
+        const boxL = gn('inp-box-l', PETRIC_BOX_DEFAULT.l);
+        const boxH = gn('inp-box-h', PETRIC_BOX_DEFAULT.h);
+        const maxBoxWeightKg = gn('inp-max-box-weight', PETRIC_BOX_DEFAULT.maxWeightKg);
+        const boxTareKg = gn('inp-box-tare', PETRIC_BOX_DEFAULT.tareKg);
+        const boxPriceEur = gn('inp-box-price', PETRIC_BOX_DEFAULT.priceEur);
+        const palletPriceEur = gn('inp-pallet-price', EURO_PALLET.priceEur);
+        const bandingSize = gn('inp-banding-size', 0);
+
+        // 1. Kapaciteta škatle
+        let itemsPerBox = gn('inp-items-per-box', 1000);
+
+        // Dejanska debelina lista (v mm) - volumetrično 1.0 (0.001 mm na g/m²)
+        const areaM2 = (widthMm / 1000) * (heightMm / 1000);
+        const effectiveGsm = areaM2 > 0 ? (singleWeightG / areaM2) : 135;
+        const pages = gn('inp-item-pages', 2);
+        const leaves = Math.max(1, Math.ceil(pages / 2));
+        const sheetThicknessMm = Math.max(0.04, (effectiveGsm * 1.0 * leaves) / 1000);
+
+        // Število stolpcev v škatli 240 x 320 mm
+        let cols = 1;
+        if (widthMm <= 160 && heightMm <= 240) cols = 2; // npr A5
+        else if (widthMm <= 120 && heightMm <= 160) cols = 4; // npr A6
+        else if (widthMm <= 105 && heightMm <= 215) cols = 3; // npr Amerikanka
+
+        const maxStackHeightMm = Math.max(50, boxH - 20); // 20 mm varnostni prostor za zapiranje
+        const maxByVolume = Math.floor((maxStackHeightMm / sheetThicknessMm) * cols);
+        const maxByWeight = Math.floor((maxBoxWeightKg * 1000) / singleWeightG);
+        const absoluteMaxCap = Math.max(50, Math.min(maxByWeight, maxByVolume));
+
+        if (!isManualBoxCap) {
+            if (quantity <= absoluteMaxCap) {
+                itemsPerBox = quantity;
+            } else {
+                const standardPacks = [2500, 2000, 1500, 1000, 750, 500, 250, 200, 100, 50];
+                let bestStandard = 500;
+                for (let p of standardPacks) {
+                    if (p <= absoluteMaxCap) {
+                        bestStandard = p;
+                        break;
+                    }
+                }
+                itemsPerBox = bestStandard;
+
+                if (quantity % 1000 === 0 && 1000 <= absoluteMaxCap) {
+                    itemsPerBox = 1000;
+                } else if (quantity % 500 === 0 && 500 <= absoluteMaxCap) {
+                    itemsPerBox = 500;
+                } else if (quantity % 250 === 0 && 250 <= absoluteMaxCap && absoluteMaxCap < 500) {
+                    itemsPerBox = 250;
+                } else {
+                    const minBoxes = Math.max(1, Math.ceil(quantity / absoluteMaxCap));
+                    let evenQty = Math.ceil(quantity / minBoxes);
+                    if (evenQty > 200 && evenQty % 50 !== 0) evenQty = Math.ceil(evenQty / 50) * 50;
+                    if (evenQty <= absoluteMaxCap && (minBoxes - 1) * evenQty < quantity) {
+                        itemsPerBox = evenQty;
+                    }
+                }
+            }
+
+            if (bandingSize > 0) {
+                itemsPerBox = Math.max(bandingSize, Math.floor(itemsPerBox / bandingSize) * bandingSize);
+            }
+            itemsPerBox = Math.max(1, itemsPerBox);
+            sv('inp-items-per-box', itemsPerBox);
+        }
+
+        // 2. Število škatel
+        const fullBoxes = Math.floor(quantity / itemsPerBox);
+        const remainder = quantity % itemsPerBox;
+        const totalBoxes = fullBoxes + (remainder > 0 ? 1 : 0);
+
+        // Teža škatle
+        const netBoxWeightKg = (itemsPerBox * singleWeightG) / 1000;
+        const grossBoxWeightKg = netBoxWeightKg + boxTareKg;
+
+        const totalNetWeightKg = (quantity * singleWeightG) / 1000;
+        const totalBoxesWeightKg = totalBoxes * boxTareKg;
+        const totalGrossBoxesOnlyKg = totalNetWeightKg + totalBoxesWeightKg;
+
+        // Paleta: ali se uporabi?
+        const chkPallet = document.getElementById('inp-use-pallet');
+        let needPallet = false;
+        if (chkPallet && chkPallet.dataset.manual === 'true') {
+            needPallet = chkPallet.checked;
+        } else {
+            needPallet = (totalBoxes >= 8 || totalGrossBoxesOnlyKg >= 70);
+            if (chkPallet) chkPallet.checked = needPallet;
+        }
+
+        // 3. Paletizacija (Euro paleta 1200 x 800 mm)
+        const boxesPerLayer = currentLayoutMode === '11' ? 11 : 10;
+        const palletBaseMm = EURO_PALLET.h; // 144 mm
+        const maxCargoHeightMm = EURO_PALLET.maxHeightMm - palletBaseMm; // 1456 mm
+        const maxLayers = Math.floor(maxCargoHeightMm / boxH); // 5 plasti
+        const boxesPerPallet = boxesPerLayer * maxLayers; // 50 škatel
+
+        let fullPallets = 0;
+        let remainderBoxes = 0;
+        let totalPallets = 0;
+        let actualLayers = 0;
+        let actualPalletHeightCm = 0;
+        let palletsCost = 0;
+        let totalGrossWeightKg = totalGrossBoxesOnlyKg;
+
+        if (needPallet) {
+            fullPallets = Math.floor(totalBoxes / boxesPerPallet);
+            remainderBoxes = totalBoxes % boxesPerPallet;
+            totalPallets = Math.max(1, fullPallets + (remainderBoxes > 0 ? 1 : 0));
+
+            const actualBoxesOnMainPallet = fullPallets > 0 ? boxesPerPallet : totalBoxes;
+            actualLayers = Math.min(maxLayers, Math.ceil(actualBoxesOnMainPallet / boxesPerLayer));
+            const actualPalletHeightMm = palletBaseMm + (actualLayers * boxH);
+            actualPalletHeightCm = Math.round(actualPalletHeightMm / 10);
+
+            totalGrossWeightKg = totalGrossBoxesOnlyKg + (totalPallets * EURO_PALLET.tareKg);
+            palletsCost = totalPallets * palletPriceEur;
+        }
+
+        // Stroški embalaže
+        const totalBoxesCost = totalBoxes * boxPriceEur;
+        const totalPackagingCost = totalBoxesCost + palletsCost;
+
+        // 4. POSODOBITEV KPI KARTIC
+        st('kpi-total-boxes', formatSlo(totalBoxes));
+        st('kpi-boxes-detail', `${fullBoxes} polnih` + (remainder > 0 ? ` + 1 ost. (${remainder} kos)` : ''));
+
+        st('kpi-items-per-box', formatSlo(itemsPerBox));
+        st('kpi-box-weight', `${formatSlo(grossBoxWeightKg, 1)} kg bruto / škatlo`);
+
+        if (needPallet) {
+            st('kpi-pallets-count', `${totalPallets} ${totalPallets === 1 ? 'Euro paleta' : (totalPallets === 2 ? 'Euro paleti' : 'Euro palete')}`);
+            st('kpi-pallets-detail', `${boxesPerPallet} škatel na polno paleto (${boxesPerLayer}/sloj)`);
+            st('kpi-pallet-height', `${actualPalletHeightCm} cm`);
+            st('kpi-height-status', actualPalletHeightCm <= 160 ? '✅ Znotraj meje 160 cm' : '⚠️ PRESEGA 160 cm!');
+            st('kpi-total-gross-weight', `${formatSlo(totalGrossWeightKg, 1)} kg`);
+            st('kpi-weight-breakdown', `Neto: ${formatSlo(totalNetWeightKg, 1)} kg + palete: ${formatSlo(totalPallets * EURO_PALLET.tareKg, 0)} kg`);
+        } else {
+            st('kpi-pallets-count', 'Brez palete');
+            st('kpi-pallets-detail', 'Paketno (kombi / osebno)');
+            st('kpi-pallet-height', 'Le škatle');
+            st('kpi-height-status', '✅ Brez palete (majhna teža)');
+            st('kpi-total-gross-weight', `${formatSlo(totalGrossBoxesOnlyKg, 1)} kg`);
+            st('kpi-weight-breakdown', `Neto: ${formatSlo(totalNetWeightKg, 1)} kg + škatle: ${formatSlo(totalBoxesWeightKg, 1)} kg`);
+        }
+
+        // 5. POSODOBITEV POVZETKA
+        st('sum-qty', `${formatSlo(quantity)} kos`);
+        st('sum-net-weight', `${formatSlo(totalNetWeightKg, 1)} kg`);
+        st('sum-box-cap', `${formatSlo(itemsPerBox)} kos`);
+        st('sum-single-box-gross', `${formatSlo(grossBoxWeightKg, 1)} kg (neto ${formatSlo(netBoxWeightKg, 1)} kg)`);
+        st('sum-full-boxes', `${fullBoxes} škatel po ${formatSlo(itemsPerBox)} kos`);
+        st('sum-partial-box', remainder > 0 ? `${remainder} kos` : '—');
+        st('sum-total-boxes', `${totalBoxes} škatel (${boxW}×${boxL}×${boxH} mm)`);
+        
+        if (needPallet) {
+            st('sum-boxes-per-pallet', `${boxesPerPallet} škatel (${maxLayers} slojev po ${boxesPerLayer})`);
+            st('sum-total-pallets', `${totalPallets} Euro paleta (${totalBoxes <= boxesPerPallet ? '1 delna/polna' : `${fullPallets} polnih + ${remainderBoxes} na delni`})`);
+            st('sum-final-height', `${actualPalletHeightCm} cm (max 160 cm)`);
+            st('sum-pallets-cost-label', `Strošek palet (${totalPallets} × ${formatSlo(palletPriceEur, 2)} €):`);
+            st('sum-pallets-cost', `${formatSlo(palletsCost, 2)} €`);
+        } else {
+            st('sum-boxes-per-pallet', 'Brez palete');
+            st('sum-total-pallets', 'Brez palete (paketno)');
+            st('sum-final-height', 'Le škatle');
+            st('sum-pallets-cost-label', 'Paleta ni vključena:');
+            st('sum-pallets-cost', '0,00 €');
+        }
+
+        st('sum-grand-gross', `${formatSlo(totalGrossWeightKg, 1)} kg`);
+        st('sum-boxes-cost-label', `Strošek škatel (${totalBoxes} × ${formatSlo(boxPriceEur, 2)} €):`);
+        st('sum-boxes-cost', `${formatSlo(totalBoxesCost, 2)} €`);
+        st('sum-packaging-total-cost', `${formatSlo(totalPackagingCost, 2)} €`);
+
+        // 6. TEKST ZA DELOVNI NALOG (D.N.)
+        function declBoxes(n) {
+            if (n === 1) return '1 škatlo';
+            if (n === 2) return '2 škatli';
+            if (n === 3 || n === 4) return `${n} škatle`;
+            return `${n} škatel`;
+        }
+        function declPal(n) {
+            if (n === 1) return '1 Euro paleta';
+            if (n === 2) return '2 Euro paleti';
+            if (n === 3 || n === 4) return `${n} Euro palete`;
+            return `${n} Euro palet`;
+        }
+
+        let dnText = '';
+        if (totalBoxes === 1) {
+            dnText = `v 1 škatlo po ${formatSlo(quantity)} kos (${boxL}x${boxW}x${boxH} mm)`;
+        } else if (remainder === 0) {
+            dnText = `v ${declBoxes(totalBoxes)} po ${formatSlo(itemsPerBox)} kos (${boxL}x${boxW}x${boxH} mm)`;
+        } else {
+            dnText = `v ${declBoxes(fullBoxes)} po ${formatSlo(itemsPerBox)} kos + 1 škatla ${formatSlo(remainder)} kos (${boxL}x${boxW}x${boxH} mm)`;
+        }
+
+        if (bandingSize > 0) {
+            dnText = `ovoj po ${bandingSize} kos; ` + dnText;
+        }
+
+        if (needPallet) {
+            let bWord = (totalBoxes === 1) ? 'škatla' : ((totalBoxes === 2) ? 'škatli' : ((totalBoxes === 3 || totalBoxes === 4) ? 'škatle' : 'škatel'));
+            dnText += `; ${declPal(totalPallets)} (${totalBoxes} ${bWord}, višina ${actualPalletHeightCm} cm, bruto ${formatSlo(totalGrossWeightKg, 0)} kg)`;
+        }
+
+        document.getElementById('box-dn-text').value = dnText;
+
+        // 7. POSODOBITEV STRANSKEGA POGLEDA VIŠINE
+        updateElevationBars(needPallet ? actualLayers : 0, needPallet ? actualPalletHeightCm : 0);
+
+        // 8. IZRIS TLORISA NA CANVAS
+        drawPalletFloorplan(boxesPerLayer, boxW, boxL);
+    }
+
+    // Visualizer elevation bar update
+    function updateElevationBars(layersCount, totalHeightCm) {
+        st('elevation-height-text', `Višina tovora s paleto: ${totalHeightCm} cm (omejitev 160 cm)`);
+        for (let i = 1; i <= 5; i++) {
+            const bar = document.getElementById(`bar-layer-${i}`);
+            if (bar) {
+                if (i <= layersCount) {
+                    bar.style.opacity = '1';
+                    bar.style.filter = 'none';
+                } else {
+                    bar.style.opacity = '0.25';
+                    bar.style.filter = 'grayscale(1)';
+                }
+            }
+        }
+    }
+
+    // DRAW PALLET 2D FLOORPLAN CANVAS
+    function drawPalletFloorplan(boxesCount, boxW, boxL) {
+        const canvas = document.getElementById('palletCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const cw = canvas.width;
+        const ch = canvas.height;
+
+        ctx.clearRect(0, 0, cw, ch);
+
+        // Pallet outer dimensions: 1200 x 800 mm
+        // Scale to fit canvas with padding
+        const padX = 50;
+        const padY = 50;
+        const availW = cw - padX * 2;
+        const availH = ch - padY * 2;
+
+        const scale = Math.min(availW / 1200, availH / 800);
+        const palletDrawW = 1200 * scale;
+        const palletDrawH = 800 * scale;
+        const startX = (cw - palletDrawW) / 2;
+        const startY = (ch - palletDrawH) / 2;
+
+        // 1. Draw Pallet Base (Wood / Euro Pallet)
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(startX, startY, palletDrawW, palletDrawH);
+
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#10b981'; // Green border
+        ctx.strokeRect(startX, startY, palletDrawW, palletDrawH);
+
+        // Grid lines of pallet planks
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.25)';
+        for (let x = startX + (palletDrawW / 5); x < startX + palletDrawW - 5; x += (palletDrawW / 5)) {
+            ctx.beginPath();
+            ctx.moveTo(x, startY);
+            ctx.lineTo(x, startY + palletDrawH);
+            ctx.stroke();
+        }
+
+        // 2. Draw Boxes on Layer
+        // Box standard orientation: 320 x 240 mm (or 240 x 320)
+        // Layout 10: 5 columns along 1200 mm (5 * 240 = 1200 mm) x 2 rows along 800 mm (2 * 320 = 640 mm)
+        const boxesToDraw = [];
+
+        if (boxesCount === 10) {
+            // 5 x 2 grid
+            const bw = 240 * scale;
+            const bl = 320 * scale;
+            const offsetY = startY + (palletDrawH - (2 * bl)) / 2; // centered on 800mm side
+            for (let c = 0; c < 5; c++) {
+                for (let r = 0; r < 2; r++) {
+                    boxesToDraw.push({
+                        x: startX + c * bw,
+                        y: offsetY + r * bl,
+                        w: bw,
+                        h: bl,
+                        num: boxesToDraw.length + 1
+                    });
+                }
+            }
+            st('canvas-layer-info', '1. Plast: 10 škatel (5 vrst po 2 škatli 240 × 320 mm)');
+            st('pallet-utilization', 'Izkoristek tlorisa: 80% (Brez previsa, zanesljivo za zlaganje)');
+        } else {
+            // Layout 11: Interlocked
+            // 3 columns of 3 along 960x720 mm + 2 boxes along the remaining 240mm
+            const b320 = 320 * scale;
+            const b240 = 240 * scale;
+
+            // Block 1: 3 x 3 (320 along X, 240 along Y) -> 3 * 320 = 960mm, 3 * 240 = 720mm
+            for (let c = 0; c < 3; c++) {
+                for (let r = 0; r < 3; r++) {
+                    boxesToDraw.push({
+                        x: startX + c * b320,
+                        y: startY + r * b240,
+                        w: b320,
+                        h: b240,
+                        num: boxesToDraw.length + 1
+                    });
+                }
+            }
+            // Block 2: 2 boxes in the remaining 240mm width (240 along X, 320 along Y -> 2 * 320 = 640mm)
+            const remX = startX + 3 * b320; // 960 mm
+            for (let r = 0; r < 2; r++) {
+                boxesToDraw.push({
+                    x: remX,
+                    y: startY + r * b320,
+                    w: b240,
+                    h: b320,
+                    num: boxesToDraw.length + 1
+                });
+            }
+            st('canvas-layer-info', '1. Plast: 11 škatel (Prepleteno / Maksimalno 1200 × 800 mm)');
+            st('pallet-utilization', 'Izkoristek tlorisa: 88% (Maksimalna izkoriščenost Euro palete)');
+        }
+
+        // Render each box
+        boxesToDraw.forEach(b => {
+            // Box gradient fill
+            const grad = ctx.createLinearGradient(b.x, b.y, b.x + b.w, b.y + b.h);
+            grad.addColorStop(0, '#1e3a8a');
+            grad.addColorStop(1, '#1d4ed8');
+            ctx.fillStyle = grad;
+            ctx.fillRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
+
+            // Border
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#60a5fa';
+            ctx.strokeRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
+
+            // Inner tape line
+            ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(b.x + b.w / 2, b.y + 4);
+            ctx.lineTo(b.x + b.w / 2, b.y + b.h - 4);
+            ctx.stroke();
+
+            // Box number
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px "Outfit", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(b.num, b.x + b.w / 2, b.y + b.h / 2);
+        });
+
+        // Dimensions labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('1200 mm', startX + palletDrawW / 2, startY - 10);
+
+        ctx.save();
+        ctx.translate(startX - 15, startY + palletDrawH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('800 mm', 0, 0);
+        ctx.restore();
+    }
+
+    // COPY TEXT FOR WORK ORDER (D.N.)
+    function copyDNText() {
+        const text = document.getElementById('box-dn-text').value;
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+            alert('✅ Besedilo pakiranja je skopirano v odložišče:\n\n' + text);
+        }).catch(() => {
+            alert('Besedilo:\n' + text);
+        });
+    }
+
+    // IMPORT FROM ACTIVE CALCULATOR IN PARENT IFRAME
+    function importFromActiveCalculator() {
+        try {
+            if (!window.parent || window.parent === window) {
+                alert('Orodje ni naloženo znotraj skupnega vmesnika PETRIČ.KALKULACIJE2.html.');
+                return;
+            }
+
+            const activeTabKey = window.parent.currentTabKey || 'pola';
+            const frameId = 'iframe_' + activeTabKey;
+            const frameEl = window.parent.document.getElementById(frameId);
+
+            if (!frameEl || !frameEl.contentWindow) {
+                alert('Ni mogoče dostopati do aktivnega zavihka (' + activeTabKey + ').');
+                return;
+            }
+
+            const doc = frameEl.contentWindow.document;
+
+            // Attempt to grab project data
+            let jobTitle = '';
+            let customer = '';
+            let dnNumber = '';
+            let width = 210;
+            let height = 297;
+            let qty = 1000;
+            let singleWeight = 0;
+
+            // Customer
+            const custEl = doc.getElementById('calc-customer-name') || doc.getElementById('calc-customer-select');
+            if (custEl) customer = custEl.value || (custEl.options ? custEl.options[custEl.selectedIndex]?.text : '') || '';
+
+            // DN
+            const dnEl = doc.getElementById('calc-dn-number');
+            if (dnEl) dnNumber = dnEl.value || '';
+
+            // Job Title
+            const titleEl = doc.getElementById('calc-product-name') || doc.getElementById('calc-notes') || doc.getElementById('calc-job-title');
+            if (titleEl) jobTitle = titleEl.value || '';
+
+            // Format (width, height)
+            const wEl = doc.getElementById('calc-cut-width') || doc.getElementById('calc-format-custom-w') || doc.getElementById('calc-block-w');
+            const hEl = doc.getElementById('calc-cut-height') || doc.getElementById('calc-format-custom-h') || doc.getElementById('calc-block-h');
+            if (wEl && parseFloat(wEl.value) > 0) width = parseFloat(wEl.value);
+            if (hEl && parseFloat(hEl.value) > 0) height = parseFloat(hEl.value);
+
+            // Quantity
+            const qtyEl = doc.getElementById('calc-quantities') || doc.getElementById('calc-order-qty') || doc.getElementById('krka-order-qty');
+            if (qtyEl && parseFloat(qtyEl.value) > 0) qty = parseFloat(qtyEl.value.replace(/\./g, ''));
+
+            // Weight
+            if (frameEl.contentWindow.d && frameEl.contentWindow.d.weight) {
+                singleWeight = frameEl.contentWindow.d.weight.singleKg * 1000;
+            } else if (frameEl.contentWindow.d && frameEl.contentWindow.d.productWeight) {
+                singleWeight = frameEl.contentWindow.d.productWeight.oneProductGrams;
+            }
+
+            // Apply imported values
+            if (customer) sv('inp-customer', customer);
+            if (dnNumber) sv('inp-dn-number', dnNumber);
+            if (jobTitle) sv('inp-job-title', jobTitle);
+            if (width > 0) sv('inp-width', width);
+            if (height > 0) sv('inp-height', height);
+            if (qty > 0) sv('inp-quantity', qty);
+            if (singleWeight > 0) sv('inp-single-weight', Math.round(singleWeight * 10) / 10);
+
+            document.getElementById('badge-imported').innerText = 'Uvoženo iz: ' + activeTabKey.toUpperCase();
+            document.getElementById('badge-imported').className = 'badge-success';
+
+            recalculateAll();
+            alert(`✅ Uspešno uvoženi podatki iz zavihka [${activeTabKey.toUpperCase()}]:\n• Naklada: ${qty.toLocaleString('sl-SI')} kos\n• Format: ${width} × ${height} mm\n• Teža kosa: ${singleWeight > 0 ? (singleWeight.toFixed(1) + ' g') : 'ocenjena'}`);
+        } catch (err) {
+            console.error('Napaka pri uvozu:', err);
+            alert('Napaka pri samodejnem branju podatkov iz kalkulatorja: ' + err.message);
+        }
+    }
+
+    // MODAL WINDOWS
+    function openModal(id) {
+        const m = document.getElementById(id);
+        if (m) m.style.display = 'flex';
+    }
+    function closeModal(id) {
+        const m = document.getElementById(id);
+        if (m) m.style.display = 'none';
+    }
+
+    // OPEN LABELS MODAL (NALEPKE ZA ŠKATLE)
+    function openLabelsModal() {
+        const jobTitle = gv('inp-job-title') || 'Tiskovina';
+        const customer = gv('inp-customer') || 'Naročnik';
+        const dnNumber = gv('inp-dn-number') || '—';
+        const totalBoxes = gn('kpi-total-boxes', 1);
+        const itemsPerBox = gn('inp-items-per-box', 1000);
+        const qty = gn('inp-quantity', 5000);
+        const remainder = qty % itemsPerBox;
+
+        let html = `
+        <div style="margin-bottom: 12px; font-size: 0.82rem; color: var(--text-muted);">
+            Predogled nalepk za vseh <strong>${totalBoxes} škatel</strong>. Primerne za tisk na standardne samolepilne etikete:
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+        `;
+
+        for (let i = 1; i <= totalBoxes; i++) {
+            const isLast = (i === totalBoxes && remainder > 0);
+            const boxCount = isLast ? remainder : itemsPerBox;
+
+            html += `
+            <div style="background: #ffffff; color: #000000; border: 2px solid #000000; border-radius: 6px; padding: 12px; font-family: 'Plus Jakarta Sans', sans-serif;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px;">
+                    <strong style="font-size: 13px;">TISKARNA PETRIČ</strong>
+                    <span style="font-size: 11px; font-weight: bold;">D.N.: ${dnNumber}</span>
+                </div>
+                <div style="font-size: 11px; margin-bottom: 4px;"><strong>Naročnik:</strong> ${customer}</div>
+                <div style="font-size: 12px; font-weight: bold; margin-bottom: 8px; color: #1e3a8a;">${jobTitle}</div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; background: #f1f5f9; padding: 6px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                    <div>
+                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase;">Količina v škatli:</div>
+                        <div style="font-size: 16px; font-weight: 900; color: #0f172a;">${formatSlo(boxCount)} kos</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase;">Škatla:</div>
+                        <div style="font-size: 15px; font-weight: 800; color: #2563eb;">${i} / ${totalBoxes}</div>
+                    </div>
+                </div>
+                <div style="margin-top: 6px; font-size: 9px; color: #64748b; text-align: right;">Datum: ${new Date().toLocaleDateString('sl-SI')}</div>
+            </div>
+            `;
+        }
+        html += '</div>';
+
+        document.getElementById('labelsPreviewContainer').innerHTML = html;
+        openModal('modalLabels');
+    }
+
+    // OPEN PALLET SHEET MODAL (SPREMNI LIST ZA NA PALETO)
+    function openPalletSheetModal() {
+        const jobTitle = gv('inp-job-title') || 'Tiskovina';
+        const customer = gv('inp-customer') || 'Naročnik';
+        const dnNumber = gv('inp-dn-number') || '—';
+        const totalBoxes = gn('kpi-total-boxes', 1);
+        const qty = gn('inp-quantity', 5000);
+        const heightCm = document.getElementById('kpi-pallet-height').innerText;
+        const grossWeight = document.getElementById('kpi-total-gross-weight').innerText;
+        const totalPallets = document.getElementById('kpi-pallets-count').innerText;
+        const dnText = document.getElementById('box-dn-text').value;
+
+        const html = `
+        <div style="background: #ffffff; color: #000000; border: 3px solid #000000; padding: 24px; font-family: 'Plus Jakarta Sans', Arial, sans-serif; border-radius: 8px;">
+            <!-- HEADER -->
+            <div style="display: flex; justify-content: space-between; border-bottom: 3px solid #000; padding-bottom: 12px; margin-bottom: 16px;">
+                <div>
+                    <h1 style="font-size: 22px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">TISKARNA PETRIČ d.o.o.</h1>
+                    <div style="font-size: 12px; color: #475569;">Gmajna 7, 1236 Trzin • Tel: 01 / 562 14 00</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; padding: 4px 12px; border-radius: 4px;">PALETNI LIST</div>
+                    <div style="font-size: 12px; margin-top: 4px; font-weight: bold;">Datum: ${new Date().toLocaleDateString('sl-SI')}</div>
+                </div>
+            </div>
+
+            <!-- NAROČNIK & D.N. -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; background: #f8fafc;">
+                    <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: bold;">Prejemnik / Naročnik:</div>
+                    <div style="font-size: 18px; font-weight: 900; margin-top: 2px;">${customer}</div>
+                </div>
+                <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; background: #f8fafc;">
+                    <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: bold;">Številka Delovnega Naloga:</div>
+                    <div style="font-size: 18px; font-weight: 900; margin-top: 2px; color: #1e3a8a;">${dnNumber}</div>
+                </div>
+            </div>
+
+            <!-- BLAGO -->
+            <div style="border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; margin-bottom: 16px;">
+                <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: bold;">Naziv izdelka / vsebina pošiljke:</div>
+                <div style="font-size: 18px; font-weight: 800; margin-top: 4px; color: #0f172a;">${jobTitle}</div>
+            </div>
+
+            <!-- KLJUČNI PODATKI O PALETI -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;">
+                <div style="border: 2px solid #000; padding: 10px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase;">Skupaj kosov:</div>
+                    <div style="font-size: 20px; font-weight: 900; color: #000;">${formatSlo(qty)}</div>
+                </div>
+                <div style="border: 2px solid #000; padding: 10px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase;">Število škatel:</div>
+                    <div style="font-size: 20px; font-weight: 900; color: #000;">${totalBoxes}</div>
+                </div>
+                <div style="border: 2px solid #000; padding: 10px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase;">Višina palete:</div>
+                    <div style="font-size: 20px; font-weight: 900; color: #000;">${heightCm}</div>
+                </div>
+                <div style="border: 2px solid #000; padding: 10px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase;">Bruto teža:</div>
+                    <div style="font-size: 20px; font-weight: 900; color: #000;">${grossWeight}</div>
+                </div>
+            </div>
+
+            <!-- OPIS PAKIRANJA -->
+            <div style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; margin-bottom: 24px;">
+                <div style="font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase;">Podrobnosti pakiranja:</div>
+                <div style="font-size: 13px; font-family: monospace; font-weight: 700; margin-top: 4px;">${dnText}</div>
+            </div>
+
+            <!-- PODPIS -->
+            <div style="display: flex; justify-content: space-between; padding-top: 20px; border-top: 1px dashed #94a3b8; font-size: 12px;">
+                <div>Pripravil / Odpremil: __________________________</div>
+                <div>Prevzel / Prevoznik: __________________________</div>
+            </div>
+        </div>
+        `;
+
+        document.getElementById('palletSheetPreviewContainer').innerHTML = html;
+        openModal('modalPalletSheet');
+    }
+
+    // PRINT HELPER FUNCTION
+    function printElement(elId) {
+        const el = document.getElementById(elId);
+        if (!el) return;
+
+        const printWindow = window.open('', '_blank', 'width=850,height=700');
+        printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Tiskanje</title>
+            <style>
+                body { margin: 15mm; font-family: 'Plus Jakarta Sans', Arial, sans-serif; background: #fff; color: #000; }
+                @media print {
+                    body { margin: 10mm; }
+                }
+            </style>
+        </head>
+        <body>
+            ${el.innerHTML}
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(function() { window.close(); }, 500);
+                };
+            <\/script>
+        </body>
+        </html>
+        `);
+        printWindow.document.close();
+    }
+
+    // INITIALIZATION
+    window.addEventListener('DOMContentLoaded', () => {
+        recalculateAll();
+
+        // Also check if opened with URL query params or if parent has data
+        setTimeout(() => {
+            if (window.parent && window.parent !== window) {
+                // If loaded in iframe, listen for theme toggle or data
+                try {
+                    if (window.parent.document.body.classList.contains('light-mode')) {
+                        document.body.classList.add('light-mode');
+                    }
+                } catch(e){}
+            }
+        }, 300);
+    });
+</script>
+
+</body>
+</html>

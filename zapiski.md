@@ -2,6 +2,24 @@
 
 Ta dokument vsebuje podroben pregled zaznamih težav, vzrokov za neodzivnost spletnih zavihkov (`kuverte2.html`, `pola2.html`, `blok2.html`, `brosura2.html`, `etikete2.html`, `TENOVIS2.html`) ter rešitve za hitro odpravljanje napak v prihodnje.
 
+
+
+## X. Polje za Zložen Format (Vrečke/Zgib) in Avtomatsko Pakiranje v Natron Papir (pola2.html)
+- **Zahteva uporabnika:**
+  - Dodati polje za vnos zloženga/zgibanega formata izdelka (npr. zložena nosilna vrečka  \times 380\text{ mm}$ ali mapa), saj je format tiska/plašča ( \times 470\text{ mm}$) bistveno večji.
+  - Če je format izdelka prevelik za standardno škatlo ( \times 320\text{ mm}$), se tiskovina samodejno pakira v **natron papir** (zavitki).
+- **Izvedene rešitve v pola2.html:**
+  1. **Novo vnosno polje na glavnem obrazcu:** Pod Dimenzije (Š x V mm) dodano polje Zložen format (vrečke/zgib): [ Š ] x [ V ] mm (z vijoličnim poudarkom #a78bfa).
+  2. **Sinhronizacija z modalnim oknom 📦 Škatle & Paleta:** Zložen format je viden in uredljiv tako na osnovni maski kot v modalu.
+  3. **Zaznava dimenzij in prevelikih formatov:**
+     - Preveri, ali učinkovita dimenzija izdelka (zloženi format, če je vnesen, sicer format tiska) ustreza škatli  \times 320\text{ mm}$.
+     - Če ne ustreza: samodejno preklopi na **Natron papir (zavitki)**.
+  4. **Specifika pakiranja v natron papir:**
+     - Za zložene vrečke je privzeta kapaciteta **100 kosov na zavitek** (zaradi debeline dna in vrvic cca 2,5–3,5 mm je to kup cca 25–28 cm in teža cca 6,5 kg).
+     - Škatle se ne računajo (strošek embalaže zavitkov je ,00\text{ €}$).
+     - Za večje količine ($\ge 8$ zavitkov ali $\ge 70\text{ kg}$) se predlaga Euro paleta (,00\text{ €}$).
+     - Izpis v delovnem nalogu:  10 zavitkov (natron papir) po 100 kos; 1 Euro paleta (10 zavitkov, bruto 86 kg) ali brez palete:  2 zavitka (natron papir) po 100 kos.
+  5. **Shranjevanje:** oldedWidth in oldedHeight se shranjujeta v ponudbo/projekt ter restavrirata ob nalaganju.
 ---
 
 ## 1. Vzroki za Popolno Neodzivnost Zavihkov ("se ne odziva")
@@ -245,6 +263,42 @@ Ko zavihek postane povsem neodziven (gumbi ne reagirajo, "MOJI PROJEKTI" se ne o
   2. V zavihku »Povzetek & RVC« (`calc-tab-povzetek`) je bil blok za specifikacijo (`detailed-spec-content`) in blok za RVC (`row-rvc-margin`) postavljen v prilagodljivo postavitev (`display: flex; gap: 1.5rem; justify-content: space-between; flex-wrap: wrap;`), kjer se polje za RVC nahaja desno zraven specifikacije, s podporo za lepljivo vidnost (`position: sticky; top: 1rem;`) ob drsenju po specifikaciji.
   3. Ohranjen je celoten nabor ID-jev in dogodkov (`onchange="calculatePrice()"` / `calculate()`), tako da kalkulacije, samodejni preračuni in shranjevanje v košarico/projekte delujejo 100% nespremenjeno.
   4. Obe datoteki sta posodobljeni na `C:\` in sinhronizirani na omrežni pogon `S:\`.
+
+---
+
+### V. Dodan Nov Zavihek »📦 ŠKATLE & PALETE« (`pakiranje2.html`) in Sistem Pakiranja
+- **Zahteve:**
+  1. Dimenzija škatle: `240 × 320 × 250 mm`.
+  2. Največja dovoljena teža v škatli: `15 kg`.
+  3. Omejitev višine palete: `160 cm`.
+  4. Cena škatle: `0,50 €`, cena Euro palete: `10,00 €`.
+  5. Na paleto se ne pakira neposredno tiskovin (vse gre v škatle, škatle na paleto).
+  6. Izvedba: tako samostojni modul v `PETRIČ.KALKULACIJE2.html` kot priprava za integracijo v kalkulatorje.
+- **Izvedba:**
+  1. Izdelan namenski program `pakiranje2.html`:
+     - Samodejni izračun kapacitete škatle glede na format izdelka in mejo 15 kg (z možnostjo ročnega vnosa ali zaokrožitve).
+     - Izračun polnih in zadnje delne škatle ter skupne teže.
+     - Paletizacija na Euro paleto (1200 × 800 mm):
+       - 10 škatel / sloj (postavitev 5 × 2) ali 11 škatel / sloj (prepletena postavitev).
+       - Max 5 slojev (skupna višina tovora 139,4 cm s paleto 14,4 cm, kar je znotraj meje 160 cm).
+       - 50 škatel / Euro paleto (pri 10/sloj) oz. 55 škatel / Euro paleto (pri 11/sloj).
+     - Interaktivni 2D Canvas tloris Euro palete ter stranski prikaz zlaganja po višini.
+     - Gumb »Kopiraj za D.N.« za hiter prepis v delovni nalog.
+     - Izpis etiket za škatle (kupec, D.N., naziv, škatla X/Y, količina) in uradni A4 spremni paletni list.
+     - Gumb »Uvozi iz kalkulatorja«, ki samodejno prenese podatke o nakladi, formatu in teži iz trenutno aktivnega zavihka v `PETRIČ.KALKULACIJE2.html`.
+  2. V `PETRIČ.KALKULACIJE2.html` dodan nov zavihek `📦 ŠKATLE & PALETE` in iframe `iframe_pakiranje`.
+  3. Vse datoteke posodobljene na `C:\DARKO\KalkulacijaPetric\` in sinhronizirane na `S:\DARKO\KalkulacijaPetric\`.
+
+---
+
+### W. Integracija Izračuna Škatel in Palet v `pola2.html`
+- **Zahteva:** Dodati hiter izračun pakiranja neposredno v `pola2.html`.
+- **Izvedba:**
+  1. Zraven polja »Pakiranje (D.N.)« dodana gumba:
+     - **»⚡ Auto«**: V enem kliku samodejno preračuna škatle (240×320×250 mm, max 15 kg, 0,50 €) in Euro paleto (max 160 cm, 10,00 €) ter takoj vpiše natančno besedilo v polje delovnega naloga.
+     - **»📦 Škatle & Paleta«**: Odpre namensko modalno okno za pregled in prilagoditev (format, gramatura, teža 1 kosa, kapaciteta škatle, število polnih in delnih škatel, višina palete, bruto teža, stroški embalaže).
+  2. Vgrajen gumb za neposreden preskok v glavni zavihek »ŠKATLE & PALETE« za tisk nalepk za škatle ali spremnega paletnega lista.
+  3. Datoteka `pola2.html` je preverjena in sinhronizirana na `C:\DARKO\KalkulacijaPetric\` ter `S:\DARKO\KalkulacijaPetric\`.
 
 ---
 
