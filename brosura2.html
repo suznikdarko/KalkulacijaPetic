@@ -15215,86 +15215,161 @@
             }
         }
 
+        let _pendingZalogaResolvers = [];
+
+        function _getStorageJson(key) {
+            try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+        }
+
+        function _computeStockFromV30(seed, stateMovs, invState, yState) {
+            const materials = (seed && seed.materials) || [];
+            const allMovs = ((seed && seed.movements) || []).concat((stateMovs && Array.isArray(stateMovs.newMovements)) ? stateMovs.newMovements : []);
+            const rollover = (yState && yState.rollovers && yState.activeYear) ? yState.rollovers[String(yState.activeYear)] : null;
+            const invFinalized = !!(invState && invState.finalized);
+            const invDate = (invState && invState.date) || '';
+            const invItems = (invState && invState.items) || {};
+            const map = {};
+            for (const m of materials) {
+                const code = String(m.code);
+                let opening = 0;
+                if (rollover && rollover.opening && Object.prototype.hasOwnProperty.call(rollover.opening, code)) opening = Number(rollover.opening[code]) || 0;
+                else if (invFinalized && invItems[code] && invItems[code].qty !== undefined && invItems[code].qty !== '') opening = Number(invItems[code].qty) || 0;
+                else opening = Number(m.opening) || 0;
+                map[code] = { opening, inc: 0, out: 0 };
+            }
+            for (const x of allMovs) {
+                if (rollover) { if (String(x.date || '') < `${yState.activeYear}-01-01`) continue; }
+                else if (invFinalized && invDate) { if ((x.date || '') <= invDate) continue; }
+                const code = String(x.code);
+                if (!map[code]) map[code] = { opening: 0, inc: 0, out: 0 };
+                const q = Number(x.qty) || 0;
+                if (x.type === 'PREJEM') map[code].inc += q; else map[code].out += q;
+            }
+            return materials.map(m => {
+                const code = String(m.code);
+                const s = map[code] || { opening: 0, inc: 0, out: 0 };
+                const cur = s.opening + s.inc - s.out;
+                const w = m.width !== undefined && m.width !== null ? m.width : '';
+                const h = m.height !== undefined && m.height !== null ? m.height : '';
+                return {
+                    'šifra materiala': code, 'sifra': code, 'naziv': m.name || '',
+                    'širina': w, 'višina': h, 'format': (w !== '' && h !== '') ? `${w}x${h}` : (m.dimensions || ''),
+                    'gramatura': m.gsm || '', 'začetna zaloga': s.opening, 'prispelo': s.inc, 'odpis': s.out,
+                    'trenutna zaloga': cur, 'zaloga': cur
+                };
+            });
+        }
+
+        function _saveLiveStockCache(list) {
+            if (!Array.isArray(list) || list.length === 0) return;
+            stockDataList = list;
+            try {
+                localStorage.setItem('nova_zaloga_data', JSON.stringify(list));
+                localStorage.setItem('zaloga_simon_data', JSON.stringify(list));
+                const nowTime = new Date().toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' });
+                localStorage.setItem('nova_zaloga_time', nowTime);
+                localStorage.setItem('zaloga_simon_time', nowTime);
+            } catch (e) {}
+            updateStockCountBadge();
+        }
+
+        function requestLiveZalogaFromParent(timeoutMs = 1800) {
+            return new Promise((resolve) => {
+                if (!window.parent || window.parent === window) { resolve(null); return; }
+                let done = false;
+                const finish = (items) => { if (done) return; done = true; clearTimeout(timer); resolve(items); };
+                const timer = setTimeout(() => { _pendingZalogaResolvers = _pendingZalogaResolvers.filter(fn => fn !== finish); finish(null); }, timeoutMs);
+                _pendingZalogaResolvers.push(finish);
+                try { window.parent.postMessage({ type: 'REQUEST_ZALOGA_STOCK' }, '*'); } catch (e) { finish(null); }
+            });
+        }
+
+        window.addEventListener('message', (e) => {
+            if (!e || !e.data || e.data.type !== 'ZALOGA_STOCK_DATA') return;
+            const items = e.data.items;
+            if (!Array.isArray(items) || items.length === 0) return;
+            _saveLiveStockCache(items);
+            const resolvers = _pendingZalogaResolvers.splice(0, _pendingZalogaResolvers.length);
+            resolvers.forEach(fn => { try { fn(items); } catch (err) {} });
+            if (typeof renderStockSearchResults === 'function') {
+                const modal = document.getElementById('modal-stock-search');
+                if (modal && modal.style.display === 'flex') renderStockSearchResults();
+            }
+        });
+
         async function refreshStockData(userTriggered = false) {
             let refreshBtn = document.getElementById('btn-refresh-stock');
             const originalText = refreshBtn ? refreshBtn.innerHTML : '';
-            if (refreshBtn) {
-                refreshBtn.innerHTML = '⏳ Osvežujem...';
-                refreshBtn.disabled = true;
-            }
+            if (refreshBtn) { refreshBtn.innerHTML = '⏳ Osvežujem...'; refreshBtn.disabled = true; }
 
+            let loaded = false;
             try {
-                // 1. Najprej poskusimo prek lokalnega strežnika na 8095
-                let srvUrl = typeof getServerBaseUrl === 'function' ? await getServerBaseUrl() : 'http://server-2012:8095';
-                let url = srvUrl + '/zaloga' + (userTriggered ? '?refresh=1' : '');
-                let response = null;
                 try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 12000);
-                    response = await fetch(url, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                } catch (netErr) {
-                    if (userTriggered) console.log('Strežnik 8095 ni dosegljiv za osvežitev zaloge:', netErr);
-                }
-
-                if (response && response.ok) {
-                    const data = await response.json();
-                    if (Array.isArray(data) && data.length > 0) {
-                        stockDataList = data;
-                        localStorage.setItem('zaloga_simon_data', JSON.stringify(data));
-                        const nowTime = new Date().toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' });
-                        localStorage.setItem('zaloga_simon_time', nowTime);
-                        updateStockCountBadge();
-                        if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
-                        if (userTriggered) {
-                            alert(`✅ Zaloga uspešno osvežena iz Excel baze: ${data.length.toLocaleString('de-DE')} artiklov! (Ob ${nowTime})`);
+                    if (window.parent && window.parent !== window) {
+                        const zFrame = window.parent.document.getElementById('iframe_zaloga');
+                        if (zFrame && zFrame.contentWindow && typeof zFrame.contentWindow.getTrenutnaZalogaList === 'function') {
+                            const list = zFrame.contentWindow.getTrenutnaZalogaList();
+                            if (list && list.length > 0) {
+                                _saveLiveStockCache(list);
+                                loaded = true;
+                                if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
+                                if (userTriggered) alert(`✅ Trenutna zaloga uspešno osvežena iz zavihka ZALOGA: ${list.length.toLocaleString('de-DE')} artiklov!`);
+                                return true;
+                            }
                         }
+                    }
+                } catch (frameErr) {}
+
+                if (!loaded && window.parent && window.parent !== window) {
+                    const liveItems = await requestLiveZalogaFromParent(1800);
+                    if (liveItems && liveItems.length > 0) {
+                        _saveLiveStockCache(liveItems);
+                        loaded = true;
+                        if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
+                        if (userTriggered) alert(`✅ Trenutna zaloga uspešno osvežena iz zavihka ZALOGA: ${liveItems.length.toLocaleString('de-DE')} artiklov!`);
                         return true;
                     }
                 }
 
-                // 2. Če strežnik 8095 ni odgovoril, poskusimo neposreden fetch zalogaSimon.json
-                try {
-                    const localRes = await fetch('zalogaSimon.json?t=' + Date.now());
-                    if (localRes && localRes.ok) {
-                        const data = await localRes.json();
-                        if (Array.isArray(data) && data.length > 0) {
-                            stockDataList = data;
-                            localStorage.setItem('zaloga_simon_data', JSON.stringify(data));
-                            const nowTime = new Date().toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' });
-                            localStorage.setItem('zaloga_simon_time', nowTime);
-                            updateStockCountBadge();
-                            if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
-                            if (userTriggered) {
-                                alert(`✅ Zaloga uspešno osvežena iz datoteke zalogaSimon.json: ${data.length.toLocaleString('de-DE')} artiklov!`);
+                if (!loaded) {
+                    for (const cPath of ['ZALOGA_MATERIALA v30.html', 'zaloga2.html']) {
+                        try {
+                            const localRes = await fetch(cPath + '?t=' + Date.now());
+                            if (localRes && localRes.ok) {
+                                const htmlText = await localRes.text();
+                                const mSeed = htmlText.match(/const\s+SEED\s*=\s*(\{[\s\S]*?\});/);
+                                if (mSeed) {
+                                    const seed = JSON.parse(mSeed[1]);
+                                    const customMats = _getStorageJson('zaloga_custom_materials_v1');
+                                    if (Array.isArray(customMats) && customMats.length > 0) {
+                                        const existing = new Set((seed.materials || []).map(m => String(m.code)));
+                                        customMats.forEach(cm => { if (cm && cm.code && !existing.has(String(cm.code))) { seed.materials.push(cm); existing.add(String(cm.code)); } });
+                                    }
+                                    const list = _computeStockFromV30(seed, _getStorageJson('zaloga_materiala_v1') || { newMovements: [] }, _getStorageJson('zaloga_inventory_v1') || { finalized: false, items: {} }, _getStorageJson('zaloga_year_state_v1') || { activeYear: 2026, rollovers: {} });
+                                    if (list && list.length > 0) {
+                                        _saveLiveStockCache(list);
+                                        loaded = true;
+                                        if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
+                                        if (userTriggered) alert(`✅ Trenutna zaloga uspešno osvežena iz ${cPath}: ${list.length.toLocaleString('de-DE')} artiklov!`);
+                                        return true;
+                                    }
+                                }
                             }
-                            return true;
-                        }
+                        } catch (fErr) {}
                     }
-                } catch (fErr) {
-                    if (userTriggered) console.log('Neposreden fetch zalogaSimon.json ni uspel:', fErr);
                 }
 
-                // 3. Če nobena samodejna pot ni uspela in je uporabnik eksplicitno kliknil gumb, ponudimo ročno izbiro
-                if (userTriggered) {
-                    const confirmManual = confirm(
-                        "Povezava s strežnikom za zalogo (http://server-2012:8095) ni bila vzpostavljena.\n\n" +
-                        "Ali želite ročno izbrati datoteko zalogaSimon.json ali Excel zvezek (.xlsx)?"
-                    );
-                    if (confirmManual) {
-                        loadStockFile();
-                    }
+                if (userTriggered && !loaded) {
+                    const confirmManual = confirm("Trenutne zaloge iz zavihka ZALOGA ni bilo mogoče samodejno prebrati.\n\nAli želite ročno izbrati datoteko?");
+                    if (confirmManual) loadStockFile();
                 }
             } catch (err) {
                 console.error("Napaka pri osvežitvi zaloge:", err);
                 if (userTriggered) alert("Napaka pri osvežitvi zaloge: " + err.message);
             } finally {
-                if (refreshBtn) {
-                    refreshBtn.innerHTML = originalText || '🔄 Osveži zalogo';
-                    refreshBtn.disabled = false;
-                }
+                if (refreshBtn) { refreshBtn.innerHTML = originalText || '🔄 Osveži zalogo'; refreshBtn.disabled = false; }
             }
-            return false;
+            return loaded;
         }
 
         async function loadStockFile() {
@@ -15822,6 +15897,7 @@
                     input.focus();
                 }
                 renderStockSearchResults();
+                refreshStockData(false);
             }
         }
 
