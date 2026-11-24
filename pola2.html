@@ -1504,6 +1504,24 @@
                                         onchange="calculatePrice()">
                                 </div>
                             </div>
+                            <!-- Pakiranje (embalaža) -->
+                            <div class="finish-item active" id="row-finish-packaging">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input type="checkbox" id="f-packaging-active" checked
+                                        onchange="toggleFinishRow('packaging')">
+                                    Pakiranje (embalaža)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Škatla (€/kos)</small></label>
+                                    <input type="number" id="f-packaging-box-price" value="0.50" step="0.05" min="0"
+                                        onchange="calculatePrice()">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Euro paleta (€/kos)</small></label>
+                                    <input type="number" id="f-packaging-pallet-price" value="10.00" step="0.5" min="0"
+                                        onchange="calculatePrice()">
+                                </div>
+                            </div>
                             <!-- Cilinder -->
                             <div class="finish-item" id="row-finish-cilinder">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
@@ -2562,6 +2580,7 @@
                         razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                         razrez: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                         precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
+                        packaging: { active: gc('f-packaging-active'), boxPrice: gv('f-packaging-box-price'), palletPrice: gv('f-packaging-pallet-price') },
                         lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
                         spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
                         spiraljenje: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
@@ -5754,6 +5773,10 @@
                 }
                 totalFinishCost += prePrep + (totalSourceSheetsNeeded / 1000) * prePer1000;
             }
+            if (document.getElementById('f-packaging-active') && document.getElementById('f-packaging-active').checked && typeof calculatePolaPackagingData === 'function') {
+                let pkgRes = calculatePolaPackagingData(qty, null, null, null, paperWeight);
+                totalFinishCost += pkgRes.packagingTotalCost || 0;
+            }
             if (document.getElementById('f-lam-active').checked) {
                 totalFinishCost += sheetsNeeded * (parseFloat(document.getElementById('f-lam-per1000').value.replace(',', '.')) || 0) * (parseInt(document.getElementById('f-lam-sides').value) || 1);
             }
@@ -6203,6 +6226,17 @@
                     name: 'Razrez materiala (pred tiskom)',
                     cost: preCost,
                     breakdown: `Osnovne pole: ${totalSourceSheetsNeeded} | Priprava: ${formatPrice(prePrep)}`
+                });
+            }
+            if (document.getElementById('f-packaging-active') && document.getElementById('f-packaging-active').checked && typeof calculatePolaPackagingData === 'function') {
+                let pkgRes = calculatePolaPackagingData(qty, null, null, null, paperWeight);
+                let pkgDesc = pkgRes.pkgMode === 'natron'
+                    ? `Natron (${pkgRes.totalBoxes} zavitkov)` + (pkgRes.needPallet ? ` + ${pkgRes.totalPallets}x Euro paleta` : '')
+                    : `${pkgRes.totalBoxes}x škatla (${formatPrice(pkgRes.boxesCost)})` + (pkgRes.needPallet ? ` + ${pkgRes.totalPallets}x Euro paleta (${formatPrice(pkgRes.palletsCost)})` : '');
+                details.finish.items.push({
+                    name: 'Pakiranje (embalaža)',
+                    cost: pkgRes.packagingTotalCost || 0,
+                    breakdown: pkgDesc
                 });
             }
             if (document.getElementById('f-lam-active').checked) {
@@ -8348,6 +8382,7 @@
                             razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                             razrez: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                             precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
+                        packaging: { active: gc('f-packaging-active'), boxPrice: gv('f-packaging-box-price'), palletPrice: gv('f-packaging-pallet-price') },
                             lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
                             spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
                             spiraljenje: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
@@ -8612,6 +8647,7 @@
                             razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                             razrez: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                             precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
+                        packaging: { active: gc('f-packaging-active'), boxPrice: gv('f-packaging-box-price'), palletPrice: gv('f-packaging-pallet-price') },
                             lepljenje: { active: gc('f-lepljenje-active'), prep: gv('f-lepljenje-prep'), per1000: gv('f-lepljenje-per1000') },
                             spiral: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
                             spiraljenje: { active: gc('f-spiral-active'), price: gv('f-spiral-price') },
@@ -9736,6 +9772,8 @@
                     if (typeof toggleFinishRow === 'function') toggleFinishRow('razrez-format');
                     setV('f-precut-active', true, true);
                     if (typeof toggleFinishRow === 'function') toggleFinishRow('precut');
+                    setV('f-packaging-active', true, true);
+                    if (typeof toggleFinishRow === 'function') toggleFinishRow('packaging');
 
                     const cil = f.cilinder;
                     if (cil) {
@@ -9782,6 +9820,14 @@
                         if (pc.prep !== undefined) setV('f-precut-prep', pc.prep);
                         if (pc.per1000 !== undefined) setV('f-precut-per1000', pc.per1000);
                         toggleFinishRow('precut');
+                    }
+
+                    const pkg = f.packaging;
+                    if (pkg) {
+                        setV('f-packaging-active', pkg.active !== undefined ? pkg.active : true, true);
+                        if (pkg.boxPrice !== undefined) setV('f-packaging-box-price', pkg.boxPrice);
+                        if (pkg.palletPrice !== undefined) setV('f-packaging-pallet-price', pkg.palletPrice);
+                        toggleFinishRow('packaging');
                     }
 
                     const lep = f.lepljenje;
@@ -10067,6 +10113,7 @@
                             razrezFormat: { active: document.getElementById('f-razrez-format-active').checked, speed: document.getElementById('f-razrez-format-speed').value, rate: document.getElementById('f-razrez-format-rate').value },
                             razrez: { active: document.getElementById('f-razrez-format-active').checked, speed: document.getElementById('f-razrez-format-speed').value, rate: document.getElementById('f-razrez-format-rate').value },
                             precut: { active: document.getElementById('f-precut-active') ? document.getElementById('f-precut-active').checked : false, prep: document.getElementById('f-precut-prep') ? document.getElementById('f-precut-prep').value : 5.00, per1000: document.getElementById('f-precut-per1000') ? document.getElementById('f-precut-per1000').value : 3.60 },
+                            packaging: { active: document.getElementById('f-packaging-active') ? document.getElementById('f-packaging-active').checked : true, boxPrice: document.getElementById('f-packaging-box-price') ? document.getElementById('f-packaging-box-price').value : 0.50, palletPrice: document.getElementById('f-packaging-pallet-price') ? document.getElementById('f-packaging-pallet-price').value : 10.00 },
                             lepljenje: { active: document.getElementById('f-lepljenje-active').checked, prep: document.getElementById('f-lepljenje-prep').value, per1000: document.getElementById('f-lepljenje-per1000').value },
                             spiral: { active: document.getElementById('f-spiral-active').checked, price: document.getElementById('f-spiral-price').value },
                             spiraljenje: { active: document.getElementById('f-spiral-active').checked, price: document.getElementById('f-spiral-price').value },
@@ -15935,7 +15982,12 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             }
         }
 
-        function calculatePolaPackagingData(targetQty = null, manualCap = null, customUsePallet = null, customMode = null) {
+        function calculatePolaPackagingData(targetQty = null, manualCap = null, customUsePallet = null, customMode = null, overrideGsm = null) {
+            const boxPriceEl = document.getElementById('f-packaging-box-price');
+            const palletPriceEl = document.getElementById('f-packaging-pallet-price');
+            const activeBoxPrice = boxPriceEl ? (parseFloat(String(boxPriceEl.value).replace(',', '.')) || 0) : POLA_PETRIC_PKG.boxPrice;
+            const activePalletPrice = palletPriceEl ? (parseFloat(String(palletPriceEl.value).replace(',', '.')) || 0) : POLA_PETRIC_PKG.palletPrice;
+
             let w = parseFloat(document.getElementById('width') ? document.getElementById('width').value : 210) || 210;
             let h = parseFloat(document.getElementById('height') ? document.getElementById('height').value : 297) || 297;
 
@@ -15965,7 +16017,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             }
 
             // Gramatura
-            let gsm = parseFloat(document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value.replace(',', '.') : 0) || 0;
+            let gsm = (overrideGsm && overrideGsm > 0) ? parseFloat(overrideGsm) : (parseFloat(document.getElementById('calc-paper-weight') ? document.getElementById('calc-paper-weight').value.replace(',', '.') : 0) || 0);
             if (gsm <= 0) {
                 const selEl = document.getElementById('calc-paper-select') || document.getElementById('calc-paper-type');
                 if (selEl) {
@@ -15980,14 +16032,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             if (gsm <= 0) gsm = 135;
 
             // Teža 1 kosa v gramih (glede na format surovega tiska w x h)
-            let singleGrams = 0;
-            if (window.d && window.d.weight && window.d.weight.singleKg > 0) {
-                singleGrams = window.d.weight.singleKg * 1000;
-            } else if (window.d && window.d.productWeight && window.d.productWeight.oneProductGrams > 0) {
-                singleGrams = window.d.productWeight.oneProductGrams;
-            } else {
-                singleGrams = (w / 1000) * (h / 1000) * gsm;
-            }
+            let singleGrams = (w / 1000) * (h / 1000) * gsm;
             singleGrams = Math.max(0.1, singleGrams);
 
             // Dejanska debelina lista (v mm) - volumetrično 1.0 (0.001 mm na g/m²)
@@ -16072,7 +16117,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                 let totalGrossWeightKg = totalGrossPacksOnlyKg;
 
                 if (needPallet) {
-                    palletsCost = totalPallets * POLA_PETRIC_PKG.palletPrice;
+                    palletsCost = totalPallets * activePalletPrice;
                     totalGrossWeightKg = totalGrossPacksOnlyKg + (totalPallets * POLA_PETRIC_PKG.palletTareKg);
                     actualPalletHeightCm = Math.min(160, Math.round(15 + (totalPacks * 7)));
                 }
@@ -16216,10 +16261,10 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                 actualPalletHeightCm = Math.round(actualPalletHeightMm / 10);
 
                 totalGrossWeightKg = totalGrossBoxesOnlyKg + (totalPallets * POLA_PETRIC_PKG.palletTareKg);
-                palletsCost = totalPallets * POLA_PETRIC_PKG.palletPrice;
+                palletsCost = totalPallets * activePalletPrice;
             }
 
-            const boxesCost = totalBoxes * POLA_PETRIC_PKG.boxPrice;
+            const boxesCost = totalBoxes * activeBoxPrice;
             const packagingTotalCost = boxesCost + palletsCost;
 
             function declBoxesSlo(n) {

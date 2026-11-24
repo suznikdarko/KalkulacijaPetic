@@ -1599,6 +1599,24 @@
                                         value="3.60" />
                                 </div>
                             </div>
+                            <!-- Pakiranje (embalaža) -->
+                            <div class="finish-item active" id="row-finish-packaging">
+                                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                    <input checked="" id="f-packaging-active" onchange="toggleFinishRow('packaging')"
+                                        type="checkbox" />
+                                    Pakiranje (embalaža)
+                                </label>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Škatla (€/kos)</small></label>
+                                    <input id="f-packaging-box-price" onchange="calculatePrice()" step="0.05" min="0"
+                                        type="number" value="0.50" />
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label><small>Euro paleta (€/kos)</small></label>
+                                    <input id="f-packaging-pallet-price" onchange="calculatePrice()" step="0.5" min="0"
+                                        type="number" value="10.00" />
+                                </div>
+                            </div>
                             <!-- Razrez na format -->
                             <div class="finish-item active" id="row-finish-razrez-format">
                                 <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
@@ -4992,6 +5010,53 @@
                         finishItems.push({ name: 'Razrez pred tiskom', cost: preCost, breakdown: `Osnovne pole: ${preParentSheets} | Priprava: ${formatPrice(prePrep)}` });
                     }
 
+                    // Pakiranje (embalaža)
+                    if (document.getElementById('f-packaging-active') && document.getElementById('f-packaging-active').checked) {
+                        let pkgBoxPrice = parseFloat((document.getElementById('f-packaging-box-price')?.value || '0.50').replace(',', '.'));
+                        if (isNaN(pkgBoxPrice)) pkgBoxPrice = 0.50;
+                        let pkgPalletPrice = parseFloat((document.getElementById('f-packaging-pallet-price')?.value || '10.00').replace(',', '.'));
+                        if (isNaN(pkgPalletPrice)) pkgPalletPrice = 10.00;
+                        let pkgW = parseFloat((document.getElementById('width')?.value || '100').replace(',', '.')) || 100;
+                        let pkgH = parseFloat((document.getElementById('height')?.value || '100').replace(',', '.')) || 100;
+                        let pkgGsm = (typeof pWeight !== 'undefined' && pWeight > 0) ? pWeight : (parseFloat(document.getElementById('calc-paper-weight')?.value) || 135);
+                        let pkgAreaM2 = (pkgW / 1000) * (pkgH / 1000);
+                        let pkgSingleG = Math.max(0.1, pkgAreaM2 * pkgGsm);
+                        let pkgThickMm = Math.max(0.04, pkgGsm / 1000);
+                        let pkgMinDim = Math.min(pkgW, pkgH), pkgMaxDim = Math.max(pkgW, pkgH);
+                        let pkgFitsBox = (pkgMinDim <= 240 && pkgMaxDim <= 320);
+                        let pkgQty = Math.max(1, q || totalItemsForm || 1);
+                        let pkgCost = 0, pkgBreakdown = '';
+                        if (!pkgFitsBox) {
+                            let maxByW = Math.max(1, Math.floor(15000 / pkgSingleG));
+                            let perPack = Math.min(pkgQty, maxByW);
+                            let totalPacks = Math.max(1, Math.ceil(pkgQty / perPack));
+                            let grossKg = (pkgQty * pkgSingleG) / 1000 + totalPacks * 0.05;
+                            let needPal = (totalPacks >= 8 || grossKg >= 70);
+                            let totalPals = needPal ? Math.max(1, Math.ceil(totalPacks / 50)) : 0;
+                            pkgCost = totalPals * pkgPalletPrice;
+                            pkgBreakdown = `Natron (${totalPacks} zavitkov)` + (needPal ? ` + ${totalPals}x Euro paleta (${formatPrice(pkgCost)})` : '');
+                        } else {
+                            let cols = 1;
+                            if (pkgMinDim <= 120 && pkgMaxDim <= 160) cols = 4;
+                            else if (pkgMinDim <= 105 && pkgMaxDim <= 215) cols = 3;
+                            else if (pkgMinDim <= 160 && pkgMaxDim <= 240) cols = 2;
+                            let maxByVol = Math.max(1, Math.floor((230 / pkgThickMm) * cols));
+                            let maxByW = Math.max(1, Math.floor(15000 / pkgSingleG));
+                            let absMax = Math.max(1, Math.min(maxByW, maxByVol));
+                            let perBox = pkgQty <= absMax ? pkgQty : absMax;
+                            let totalBoxes = Math.max(1, Math.ceil(pkgQty / perBox));
+                            let grossKg = (pkgQty * pkgSingleG) / 1000 + totalBoxes * 0.40;
+                            let needPal = (totalBoxes >= 8 || grossKg >= 70);
+                            let totalPals = needPal ? Math.max(1, Math.ceil(totalBoxes / 50)) : 0;
+                            let bCost = totalBoxes * pkgBoxPrice;
+                            let pCost = totalPals * pkgPalletPrice;
+                            pkgCost = bCost + pCost;
+                            pkgBreakdown = `${totalBoxes}x škatla (${formatPrice(bCost)})` + (needPal ? ` + ${totalPals}x Euro paleta (${formatPrice(pCost)})` : '');
+                        }
+                        totalFinishCost += pkgCost;
+                        finishItems.push({ name: 'Pakiranje (embalaža)', cost: pkgCost, breakdown: pkgBreakdown });
+                    }
+
                     // Znašanje
                     if (document.getElementById('f-znasanje-active').checked) {
                         let znPrep = parseFloat(document.getElementById('f-znasanje-prep').value) || 0;
@@ -8364,6 +8429,7 @@ async function extractCustomersFromDisk() {
                                 spiraljenje: { active: gc('f-spiraljenje-active'), prep: gv('f-spiraljenje-prep'), kos: gv('f-spiraljenje-kos') },
                                 sivanje: { active: gc('f-sivanje-active'), prep: gv('f-sivanje-prep'), per1000: gv('f-sivanje-per1000') },
                                 precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
+                                packaging: { active: gc('f-packaging-active'), boxPrice: gv('f-packaging-box-price'), palletPrice: gv('f-packaging-pallet-price') },
                                 numeracijaLeaves: { active: gc('f-numeracija-leaves-active'), sides: gv('f-numeracija-leaves-sides'), kos: gv('f-numeracija-leaves-kos') },
                                 numeracijaCover: { active: gc('f-numeracija-cover-active'), sides: gv('f-numeracija-cover-sides'), kos: gv('f-numeracija-cover-kos') },
                                 numeracija: { active: gc('f-numeracija-leaves-active'), kos: gv('f-numeracija-leaves-kos') },
@@ -8997,6 +9063,12 @@ async function extractCustomersFromDisk() {
                         if (document.getElementById('f-precut-prep')) document.getElementById('f-precut-prep').value = f.precut.prep || 5.00;
                         if (document.getElementById('f-precut-per1000')) document.getElementById('f-precut-per1000').value = f.precut.per1000 || 3.60;
                         toggleFinishRow('precut');
+                    }
+                    if (f.packaging) {
+                        if (document.getElementById('f-packaging-active')) document.getElementById('f-packaging-active').checked = f.packaging.active !== undefined ? f.packaging.active : true;
+                        if (document.getElementById('f-packaging-box-price') && f.packaging.boxPrice !== undefined) document.getElementById('f-packaging-box-price').value = f.packaging.boxPrice;
+                        if (document.getElementById('f-packaging-pallet-price') && f.packaging.palletPrice !== undefined) document.getElementById('f-packaging-pallet-price').value = f.packaging.palletPrice;
+                        if (typeof toggleFinishRow === 'function') toggleFinishRow('packaging');
                     }
                     if (f.uv) {
                         setV('f-uv-active', f.uv.active, true);

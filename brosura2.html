@@ -3100,6 +3100,25 @@
 
                         </div>
 
+                        <!-- Pakiranje (embalaža) -->
+                        <div class="finish-item active" id="row-finish-packaging">
+                            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+                                <input type="checkbox" id="f-packaging-active" checked
+                                    onchange="toggleFinishRow('packaging')">
+                                Pakiranje (embalaža)
+                            </label>
+                            <div class="form-group" style="margin:0;">
+                                <label><small>Škatla (€/kos)</small></label>
+                                <input type="number" id="f-packaging-box-price" value="0.50" step="0.05" min="0"
+                                    onchange="calculate()">
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label><small>Euro paleta (€/kos)</small></label>
+                                <input type="number" id="f-packaging-pallet-price" value="10.00" step="0.5" min="0"
+                                    onchange="calculate()">
+                            </div>
+                        </div>
+
 
 
                         <!-- Cilinder -->
@@ -7392,6 +7411,56 @@
                     finishItems.push({ name: 'Razrez materiala (pred tiskom)', cost: preCost, breakdown: `Priprava: ${formatPrice(prePrep)} | Delo: ${formatQty(totalParentSheets)} pol × ${formatPrice(prePer1000)}/1000 = ${formatPrice(preCost)}` });
                 }
 
+                // Pakiranje (embalaža)
+                if (document.getElementById('f-packaging-active') && document.getElementById('f-packaging-active').checked) {
+                    let pkgBoxPrice = parseFloat((document.getElementById('f-packaging-box-price')?.value || '0.50').replace(',', '.'));
+                    if (isNaN(pkgBoxPrice)) pkgBoxPrice = 0.50;
+                    let pkgPalletPrice = parseFloat((document.getElementById('f-packaging-pallet-price')?.value || '10.00').replace(',', '.'));
+                    if (isNaN(pkgPalletPrice)) pkgPalletPrice = 10.00;
+                    let pkgW = parseFloat((document.getElementById('closed-width')?.value || document.getElementById('width')?.value || '210').replace(',', '.')) || 210;
+                    let pkgH = parseFloat((document.getElementById('closed-height')?.value || document.getElementById('height')?.value || '297').replace(',', '.')) || 297;
+                    let pkgPages = parseFloat(document.getElementById('calc-leaves')?.value) || 8;
+                    let pkgInnerSheets = Math.max(1, pkgPages / 2);
+                    let pkgGsmL = parseFloat(document.getElementById('calc-paper-weight')?.value) || 135;
+                    let pkgGsmC = document.getElementById('calc-cover-w')?.value ? (parseFloat(document.getElementById('calc-cardboard-weight')?.value) || 250) : 0;
+                    let pkgAreaM2 = (pkgW / 1000) * (pkgH / 1000);
+                    let pkgSingleG = Math.max(0.1, pkgAreaM2 * (pkgInnerSheets * pkgGsmL + 2 * pkgGsmC));
+                    let pkgThickMm = Math.max(0.04, (pkgInnerSheets * pkgGsmL + 2 * pkgGsmC) / 1000);
+                    let pkgMinDim = Math.min(pkgW, pkgH), pkgMaxDim = Math.max(pkgW, pkgH);
+                    let pkgFitsBox = (pkgMinDim <= 240 && pkgMaxDim <= 320);
+                    let pkgQty = Math.max(1, (typeof totalItemsForm !== 'undefined' && totalItemsForm > 0) ? totalItemsForm : 1);
+                    let pkgCost = 0, pkgBreakdown = '';
+                    if (!pkgFitsBox) {
+                        let maxByW = Math.max(1, Math.floor(15000 / pkgSingleG));
+                        let perPack = Math.min(pkgQty, maxByW);
+                        let totalPacks = Math.max(1, Math.ceil(pkgQty / perPack));
+                        let grossKg = (pkgQty * pkgSingleG) / 1000 + totalPacks * 0.05;
+                        let needPal = (totalPacks >= 8 || grossKg >= 70);
+                        let totalPals = needPal ? Math.max(1, Math.ceil(totalPacks / 50)) : 0;
+                        pkgCost = totalPals * pkgPalletPrice;
+                        pkgBreakdown = `Natron (${totalPacks} zavitkov)` + (needPal ? ` + ${totalPals}x Euro paleta (${formatPrice(pkgCost)})` : '');
+                    } else {
+                        let cols = 1;
+                        if (pkgMinDim <= 120 && pkgMaxDim <= 160) cols = 4;
+                        else if (pkgMinDim <= 105 && pkgMaxDim <= 215) cols = 3;
+                        else if (pkgMinDim <= 160 && pkgMaxDim <= 240) cols = 2;
+                        let maxByVol = Math.max(1, Math.floor((230 / pkgThickMm) * cols));
+                        let maxByW = Math.max(1, Math.floor(15000 / pkgSingleG));
+                        let absMax = Math.max(1, Math.min(maxByW, maxByVol));
+                        let perBox = pkgQty <= absMax ? pkgQty : absMax;
+                        let totalBoxes = Math.max(1, Math.ceil(pkgQty / perBox));
+                        let grossKg = (pkgQty * pkgSingleG) / 1000 + totalBoxes * 0.40;
+                        let needPal = (totalBoxes >= 8 || grossKg >= 70);
+                        let totalPals = needPal ? Math.max(1, Math.ceil(totalBoxes / 50)) : 0;
+                        let bCost = totalBoxes * pkgBoxPrice;
+                        let pCost = totalPals * pkgPalletPrice;
+                        pkgCost = bCost + pCost;
+                        pkgBreakdown = `${totalBoxes}x škatla (${formatPrice(bCost)})` + (needPal ? ` + ${totalPals}x Euro paleta (${formatPrice(pCost)})` : '');
+                    }
+                    totalFinishCost += pkgCost;
+                    finishItems.push({ name: 'Pakiranje (embalaža)', cost: pkgCost, breakdown: pkgBreakdown });
+                }
+
                 // Razrez na format
 
                 if (document.getElementById('f-razrez-format-active').checked) {
@@ -8558,6 +8627,7 @@
                 razrezFormat: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                 razrez: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
                 precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
+                packaging: { active: gc('f-packaging-active'), boxPrice: gv('f-packaging-box-price'), palletPrice: gv('f-packaging-pallet-price') },
                 cilinder: {
                     active: gc('f-cilinder-active'),
                     prep: gv('f-cilinder-prep'),
@@ -12165,6 +12235,14 @@
                     if (typeof toggleFinishRow === 'function') toggleFinishRow('precut');
                 }
 
+                const pkg = f.packaging;
+                if (pkg) {
+                    setV('f-packaging-active', pkg.active !== undefined ? pkg.active : true, true);
+                    if (pkg.boxPrice !== undefined) setV('f-packaging-box-price', pkg.boxPrice);
+                    if (pkg.palletPrice !== undefined) setV('f-packaging-pallet-price', pkg.palletPrice);
+                    if (typeof toggleFinishRow === 'function') toggleFinishRow('packaging');
+                }
+
                 const zn = f.znasanje;
                 if (zn) {
                     setV('f-znasanje-active', zn.active, true);
@@ -12700,6 +12778,7 @@
                             razrez: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
 
                             precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
+                packaging: { active: gc('f-packaging-active'), boxPrice: gv('f-packaging-box-price'), palletPrice: gv('f-packaging-pallet-price') },
 
                             znasanje: { active: gc('f-znasanje-active'), prep: gv('f-znasanje-prep'), per1000: gv('f-znasanje-per1000') },
 
@@ -12744,6 +12823,7 @@
                         razrez: { active: gc('f-razrez-format-active'), speed: gv('f-razrez-format-speed'), rate: gv('f-razrez-format-rate') },
 
                         precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
+                packaging: { active: gc('f-packaging-active'), boxPrice: gv('f-packaging-box-price'), palletPrice: gv('f-packaging-pallet-price') },
 
                         znasanje: { active: gc('f-znasanje-active'), prep: gv('f-znasanje-prep'), per1000: gv('f-znasanje-per1000') },
 
