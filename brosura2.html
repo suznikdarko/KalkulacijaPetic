@@ -2558,7 +2558,12 @@
 
                     </div>
 
+                </div>
+            </div>
 
+            <!-- TAB 2: TISK -->
+            <div class="calc-tab-pane" id="calc-tab-tisk" style="display: none;">
+                <div class="calc-grid">
 
                     <!-- 2. Priprava in Plošče -->
 
@@ -3001,13 +3006,7 @@
 
 
                 </div>
-
-
-
-
-
             </div>
-        </div>
 
         <!-- TAB 3: DODELAVA -->
         <div class="calc-tab-pane" id="calc-tab-dodelava" style="display: none;">
@@ -11509,6 +11508,18 @@
                 try {
                     const STORAGE_KEY_BROSURA = 'darko_brosura_arhiv';
                     let arhiv = JSON.parse(localStorage.getItem(STORAGE_KEY_BROSURA) || '[]');
+                    let existingIdx = arhiv.findIndex(p => p.id === data.id);
+                    if (existingIdx !== -1) arhiv[existingIdx] = data;
+                    else arhiv.push(data);
+                    if (typeof saveArhivToStorage === 'function') saveArhivToStorage(STORAGE_KEY_BROSURA, arhiv);
+                    else localStorage.setItem(STORAGE_KEY_BROSURA, JSON.stringify(arhiv));
+                } catch (storageErr) {
+                    console.warn("Napaka pri shranjevanju v localStorage:", storageErr);
+                }
+
+                const jsonStr = JSON.stringify(data, null, 2);
+                const suggestedName = (typeof getExportFileName === 'function') ? getExportFileName('.brosura.json') : (name + '.brosura.json');
+
                 if (window.showSaveFilePicker) {
                     try {
                         const handle = await window.showSaveFilePicker({
