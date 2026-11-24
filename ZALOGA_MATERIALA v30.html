@@ -1214,7 +1214,57 @@ function renderAll(){
   showMat('iCode','iMaterial');
   const st=document.getElementById('statusTop');
   if(st)st.innerHTML=`Aktivno leto: <b>${yearState.activeYear}</b>`;
+  if(typeof broadcastTrenutnaZaloga==='function') broadcastTrenutnaZaloga();
 }
+
+// --- MOST ZA KALKULATORJE (Trenutna zaloga v živo) ---
+window.SEED = SEED;
+window.getTrenutnaZalogaList = function(){
+  const sm = stockMap();
+  const result = [];
+  for(const m of SEED.materials){
+    const code = String(m.code);
+    const s = sm[code] || {opening:0, inc:0, out:0};
+    const currentStock = s.opening + s.inc - s.out;
+    const w = m.width !== undefined && m.width !== null ? m.width : '';
+    const h = m.height !== undefined && m.height !== null ? m.height : '';
+    const fmtStr = (w !== '' && h !== '') ? `${w}x${h}` : (m.dimensions || '');
+    result.push({
+      'šifra materiala': code,
+      'sifra': code,
+      'naziv': m.name || '',
+      'širina': w,
+      'višina': h,
+      'format': fmtStr,
+      'gramatura': m.gsm || '',
+      'začetna zaloga': s.opening,
+      'prispelo': s.inc,
+      'odpis': s.out,
+      'trenutna zaloga': currentStock,
+      'zaloga': currentStock
+    });
+  }
+  return result;
+};
+
+function broadcastTrenutnaZaloga(targetWin){
+  try{
+    const items = window.getTrenutnaZalogaList();
+    const payload = { type: 'ZALOGA_STOCK_DATA', source: 'zaloga_v30', items: items, timestamp: Date.now() };
+    if(targetWin && targetWin !== window){
+      targetWin.postMessage(payload, '*');
+    }
+    if(window.parent && window.parent !== window){
+      window.parent.postMessage(payload, '*');
+    }
+  }catch(e){}
+}
+
+window.addEventListener('message', function(e){
+  if(e && e.data && e.data.type === 'REQUEST_ZALOGA_STOCK'){
+    broadcastTrenutnaZaloga(e.source);
+  }
+});
 function csvDownload(name,rows){
   const csv='\uFEFF'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(';')).join('\r\n');
   const a=document.createElement('a');
@@ -1683,6 +1733,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(dl) dl.innerHTML=SEED.materials.map(m=>`<option value="${m.code}">${m.name} – ${materialDimensions(m)} / ${m.gsm}</option>`).join('');
     renderStock();
     renderKpis();
+    if(typeof broadcastTrenutnaZaloga==='function') broadcastTrenutnaZaloga();
   }catch(e){console.error('Napaka pri nalaganju dodatnih materialov',e)}
 
   const overlay=document.getElementById('adminOverlay');
@@ -1732,7 +1783,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     ['newName','newWidth','newHeight','newWeight','newMaterialNote'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('newCode').value=suggestNextCode();
 
-    try{renderStock();renderKpis();}catch(e){}
+    try{renderStock();renderKpis();if(typeof broadcastTrenutnaZaloga==='function')broadcastTrenutnaZaloga();}catch(e){}
   });
 
 });

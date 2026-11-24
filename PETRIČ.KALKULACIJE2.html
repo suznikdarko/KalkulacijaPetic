@@ -519,6 +519,42 @@
             });
         }
 
+        // --- MOST ZA PRENOS TRENUTNE ZALOGE IZ ZAVIHKA ZALOGA V KALKULATORJE ---
+        window.__LIVE_ZALOGA_DATA = null;
+        window.addEventListener('message', (e) => {
+            if (!e || !e.data || !e.data.type) return;
+            if (e.data.type === 'ZALOGA_STOCK_DATA' && Array.isArray(e.data.items)) {
+                window.__LIVE_ZALOGA_DATA = e.data.items;
+                document.querySelectorAll('.calc-frame').forEach(frame => {
+                    if (frame.id === 'iframe_zaloga') return;
+                    try {
+                        if (frame.contentWindow) {
+                            frame.contentWindow.postMessage(e.data, '*');
+                        }
+                    } catch(err) {}
+                });
+            } else if (e.data.type === 'REQUEST_ZALOGA_STOCK') {
+                const zFrame = document.getElementById('iframe_zaloga');
+                let askedZaloga = false;
+                try {
+                    if (zFrame && zFrame.contentWindow) {
+                        zFrame.contentWindow.postMessage({ type: 'REQUEST_ZALOGA_STOCK' }, '*');
+                        askedZaloga = true;
+                    }
+                } catch(err) {}
+                if (window.__LIVE_ZALOGA_DATA && e.source && e.source !== window && !askedZaloga) {
+                    try {
+                        e.source.postMessage({
+                            type: 'ZALOGA_STOCK_DATA',
+                            source: 'zaloga_v30_cache',
+                            items: window.__LIVE_ZALOGA_DATA,
+                            timestamp: Date.now()
+                        }, '*');
+                    } catch(err) {}
+                }
+            }
+        });
+
         window.addEventListener('DOMContentLoaded', () => {
             try {
                 const saved = localStorage.getItem('petric_active_tab');

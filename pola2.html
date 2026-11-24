@@ -14377,6 +14377,60 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             }
         }
 
+        let _pendingZalogaResolvers = [];
+
+        function requestLiveZalogaFromParent(timeoutMs = 1800) {
+            return new Promise((resolve) => {
+                if (!window.parent || window.parent === window) {
+                    resolve(null);
+                    return;
+                }
+                let done = false;
+                const finish = (items) => {
+                    if (done) return;
+                    done = true;
+                    clearTimeout(timer);
+                    resolve(items);
+                };
+                const timer = setTimeout(() => {
+                    _pendingZalogaResolvers = _pendingZalogaResolvers.filter(fn => fn !== finish);
+                    finish(null);
+                }, timeoutMs);
+                _pendingZalogaResolvers.push(finish);
+                try {
+                    window.parent.postMessage({ type: 'REQUEST_ZALOGA_STOCK' }, '*');
+                } catch (e) {
+                    finish(null);
+                }
+            });
+        }
+
+        window.addEventListener('message', (e) => {
+            if (!e || !e.data || e.data.type !== 'ZALOGA_STOCK_DATA') return;
+            const items = e.data.items;
+            if (!Array.isArray(items) || items.length === 0) return;
+            saveStockCache(items);
+            const resolvers = _pendingZalogaResolvers.splice(0, _pendingZalogaResolvers.length);
+            resolvers.forEach(fn => { try { fn(items); } catch (err) {} });
+            if (typeof renderStockSearchResults === 'function') {
+                const modal = document.getElementById('modal-stock-search');
+                if (modal && modal.style.display === 'flex') {
+                    renderStockSearchResults();
+                }
+            }
+            // Posodobi tudi prikaz zaloge pod poljem za material, če je že vpisan
+            try {
+                const p1 = document.getElementById('calc-paper-type');
+                if (p1 && p1.value && p1.value.trim().length >= 2) {
+                    updateMaterialStockStatusBadge(p1, getCombinedSearchQuery('paper'), null);
+                }
+                const p2 = document.getElementById('calc-paper2-type');
+                if (p2 && p2.value && p2.value.trim().length >= 2) {
+                    updateMaterialStockStatusBadge(p2, getCombinedSearchQuery('paper2'), null);
+                }
+            } catch (err) {}
+        });
+
         async function refreshStockData(userTriggered = false) {
             let refreshBtn = document.getElementById('btn-refresh-stock');
             let refreshBtnHeader = document.getElementById('btn-refresh-stock-header');
@@ -14392,33 +14446,48 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
 
             let loaded = false;
             try {
-                // 1. Najprej poskusimo neposredno iz sosednjega okvirja ZALOGA (če smo v PETRIČ.KALKULACIJE2)
+                // 1. Neposredno iz odprtega zavihka ZALOGA (isti izvor / HTTP)
                 try {
                     if (window.parent && window.parent !== window) {
                         const zFrame = window.parent.document.getElementById('iframe_zaloga');
-                        if (zFrame && zFrame.contentWindow && typeof zFrame.contentWindow.stockMap === 'function') {
+                        if (zFrame && zFrame.contentWindow) {
                             const zWin = zFrame.contentWindow;
-                            const sm = zWin.stockMap();
-                            const seedMats = (zWin.SEED && zWin.SEED.materials) || [];
-                            if (seedMats.length > 0) {
-                                const list = formatV30StockList(seedMats, sm);
-                                if (list && list.length > 0) {
-                                    saveStockCache(list);
-                                    loaded = true;
-                                    if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
-                                    if (userTriggered) {
-                                        alert(`✅ Zaloga uspešno osvežena iz odprtega zavihka ZALOGA: ${list.length.toLocaleString('de-DE')} artiklov!`);
-                                    }
-                                    return true;
+                            let list = null;
+                            if (typeof zWin.getTrenutnaZalogaList === 'function') {
+                                list = zWin.getTrenutnaZalogaList();
+                            } else if (typeof zWin.stockMap === 'function' && zWin.SEED && zWin.SEED.materials) {
+                                list = formatV30StockList(zWin.SEED.materials, zWin.stockMap());
+                            }
+                            if (list && list.length > 0) {
+                                saveStockCache(list);
+                                loaded = true;
+                                if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
+                                if (userTriggered) {
+                                    alert(`✅ Trenutna zaloga uspešno osvežena iz zavihka ZALOGA: ${list.length.toLocaleString('de-DE')} artiklov!`);
                                 }
+                                return true;
                             }
                         }
                     }
                 } catch (frameErr) {
-                    // Nadaljujemo z naslednjo metodo
+                    // Pri file:// nadaljujemo s postMessage mostom
                 }
 
-                // 2. Preberemo datoteko ZALOGA_MATERIALA v30.html ali zaloga2.html
+                // 2. Preko postMessage mostu iz zavihka ZALOGA (deluje tudi pri file://)
+                if (!loaded && window.parent && window.parent !== window) {
+                    const liveItems = await requestLiveZalogaFromParent(1800);
+                    if (liveItems && liveItems.length > 0) {
+                        saveStockCache(liveItems);
+                        loaded = true;
+                        if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
+                        if (userTriggered) {
+                            alert(`✅ Trenutna zaloga uspešno osvežena iz zavihka ZALOGA: ${liveItems.length.toLocaleString('de-DE')} artiklov!`);
+                        }
+                        return true;
+                    }
+                }
+
+                // 3. Rezervno (če je pola2.html odprta samostojno zunaj PETRIČ.KALKULACIJE2): preberemo ZALOGA_MATERIALA v30.html
                 if (!loaded) {
                     const candidateFiles = ['ZALOGA_MATERIALA v30.html', 'zaloga2.html'];
                     for (const cPath of candidateFiles) {
@@ -14429,6 +14498,16 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                                 const mSeed = htmlText.match(/const\s+SEED\s*=\s*(\{[\s\S]*?\});/);
                                 if (mSeed) {
                                     const seed = JSON.parse(mSeed[1]);
+                                    const customMats = getStorageJson('zaloga_custom_materials_v1');
+                                    if (Array.isArray(customMats) && customMats.length > 0) {
+                                        const existingCodes = new Set((seed.materials || []).map(m => String(m.code)));
+                                        customMats.forEach(cm => {
+                                            if (cm && cm.code && !existingCodes.has(String(cm.code))) {
+                                                seed.materials.push(cm);
+                                                existingCodes.add(String(cm.code));
+                                            }
+                                        });
+                                    }
                                     const stateMovs = getStorageJson('zaloga_materiala_v1') || { newMovements: [] };
                                     const invState = getStorageJson('zaloga_inventory_v1') || { finalized: false, items: {} };
                                     const yState = getStorageJson('zaloga_year_state_v1') || { activeYear: 2026, rollovers: {} };
@@ -14438,7 +14517,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                                         loaded = true;
                                         if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
                                         if (userTriggered) {
-                                            alert(`✅ Zaloga uspešno osvežena iz ${cPath}: ${list.length.toLocaleString('de-DE')} artiklov!`);
+                                            alert(`✅ Trenutna zaloga uspešno osvežena iz ${cPath}: ${list.length.toLocaleString('de-DE')} artiklov!`);
                                         }
                                         return true;
                                     }
@@ -14450,54 +14529,11 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                     }
                 }
 
-                // 3. Preko lokalnega strežnika na 8095
-                if (!loaded) {
-                    try {
-                        let srvUrl = typeof getServerBaseUrl === 'function' ? await getServerBaseUrl() : 'http://server-2012:8095';
-                        let url = srvUrl + '/zaloga' + (userTriggered ? '?refresh=1' : '');
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 6000);
-                        const response = await fetch(url, { signal: controller.signal });
-                        clearTimeout(timeoutId);
-                        if (response && response.ok) {
-                            const data = await response.json();
-                            if (Array.isArray(data) && data.length > 0) {
-                                saveStockCache(data);
-                                loaded = true;
-                                if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
-                                if (userTriggered) {
-                                    alert(`✅ Zaloga uspešno osvežena s strežnika: ${data.length.toLocaleString('de-DE')} artiklov!`);
-                                }
-                                return true;
-                            }
-                        }
-                    } catch (netErr) {}
-                }
-
-                // 4. Zadnja rezervna možnost: datoteka zalogaSimon.json (če še obstaja lokalno)
-                if (!loaded) {
-                    try {
-                        const localRes = await fetch('zalogaSimon.json?t=' + Date.now());
-                        if (localRes && localRes.ok) {
-                            const data = await localRes.json();
-                            if (Array.isArray(data) && data.length > 0) {
-                                saveStockCache(data);
-                                loaded = true;
-                                if (typeof renderStockSearchResults === 'function') renderStockSearchResults();
-                                if (userTriggered) {
-                                    alert(`✅ Zaloga osvežena iz datoteke zalogaSimon.json: ${data.length.toLocaleString('de-DE')} artiklov!`);
-                                }
-                                return true;
-                            }
-                        }
-                    } catch (fErr) {}
-                }
-
-                // 5. Če nobena pot ni uspela in je uporabnik ročno kliknil gumb
+                // 4. Če nobena pot ni uspela in je uporabnik ročno kliknil gumb
                 if (userTriggered && !loaded) {
                     const confirmManual = confirm(
-                        "Podatkov o novi zalogi ni bilo mogoče samodejno naložiti.\n\n" +
-                        "Ali želite ročno izbrati datoteko ZALOGA_MATERIALA v30.html ali Excel (.xlsx)?"
+                        "Trenutne zaloge iz zavihka ZALOGA ni bilo mogoče samodejno prebrati.\n\n" +
+                        "Ali želite ročno izbrati datoteko ZALOGA_MATERIALA v30.html?"
                     );
                     if (confirmManual) {
                         loadStockFile();
@@ -15102,6 +15138,8 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                     input.focus();
                 }
                 renderStockSearchResults();
+                // Takoj v ozadju osvežimo iz zavihka ZALOGA (Trenutna zaloga)
+                refreshStockData(false);
             }
         }
 
