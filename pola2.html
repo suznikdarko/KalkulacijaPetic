@@ -15678,7 +15678,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                                 </label>
                                 <input type="number" id="sim-slots" min="1" max="32" value="3" 
                                     style="width: 100%; box-sizing: border-box; background: #0b0f19; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; padding: 8px 12px; font-size: 0.9rem; font-weight: 700; text-align: center;"
-                                    onchange="runSimCalculation()">
+                                    onchange="runSimCalculation(true)">
                             </div>
                             <div>
                                 <label style="display: block; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">
@@ -15687,10 +15687,10 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                                 <input type="number" id="sim-custom-forms" min="1" max="50" placeholder="Auto" 
                                     style="width: 100%; box-sizing: border-box; background: #0b0f19; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; padding: 8px 12px; font-size: 0.9rem; font-weight: 700; text-align: center;"
                                     title="Pustite prazno, da kalkulator samodejno presodi najbolj optimalno število form!"
-                                    onchange="runSimCalculation()">
+                                    onchange="runSimCalculation(true)">
                             </div>
                             <div style="display: flex; gap: 8px;">
-                                <button type="button" onclick="runSimCalculation()" 
+                                <button type="button" onclick="runSimCalculation(true)" 
                                     style="background: linear-gradient(135deg, #0284c7, #2563eb); color: white; border: none; border-radius: 8px; padding: 9px 16px; font-size: 0.85rem; font-weight: 700; cursor: pointer; height: 38px; box-shadow: 0 4px 12px rgba(2,132,199,0.3); white-space: nowrap;">
                                     🚀 Preračunaj
                                 </button>
@@ -17051,10 +17051,61 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             }
         }
 
+        function syncSimPlanToMainCalculator(plan) {
+            if (!plan || !Array.isArray(plan.forms) || plan.forms.length === 0) return;
+            try {
+                const K = Math.max(1, parseInt(plan.slots) || 1);
+                const totalSheets = Math.max(0, parseInt(plan.totalSheets) || 0);
+                const formsCount = Math.max(1, parseInt(plan.formsCount) || plan.forms.length);
+                const totalPrinted = totalSheets * K;
+                const totalRequired = Array.isArray(plan.quantities)
+                    ? plan.quantities.reduce((a, b) => a + (parseInt(b) || 0), 0)
+                    : totalPrinted;
+
+                const qtyEl = document.getElementById('quantity');
+                const ordQtyEl = document.getElementById('ordered-quantity');
+                const ipsEl = document.getElementById('items-per-sheet');
+                if (qtyEl && totalPrinted > 0) qtyEl.value = String(totalPrinted);
+                if (ordQtyEl && totalRequired > 0) ordQtyEl.value = String(totalRequired);
+                if (ipsEl) ipsEl.value = String(K);
+
+                // Posodobi mutacije glede na število izbranih tiskarskih form (1 osnovna + (formsCount - 1) mutacij)
+                const mutCount = Math.max(0, formsCount - 1);
+                const mutTypeEl = document.getElementById('calc-mut-type');
+                const mutQtyEl = document.getElementById('calc-mut-qty');
+                const mutBreakdownEl = document.getElementById('calc-mut-breakdown');
+                const back = parseInt(document.getElementById('calc-color-back')?.value) || 0;
+
+                if (mutBreakdownEl) mutBreakdownEl.value = '';
+                if (mutCount === 0) {
+                    if (mutTypeEl) mutTypeEl.value = '';
+                    if (mutQtyEl) mutQtyEl.value = '0';
+                } else {
+                    if (mutTypeEl && !mutTypeEl.value) {
+                        mutTypeEl.value = (back > 0) ? 'Mutacija obojestransko (1/1)' : 'Mutacija po prvi strani (1/0)';
+                    }
+                    if (mutQtyEl) mutQtyEl.value = String(mutCount);
+                }
+
+                if (typeof updateMutationPlates === 'function') updateMutationPlates();
+                if (typeof calculatePrice === 'function') calculatePrice();
+
+                // Prikaži osveženo skupno ceno iz kalkulatorja Pola2 neposredno v nogi okna
+                const totalTxt = (document.getElementById('res-price-total')?.innerText || '').trim();
+                const perItemTxt = (document.getElementById('res-price-per-item')?.innerText || '').trim();
+                const stEl = document.getElementById('sim-footer-status');
+                if (stEl && totalTxt) {
+                    stEl.innerHTML = `💶 <strong>Cena v Poli2 (${formsCount} form, ${totalSheets.toLocaleString('sl-SI')} pol): <span style="color:#fbbf24;">${totalTxt}</span></strong>${perItemTxt ? ` <span style="color:#94a3b8; font-weight:500;">(${perItemTxt})</span>` : ''}`;
+                }
+            } catch (e) {
+                console.warn('syncSimPlanToMainCalculator:', e);
+            }
+        }
+
         function selectSimCustomForms(m) {
             const cfEl = document.getElementById('sim-custom-forms');
             if (cfEl) cfEl.value = m;
-            runSimCalculation();
+            runSimCalculation(true);
         }
 
         function clearSimForm() {
@@ -17182,7 +17233,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
 
 
         // OPTIMIZACIJSKI MOTOR S SAMODEJNO PRESOJO ŠTEVILA FORM IN STROŠKOVNO PRIMERJAVO
-        function runSimCalculation() {
+        function runSimCalculation(syncToMain = false) {
             let Q = [];
             let sortNames = [];
             if (g_simInputMode === 'named') {
@@ -17366,6 +17417,9 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             };
 
             renderSimResults(Q, K, totalRequired, g_simCalculatedPlan);
+            if (syncToMain) {
+                syncSimPlanToMainCalculator(g_simCalculatedPlan);
+            }
         }
 
         function renderSimResults(Q, K, totalRequired, plan) {
@@ -17585,6 +17639,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                 return;
             }
             window.g_currentSortImposition = JSON.parse(JSON.stringify(g_simCalculatedPlan));
+            syncSimPlanToMainCalculator(g_simCalculatedPlan);
             
             // Posodobi značko ob gumbu
             const badge = document.getElementById('sort-imposition-active-badge');
