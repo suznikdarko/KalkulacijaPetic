@@ -469,7 +469,7 @@
                 <span>IZRAČUN ŠKATEL & EURO PALET</span>
             </div>
             <div class="brand-subtitle">
-                Tiskarna Petrič • Škatle 240×320×250 mm (max 15 kg) • Euro paleta (max višina 160 cm)
+                Tiskarna Petrič • Škatle 230×320×250 mm (max 15 kg) • Euro paleta (max višina 160 cm)
             </div>
         </div>
         <div class="header-actions">
@@ -610,10 +610,10 @@
                     <label class="form-label">Format škatle (D × Š × V mm)</label>
                     <div class="grid-3">
                         <input type="number" id="inp-box-w" class="form-control" value="320" title="Dolžina škatle v mm" oninput="recalculateAll()">
-                        <input type="number" id="inp-box-l" class="form-control" value="240" title="Širina škatle v mm" oninput="recalculateAll()">
+                        <input type="number" id="inp-box-l" class="form-control" value="230" title="Širina škatle v mm" oninput="recalculateAll()">
                         <input type="number" id="inp-box-h" class="form-control" value="250" title="Višina škatle v mm" oninput="recalculateAll()">
                     </div>
-                    <span style="font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; display: block;">Standardna škatla Petrič: 320 × 240 × 250 mm</span>
+                    <span style="font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; display: block;">Standardna škatla Petrič: 320 × 230 × 250 mm</span>
                 </div>
 
                 <div class="grid-2 form-group">
@@ -709,12 +709,12 @@
                 <div class="visualizer-box">
                     <div class="canvas-toolbar">
                         <span>📐 Tloris Euro palete (1200 mm × 800 mm)</span>
-                        <span id="canvas-layer-info">1. Plast (10 škatel 320×240 mm)</span>
+                        <span id="canvas-layer-info">1. Plast (10 škatel 320×230 mm)</span>
                     </div>
                     <canvas id="palletCanvas" width="620" height="440"></canvas>
                     <div style="margin-top: 10px; display: flex; justify-content: space-between; width: 100%; font-size: 0.74rem; color: var(--text-dim);">
                         <span>Zeleni rob: tloris Euro palete 1200 × 800 mm</span>
-                        <span>Modri pravokotniki: škatle 320 × 240 mm</span>
+                        <span>Modri pravokotniki: škatle 320 × 230 mm</span>
                         <span id="pallet-utilization">Izkoristek tlorisa: 80%</span>
                     </div>
                 </div>
@@ -880,7 +880,7 @@
     // GLOBAL STATE & PETRIC SPECIFICATION CONSTANTS
     const PETRIC_BOX_DEFAULT = {
         w: 320,  // mm dolžina
-        l: 240,  // mm širina
+        l: 230,  // mm širina
         h: 250,  // mm višina
         maxWeightKg: 15.0, // Največja dovoljena teža v škatli
         tareKg: 0.40,      // Teža prazne škatle
@@ -1016,30 +1016,34 @@
         // 1. Kapaciteta škatle
         let itemsPerBox = gn('inp-items-per-box', 1000);
 
-        // Dejanska debelina lista (v mm) - volumetrično 1.0 (0.001 mm na g/m²)
+        // Dejanska debelina izdelka (v mm) - volumetrično 1.0 (0.001 mm na g/m²)
         const areaM2 = (widthMm / 1000) * (heightMm / 1000);
         const effectiveGsm = areaM2 > 0 ? (singleWeightG / areaM2) : 135;
-        const pages = gn('inp-item-pages', 2);
-        const leaves = Math.max(1, Math.ceil(pages / 2));
-        const sheetThicknessMm = Math.max(0.04, (effectiveGsm * 1.0 * leaves) / 1000);
+        const sheetThicknessMm = Math.max(0.04, (effectiveGsm * 1.0) / 1000);
 
-        // Število stolpcev v škatli 240 x 320 mm
-        let cols = 1;
-        if (widthMm <= 160 && heightMm <= 240) cols = 2; // npr A5
-        else if (widthMm <= 120 && heightMm <= 160) cols = 4; // npr A6
-        else if (widthMm <= 105 && heightMm <= 215) cols = 3; // npr Amerikanka
+        // 1. pogoj: koliko stolpcev izdelka fizično gre na dno škatle (boxL x boxW)
+        const colsNormal = Math.floor(boxL / widthMm) * Math.floor(boxW / heightMm);
+        const colsRot = Math.floor(boxL / heightMm) * Math.floor(boxW / widthMm);
+        const cols = Math.max(1, colsNormal, colsRot);
 
+        // 1. pogoj (volumen/višina škatle) in 2. pogoj (max bruto teža škatle)
         const maxStackHeightMm = Math.max(50, boxH - 20); // 20 mm varnostni prostor za zapiranje
-        const maxByVolume = Math.floor((maxStackHeightMm / sheetThicknessMm) * cols);
-        const maxByWeight = Math.floor((maxBoxWeightKg * 1000) / singleWeightG);
-        const absoluteMaxCap = Math.max(50, Math.min(maxByWeight, maxByVolume));
+        const maxByVolume = Math.max(1, Math.floor((maxStackHeightMm / sheetThicknessMm) * cols));
+        const maxNetWeightKg = Math.max(1.0, maxBoxWeightKg - boxTareKg);
+        const maxByWeight = Math.max(1, Math.floor((maxNetWeightKg * 1000) / singleWeightG));
+        const absoluteMaxCap = Math.max(1, Math.min(maxByWeight, maxByVolume));
 
         if (!isManualBoxCap) {
             if (quantity <= absoluteMaxCap) {
                 itemsPerBox = quantity;
             } else {
-                const standardPacks = [2500, 2000, 1500, 1000, 750, 500, 250, 200, 100, 50];
-                let bestStandard = 500;
+                const standardPacks = [
+                    50000, 40000, 30000, 25000, 20000, 15000, 10000,
+                    8000, 7500, 6000, 5000, 4000, 3000, 2500, 2000,
+                    1500, 1000, 750, 500, 400, 300, 250, 200, 150,
+                    100, 75, 50, 40, 30, 25, 20, 15, 10, 5
+                ];
+                let bestStandard = absoluteMaxCap;
                 for (let p of standardPacks) {
                     if (p <= absoluteMaxCap) {
                         bestStandard = p;
@@ -1048,18 +1052,11 @@
                 }
                 itemsPerBox = bestStandard;
 
-                if (quantity % 1000 === 0 && 1000 <= absoluteMaxCap) {
-                    itemsPerBox = 1000;
-                } else if (quantity % 500 === 0 && 500 <= absoluteMaxCap) {
-                    itemsPerBox = 500;
-                } else if (quantity % 250 === 0 && 250 <= absoluteMaxCap && absoluteMaxCap < 500) {
-                    itemsPerBox = 250;
-                } else {
-                    const minBoxes = Math.max(1, Math.ceil(quantity / absoluteMaxCap));
-                    let evenQty = Math.ceil(quantity / minBoxes);
-                    if (evenQty > 200 && evenQty % 50 !== 0) evenQty = Math.ceil(evenQty / 50) * 50;
-                    if (evenQty <= absoluteMaxCap && (minBoxes - 1) * evenQty < quantity) {
-                        itemsPerBox = evenQty;
+                const baseBoxCount = Math.ceil(quantity / bestStandard);
+                for (let p of standardPacks) {
+                    if (p <= bestStandard && quantity % p === 0 && (quantity / p) <= baseBoxCount) {
+                        itemsPerBox = p;
+                        break;
                     }
                 }
             }
@@ -1278,19 +1275,20 @@
         }
 
         // 2. Draw Boxes on Layer
-        // Box standard orientation: 320 x 240 mm (or 240 x 320)
-        // Layout 10: 5 columns along 1200 mm (5 * 240 = 1200 mm) x 2 rows along 800 mm (2 * 320 = 640 mm)
+        // Box standard orientation: 320 x 230 mm (or 230 x 320)
+        // Layout 10: 5 columns along 1200 mm (5 * 230 = 1150 mm) x 2 rows along 800 mm (2 * 320 = 640 mm)
         const boxesToDraw = [];
 
         if (boxesCount === 10) {
             // 5 x 2 grid
-            const bw = 240 * scale;
-            const bl = 320 * scale;
+            const bw = boxL * scale;
+            const bl = boxW * scale;
+            const offsetX = startX + (palletDrawW - (5 * bw)) / 2;
             const offsetY = startY + (palletDrawH - (2 * bl)) / 2; // centered on 800mm side
             for (let c = 0; c < 5; c++) {
                 for (let r = 0; r < 2; r++) {
                     boxesToDraw.push({
-                        x: startX + c * bw,
+                        x: offsetX + c * bw,
                         y: offsetY + r * bl,
                         w: bw,
                         h: bl,
@@ -1298,39 +1296,39 @@
                     });
                 }
             }
-            st('canvas-layer-info', '1. Plast: 10 škatel (5 vrst po 2 škatli 240 × 320 mm)');
-            st('pallet-utilization', 'Izkoristek tlorisa: 80% (Brez previsa, zanesljivo za zlaganje)');
+            st('canvas-layer-info', `1. Plast: 10 škatel (5 vrst po 2 škatli ${boxL} × ${boxW} mm)`);
+            st('pallet-utilization', 'Izkoristek tlorisa: 77% (Brez previsa, zanesljivo za zlaganje)');
         } else {
             // Layout 11: Interlocked
-            // 3 columns of 3 along 960x720 mm + 2 boxes along the remaining 240mm
-            const b320 = 320 * scale;
-            const b240 = 240 * scale;
+            // 3 columns of 3 along 960x690 mm + 2 boxes along the remaining 240mm
+            const b320 = boxW * scale;
+            const b230 = boxL * scale;
 
-            // Block 1: 3 x 3 (320 along X, 240 along Y) -> 3 * 320 = 960mm, 3 * 240 = 720mm
+            // Block 1: 3 x 3 (320 along X, 230 along Y) -> 3 * 320 = 960mm, 3 * 230 = 690mm
             for (let c = 0; c < 3; c++) {
                 for (let r = 0; r < 3; r++) {
                     boxesToDraw.push({
                         x: startX + c * b320,
-                        y: startY + r * b240,
+                        y: startY + r * b230,
                         w: b320,
-                        h: b240,
+                        h: b230,
                         num: boxesToDraw.length + 1
                     });
                 }
             }
-            // Block 2: 2 boxes in the remaining 240mm width (240 along X, 320 along Y -> 2 * 320 = 640mm)
+            // Block 2: 2 boxes in the remaining 240mm width (230 along X, 320 along Y -> 2 * 320 = 640mm)
             const remX = startX + 3 * b320; // 960 mm
             for (let r = 0; r < 2; r++) {
                 boxesToDraw.push({
                     x: remX,
                     y: startY + r * b320,
-                    w: b240,
+                    w: b230,
                     h: b320,
                     num: boxesToDraw.length + 1
                 });
             }
             st('canvas-layer-info', '1. Plast: 11 škatel (Prepleteno / Maksimalno 1200 × 800 mm)');
-            st('pallet-utilization', 'Izkoristek tlorisa: 88% (Maksimalna izkoriščenost Euro palete)');
+            st('pallet-utilization', 'Izkoristek tlorisa: 84% (Maksimalna izkoriščenost Euro palete)');
         }
 
         // Render each box

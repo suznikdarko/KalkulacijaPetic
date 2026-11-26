@@ -5741,7 +5741,7 @@
                         let pkgSingleG = Math.max(0.1, pkgAreaM2 * (pkgLeaves * pkgGsm + pkgCbGsm));
                         let pkgThickMm = Math.max(0.04, (pkgLeaves * pkgGsm + pkgCbGsm) / 1000);
                         let pkgMinDim = Math.min(pkgW, pkgH), pkgMaxDim = Math.max(pkgW, pkgH);
-                        let pkgFitsBox = (pkgMinDim <= 240 && pkgMaxDim <= 320);
+                        let pkgFitsBox = (pkgMinDim <= 230 && pkgMaxDim <= 320);
                         let pkgQty = Math.max(1, q || totalItemsForm || 1);
                         let pkgCost = 0, pkgBreakdown = '';
                         if (!pkgFitsBox) {
@@ -5754,14 +5754,25 @@
                             pkgCost = totalPals * pkgPalletPrice;
                             pkgBreakdown = `Natron (${totalPacks} zavitkov)` + (needPal ? ` + ${totalPals}x Euro paleta (${formatPrice(pkgCost)})` : '');
                         } else {
-                            let cols = 1;
-                            if (pkgMinDim <= 120 && pkgMaxDim <= 160) cols = 4;
-                            else if (pkgMinDim <= 105 && pkgMaxDim <= 215) cols = 3;
-                            else if (pkgMinDim <= 160 && pkgMaxDim <= 240) cols = 2;
+                            let colsNormal = Math.floor(230 / pkgW) * Math.floor(320 / pkgH);
+                            let colsRot = Math.floor(230 / pkgH) * Math.floor(320 / pkgW);
+                            let cols = Math.max(1, colsNormal, colsRot);
                             let maxByVol = Math.max(1, Math.floor((230 / pkgThickMm) * cols));
-                            let maxByW = Math.max(1, Math.floor(15000 / pkgSingleG));
+                            let maxByW = Math.max(1, Math.floor(14600 / pkgSingleG));
                             let absMax = Math.max(1, Math.min(maxByW, maxByVol));
-                            let perBox = pkgQty <= absMax ? pkgQty : absMax;
+                            let perBox = pkgQty;
+                            if (pkgQty > absMax) {
+                                const stdPacks = [50000, 40000, 30000, 25000, 20000, 15000, 10000, 8000, 7500, 6000, 5000, 4000, 3000, 2500, 2000, 1500, 1000, 750, 500, 400, 300, 250, 200, 150, 100, 75, 50, 40, 30, 25, 20, 15, 10, 5];
+                                let bestStd = absMax;
+                                for (let p of stdPacks) {
+                                    if (p <= absMax) { bestStd = p; break; }
+                                }
+                                perBox = bestStd;
+                                let baseBoxes = Math.ceil(pkgQty / bestStd);
+                                for (let p of stdPacks) {
+                                    if (p <= bestStd && pkgQty % p === 0 && (pkgQty / p) <= baseBoxes) { perBox = p; break; }
+                                }
+                            }
                             let totalBoxes = Math.max(1, Math.ceil(pkgQty / perBox));
                             let grossKg = (pkgQty * pkgSingleG) / 1000 + totalBoxes * 0.40;
                             let needPal = (totalBoxes >= 8 || grossKg >= 70);
@@ -5769,7 +5780,7 @@
                             let bCost = totalBoxes * pkgBoxPrice;
                             let pCost = totalPals * pkgPalletPrice;
                             pkgCost = bCost + pCost;
-                            pkgBreakdown = `${totalBoxes}x škatla (${formatPrice(bCost)})` + (needPal ? ` + ${totalPals}x Euro paleta (${formatPrice(pCost)})` : '');
+                            pkgBreakdown = `${totalBoxes}x škatla po ${perBox} kos (${formatPrice(bCost)})` + (needPal ? ` + ${totalPals}x Euro paleta (${formatPrice(pCost)})` : '');
                         }
                         totalFinishCost += pkgCost;
                         finishItems.push({ name: 'Pakiranje (embalaža)', cost: pkgCost, breakdown: pkgBreakdown });
