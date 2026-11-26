@@ -5471,12 +5471,12 @@
             let isObrat = document.getElementById('calc-is-obrat').checked;
             let mType = document.getElementById('calc-machine-type').value;
             let colorMode = front + '/' + (isObrat ? 'OB' : back);
-            let maxColorsPerPass = (mType === 'S8') ? 8 : 4;
+            let maxColorsPerPass = (mType === 'S8') ? 8 : ((mType === 'SM4+lak' || mType === 'CD') ? 5 : 4);
             let prepPasses = (front > 0 ? Math.ceil(front / maxColorsPerPass) : 0) + (isObrat ? (front > 0 ? Math.ceil(front / maxColorsPerPass) : 0) : (back > 0 ? Math.ceil(back / maxColorsPerPass) : 0));
             let defaultWaste = (front + back) * 150;
             let rule = prepRules[colorMode] || { passes: prepPasses, wasteImpressions: defaultWaste };
             let isSV = (document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv').checked : false) && mType === 'S8' && front <= 4 && back <= 4 && back > 0;
-            let mPasses = isSV ? 1 : (mType === 'S8' ? prepPasses : rule.passes);
+            let mPasses = isSV ? 1 : ((mType === 'S8' || mType === 'SM4+lak' || mType === 'CD') ? prepPasses : rule.passes);
             const manualPassesSelect = document.getElementById('calc-machine-passes');
             if (manualPassesSelect && manualPassesSelect.value !== 'auto') {
                 mPasses = parseInt(manualPassesSelect.value) || mPasses;
@@ -5490,8 +5490,8 @@
             let washesNum = parseInt(document.getElementById('calc-color-washes').value) || 0;
             let washPrice = parseFloat(document.getElementById('calc-wash-price').value) || 25;
             let svWashCost = (isSV && mType !== 'digital' && mType !== 'digital-plakat' && mType !== 'digital-rollup' && mType !== 'cooperation') ? 100 : 0;
-            // S8 ima 8 barvnih enot: pri tisku >4 barv na stran (5/0..8/0 ipd.) gre v 1 prehodu na stran, za vsako dodatno barvo nad 4 se obračuna pranje stroja (25 €)
-            let s8ExtraWashCount = (mType === 'S8' && !isSV) ? (Math.max(0, front - 4) + (isObrat ? 0 : Math.max(0, back - 4))) : 0;
+            // S8 (do 8 barv/prehod), SM4+lak in CD (do 5 barv/prehod): pri tisku >4 barv se za vsako dodatno barvo nad 4 obračuna pranje stroja (25 €)
+            let s8ExtraWashCount = ((mType === 'S8' || mType === 'SM4+lak' || mType === 'CD') && !isSV) ? (Math.max(0, front - 4) + (isObrat ? 0 : Math.max(0, back - 4))) : 0;
             let s8ExtraWashCost = s8ExtraWashCount * washPrice;
             let washCost = (washesNum * washPrice) + svWashCost + s8ExtraWashCost;
             let totalPrepCost = (platesNum * platesPrice) + prepPrice + (numberOfChanges * changePrice) + washCost;
@@ -11098,11 +11098,11 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             let colorsDisplay = getFormattedColorsString();
             let tiskMode = "1 prehod";
             if (isSV) { tiskMode = "Šen Vider (1 prehod obojestransko)"; } else if (isObrat) { tiskMode = "obračanje"; } else if (back > 0) { tiskMode = "prvi/drugi (2 prehoda)"; }
-            let maxColorsPerPassDN = (mTypeDN === 'S8') ? 8 : 4;
+            let maxColorsPerPassDN = (mTypeDN === 'S8') ? 8 : ((mTypeDN === 'SM4+lak' || mTypeDN === 'CD') ? 5 : 4);
             let prepPasses = front > 0 ? (Math.ceil(front / maxColorsPerPassDN) + (isObrat ? Math.ceil(front / maxColorsPerPassDN) : (back > 0 ? Math.ceil(back / maxColorsPerPassDN) : 0))) : 1;
             let colorMode = front + '/' + (isObrat ? 'OB' : back);
             let rule = prepRules[colorMode] || { passes: prepPasses };
-            let mPasses = isSV ? 1 : (mTypeDN === 'S8' ? prepPasses : rule.passes);
+            let mPasses = isSV ? 1 : ((mTypeDN === 'S8' || mTypeDN === 'SM4+lak' || mTypeDN === 'CD') ? prepPasses : rule.passes);
             const manualPassesSelect = document.getElementById('calc-machine-passes');
             if (manualPassesSelect && manualPassesSelect.value !== 'auto') {
                 const pVal = parseInt(manualPassesSelect.value);
