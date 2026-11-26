@@ -1822,6 +1822,10 @@
 
                                         <option value="6">6</option>
 
+                                        <option value="7">7</option>
+
+                                        <option value="8">8</option>
+
                                     </select>
 
                                     <span style="color: #cbd5e1; font-weight: bold; line-height: 1;">/</span>
@@ -1845,6 +1849,10 @@
                                         <option value="5">5</option>
 
                                         <option value="6">6</option>
+
+                                        <option value="7">7</option>
+
+                                        <option value="8">8</option>
 
                                     </select>
 
@@ -1946,6 +1954,10 @@
 
                                         <option value="6">6</option>
 
+                                        <option value="7">7</option>
+
+                                        <option value="8">8</option>
+
                                     </select>
 
                                     <span style="color: #cbd5e1; font-weight: bold; line-height: 1;">/</span>
@@ -1969,6 +1981,10 @@
                                         <option value="5">5</option>
 
                                         <option value="6">6</option>
+
+                                        <option value="7">7</option>
+
+                                        <option value="8">8</option>
 
                                     </select>
 
@@ -6376,7 +6392,7 @@
             // ŠV Container visibility
             let svContainer = document.getElementById('sv-container-' + comp);
             if (svContainer) {
-                if (cBackVal > 0 && mType === 'S8') {
+                if (cBackVal > 0 && mType === 'S8' && cFrontVal <= 4 && cBackVal <= 4) {
                     svContainer.style.display = 'block';
                 } else {
                     svContainer.style.display = 'none';
@@ -7092,7 +7108,9 @@
 
                     let washPriceL = parseFloat(gV('calc-wash-price-leaves')) || 25;
 
-                    washCostL = (washesNumL * washPriceL) + (isSVL ? 100 : 0);
+                    let effSVL = isSVL && mTypeL === 'S8' && frontL <= 4 && backL <= 4 && backL > 0;
+                    let s8ExtraWashL = (mTypeL === 'S8' && !effSVL) ? (Math.max(0, frontL - 4) + (isObratL ? 0 : Math.max(0, backL - 4))) * washPriceL : 0;
+                    washCostL = (washesNumL * washPriceL) + (effSVL ? 100 : 0) + s8ExtraWashL;
 
 
 
@@ -7148,10 +7166,11 @@
 
 
 
-                    mPassesL = Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0);
+                    let maxColorsPerPassL = (mTypeL === 'S8') ? 8 : 4;
+                    mPassesL = Math.ceil(frontL / maxColorsPerPassL) + (backL > 0 ? Math.ceil(backL / maxColorsPerPassL) : 0);
 
-                    if (isSVL) mPassesL = 1;
-                    else if (isObratL) mPassesL = 2 * Math.ceil(frontL / 4);
+                    if (effSVL) mPassesL = 1;
+                    else if (isObratL) mPassesL = 2 * Math.ceil(frontL / maxColorsPerPassL);
 
 
 
@@ -7223,7 +7242,9 @@
 
                     let washPriceC = parseFloat(gV('calc-wash-price-cover')) || 25;
 
-                    washCostC = (washesNumC * washPriceC) + (isSVC ? 100 : 0);
+                    let effSVC = isSVC && mTypeC === 'S8' && frontC <= 4 && backC <= 4 && backC > 0;
+                    let s8ExtraWashC = (mTypeC === 'S8' && !effSVC) ? (Math.max(0, frontC - 4) + (isObratC ? 0 : Math.max(0, backC - 4))) * washPriceC : 0;
+                    washCostC = (washesNumC * washPriceC) + (effSVC ? 100 : 0) + s8ExtraWashC;
 
 
 
@@ -7279,10 +7300,11 @@
 
 
 
-                    mPassesC = Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0);
+                    let maxColorsPerPassC = (mTypeC === 'S8') ? 8 : 4;
+                    mPassesC = Math.ceil(frontC / maxColorsPerPassC) + (backC > 0 ? Math.ceil(backC / maxColorsPerPassC) : 0);
 
-                    if (isSVC) mPassesC = 1;
-                    else if (isObratC) mPassesC = 2 * Math.ceil(frontC / 4);
+                    if (effSVC) mPassesC = 1;
+                    else if (isObratC) mPassesC = 2 * Math.ceil(frontC / maxColorsPerPassC);
 
 
 
@@ -14450,13 +14472,16 @@
 
             }
 
-            let prepPasses = front > 0 ? (Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0)) : 1;
+            let mTypeDN_B = document.getElementById('calc-machine-type')?.value || document.getElementById('calc-machine-type-leaves')?.value || '';
+            let maxColorsDN_B = (mTypeDN_B === 'S8') ? 8 : 4;
+            let effSV_B = isSV && mTypeDN_B === 'S8' && front <= 4 && back <= 4 && back > 0;
+            let prepPasses = front > 0 ? (Math.ceil(front / maxColorsDN_B) + (isObrat ? Math.ceil(front / maxColorsDN_B) : (back > 0 ? Math.ceil(back / maxColorsDN_B) : 0))) : 1;
 
             let colorMode = front + '/' + (isObrat ? 'OB' : back);
 
             let rule = prepRules[colorMode] || { passes: prepPasses };
 
-            let mPasses = isSV ? 1 : rule.passes;
+            let mPasses = effSV_B ? 1 : (mTypeDN_B === 'S8' ? prepPasses : rule.passes);
 
             let dnPrintHours = (finalTotalSheets * mPasses) / 6000;
 

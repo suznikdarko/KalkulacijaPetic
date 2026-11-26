@@ -1327,6 +1327,8 @@
 
                             <option value="7">7</option>
 
+                            <option value="8">8</option>
+
                         </select>
 
                         <span style="color:var(--text-muted); font-weight: bold;">/</span>
@@ -1350,6 +1352,8 @@
                             <option value="6">6</option>
 
                             <option value="7">7</option>
+
+                            <option value="8">8</option>
 
                         </select>
 
@@ -5735,6 +5739,16 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
             }
 
+            const svContainerT = document.getElementById('sv-container');
+            if (svContainerT) {
+                if (back > 0 && mType === 'S8' && front <= 4 && back <= 4) {
+                    svContainerT.style.display = 'block';
+                } else {
+                    svContainerT.style.display = 'none';
+                    if (document.getElementById('calc-is-sv')) document.getElementById('calc-is-sv').checked = false;
+                }
+            }
+
 
 
             const isObrat = document.getElementById('calc-is-obrat')?.checked;
@@ -6423,17 +6437,18 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
             let isObrat = document.getElementById('calc-is-obrat')?.checked;
 
-            let isSV = document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv')?.checked : false;
+            let isSV = (document.getElementById('calc-is-sv') ? document.getElementById('calc-is-sv')?.checked : false) && mType === 'S8' && front <= 4 && back <= 4 && back > 0;
 
             let colorMode = front + '/' + (isObrat ? 'OB' : back);
 
-            let prepPasses = Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0);
+            let maxColorsPerPass = (mType === 'S8') ? 8 : 4;
+            let prepPasses = (front > 0 ? Math.ceil(front / maxColorsPerPass) : 0) + (isObrat ? (front > 0 ? Math.ceil(front / maxColorsPerPass) : 0) : (back > 0 ? Math.ceil(back / maxColorsPerPass) : 0));
 
             let defaultWaste = (front + back) * 150;
 
             let rule = prepRules[colorMode] || { passes: prepPasses, wasteImpressions: defaultWaste };
 
-            let mPasses = isSV ? 1 : rule.passes;
+            let mPasses = isSV ? 1 : (mType === 'S8' ? prepPasses : rule.passes);
 
 
 
@@ -6453,7 +6468,8 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
             let washPrice = getFloatValue('calc-wash-price', 25);
 
-            let washCost = washesNum * washPrice;
+            let s8ExtraWashCount = (mType === 'S8' && !isSV) ? (Math.max(0, front - 4) + (isObrat ? 0 : Math.max(0, back - 4))) : 0;
+            let washCost = (washesNum + s8ExtraWashCount) * washPrice;
 
 
 
@@ -12417,13 +12433,16 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
             }
 
-            let prepPasses = front > 0 ? (Math.ceil(front / 4) + (back > 0 ? Math.ceil(back / 4) : 0)) : 1;
+            let mTypeDN_T = document.getElementById('calc-machine-type') ? document.getElementById('calc-machine-type').value : '';
+            let maxColorsDN_T = (mTypeDN_T === 'S8') ? 8 : 4;
+            let effSV_T = isSV && mTypeDN_T === 'S8' && front <= 4 && back <= 4 && back > 0;
+            let prepPasses = front > 0 ? (Math.ceil(front / maxColorsDN_T) + (isObrat ? Math.ceil(front / maxColorsDN_T) : (back > 0 ? Math.ceil(back / maxColorsDN_T) : 0))) : 1;
 
             let colorMode = front + '/' + (isObrat ? 'OB' : back);
 
             let rule = prepRules[colorMode] || { passes: prepPasses };
 
-            let mPasses = rule.passes;
+            let mPasses = effSV_T ? 1 : (mTypeDN_T === 'S8' ? prepPasses : rule.passes);
 
             let dnPrintHours = (finalTotalSheets * mPasses) / 6000;
 

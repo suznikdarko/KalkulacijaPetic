@@ -967,6 +967,8 @@
                                     <option value="4">4 barve</option>
                                     <option value="5">5 barv</option>
                                     <option value="6">6 barv</option>
+                                    <option value="7">7 barv</option>
+                                    <option value="8">8 barv</option>
                                 </select>
                                 <select id="calc-color-back-leaves" onchange="updateWasteAndPrice('leaves', true)">
                                     <option disabled="" selected="" value="">Izberite...</option>
@@ -977,6 +979,8 @@
                                     <option value="4">4 barve</option>
                                     <option value="5">5 barv</option>
                                     <option value="6">6 barv</option>
+                                    <option value="7">7 barv</option>
+                                    <option value="8">8 barv</option>
                                 </select>
                             </div>
                         </div>
@@ -1030,6 +1034,8 @@
                                     <option value="4">4 barve</option>
                                     <option value="5">5 barv</option>
                                     <option value="6">6 barv</option>
+                                    <option value="7">7 barv</option>
+                                    <option value="8">8 barv</option>
                                 </select>
                                 <select id="calc-color-back-cover" onchange="updateWasteAndPrice('cover', true)">
                                     <option disabled="" selected="" value="">Izberite...</option>
@@ -1040,6 +1046,8 @@
                                     <option value="4">4 barve</option>
                                     <option value="5">5 barv</option>
                                     <option value="6">6 barv</option>
+                                    <option value="7">7 barv</option>
+                                    <option value="8">8 barv</option>
                                 </select>
                             </div>
                         </div>
@@ -4889,7 +4897,7 @@ window.addEventListener('error', function (e) {
                 // ŠV Container visibility
                 let svContainer = document.getElementById('sv-container-' + comp);
                 if (svContainer) {
-                    if (cBackVal > 0 && mType === 'S8') {
+                    if (cBackVal > 0 && mType === 'S8' && cFrontVal <= 4 && cBackVal <= 4) {
                         svContainer.style.display = 'block';
                     } else {
                         svContainer.style.display = 'none';
@@ -5306,15 +5314,18 @@ window.addEventListener('error', function (e) {
                         }
                         let mPrepTimeL = mPrepMinutesL / 60;
 
-                        let mPassesL = Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0);
-                        if (isObratL) mPassesL = Math.ceil(frontL / 4) * 2;
-                        if (isSVL) mPassesL = 1; // Šen Vider obojestranski tisk v 1 prehodu
+                        let effSVL = isSVL && mTypeL === 'S8' && frontL <= 4 && backL <= 4 && backL > 0;
+                        let maxColorsPerPassL = (mTypeL === 'S8') ? 8 : 4;
+                        let mPassesL = Math.ceil(frontL / maxColorsPerPassL) + (backL > 0 ? Math.ceil(backL / maxColorsPerPassL) : 0);
+                        if (isObratL) mPassesL = Math.ceil(frontL / maxColorsPerPassL) * 2;
+                        if (effSVL) mPassesL = 1; // Šen Vider obojestranski tisk v 1 prehodu
 
                         printHoursL = (sheetsNeededLeaves + wasteL) * mPassesL / mSpeedL;
 
                         let washesNumL = parseInt(document.getElementById('calc-color-washes-leaves') ? document.getElementById('calc-color-washes-leaves').value : 0) || 0;
                         let washPriceL = parseFloat(document.getElementById('calc-wash-price-leaves') ? document.getElementById('calc-wash-price-leaves').value : 0) || 25;
-                        washCostL = (washesNumL * washPriceL) + ((isSVL && mTypeL !== 'digital') ? 100 : 0);
+                        let s8ExtraWashL = (mTypeL === 'S8' && !effSVL) ? (Math.max(0, frontL - 4) + (isObratL ? 0 : Math.max(0, backL - 4))) * washPriceL : 0;
+                        washCostL = (washesNumL * washPriceL) + ((effSVL && mTypeL !== 'digital') ? 100 : 0) + s8ExtraWashL;
 
                         totalPrepCostL += washCostL;
                         if (mTypeL === 'digital') {
@@ -5371,15 +5382,18 @@ window.addEventListener('error', function (e) {
                         }
                         let mPrepTimeC = mPrepMinutesC / 60;
 
-                        let mPassesC = Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0);
-                        if (isObratC) mPassesC = Math.ceil(frontC / 4) * 2;
-                        if (isSVC) mPassesC = 1; // Šen Vider obojestranski tisk v 1 prehodu
+                        let effSVC = isSVC && mTypeC === 'S8' && frontC <= 4 && backC <= 4 && backC > 0;
+                        let maxColorsPerPassC = (mTypeC === 'S8') ? 8 : 4;
+                        let mPassesC = Math.ceil(frontC / maxColorsPerPassC) + (backC > 0 ? Math.ceil(backC / maxColorsPerPassC) : 0);
+                        if (isObratC) mPassesC = Math.ceil(frontC / maxColorsPerPassC) * 2;
+                        if (effSVC) mPassesC = 1; // Šen Vider obojestranski tisk v 1 prehodu
 
                         printHoursC = (sheetsNeededCover + wasteC) * mPassesC / mSpeedC;
 
                         let washesNumC = parseInt(document.getElementById('calc-color-washes-cover') ? document.getElementById('calc-color-washes-cover').value : 0) || 0;
                         let washPriceC = parseFloat(document.getElementById('calc-wash-price-cover') ? document.getElementById('calc-wash-price-cover').value : 0) || 25;
-                        washCostC = (washesNumC * washPriceC) + ((isSVC && mTypeC !== 'digital') ? 100 : 0);
+                        let s8ExtraWashC = (mTypeC === 'S8' && !effSVC) ? (Math.max(0, frontC - 4) + (isObratC ? 0 : Math.max(0, backC - 4))) * washPriceC : 0;
+                        washCostC = (washesNumC * washPriceC) + ((effSVC && mTypeC !== 'digital') ? 100 : 0) + s8ExtraWashC;
 
                         totalPrepCostC += washCostC;
                         if (mTypeC === 'digital') {
@@ -11424,9 +11438,11 @@ function getQuoteHTML(isWord = false, canvasImages = null, isInternal = false, i
                 let prepTimeL = (parseFloat(document.getElementById('calc-machine-prep-time-leaves')?.value || 10) / 60);
                 let platesL = parseInt(document.getElementById('calc-plates-num-leaves')?.value || 0) || 0;
                 let mutPlatesL = parseInt(document.getElementById('calc-mut-plates-leaves')?.value || 0) || 0;
-                let mPassesL = frontL > 0 ? (Math.ceil(frontL / 4) + (backL > 0 ? Math.ceil(backL / 4) : 0)) : 1;
-                if (isObratL) mPassesL = Math.ceil(frontL / 4) * 2;
-                if (isSVL) mPassesL = 1;
+                let effSVL_DN = isSVL && mTypeL === 'S8' && frontL <= 4 && backL <= 4 && backL > 0;
+                let maxColorsDNL = (mTypeL === 'S8') ? 8 : 4;
+                let mPassesL = frontL > 0 ? (Math.ceil(frontL / maxColorsDNL) + (backL > 0 ? Math.ceil(backL / maxColorsDNL) : 0)) : 1;
+                if (isObratL) mPassesL = Math.ceil(frontL / maxColorsDNL) * 2;
+                if (effSVL_DN) mPassesL = 1;
                 let dnPrintHoursL = (totalSheetsL * mPassesL) / 6000;
 
                 if (mutPlatesL === 0) {
@@ -11525,9 +11541,11 @@ function getQuoteHTML(isWord = false, canvasImages = null, isInternal = false, i
                 let prepTimeC = (parseFloat(document.getElementById('calc-machine-prep-time-cover')?.value || 10) / 60);
                 let platesC = parseInt(document.getElementById('calc-plates-num-cover')?.value || 0) || 0;
                 let mutPlatesC = parseInt(document.getElementById('calc-mut-plates-cover')?.value || 0) || 0;
-                let mPassesC = frontC > 0 ? (Math.ceil(frontC / 4) + (backC > 0 ? Math.ceil(backC / 4) : 0)) : 1;
-                if (isObratC) mPassesC = Math.ceil(frontC / 4) * 2;
-                if (isSVC) mPassesC = 1;
+                let effSVC_DN = isSVC && mTypeC === 'S8' && frontC <= 4 && backC <= 4 && backC > 0;
+                let maxColorsDNC = (mTypeC === 'S8') ? 8 : 4;
+                let mPassesC = frontC > 0 ? (Math.ceil(frontC / maxColorsDNC) + (backC > 0 ? Math.ceil(backC / maxColorsDNC) : 0)) : 1;
+                if (isObratC) mPassesC = Math.ceil(frontC / maxColorsDNC) * 2;
+                if (effSVC_DN) mPassesC = 1;
                 let dnPrintHoursC = (totalSheetsC * mPassesC) / 6000;
 
                 if (mutPlatesC === 0) {
