@@ -2493,6 +2493,15 @@
 
                                 </div>
 
+                                <div class="form-group" style="margin:0;">
+
+                                    <label><small>Strošek klišeja (€)</small></label>
+
+                                    <input type="number" id="f-zasek-grafotehna-klise" value="0.00" step="0.01"
+                                        onchange="calculatePrice()">
+
+                                </div>
+
                             </div>
 
 
@@ -3496,7 +3505,7 @@
                         deliveryFixed: { active: gc('f-del-fixed-active'), price: gv('f-del-fixed-price') },
                         dodatek: { sheets: gv('f-dodatek-sheets') },
                         precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
-                        zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') }
+                        zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price'), klise: gv('f-zasek-grafotehna-klise') }
                     }
                 }
             };
@@ -6648,7 +6657,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
             if (document.getElementById('f-zasek-grafotehna-active') && document.getElementById('f-zasek-grafotehna-active')?.checked) {
 
-                totalFinishCost += effectiveQty * getFloatValue('f-zasek-grafotehna-price');
+                totalFinishCost += (effectiveQty * getFloatValue('f-zasek-grafotehna-price')) + getFloatValue('f-zasek-grafotehna-klise');
 
             }
 
@@ -6982,8 +6991,13 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
             if (document.getElementById('f-zasek-grafotehna-active') && document.getElementById('f-zasek-grafotehna-active')?.checked) {
 
                 let zPrice = getFloatValue('f-zasek-grafotehna-price');
+                let zKlise = getFloatValue('f-zasek-grafotehna-klise');
 
-                let zCost = zPrice * effectiveQty;
+                let zCost = (zPrice * effectiveQty) + zKlise;
+                let zParts = [];
+                if (zPrice > 0) zParts.push(`Cena na komad: ${formatPrice(zPrice)} x ${effectiveQty} kom`);
+                if (zKlise > 0) zParts.push(`Kliše: ${formatPrice(zKlise)}`);
+                if (zParts.length === 0) zParts.push(`Cena na komad: ${formatPrice(zPrice)} x ${effectiveQty} kom`);
 
                 details.finish.items.push({
 
@@ -6991,7 +7005,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
                     cost: zCost,
 
-                    breakdown: `Cena na komad: ${formatPrice(zPrice)} x ${effectiveQty} kom`
+                    breakdown: zParts.join(' + ')
 
                 });
 
@@ -9041,9 +9055,9 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
 
                             dodatek: { sheets: gv('f-dodatek-sheets') },
                             precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
-                            zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') },
+                            zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price'), klise: gv('f-zasek-grafotehna-klise') },
                             precut: { active: gc('f-precut-active'), prep: gv('f-precut-prep'), per1000: gv('f-precut-per1000') },
-                            zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price') }
+                            zasekGrafotehna: { active: gc('f-zasek-grafotehna-active'), price: gv('f-zasek-grafotehna-price'), klise: gv('f-zasek-grafotehna-klise') }
 
                         }
 
@@ -10780,6 +10794,7 @@ PIŠI ČIM BOLJ TOČNO KOLIČINO VIŠKA!!!`;
                     const zg = inp.finish.zasekGrafotehna || inp.finish.zasek;
                     sc('f-zasek-grafotehna-active', zg.active);
                     sv('f-zasek-grafotehna-price', zg.price);
+                    sv('f-zasek-grafotehna-klise', zg.klise !== undefined ? zg.klise : '0.00');
                 }
                 if (inp.finish.deliveryFixed) {
                     sc('f-del-fixed-active', inp.finish.deliveryFixed.active);
