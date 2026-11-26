@@ -15633,8 +15633,25 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                 <div id="sim-pane-calc">
                     <!-- INPUTS ROW -->
                     <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; margin-bottom: 18px;">
+                        <!-- PREKLOP NAČINA VNOSA: SAMO KOLIČINE vs. IMENSKI SEZNAM SORT -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
+                            <div style="display: inline-flex; background: #0b0f19; border: 1px solid #334155; border-radius: 8px; padding: 3px; gap: 4px;">
+                                <button type="button" id="sim-mode-qty-btn" onclick="switchSimInputMode('qty')"
+                                    style="background: #2563eb; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer;">
+                                    🔢 Samo količine (hiter vnos)
+                                </button>
+                                <button type="button" id="sim-mode-named-btn" onclick="switchSimInputMode('named')"
+                                    style="background: transparent; color: #94a3b8; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer;">
+                                    🏷️ Imenski seznam sort
+                                </button>
+                            </div>
+                            <div id="sim-mode-hint" style="font-size: 0.74rem; color: #94a3b8;">
+                                Hiter vnos količin — če potrebujete imena sort na razdelilniku, preklopite na <strong style="color: #93c5fd;">Imenski seznam sort</strong>.
+                            </div>
+                        </div>
+
                         <div style="display: grid; grid-template-columns: 1fr 140px 150px auto; gap: 14px; align-items: flex-end;">
-                            <div>
+                            <div id="sim-input-qty-wrap">
                                 <label style="display: block; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">
                                     Vnos količin / naklad (ločeno z vejico, presledkom ali vrstico):
                                 </label>
@@ -15642,6 +15659,9 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                                     style="width: 100%; box-sizing: border-box; background: #0b0f19; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; padding: 8px 12px; font-family: monospace; font-size: 0.88rem; resize: vertical;"
                                     placeholder="Vnesite poljubno število količin, npr. 2800, 5500, 2600, 7500, 800, 700, 300, 100"
                                     oninput="onSimQuantitiesInput()"></textarea>
+                            </div>
+                            <div id="sim-input-named-status" style="display: none; background: rgba(37, 99, 235, 0.12); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; color: #bfdbfe;">
+                                🏷️ <strong>Imenski vnos aktiven</strong> &bull; <span id="sim-named-total-label">Skupaj: 0 sort | 0 kosov</span>
                             </div>
                             <div>
                                 <label style="display: block; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">
@@ -15671,6 +15691,62 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                                     title="Počisti vnos količin in razporeditev">
                                     🗑️ Počisti
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- IMENSKI SEZNAM SORT (TABELA) -->
+                        <div id="sim-input-named-wrap" style="display: none; margin-top: 12px; background: #0b0f19; border: 1px solid #334155; border-radius: 10px; padding: 12px;">
+                            <div style="max-height: 240px; overflow-y: auto; margin-bottom: 10px;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                                    <thead>
+                                        <tr style="color: #94a3b8; font-size: 0.72rem; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                            <th style="padding: 6px 8px; text-align: left; width: 38px;">#</th>
+                                            <th style="padding: 6px 8px; text-align: left;">Naziv / Šifra sorte</th>
+                                            <th style="padding: 6px 8px; text-align: left; width: 170px;">Zahtevana količina</th>
+                                            <th style="padding: 6px 8px; text-align: center; width: 52px;">Briši</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sim-named-sorts-tbody"></tbody>
+                                </table>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <button type="button" onclick="addSimNamedSortRow()"
+                                        style="background: rgba(59, 130, 246, 0.18); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 6px; padding: 6px 12px; font-size: 0.78rem; font-weight: 700; cursor: pointer;">
+                                        + Dodaj sorto
+                                    </button>
+                                    <button type="button" onclick="toggleSimNamedPasteBox()"
+                                        style="background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 6px; padding: 6px 12px; font-size: 0.78rem; font-weight: 700; cursor: pointer;"
+                                        title="Prilepite seznam imen in količin iz Excela, Worda ali e-maila">
+                                        📋 Prilepi seznam (Excel / besedilo)
+                                    </button>
+                                </div>
+                                <span style="font-size: 0.72rem; color: #64748b;">
+                                    Imena se samodejno prikažejo na karticah form, v tabeli in na natisnjenem razdelilniku.
+                                </span>
+                            </div>
+                            <!-- HITER UVOZ / PRILEPI SEZNAM -->
+                            <div id="sim-named-paste-box" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.12);">
+                                <label style="display: block; font-size: 0.74rem; color: #94a3b8; margin-bottom: 5px;">
+                                    Prilepite vrstice v obliki <code>Naziv sorte [TAB ali ; ali : ali presledek] količina</code> (npr. iz Excela):
+                                </label>
+                                <textarea id="sim-named-paste-textarea" rows="4"
+                                    style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #475569; border-radius: 6px; color: #f8fafc; padding: 8px 10px; font-family: monospace; font-size: 0.8rem; resize: vertical;"
+                                    placeholder="Etiketa Jabolko&#9;2800&#10;Etiketa Hruška&#9;5500&#10;Etiketa Breskev&#9;1200"></textarea>
+                                <div style="display: flex; gap: 8px; margin-top: 6px;">
+                                    <button type="button" onclick="applySimNamedPaste(false)"
+                                        style="background: #10b981; color: #fff; border: none; border-radius: 6px; padding: 5px 12px; font-size: 0.78rem; font-weight: 700; cursor: pointer;">
+                                        ✓ Zamenjaj seznam
+                                    </button>
+                                    <button type="button" onclick="applySimNamedPaste(true)"
+                                        style="background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 5px 12px; font-size: 0.78rem; font-weight: 700; cursor: pointer;">
+                                        + Dodaj k obstoječim
+                                    </button>
+                                    <button type="button" onclick="toggleSimNamedPasteBox(false)"
+                                        style="background: transparent; color: #94a3b8; border: 1px solid #475569; border-radius: 6px; padding: 5px 10px; font-size: 0.78rem; cursor: pointer;">
+                                        Prekliči
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -15840,6 +15916,11 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             <div style="padding: 12px 22px; background: #1e293b; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
                 <div id="sim-footer-status" style="font-size: 0.8rem; color: #10b981; font-weight: 600;"></div>
                 <div style="display: flex; gap: 8px;">
+                    <button type="button" onclick="printSimImpositionPlan()" 
+                        style="background: linear-gradient(135deg, #0284c7, #2563eb); color: white; border: none; border-radius: 6px; padding: 8px 14px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 3px 10px rgba(37,99,235,0.3);"
+                        title="Natisni razdelilnik / razporeditev sort na polo">
+                        <span>🖨️</span> Natisni sorte
+                    </button>
                     <button type="button" onclick="copySimImpositionPlan()" 
                         style="background: #334155; color: #e2e8f0; border: none; border-radius: 6px; padding: 8px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                         <span>📋</span> Kopiraj plan
@@ -16610,6 +16691,275 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
         let g_simPalette = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316', '#64748b', '#84cc16', '#a855f7', '#14b8a6', '#e11d48', '#d97706', '#2563eb', '#059669'];
         let g_simCalculatedPlan = null;
         let g_simHistoryList = [];
+        let g_simInputMode = 'qty'; // 'qty' | 'named'
+        let g_simNamedSorts = [];   // [{ name: '...', qty: 1000 }, ...]
+
+        function escapeSimHtml(str) {
+            return String(str || '').replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+            })[m]);
+        }
+
+        function getSimSortName(idx, plan) {
+            const names = plan && Array.isArray(plan.sortNames) ? plan.sortNames : null;
+            const raw = names && names[idx] !== undefined ? String(names[idx]).trim() : '';
+            return raw || `Sorta ${idx + 1}`;
+        }
+
+        function hasCustomSimSortNames(imposition) {
+            if (!imposition) return false;
+            if (imposition.inputMode === 'named') return true;
+            if (!Array.isArray(imposition.sortNames)) return false;
+            return imposition.sortNames.some((n, idx) => {
+                const t = String(n || '').trim();
+                return t && t !== `Sorta ${idx + 1}`;
+            });
+        }
+
+        function syncSimQuantitiesFromNamed() {
+            const qEl = document.getElementById('sim-quantities');
+            if (!qEl) return;
+            const qtys = g_simNamedSorts.map(s => parseInt(s.qty) || 0).filter(n => n > 0);
+            qEl.value = qtys.join(', ');
+        }
+
+        function updateSimNamedTotalLabel() {
+            const lbl = document.getElementById('sim-named-total-label');
+            if (!lbl) return;
+            const valid = g_simNamedSorts.filter(s => (parseInt(s.qty) || 0) > 0);
+            const sum = valid.reduce((acc, s) => acc + (parseInt(s.qty) || 0), 0);
+            lbl.textContent = `Skupaj: ${valid.length} sort | ${sum.toLocaleString('sl-SI')} kosov`;
+        }
+
+        function renderSimNamedSortsTable() {
+            const tbody = document.getElementById('sim-named-sorts-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (g_simNamedSorts.length === 0) {
+                g_simNamedSorts = [
+                    { name: 'Sorta 1', qty: '' },
+                    { name: 'Sorta 2', qty: '' }
+                ];
+            }
+
+            g_simNamedSorts.forEach((item, idx) => {
+                const color = g_simPalette[idx % g_simPalette.length];
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid rgba(255,255,255,0.06)';
+                tr.innerHTML = `
+                    <td style="padding: 5px 8px; color: #64748b; font-weight: 700;">${idx + 1}.</td>
+                    <td style="padding: 5px 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="display:inline-block; width:10px; height:10px; border-radius:3px; background:${color}; flex-shrink:0;"></span>
+                            <input type="text" class="sim-named-name-inp" data-idx="${idx}"
+                                value="${escapeSimHtml(item.name)}"
+                                placeholder="Naziv / šifra sorte..."
+                                oninput="updateSimNamedSortName(${idx}, this.value)"
+                                style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; padding: 5px 9px; font-size: 0.82rem;">
+                        </div>
+                    </td>
+                    <td style="padding: 5px 8px;">
+                        <input type="number" class="sim-named-qty-inp" data-idx="${idx}"
+                            value="${item.qty !== '' && item.qty !== null && item.qty !== undefined ? item.qty : ''}"
+                            min="1" step="50" placeholder="Količina..."
+                            oninput="updateSimNamedSortQty(${idx}, this.value)"
+                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); addSimNamedSortRow(true); }"
+                            style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; padding: 5px 9px; font-size: 0.82rem; font-weight: 700;">
+                    </td>
+                    <td style="padding: 5px 8px; text-align: center;">
+                        <button type="button" onclick="deleteSimNamedSortRow(${idx})" title="Odstrani sorto"
+                            style="background: transparent; border: none; color: #f87171; font-size: 1rem; cursor: pointer; padding: 2px 6px; border-radius: 4px;">✕</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateSimNamedTotalLabel();
+        }
+
+        function updateSimNamedSortName(idx, val) {
+            if (!g_simNamedSorts[idx]) return;
+            g_simNamedSorts[idx].name = val;
+            onSimQuantitiesInput();
+        }
+
+        function updateSimNamedSortQty(idx, val) {
+            if (!g_simNamedSorts[idx]) return;
+            const n = parseInt(val);
+            g_simNamedSorts[idx].qty = (!isNaN(n) && n > 0) ? n : '';
+            syncSimQuantitiesFromNamed();
+            updateSimNamedTotalLabel();
+            onSimQuantitiesInput();
+        }
+
+        function addSimNamedSortRow(focusNew = false) {
+            const nextNum = g_simNamedSorts.length + 1;
+            g_simNamedSorts.push({ name: `Sorta ${nextNum}`, qty: '' });
+            renderSimNamedSortsTable();
+            if (focusNew) {
+                const inputs = document.querySelectorAll('#sim-named-sorts-tbody .sim-named-name-inp');
+                if (inputs.length > 0) {
+                    const last = inputs[inputs.length - 1];
+                    last.focus();
+                    last.select();
+                }
+            }
+        }
+
+        function deleteSimNamedSortRow(idx) {
+            g_simNamedSorts.splice(idx, 1);
+            if (g_simNamedSorts.length === 0) {
+                g_simNamedSorts = [{ name: 'Sorta 1', qty: '' }];
+            }
+            syncSimQuantitiesFromNamed();
+            renderSimNamedSortsTable();
+            runSimCalculation();
+        }
+
+        function toggleSimNamedPasteBox(forceState) {
+            const box = document.getElementById('sim-named-paste-box');
+            if (!box) return;
+            const show = (typeof forceState === 'boolean') ? forceState : (box.style.display === 'none');
+            box.style.display = show ? 'block' : 'none';
+            if (show) {
+                const ta = document.getElementById('sim-named-paste-textarea');
+                if (ta) { ta.value = ''; ta.focus(); }
+            }
+        }
+
+        function applySimNamedPaste(appendMode = false) {
+            const ta = document.getElementById('sim-named-paste-textarea');
+            if (!ta) return;
+            const lines = ta.value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            if (lines.length === 0) {
+                alert('Prilepite vsaj eno vrstico z nazivom in količino.');
+                return;
+            }
+            const parsed = [];
+            const baseIdx = appendMode ? g_simNamedSorts.filter(s => (parseInt(s.qty) || 0) > 0).length : 0;
+
+            lines.forEach((line, i) => {
+                let name = '';
+                let qty = 0;
+
+                if (line.includes('\t')) {
+                    const parts = line.split('\t').map(p => p.trim()).filter(Boolean);
+                    if (parts.length >= 2) {
+                        const lastNum = parseInt(parts[parts.length - 1].replace(/\./g, '').replace(/[^0-9]/g, ''));
+                        if (lastNum > 0) {
+                            qty = lastNum;
+                            name = parts.slice(0, -1).join(' ');
+                        }
+                    }
+                }
+                if (!qty && (line.includes(';') || line.includes(':'))) {
+                    const sep = line.includes(';') ? ';' : ':';
+                    const parts = line.split(sep).map(p => p.trim()).filter(Boolean);
+                    if (parts.length >= 2) {
+                        const lastNum = parseInt(parts[parts.length - 1].replace(/\./g, '').replace(/[^0-9]/g, ''));
+                        if (lastNum > 0) {
+                            qty = lastNum;
+                            name = parts.slice(0, -1).join(' ');
+                        }
+                    }
+                }
+                if (!qty) {
+                    const m = line.match(/^(.*?)[\s\-–—]+([\d\.]+)\s*(?:kos(?:ov)?)?$/i);
+                    if (m) {
+                        const n = parseInt(m[2].replace(/\./g, ''));
+                        if (n > 0) {
+                            name = m[1].trim();
+                            qty = n;
+                        }
+                    } else {
+                        const onlyNum = parseInt(line.replace(/\./g, '').replace(/[^0-9]/g, ''));
+                        if (onlyNum > 0) {
+                            qty = onlyNum;
+                            name = `Sorta ${baseIdx + parsed.length + 1}`;
+                        }
+                    }
+                }
+
+                if (qty > 0) {
+                    parsed.push({
+                        name: name || `Sorta ${baseIdx + parsed.length + 1}`,
+                        qty: qty
+                    });
+                }
+            });
+
+            if (parsed.length === 0) {
+                alert('V prilepljenem besedilu ni bilo mogoče prepoznati količin.');
+                return;
+            }
+
+            if (appendMode) {
+                const existing = g_simNamedSorts.filter(s => (parseInt(s.qty) || 0) > 0);
+                g_simNamedSorts = existing.concat(parsed);
+            } else {
+                g_simNamedSorts = parsed;
+            }
+
+            toggleSimNamedPasteBox(false);
+            syncSimQuantitiesFromNamed();
+            renderSimNamedSortsTable();
+            runSimCalculation();
+        }
+
+        function switchSimInputMode(mode, skipRecalc = false) {
+            const targetMode = (mode === 'named') ? 'named' : 'qty';
+            const prevMode = g_simInputMode;
+            g_simInputMode = targetMode;
+
+            const qtyBtn = document.getElementById('sim-mode-qty-btn');
+            const namedBtn = document.getElementById('sim-mode-named-btn');
+            const qtyWrap = document.getElementById('sim-input-qty-wrap');
+            const namedStatus = document.getElementById('sim-input-named-status');
+            const namedWrap = document.getElementById('sim-input-named-wrap');
+            const hint = document.getElementById('sim-mode-hint');
+
+            if (targetMode === 'named') {
+                if (prevMode === 'qty') {
+                    const rawQ = document.getElementById('sim-quantities') ? document.getElementById('sim-quantities').value : '';
+                    const Q = parseSimNumbers(rawQ);
+                    if (Q.length > 0) {
+                        g_simNamedSorts = Q.map((q, idx) => ({
+                            name: (g_simNamedSorts[idx] && g_simNamedSorts[idx].name && g_simNamedSorts[idx].name.trim())
+                                ? g_simNamedSorts[idx].name.trim()
+                                : `Sorta ${idx + 1}`,
+                            qty: q
+                        }));
+                    } else if (g_simNamedSorts.length === 0) {
+                        g_simNamedSorts = [
+                            { name: 'Sorta 1', qty: '' },
+                            { name: 'Sorta 2', qty: '' }
+                        ];
+                    }
+                }
+                if (qtyBtn) { qtyBtn.style.background = 'transparent'; qtyBtn.style.color = '#94a3b8'; }
+                if (namedBtn) { namedBtn.style.background = '#2563eb'; namedBtn.style.color = '#fff'; }
+                if (qtyWrap) qtyWrap.style.display = 'none';
+                if (namedStatus) namedStatus.style.display = 'block';
+                if (namedWrap) namedWrap.style.display = 'block';
+                if (hint) hint.innerHTML = 'Vnesite nazive sort in količine — prikazali se bodo na razdelilniku in pri tiskanju.';
+                renderSimNamedSortsTable();
+            } else {
+                if (prevMode === 'named') {
+                    syncSimQuantitiesFromNamed();
+                }
+                if (qtyBtn) { qtyBtn.style.background = '#2563eb'; qtyBtn.style.color = '#fff'; }
+                if (namedBtn) { namedBtn.style.background = 'transparent'; namedBtn.style.color = '#94a3b8'; }
+                if (qtyWrap) qtyWrap.style.display = 'block';
+                if (namedStatus) namedStatus.style.display = 'none';
+                if (namedWrap) namedWrap.style.display = 'none';
+                if (hint) hint.innerHTML = 'Hiter vnos količin — če potrebujete imena sort na razdelilniku, preklopite na <strong style="color: #93c5fd;">Imenski seznam sort</strong>.';
+            }
+
+            if (!skipRecalc) {
+                runSimCalculation();
+            }
+        }
 
         function clearSimResults() {
             g_simCalculatedPlan = null;
@@ -16705,6 +17055,10 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             if (qEl) qEl.value = "";
             if (cfEl) cfEl.value = "";
             if (stEl) stEl.textContent = "";
+            g_simNamedSorts = [];
+            if (g_simInputMode === 'named') {
+                renderSimNamedSortsTable();
+            }
             clearSimResults();
         }
 
@@ -16718,24 +17072,33 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
 
             // Če ponudba že ima shranjeno razporeditev, jo neposredno naloži in prikaži
             if (window.g_currentSortImposition && Array.isArray(window.g_currentSortImposition.quantities) && window.g_currentSortImposition.quantities.length > 0) {
-                document.getElementById('sim-quantities').value = window.g_currentSortImposition.quantities.join(', ');
-                if (window.g_currentSortImposition.slots) {
-                    document.getElementById('sim-slots').value = window.g_currentSortImposition.slots;
+                const savedImp = window.g_currentSortImposition;
+                document.getElementById('sim-quantities').value = savedImp.quantities.join(', ');
+                if (savedImp.slots) {
+                    document.getElementById('sim-slots').value = savedImp.slots;
                 }
-                if (window.g_currentSortImposition.customForms) {
-                    document.getElementById('sim-custom-forms').value = window.g_currentSortImposition.customForms;
+                if (savedImp.customForms) {
+                    document.getElementById('sim-custom-forms').value = savedImp.customForms;
                 } else {
                     document.getElementById('sim-custom-forms').value = "";
                 }
-                if (ppEl && window.g_currentSortImposition.paperPrice > 0) {
-                    ppEl.value = String(window.g_currentSortImposition.paperPrice).replace('.', ',');
+                if (ppEl && savedImp.paperPrice > 0) {
+                    ppEl.value = String(savedImp.paperPrice).replace('.', ',');
                 }
-                if (plEl && window.g_currentSortImposition.platePrice > 0) {
-                    plEl.value = String(window.g_currentSortImposition.platePrice).replace('.', ',');
+                if (plEl && savedImp.platePrice > 0) {
+                    plEl.value = String(savedImp.platePrice).replace('.', ',');
                 }
                 if ((!ppEl || !ppEl.value) && (!plEl || !plEl.value)) {
                     autoFillSimPricesFromCalc(false);
                 }
+
+                // Obnovi imena sort in način vnosa
+                g_simNamedSorts = savedImp.quantities.map((q, idx) => ({
+                    name: getSimSortName(idx, savedImp),
+                    qty: q
+                }));
+                switchSimInputMode(hasCustomSimSortNames(savedImp) ? 'named' : 'qty', true);
+
                 document.getElementById('sim-footer-status').textContent = "✓ Prikazana shranjena razporeditev te ponudbe!";
                 switchImpositionModalTab('calc');
                 runSimCalculation();
@@ -16744,6 +17107,8 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                 document.getElementById('sim-quantities').value = "";
                 document.getElementById('sim-custom-forms').value = "";
                 document.getElementById('sim-footer-status').textContent = "";
+                g_simNamedSorts = [];
+                switchSimInputMode('qty', true);
 
                 // Stavki na poli: privzeto vzemi iz kalkulatorja, če obstaja, sicer 3
                 const ipsInput = document.getElementById('items-per-sheet');
@@ -16809,8 +17174,17 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
 
         // OPTIMIZACIJSKI MOTOR S SAMODEJNO PRESOJO ŠTEVILA FORM IN STROŠKOVNO PRIMERJAVO
         function runSimCalculation() {
-            const rawQ = document.getElementById('sim-quantities').value;
-            const Q = parseSimNumbers(rawQ);
+            let Q = [];
+            let sortNames = [];
+            if (g_simInputMode === 'named') {
+                const validRows = g_simNamedSorts.filter(s => (parseInt(s.qty) || 0) > 0);
+                Q = validRows.map(s => parseInt(s.qty));
+                sortNames = validRows.map((s, idx) => (s.name && s.name.trim()) ? s.name.trim() : `Sorta ${idx + 1}`);
+            } else {
+                const rawQ = document.getElementById('sim-quantities').value;
+                Q = parseSimNumbers(rawQ);
+                sortNames = Q.map((_, idx) => `Sorta ${idx + 1}`);
+            }
             const K = parseInt(document.getElementById('sim-slots').value) || 3;
             const customM = parseInt(document.getElementById('sim-custom-forms').value) || 0;
             const paperPrice = parseSimFloat(document.getElementById('sim-paper-price') ? document.getElementById('sim-paper-price').value : 0);
@@ -16966,6 +17340,8 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
 
             g_simCalculatedPlan = {
                 quantities: Q,
+                sortNames: sortNames,
+                inputMode: g_simInputMode,
                 slots: K,
                 customForms: customM,
                 paperPrice: paperPrice,
@@ -17105,23 +17481,23 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                 let detailsHtml = '';
 
                 form.slots.forEach(slot => {
-                    const sortName = `Sorta ${slot.sortIdx + 1}`;
+                    const sortName = escapeSimHtml(getSimSortName(slot.sortIdx, plan));
                     const sortColor = g_simPalette[slot.sortIdx % g_simPalette.length];
                     const yieldQty = form.sheets * slot.mult;
 
                     for (let m = 0; m < slot.mult; m++) {
                         slotsHtml += `
-                            <div style="background: rgba(255,255,255,0.05); border: 1.5px solid rgba(255,255,255,0.15); border-left: 3px solid ${sortColor}; border-radius: 5px; padding: 4px; text-align: center;">
-                                <div style="font-size: 0.75rem; font-weight: 700; color: ${sortColor}; line-height: 1.1;">${sortName}</div>
+                            <div style="background: rgba(255,255,255,0.05); border: 1.5px solid rgba(255,255,255,0.15); border-left: 3px solid ${sortColor}; border-radius: 5px; padding: 4px; text-align: center; overflow: hidden;">
+                                <div style="font-size: 0.75rem; font-weight: 700; color: ${sortColor}; line-height: 1.15; word-break: break-word;">${sortName}</div>
                                 <div style="font-size: 0.68rem; color: #94a3b8;">${form.sheets.toLocaleString('sl-SI')} kos</div>
                             </div>
                         `;
                     }
 
                     detailsHtml += `
-                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; padding: 2px 0; border-top: 1px dashed rgba(255,255,255,0.08);">
-                            <span><span style="display:inline-block; width:8px; height:8px; border-radius:2px; background:${sortColor}; margin-right:5px;"></span>${sortName} ${slot.mult > 1 ? '('+slot.mult+'×)' : ''}</span>
-                            <strong style="color: #f8fafc;">${yieldQty.toLocaleString('sl-SI')} kos</strong>
+                        <div style="display: flex; justify-content: space-between; gap: 8px; font-size: 0.75rem; padding: 2px 0; border-top: 1px dashed rgba(255,255,255,0.08);">
+                            <span style="word-break: break-word;"><span style="display:inline-block; width:8px; height:8px; border-radius:2px; background:${sortColor}; margin-right:5px;"></span>${sortName} ${slot.mult > 1 ? '('+slot.mult+'×)' : ''}</span>
+                            <strong style="color: #f8fafc; white-space: nowrap;">${yieldQty.toLocaleString('sl-SI')} kos</strong>
                         </div>
                     `;
                 });
@@ -17162,7 +17538,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             tbody.innerHTML = '';
 
             Q.forEach((req, idx) => {
-                const sortName = `Sorta ${idx + 1}`;
+                const sortName = escapeSimHtml(getSimSortName(idx, plan));
                 const sortColor = g_simPalette[idx % g_simPalette.length];
                 const printed = prodPerSort[idx] || 0;
                 const excess = printed - req;
@@ -17230,7 +17606,8 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             plan.forms.forEach(form => {
                 text += `\n▶ ${form.name.toUpperCase()} (Naklada: ${form.sheets.toLocaleString('sl-SI')} pol):\n`;
                 form.slots.forEach(slot => {
-                    text += `   - ${slot.mult}× Sorta ${slot.sortIdx + 1} => ${(form.sheets * slot.mult).toLocaleString('sl-SI')} kosov\n`;
+                    const sName = getSimSortName(slot.sortIdx, plan);
+                    text += `   - ${slot.mult}× ${sName} => ${(form.sheets * slot.mult).toLocaleString('sl-SI')} kosov\n`;
                 });
             });
 
@@ -17242,7 +17619,8 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                         if (s.sortIdx === idx) printed += f.sheets * s.mult;
                     });
                 });
-                text += `• Sorta ${idx + 1}: Naročeno ${req.toLocaleString('sl-SI')}, Natisnjeno ${printed.toLocaleString('sl-SI')}, Višek: ${(printed - req).toLocaleString('sl-SI')} kos\n`;
+                const sName = getSimSortName(idx, plan);
+                text += `• ${sName}: Naročeno ${req.toLocaleString('sl-SI')}, Natisnjeno ${printed.toLocaleString('sl-SI')}, Višek: ${(printed - req).toLocaleString('sl-SI')} kos\n`;
             });
 
             navigator.clipboard.writeText(text).then(() => {
@@ -17250,6 +17628,256 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             }).catch(() => {
                 prompt("Kopirajte plan:", text);
             });
+        }
+
+        // TISKANJE RAZDELILNIKA / RAZPOREDITVE SORT NA POLO
+        function printSimImpositionPlan() {
+            if (!g_simCalculatedPlan || !Array.isArray(g_simCalculatedPlan.forms) || g_simCalculatedPlan.forms.length === 0) {
+                alert("Najprej vnesite količine sort in izvedite preračun!");
+                return;
+            }
+            const plan = g_simCalculatedPlan;
+            const Q = plan.quantities || [];
+            const K = plan.slots || 3;
+            const totalRequired = Q.reduce((a, b) => a + b, 0);
+            const totalSheets = plan.totalSheets || 0;
+            const totalPrinted = totalSheets * K;
+            const totalWaste = totalPrinted - totalRequired;
+            const wastePct = totalRequired > 0 ? ((totalWaste / totalRequired) * 100).toFixed(1) : '0.0';
+            const effPct = (100 - parseFloat(wastePct)).toFixed(1);
+
+            const customer = document.getElementById('calc-customer') ? document.getElementById('calc-customer').value.trim() : '';
+            const product = document.getElementById('calc-project-name') ? document.getElementById('calc-project-name').value.trim() : '';
+            const quoteNum = document.getElementById('calc-quote-number') ? document.getElementById('calc-quote-number').value.trim() : '';
+            const dnNum = document.getElementById('calc-dn-number') ? document.getElementById('calc-dn-number').value.trim() : '';
+            const preparedBy = document.getElementById('calc-prepared-by') ? document.getElementById('calc-prepared-by').value.trim() : '';
+
+            const now = new Date();
+            const slMonths = ["januar", "februar", "marec", "april", "maj", "junij", "julij", "avgust", "september", "oktober", "november", "december"];
+            const dateStr = `${now.getDate()}. ${slMonths[now.getMonth()]} ${now.getFullYear()}`;
+
+            const prodPerSort = new Array(Q.length).fill(0);
+            const formsPerSort = {};
+            plan.forms.forEach(form => {
+                form.slots.forEach(slot => {
+                    const sIdx = slot.sortIdx;
+                    prodPerSort[sIdx] = (prodPerSort[sIdx] || 0) + (form.sheets * slot.mult);
+                    if (!formsPerSort[sIdx]) formsPerSort[sIdx] = [];
+                    formsPerSort[sIdx].push(`${form.name} (${slot.mult > 1 ? slot.mult + '×' : '1×'})`);
+                });
+            });
+
+            const formsCardsHtml = plan.forms.map(form => {
+                let slotsHtml = '';
+                let detailsHtml = '';
+                form.slots.forEach(slot => {
+                    const sName = escapeSimHtml(getSimSortName(slot.sortIdx, plan));
+                    const sColor = g_simPalette[slot.sortIdx % g_simPalette.length];
+                    const yieldQty = form.sheets * slot.mult;
+                    for (let m = 0; m < slot.mult; m++) {
+                        slotsHtml += `
+                            <div class="sheet-slot" style="border-left: 4px solid ${sColor};">
+                                <div class="slot-name" style="color: ${sColor};">${sName}</div>
+                                <div class="slot-qty">${form.sheets.toLocaleString('sl-SI')} kos</div>
+                            </div>
+                        `;
+                    }
+                    detailsHtml += `
+                        <div class="form-detail-row">
+                            <span><span class="color-dot" style="background: ${sColor};"></span>${sName} ${slot.mult > 1 ? '(' + slot.mult + ' stavki)' : '(1 stavek)'}</span>
+                            <strong>${yieldQty.toLocaleString('sl-SI')} kos</strong>
+                        </div>
+                    `;
+                });
+
+                const gridCols = K > 4 ? 3 : (K > 3 ? 2 : K);
+                return `
+                    <div class="form-card">
+                        <div class="form-card-header">
+                            <span class="form-title">${escapeSimHtml(form.name)}</span>
+                            <span class="form-badge">Naklada: ${form.sheets.toLocaleString('sl-SI')} pol</span>
+                        </div>
+                        <div class="sheet-grid" style="grid-template-columns: repeat(${gridCols}, 1fr);">
+                            ${slotsHtml}
+                        </div>
+                        <div class="form-details">
+                            ${detailsHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const sortsRowsHtml = Q.map((req, idx) => {
+                const sName = escapeSimHtml(getSimSortName(idx, plan));
+                const sColor = g_simPalette[idx % g_simPalette.length];
+                const printed = prodPerSort[idx] || 0;
+                const excess = printed - req;
+                const excessPct = req > 0 ? ((excess / req) * 100).toFixed(1) : '0.0';
+                const statusText = excess === 0 ? 'V nulo (0)' : `+${excessPct} %`;
+                const statusCls = excess === 0 ? 'st-ok' : (parseFloat(excessPct) <= 10 ? 'st-low' : 'st-warn');
+                const formsText = formsPerSort[idx] ? escapeSimHtml(formsPerSort[idx].join(', ')) : '-';
+                return `
+                    <tr>
+                        <td><strong>${idx + 1}.</strong></td>
+                        <td><span class="color-dot" style="background: ${sColor};"></span><strong>${sName}</strong></td>
+                        <td class="num">${req.toLocaleString('sl-SI')}</td>
+                        <td class="num" style="font-weight: 700; color: #1d4ed8;">${printed.toLocaleString('sl-SI')}</td>
+                        <td class="num" style="font-weight: 700; color: ${excess === 0 ? '#059669' : '#b45309'};">${excess === 0 ? '0' : '+' + excess.toLocaleString('sl-SI')}</td>
+                        <td class="num">${excessPct} %</td>
+                        <td class="center">${formsText}</td>
+                        <td class="center"><span class="st-badge ${statusCls}">${statusText}</span></td>
+                    </tr>
+                `;
+            }).join('');
+
+            const metaItems = [];
+            if (customer) metaItems.push(`<div><span>Stranka:</span> <strong>${escapeSimHtml(customer)}</strong></div>`);
+            if (product) metaItems.push(`<div><span>Projekt / Izdelek:</span> <strong>${escapeSimHtml(product)}</strong></div>`);
+            if (quoteNum) metaItems.push(`<div><span>Št. ponudbe:</span> <strong>${escapeSimHtml(quoteNum)}</strong></div>`);
+            if (dnNum) metaItems.push(`<div><span>Št. D.N.:</span> <strong>${escapeSimHtml(dnNum)}</strong></div>`);
+            metaItems.push(`<div><span>Datum:</span> <strong>${dateStr}</strong></div>`);
+            if (preparedBy) metaItems.push(`<div><span>Pripravil:</span> <strong>${escapeSimHtml(preparedBy)}</strong></div>`);
+
+            const hasCosts = (plan.paperPrice > 0 || plan.platePrice > 0);
+            const costKpiHtml = hasCosts ? `
+                <div class="kpi-box">
+                    <div class="kpi-lbl">Strošek (Papir + Plošče)</div>
+                    <div class="kpi-val">${(plan.totalCostEur || 0).toLocaleString('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                    <div class="kpi-sub">Papir: ${(plan.paperCostEur || 0).toFixed(2)} € | Plošče: ${(plan.platesCostEur || 0).toFixed(2)} €</div>
+                </div>
+            ` : '';
+
+            const html = `<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <title>Razdelilnik Sort na Polo${product ? ' - ' + escapeSimHtml(product) : ''}</title>
+    <style>
+        * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; background: #ffffff; margin: 0; padding: 18px 24px; font-size: 11px; line-height: 1.35; }
+        .no-print-bar { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
+        .btn-p { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .btn-c { background: #e2e8f0; color: #0f172a; border: none; border-radius: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .doc-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; }
+        .doc-title { font-size: 16px; font-weight: 800; letter-spacing: -0.3px; color: #0f172a; }
+        .doc-sub { font-size: 10.5px; color: #475569; margin-top: 2px; }
+        .meta-grid { display: flex; flex-wrap: wrap; gap: 6px 18px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 11px; }
+        .meta-grid span { color: #64748b; }
+        .kpi-row { display: grid; grid-template-columns: repeat(${hasCosts ? 5 : 4}, 1fr); gap: 8px; margin-bottom: 14px; }
+        .kpi-box { border: 1px solid #cbd5e1; border-top: 3px solid #2563eb; border-radius: 6px; padding: 8px 10px; background: #f8fafc; }
+        .kpi-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #64748b; }
+        .kpi-val { font-size: 15px; font-weight: 800; color: #0f172a; margin-top: 2px; }
+        .kpi-sub { font-size: 9.5px; color: #475569; margin-top: 2px; }
+        h2 { font-size: 12.5px; font-weight: 800; text-transform: uppercase; color: #1e293b; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin: 14px 0 10px; }
+        .forms-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+        .form-card { border: 1px solid #94a3b8; border-radius: 6px; padding: 9px 10px; background: #ffffff; break-inside: avoid; page-break-inside: avoid; }
+        .form-card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 7px; }
+        .form-title { font-size: 12px; font-weight: 800; }
+        .form-badge { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+        .sheet-grid { display: grid; gap: 5px; background: #f1f5f9; border: 1.5px dashed #64748b; border-radius: 5px; padding: 6px; margin-bottom: 7px; }
+        .sheet-slot { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 5px 4px; text-align: center; }
+        .slot-name { font-weight: 700; font-size: 10.5px; word-break: break-word; line-height: 1.15; }
+        .slot-qty { font-size: 9.5px; color: #475569; margin-top: 2px; }
+        .form-detail-row { display: flex; justify-content: space-between; gap: 8px; font-size: 10px; padding: 2px 0; border-top: 1px dashed #e2e8f0; }
+        .color-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+        table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+        th { background: #f1f5f9; color: #334155; font-size: 9.5px; text-transform: uppercase; text-align: left; padding: 6px 8px; border: 1px solid #cbd5e1; }
+        td { padding: 5px 8px; border: 1px solid #e2e8f0; }
+        .num { text-align: right; }
+        .center { text-align: center; }
+        .st-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; }
+        .st-ok { background: #d1fae5; color: #065f46; }
+        .st-low { background: #dbeafe; color: #1e40af; }
+        .st-warn { background: #fef3c7; color: #92400e; }
+        @media print {
+            body { padding: 0; }
+            .no-print-bar { display: none !important; }
+            @page { size: A4 portrait; margin: 12mm; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print-bar">
+        <button class="btn-p" onclick="window.print()">🖨️ Natisni</button>
+        <button class="btn-c" onclick="window.close()">Zapri</button>
+    </div>
+    <div class="doc-header">
+        <div>
+            <div class="doc-title">TISKARNA PETRIČ &mdash; RAZDELILNIK SORT NA POLO</div>
+            <div class="doc-sub">Kombinirani tisk (gang-run) &bull; ${K} stavkov na tiskovno polo</div>
+        </div>
+        <div style="text-align: right; font-size: 10px; color: #475569;">
+            <strong>${plan.formsCount} tiskarskih form</strong> &bull; <strong>${totalSheets.toLocaleString('sl-SI')} pol</strong>
+        </div>
+    </div>
+
+    <div class="meta-grid">${metaItems.join('')}</div>
+
+    <div class="kpi-row">
+        <div class="kpi-box">
+            <div class="kpi-lbl">Vnesenih Sort</div>
+            <div class="kpi-val">${Q.length} sort</div>
+            <div class="kpi-sub">Naročeno: ${totalRequired.toLocaleString('sl-SI')} kos</div>
+        </div>
+        <div class="kpi-box">
+            <div class="kpi-lbl">Število Tiskarskih Form</div>
+            <div class="kpi-val">${plan.formsCount} form</div>
+            <div class="kpi-sub">${K} stavkov / polo</div>
+        </div>
+        <div class="kpi-box">
+            <div class="kpi-lbl">Skupaj Tiskovnih Pol</div>
+            <div class="kpi-val">${totalSheets.toLocaleString('sl-SI')} pol</div>
+            <div class="kpi-sub">Natisnjeno: ${totalPrinted.toLocaleString('sl-SI')} kos</div>
+        </div>
+        <div class="kpi-box">
+            <div class="kpi-lbl">Skupni Višek (Odrez)</div>
+            <div class="kpi-val">${totalWaste.toLocaleString('sl-SI')} kos</div>
+            <div class="kpi-sub">${wastePct} % viška (${effPct} % izkoristek)</div>
+        </div>
+        ${costKpiHtml}
+    </div>
+
+    <h2>1. Razporeditev po Tiskarskih Formah (Delovni Plan)</h2>
+    <div class="forms-grid">
+        ${formsCardsHtml}
+    </div>
+
+    <h2>2. Pregled Realizacije po Posameznih Sortah</h2>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 30px;">#</th>
+                <th>Sorta / Naziv</th>
+                <th class="num">Naročeno</th>
+                <th class="num">Natisnjeno</th>
+                <th class="num">Višek kosov</th>
+                <th class="num">% Viška</th>
+                <th class="center">Tiskarske forme</th>
+                <th class="center">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${sortsRowsHtml}
+        </tbody>
+    </table>
+
+    <script>
+        window.onload = function() {
+            setTimeout(function() { window.print(); }, 250);
+        };
+    <\/script>
+</body>
+</html>`;
+
+            const printWin = window.open('', '_blank', 'width=980,height=860');
+            if (!printWin) {
+                alert("Pojavno okno za tiskanje je bilo blokirano. Omogočite pojavna okna za to stran.");
+                return;
+            }
+            printWin.document.open();
+            printWin.document.write(html);
+            printWin.document.close();
+            printWin.focus();
         }
 
         // ZGODOVINA RAZPOREDITEV ZA NAZAJ
@@ -17366,6 +17994,12 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             window.g_currentSortImposition = JSON.parse(JSON.stringify(item.imposition));
             if (Array.isArray(item.imposition.quantities)) {
                 document.getElementById('sim-quantities').value = item.imposition.quantities.join(', ');
+                g_simNamedSorts = item.imposition.quantities.map((q, i) => ({
+                    name: getSimSortName(i, item.imposition),
+                    qty: q
+                }));
+            } else {
+                g_simNamedSorts = [];
             }
             if (item.imposition.slots) {
                 document.getElementById('sim-slots').value = item.imposition.slots;
@@ -17380,6 +18014,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             if (ppEl) ppEl.value = item.imposition.paperPrice > 0 ? String(item.imposition.paperPrice).replace('.', ',') : '';
             if (plEl) plEl.value = item.imposition.platePrice > 0 ? String(item.imposition.platePrice).replace('.', ',') : '';
 
+            switchSimInputMode(hasCustomSimSortNames(item.imposition) ? 'named' : 'qty', true);
             switchImpositionModalTab('calc');
             runSimCalculation();
             document.getElementById('sim-footer-status').textContent = `✓ Naložena razporeditev iz ponudbe: ${item.name}`;
