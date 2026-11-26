@@ -15969,7 +15969,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                     <span style="font-size: 1.4rem;">📦</span>
                     <div>
                         <div style="font-size: 1.1rem; font-weight: 800; color: #f8fafc;">Izračun Škatel in Palet za Pakiranje</div>
-                        <div style="font-size: 0.75rem; color: #94a3b8;">Škatla 240×320×250 mm (0,50 € / max 15 kg) • Natron papir (preveliki formati) • Euro paleta (10,00 €)</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">Škatla 230×320×250 mm (0,50 € / max 15 kg) • Natron papir (preveliki formati) • Euro paleta (10,00 €)</div>
                     </div>
                 </div>
                 <button type="button" onclick="closePolaPackagingModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">✕</button>
@@ -16021,14 +16021,14 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                         <!-- Opozorilni / informativni okvirček o embalaži -->
                         <div id="pola-pkg-status-box" style="margin-bottom: 8px; padding: 7px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; display: flex; align-items: center; gap: 7px; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.3); color: #93c5fd;">
                             <span id="pola-pkg-status-icon" style="font-size: 1.1rem;">📦</span>
-                            <span id="pola-pkg-status-text">Kartonska škatla (240×320×250 mm)</span>
+                            <span id="pola-pkg-status-text">Kartonska škatla (230×320×250 mm)</span>
                         </div>
 
                         <div style="margin-bottom: 6px;">
                             <label style="display: block; font-size: 0.72rem; color: #94a3b8; margin-bottom: 2px;">Način pakiranja:</label>
                             <select id="pola-pkg-sel-mode" onchange="runPolaPackagingCalc(false)" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 0.82rem; cursor: pointer;">
                                 <option value="auto">⚡ Samodejno (glede na dimenzijo)</option>
-                                <option value="box">📦 Kartonska škatla (240×320×250 mm - 0,50 €)</option>
+                                <option value="box">📦 Kartonska škatla (230×320×250 mm - 0,50 €)</option>
                                 <option value="natron">📜 Natron papir (zavitki - 0,00 €)</option>
                             </select>
                         </div>
@@ -16099,7 +16099,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
     <script>
         const POLA_PETRIC_PKG = {
             boxW: 320,
-            boxL: 240,
+            boxL: 230,
             boxH: 250,
             boxMaxWeightKg: 15.0,
             boxTareKg: 0.40,
@@ -16150,8 +16150,8 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             const effW = isFolded ? foldedW : w;
             const effH = isFolded ? foldedH : h;
 
-            // Preverjanje ali zloženi/končni format gre v standardno škatlo 240 x 320 mm
-            const fitsInBox = (Math.min(effW, effH) <= 240 && Math.max(effW, effH) <= 320);
+            // Preverjanje ali zloženi/končni format gre v standardno škatlo 230 x 320 mm
+            const fitsInBox = (Math.min(effW, effH) <= POLA_PETRIC_PKG.boxL && Math.max(effW, effH) <= POLA_PETRIC_PKG.boxW);
 
             // Določitev načina pakiranja: 'box' ali 'natron'
             const modeSel = document.getElementById('pola-pkg-sel-mode');
@@ -16326,16 +16326,22 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             }
 
             // =========================================================================
-            // NAČIN 2: KARTONSKA ŠKATLA (240 x 320 x 250 mm)
+            // NAČIN 2: KARTONSKA ŠKATLA (230 x 320 x 250 mm)
             // =========================================================================
-            let cols = 1;
-            if (effW <= 160 && effH <= 240) cols = 2; // A5
-            else if (effW <= 120 && effH <= 160) cols = 4; // A6
-            else if (effW <= 105 && effH <= 215) cols = 3; // DL
+            // 1. pogoj: koliko stolpcev izdelka fizično gre na dno škatle (230 x 320 mm)
+            const colsNormal = Math.floor(POLA_PETRIC_PKG.boxL / effW) * Math.floor(POLA_PETRIC_PKG.boxW / effH);
+            const colsRot = Math.floor(POLA_PETRIC_PKG.boxL / effH) * Math.floor(POLA_PETRIC_PKG.boxW / effW);
+            const cols = Math.max(1, colsNormal, colsRot);
 
-            const maxStackHMm = Math.max(50, POLA_PETRIC_PKG.boxH - 20); // 230 mm
-            const maxByVol = Math.floor((maxStackHMm / sheetThicknessMm) * cols);
-            const maxByWeight = Math.floor((POLA_PETRIC_PKG.boxMaxWeightKg * 1000) / singleGrams);
+            // Če je izdelek zložen, ima več plasti papirja po debelini
+            const foldLayers = isFolded ? Math.max(1, Math.round((w * h) / (effW * effH))) : 1;
+            const itemThicknessMm = sheetThicknessMm * foldLayers;
+
+            // 1. pogoj (volumen/višina škatle) in 2. pogoj (max bruto teža 15 kg)
+            const maxStackHMm = Math.max(50, POLA_PETRIC_PKG.boxH - 20); // 230 mm uporabne višine
+            const maxByVol = Math.floor((maxStackHMm / itemThicknessMm) * cols);
+            const maxNetWeightKg = Math.max(1.0, POLA_PETRIC_PKG.boxMaxWeightKg - POLA_PETRIC_PKG.boxTareKg);
+            const maxByWeight = Math.floor((maxNetWeightKg * 1000) / singleGrams);
             const absoluteMaxCap = Math.max(50, Math.min(maxByWeight, maxByVol));
 
             let itemsPerBox = 500;
@@ -16345,8 +16351,13 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                 if (qty <= absoluteMaxCap) {
                     itemsPerBox = qty;
                 } else {
-                    const standardPacks = [2500, 2000, 1500, 1000, 750, 500, 250, 200, 100, 50];
-                    let bestStandard = 500;
+                    // Zaokrožitev na največjo okroglo količino, ki še ustreza volumnu in teži
+                    const standardPacks = [
+                        50000, 40000, 30000, 25000, 20000, 15000, 10000,
+                        8000, 7500, 6000, 5000, 4000, 3000, 2500, 2000,
+                        1500, 1000, 750, 500, 250, 200, 100, 50
+                    ];
+                    let bestStandard = 50;
                     for (let p of standardPacks) {
                         if (p <= absoluteMaxCap) {
                             bestStandard = p;
@@ -16355,18 +16366,12 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                     }
                     itemsPerBox = bestStandard;
 
-                    if (qty % 1000 === 0 && 1000 <= absoluteMaxCap) {
-                        itemsPerBox = 1000;
-                    } else if (qty % 500 === 0 && 500 <= absoluteMaxCap) {
-                        itemsPerBox = 500;
-                    } else if (qty % 250 === 0 && 250 <= absoluteMaxCap && absoluteMaxCap < 500) {
-                        itemsPerBox = 250;
-                    } else {
-                        const minBoxes = Math.max(1, Math.ceil(qty / absoluteMaxCap));
-                        let evenQty = Math.ceil(qty / minBoxes);
-                        if (evenQty > 200 && evenQty % 50 !== 0) evenQty = Math.ceil(evenQty / 50) * 50;
-                        if (evenQty <= absoluteMaxCap && (minBoxes - 1) * evenQty < qty) {
-                            itemsPerBox = evenQty;
+                    // Če obstaja okrogla količina, ki enakomerno deli naklado brez povečanja števila škatel, jo izberi
+                    const baseBoxCount = Math.ceil(qty / bestStandard);
+                    for (let p of standardPacks) {
+                        if (p <= bestStandard && qty % p === 0 && (qty / p) <= baseBoxCount) {
+                            itemsPerBox = p;
+                            break;
                         }
                     }
                 }
@@ -16474,10 +16479,10 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
 • ${res.totalBoxes} zavitkov: ${res.dnText}`;
                 if (res.isFolded) {
                     info += `
-• Zložen format ${res.effW}×${res.effH} mm presega standardno škatlo (240×320 mm)`;
+• Zložen format ${res.effW}×${res.effH} mm presega standardno škatlo (${POLA_PETRIC_PKG.boxL}×${POLA_PETRIC_PKG.boxW} mm)`;
                 } else if (!res.fitsInBox) {
                     info += `
-• Format ${res.effW}×${res.effH} mm presega škatlo (240×320 mm)`;
+• Format ${res.effW}×${res.effH} mm presega škatlo (${POLA_PETRIC_PKG.boxL}×${POLA_PETRIC_PKG.boxW} mm)`;
                 }
                 info += `
 • Teža zavitka: ${res.grossBoxWeightKg.toFixed(1)} kg`;
@@ -16631,7 +16636,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                     statusBox.style.color = '#93c5fd';
                 }
                 if (statusIcon) statusIcon.textContent = '📦';
-                if (statusText) statusText.textContent = 'Kartonska škatla (240×320×250 mm)';
+                if (statusText) statusText.textContent = 'Kartonska škatla (230×320×250 mm)';
                 if (lblBoxes) lblBoxes.textContent = 'ŠTEVILO ŠKATEL';
                 if (lblBoxW) lblBoxW.textContent = 'TEŽA ŠKATLE';
                 if (lblCap) lblCap.textContent = 'Kosov v škatli:';
