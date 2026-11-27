@@ -6247,7 +6247,7 @@
             if (document.getElementById('f-packaging-active') && document.getElementById('f-packaging-active').checked && typeof calculatePolaPackagingData === 'function') {
                 let pkgRes = calculatePolaPackagingData(qty, null, null, null, paperWeight);
                 let pkgDesc = pkgRes.pkgMode === 'natron'
-                    ? `Natron (${pkgRes.totalBoxes} zavitkov)` + (pkgRes.needPallet ? ` + ${pkgRes.totalPallets}x Euro paleta` : '')
+                    ? `Natron (${pkgRes.totalBoxes} zavitkov - ${formatPrice(pkgRes.boxesCost)})` + (pkgRes.needPallet ? ` + ${pkgRes.totalPallets}x Euro paleta (${formatPrice(pkgRes.palletsCost)})` : '')
                     : `${pkgRes.totalBoxes}x škatla (${formatPrice(pkgRes.boxesCost)})` + (pkgRes.needPallet ? ` + ${pkgRes.totalPallets}x Euro paleta (${formatPrice(pkgRes.palletsCost)})` : '');
                 details.finish.items.push({
                     name: 'Pakiranje (embalaža)',
@@ -15993,7 +15993,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                     <span style="font-size: 1.4rem;">📦</span>
                     <div>
                         <div style="font-size: 1.1rem; font-weight: 800; color: #f8fafc;">Izračun Škatel in Palet za Pakiranje</div>
-                        <div style="font-size: 0.75rem; color: #94a3b8;">Škatla 230×320×250 mm (0,50 € / max 15 kg) • Natron papir (preveliki formati) • Euro paleta (10,00 €)</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">Škatla 230×320×250 mm (0,50 € / max 15 kg) • Natron papir (0,10 € / zavitek) • Euro paleta (10,00 €)</div>
                     </div>
                 </div>
                 <button type="button" onclick="closePolaPackagingModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">✕</button>
@@ -16053,7 +16053,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                             <select id="pola-pkg-sel-mode" onchange="runPolaPackagingCalc(false)" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 0.82rem; cursor: pointer;">
                                 <option value="auto">⚡ Samodejno (glede na dimenzijo)</option>
                                 <option value="box">📦 Kartonska škatla (230×320×250 mm - 0,50 €)</option>
-                                <option value="natron">📜 Natron papir (zavitki - 0,00 €)</option>
+                                <option value="natron">📜 Natron papir (zavitki - 0,10 €)</option>
                             </select>
                         </div>
 
@@ -16128,6 +16128,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             boxMaxWeightKg: 15.0,
             boxTareKg: 0.40,
             boxPrice: 0.50,
+            natronPrice: 0.10,
             palletPrice: 10.00,
             palletBaseH: 144,
             palletTareKg: 22.0,
@@ -16295,7 +16296,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                     actualPalletHeightCm = Math.min(160, Math.round(15 + (totalPacks * 7)));
                 }
 
-                const boxesCost = 0; // Natron ovoj je brezplačen / vključen
+                const boxesCost = totalPacks * POLA_PETRIC_PKG.natronPrice; // Natron ovoj 0,10 € / zavitek
                 const packagingTotalCost = boxesCost + palletsCost;
 
                 function declPacksSlo(n) {
@@ -16342,7 +16343,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                     totalPallets,
                     actualLayers: 0,
                     actualPalletHeightCm,
-                    boxesCost: 0,
+                    boxesCost,
                     palletsCost,
                     packagingTotalCost,
                     dnText
@@ -16690,9 +16691,9 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             if (elCostSub) {
                 if (res.pkgMode === 'natron') {
                     if (res.needPallet) {
-                        elCostSub.textContent = `0,00€ natron + ${res.palletsCost.toFixed(2)}€ paleta`;
+                        elCostSub.textContent = `${res.boxesCost.toFixed(2)}€ natron + ${res.palletsCost.toFixed(2)}€ paleta`;
                     } else {
-                        elCostSub.textContent = `0,00 € (natron papir)`;
+                        elCostSub.textContent = `${res.boxesCost.toFixed(2)}€ (${res.totalBoxes} zavitkov po 0,10€)`;
                     }
                 } else {
                     if (res.needPallet) {
