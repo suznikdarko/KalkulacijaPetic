@@ -4295,11 +4295,12 @@
                                 const sheetArea = s.w * s.h;
                                 score = (sYield * 1000000000) + (1000000000000 / sheetArea) + currLayout.count + standardBonus + persBonus + symBonus;
                             } else {
-                                score = currLayout.count + (isStandard ? 0.1 : 0) + persBonus;
+                                const sheetArea = s.w * s.h;
+                                score = (currLayout.count * 1000000) + (sYield * 10000) - (sheetArea / 1000.0) + standardBonusNormal + persBonus;
                             }
                         } else {
                             const sheetArea = s.w * s.h;
-                            score = (currLayout.count * 1000000) + (sYield * 1000) + (sheetArea / 1000.0) + standardBonusNormal + persBonus;
+                            score = (currLayout.count * 1000000) + (sYield * 10000) - (sheetArea / 1000.0) + standardBonusNormal + persBonus;
                         }
                         if (score > bestScore) {
                             bestScore = score;
@@ -17308,6 +17309,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                 evalMaxM = Math.max(evalMaxM, customM);
             }
 
+            const avgSheetScale = Math.max(1, totalRequired / Math.max(1, K * evalMinM));
             const memo = {};
             function costOfGroup(grpIndices) {
                 const sz = grpIndices.length;
@@ -17317,11 +17319,14 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                 let extra = K - sz;
                 while (extra > 0) {
                     let bestIdx = grpIndices[0];
+                    let bestCeil = -1;
                     let bestRatio = -1;
                     for (let i = 0; i < sz; i++) {
                         const idx = grpIndices[i];
                         const r = Q[idx] / mults[idx];
-                        if (r > bestRatio) {
+                        const c = Math.ceil(r);
+                        if (c > bestCeil || (c === bestCeil && r > bestRatio)) {
+                            bestCeil = c;
                             bestRatio = r;
                             bestIdx = idx;
                         }
@@ -17336,6 +17341,47 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                     if (req > sh) sh = req;
                 }
                 return { sheets: sh, mults: mults };
+            }
+
+            const tmpMults = new Int32Array(Math.max(K + 1, 16));
+            function sheetsOfGroupFast(grp) {
+                const sz = grp.length;
+                if (sz === 0 || sz > K) return Infinity;
+                if (sz === 1) return Math.ceil(Q[grp[0]] / K);
+                for (let i = 0; i < sz; i++) tmpMults[i] = 1;
+                let extra = K - sz;
+                while (extra > 0) {
+                    let bestPos = 0;
+                    let bestCeil = -1;
+                    let bestRatio = -1;
+                    for (let i = 0; i < sz; i++) {
+                        const r = Q[grp[i]] / tmpMults[i];
+                        const c = Math.ceil(r);
+                        if (c > bestCeil || (c === bestCeil && r > bestRatio)) {
+                            bestCeil = c;
+                            bestRatio = r;
+                            bestPos = i;
+                        }
+                    }
+                    tmpMults[bestPos]++;
+                    extra--;
+                }
+                let sh = 0;
+                for (let i = 0; i < sz; i++) {
+                    const req = Math.ceil(Q[grp[i]] / tmpMults[i]);
+                    if (req > sh) sh = req;
+                }
+                return sh;
+            }
+
+            function createRng(seed) {
+                let s = seed >>> 0;
+                return function() {
+                    s |= 0; s = (s + 0x6D2B79F5) | 0;
+                    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+                    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+                    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+                };
             }
 
             function dp(idx, fLeft) {
@@ -17365,10 +17411,290 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
                 return memo[state];
             }
 
+            function localSearchPolish(groups, costs) {
+                const M = groups.length;
+                let improved = true;
+                let passes = 0;
+                while (improved && passes < 60) {
+                    improved = false;
+                    passes++;
+
+                    for (let f1 = 0; f1 < M; f1++) {
+                        if (groups[f1].length <= 1) continue;
+                        for (let i = 0; i < groups[f1].length; i++) {
+                            const item = groups[f1][i];
+                            const oldC1 = costs[f1];
+                            let bestF2 = -1, bestDelta = 0, bestNewC1 = 0, bestNewC2 = 0;
+
+                            groups[f1].splice(i, 1);
+                            const candC1 = sheetsOfGroupFast(groups[f1]);
+
+                            for (let f2 = 0; f2 < M; f2++) {
+                                if (f2 === f1 || groups[f2].length >= K) continue;
+                                groups[f2].push(item);
+                                const candC2 = sheetsOfGroupFast(groups[f2]);
+                                groups[f2].pop();
+                                const delta = (candC1 + candC2) - (oldC1 + costs[f2]);
+                                if (delta < bestDelta) {
+                                    bestDelta = delta;
+                                    bestF2 = f2;
+                                    bestNewC1 = candC1;
+                                    bestNewC2 = candC2;
+                                }
+                            }
+
+                            if (bestF2 !== -1) {
+                                groups[bestF2].push(item);
+                                costs[f1] = bestNewC1;
+                                costs[bestF2] = bestNewC2;
+                                improved = true;
+                                i--;
+                            } else {
+                                groups[f1].splice(i, 0, item);
+                            }
+                        }
+                    }
+
+                    for (let f1 = 0; f1 < M; f1++) {
+                        for (let f2 = f1 + 1; f2 < M; f2++) {
+                            for (let i = 0; i < groups[f1].length; i++) {
+                                for (let j = 0; j < groups[f2].length; j++) {
+                                    const a = groups[f1][i];
+                                    const b = groups[f2][j];
+                                    groups[f1][i] = b;
+                                    groups[f2][j] = a;
+                                    const newC1 = sheetsOfGroupFast(groups[f1]);
+                                    const newC2 = sheetsOfGroupFast(groups[f2]);
+                                    if (newC1 + newC2 < costs[f1] + costs[f2]) {
+                                        costs[f1] = newC1;
+                                        costs[f2] = newC2;
+                                        improved = true;
+                                    } else {
+                                        groups[f1][i] = a;
+                                        groups[f2][j] = b;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (K >= 3) {
+                        for (let f1 = 0; f1 < M; f1++) {
+                            if (groups[f1].length < 2) continue;
+                            for (let f2 = 0; f2 < M; f2++) {
+                                if (f1 === f2 || groups[f2].length >= K) continue;
+                                let swapped = false;
+                                for (let i1 = 0; i1 < groups[f1].length && !swapped; i1++) {
+                                    for (let i2 = i1 + 1; i2 < groups[f1].length && !swapped; i2++) {
+                                        for (let j = 0; j < groups[f2].length && !swapped; j++) {
+                                            const a1 = groups[f1][i1];
+                                            const a2 = groups[f1][i2];
+                                            const b = groups[f2][j];
+                                            const newG1 = [];
+                                            for (let x = 0; x < groups[f1].length; x++) {
+                                                if (x !== i1 && x !== i2) newG1.push(groups[f1][x]);
+                                            }
+                                            newG1.push(b);
+                                            const newG2 = [];
+                                            for (let y = 0; y < groups[f2].length; y++) {
+                                                if (y !== j) newG2.push(groups[f2][y]);
+                                            }
+                                            newG2.push(a1, a2);
+                                            if (newG1.length >= 1 && newG1.length <= K && newG2.length >= 1 && newG2.length <= K) {
+                                                const newC1 = sheetsOfGroupFast(newG1);
+                                                const newC2 = sheetsOfGroupFast(newG2);
+                                                if (newC1 + newC2 < costs[f1] + costs[f2]) {
+                                                    groups[f1] = newG1;
+                                                    groups[f2] = newG2;
+                                                    costs[f1] = newC1;
+                                                    costs[f2] = newC2;
+                                                    improved = true;
+                                                    swapped = true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                let tot = 0;
+                for (let f = 0; f < M; f++) tot += costs[f];
+                return tot;
+            }
+
+            function optimizeForM(M) {
+                const dpRes = dp(0, M);
+                if (!dpRes || dpRes.cost === Infinity) return { cost: Infinity, plan: [] };
+
+                let bestGroups = dpRes.plan.map(p => p.grp.slice());
+                let bestCosts = bestGroups.map(g => sheetsOfGroupFast(g));
+                let bestTotal = localSearchPolish(bestGroups, bestCosts);
+
+                if (M <= 1 || M >= N || K <= 1) {
+                    const plan = bestGroups.map(grp => {
+                        const sortedGrp = grp.slice().sort((a, b) => Q[b] - Q[a]);
+                        const { sheets, mults } = costOfGroup(sortedGrp);
+                        return { sheets, grp: sortedGrp, mults };
+                    }).sort((a, b) => b.sheets - a.sheets);
+                    return { cost: bestTotal, plan };
+                }
+
+                const rng = createRng(1337 + M * 97 + N * 31 + K * 13);
+                const restarts = Math.min(24, Math.max(12, M * 2));
+                const saSteps = Math.min(4500, Math.max(1800, N * M * 25));
+
+                for (let r = 0; r < restarts; r++) {
+                    let groups = Array.from({ length: M }, () => []);
+
+                    if (r === 0) {
+                        groups = dpRes.plan.map(p => p.grp.slice());
+                    } else if (r === 1) {
+                        for (let f = 0; f < M; f++) groups[f].push(sortedIdx[f]);
+                        for (let i = M; i < N; i++) {
+                            const item = sortedIdx[i];
+                            let bestF = 0, bestInc = Infinity;
+                            for (let f = 0; f < M; f++) {
+                                if (groups[f].length >= K) continue;
+                                const oldC = sheetsOfGroupFast(groups[f]);
+                                groups[f].push(item);
+                                const newC = sheetsOfGroupFast(groups[f]);
+                                groups[f].pop();
+                                const inc = newC - oldC;
+                                if (inc < bestInc) {
+                                    bestInc = inc;
+                                    bestF = f;
+                                }
+                            }
+                            groups[bestF].push(item);
+                        }
+                    } else if (r % 2 === 0) {
+                        groups = bestGroups.map(g => g.slice());
+                        const kicks = 2 + Math.floor(rng() * Math.min(5, M));
+                        for (let k = 0; k < kicks; k++) {
+                            const f1 = Math.floor(rng() * M);
+                            const f2 = Math.floor(rng() * M);
+                            if (f1 === f2) continue;
+                            if (rng() < 0.5 && groups[f1].length > 1 && groups[f2].length < K) {
+                                const i = Math.floor(rng() * groups[f1].length);
+                                groups[f2].push(groups[f1].splice(i, 1)[0]);
+                            } else {
+                                const i = Math.floor(rng() * groups[f1].length);
+                                const j = Math.floor(rng() * groups[f2].length);
+                                const tmp = groups[f1][i];
+                                groups[f1][i] = groups[f2][j];
+                                groups[f2][j] = tmp;
+                            }
+                        }
+                    } else {
+                        const perm = sortedIdx.slice();
+                        for (let i = perm.length - 1; i > 0; i--) {
+                            const j = Math.floor(rng() * (i + 1));
+                            const t = perm[i]; perm[i] = perm[j]; perm[j] = t;
+                        }
+                        for (let f = 0; f < M; f++) groups[f].push(perm[f]);
+                        for (let i = M; i < N; i++) {
+                            let f = Math.floor(rng() * M);
+                            while (groups[f].length >= K) f = (f + 1) % M;
+                            groups[f].push(perm[i]);
+                        }
+                    }
+
+                    const costs = groups.map(g => sheetsOfGroupFast(g));
+                    let curTotal = costs.reduce((a, b) => a + b, 0);
+
+                    const tStart = avgSheetScale * 0.35;
+                    const tEnd = Math.max(1, avgSheetScale * 0.0005);
+                    const decay = Math.pow(tEnd / tStart, 1 / saSteps);
+                    let temp = tStart;
+
+                    for (let step = 0; step < saSteps; step++) {
+                        const f1 = Math.floor(rng() * M);
+                        let f2 = Math.floor(rng() * (M - 1));
+                        if (f2 >= f1) f2++;
+
+                        const moveType = rng();
+                        if (moveType < 0.45 && groups[f1].length > 1 && groups[f2].length < K) {
+                            const i = Math.floor(rng() * groups[f1].length);
+                            const item = groups[f1][i];
+                            groups[f1].splice(i, 1);
+                            groups[f2].push(item);
+                            const newC1 = sheetsOfGroupFast(groups[f1]);
+                            const newC2 = sheetsOfGroupFast(groups[f2]);
+                            const delta = (newC1 + newC2) - (costs[f1] + costs[f2]);
+                            if (delta <= 0 || rng() < Math.exp(-delta / temp)) {
+                                costs[f1] = newC1;
+                                costs[f2] = newC2;
+                                curTotal += delta;
+                            } else {
+                                groups[f2].pop();
+                                groups[f1].splice(i, 0, item);
+                            }
+                        } else if (moveType < 0.85 || K < 3 || groups[f1].length < 2 || groups[f2].length >= K) {
+                            const i = Math.floor(rng() * groups[f1].length);
+                            const j = Math.floor(rng() * groups[f2].length);
+                            const a = groups[f1][i];
+                            const b = groups[f2][j];
+                            groups[f1][i] = b;
+                            groups[f2][j] = a;
+                            const newC1 = sheetsOfGroupFast(groups[f1]);
+                            const newC2 = sheetsOfGroupFast(groups[f2]);
+                            const delta = (newC1 + newC2) - (costs[f1] + costs[f2]);
+                            if (delta <= 0 || rng() < Math.exp(-delta / temp)) {
+                                costs[f1] = newC1;
+                                costs[f2] = newC2;
+                                curTotal += delta;
+                            } else {
+                                groups[f1][i] = a;
+                                groups[f2][j] = b;
+                            }
+                        } else {
+                            const i1 = Math.floor(rng() * groups[f1].length);
+                            let i2 = Math.floor(rng() * (groups[f1].length - 1));
+                            if (i2 >= i1) i2++;
+                            const j = Math.floor(rng() * groups[f2].length);
+                            const a1 = groups[f1][i1];
+                            const a2 = groups[f1][i2];
+                            const b = groups[f2][j];
+                            const newG1 = groups[f1].filter((_, idx) => idx !== i1 && idx !== i2);
+                            newG1.push(b);
+                            const newG2 = groups[f2].filter((_, idx) => idx !== j);
+                            newG2.push(a1, a2);
+                            const newC1 = sheetsOfGroupFast(newG1);
+                            const newC2 = sheetsOfGroupFast(newG2);
+                            const delta = (newC1 + newC2) - (costs[f1] + costs[f2]);
+                            if (delta <= 0 || rng() < Math.exp(-delta / temp)) {
+                                groups[f1] = newG1;
+                                groups[f2] = newG2;
+                                costs[f1] = newC1;
+                                costs[f2] = newC2;
+                                curTotal += delta;
+                            }
+                        }
+                        temp *= decay;
+                    }
+
+                    curTotal = localSearchPolish(groups, costs);
+                    if (curTotal < bestTotal) {
+                        bestTotal = curTotal;
+                        bestGroups = groups.map(g => g.slice());
+                    }
+                }
+
+                const plan = bestGroups.map(grp => {
+                    const sortedGrp = grp.slice().sort((a, b) => Q[b] - Q[a]);
+                    const { sheets, mults } = costOfGroup(sortedGrp);
+                    return { sheets, grp: sortedGrp, mults };
+                }).sort((a, b) => b.sheets - a.sheets);
+
+                return { cost: bestTotal, plan };
+            }
+
             // Oceni vse možne oblike form in izračunaj stroške
             let evaluatedPlans = [];
             for (let testM = evalMinM; testM <= evalMaxM; testM++) {
-                const res = dp(0, testM);
+                const res = optimizeForM(testM);
                 if (res && res.cost < Infinity) {
                     const printed = res.cost * K;
                     const waste = printed - totalRequired;
@@ -17414,7 +17740,7 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
             }
 
             if (!bestOverall) {
-                bestOverall = dp(0, minM);
+                bestOverall = optimizeForM(minM);
                 bestOverall.M = minM;
                 bestOverall.paperCostEur = bestOverall.cost * paperPrice;
                 bestOverall.platesCostEur = minM * platePrice;
