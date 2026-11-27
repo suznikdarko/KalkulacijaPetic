@@ -439,9 +439,13 @@
 
     <script>
         let currentTabKey = 'pola';
+        let lastCalcTabKey = 'pola';
 
         function switchTab(tabKey) {
             currentTabKey = tabKey;
+            if (!['pakiranje', 'zaloga', 'sorte'].includes(tabKey)) {
+                lastCalcTabKey = tabKey;
+            }
             try { localStorage.setItem('petric_active_tab', tabKey); } catch(e){}
 
             // Update Tab Items
@@ -557,6 +561,21 @@
                             items: window.__LIVE_ZALOGA_DATA,
                             timestamp: Date.now()
                         }, '*');
+                    } catch(err) {}
+                }
+            } else if (e.data.type === 'REQUEST_PACKAGING_IMPORT') {
+                const targetKey = lastCalcTabKey || 'pola';
+                const calcFrame = document.getElementById('iframe_' + targetKey);
+                if (calcFrame && calcFrame.contentWindow) {
+                    try {
+                        calcFrame.contentWindow.postMessage({ type: 'REQUEST_PACKAGING_IMPORT' }, '*');
+                    } catch(err) {}
+                }
+            } else if (e.data.type === 'PACKAGING_IMPORT_DATA') {
+                const pkgFrame = document.getElementById('iframe_pakiranje');
+                if (pkgFrame && pkgFrame.contentWindow) {
+                    try {
+                        pkgFrame.contentWindow.postMessage(e.data, '*');
                     } catch(err) {}
                 }
             }

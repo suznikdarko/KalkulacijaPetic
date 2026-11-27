@@ -15349,7 +15349,30 @@
         }
 
         window.addEventListener('message', (e) => {
-            if (!e || !e.data || e.data.type !== 'ZALOGA_STOCK_DATA') return;
+            if (!e || !e.data || !e.data.type) return;
+            if (e.data.type === 'REQUEST_PACKAGING_IMPORT') {
+                try {
+                    const w = parseFloat((document.getElementById('closed-width')?.value || document.getElementById('width')?.value || '210').replace(',', '.')) || 210;
+                    const h = parseFloat((document.getElementById('closed-height')?.value || document.getElementById('height')?.value || '297').replace(',', '.')) || 297;
+                    const pages = parseFloat(document.getElementById('calc-leaves')?.value) || 8;
+                    const innerSheets = Math.max(1, pages / 2);
+                    const gsmL = parseFloat(document.getElementById('calc-paper-weight')?.value) || 135;
+                    const gsmC = document.getElementById('calc-cover-w')?.value ? (parseFloat(document.getElementById('calc-cardboard-weight')?.value) || 250) : 0;
+                    const singleG = Math.max(0.1, (w / 1000) * (h / 1000) * (innerSheets * gsmL + 2 * gsmC));
+                    const rawQ = (document.getElementById('quantity')?.value || '1000').match(/\d[\d\.]*/);
+                    const qty = rawQ ? (parseInt(rawQ[0].replace(/\./g, ''), 10) || 1000) : 1000;
+                    window.parent.postMessage({
+                        type: 'PACKAGING_IMPORT_DATA',
+                        source: 'brosura',
+                        customer: document.getElementById('calc-customer')?.value || '',
+                        dnNumber: document.getElementById('calc-dn-num')?.value || document.getElementById('calc-quote-num')?.value || '',
+                        jobTitle: document.getElementById('calc-project-name')?.value || document.getElementById('calc-name')?.value || '',
+                        width: w, height: h, qty: qty, gsm: gsmL, pages: pages, singleWeight: singleG
+                    }, '*');
+                } catch (err) {}
+                return;
+            }
+            if (e.data.type !== 'ZALOGA_STOCK_DATA') return;
             const items = e.data.items;
             if (!Array.isArray(items) || items.length === 0) return;
             _saveLiveStockCache(items);

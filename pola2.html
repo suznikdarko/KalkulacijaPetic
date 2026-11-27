@@ -14436,7 +14436,30 @@ function getQuoteHTML(isWord = false, canvasImage = '', isInternal = false, isAT
         }
 
         window.addEventListener('message', (e) => {
-            if (!e || !e.data || e.data.type !== 'ZALOGA_STOCK_DATA') return;
+            if (!e || !e.data || !e.data.type) return;
+            if (e.data.type === 'REQUEST_PACKAGING_IMPORT') {
+                try {
+                    const pkg = typeof calculatePolaPackagingData === 'function' ? calculatePolaPackagingData() : null;
+                    const cust = document.getElementById('calc-customer')?.value || '';
+                    const dn = document.getElementById('calc-dn-num')?.value || document.getElementById('calc-quote-num')?.value || '';
+                    const title = document.getElementById('calc-project-name')?.value || document.getElementById('calc-name')?.value || '';
+                    window.parent.postMessage({
+                        type: 'PACKAGING_IMPORT_DATA',
+                        source: 'pola',
+                        customer: cust,
+                        dnNumber: dn,
+                        jobTitle: title,
+                        width: pkg ? pkg.effW : (parseFloat(document.getElementById('width')?.value) || 210),
+                        height: pkg ? pkg.effH : (parseFloat(document.getElementById('height')?.value) || 297),
+                        qty: pkg ? pkg.qty : 1000,
+                        gsm: pkg ? pkg.gsm : 135,
+                        pages: 2,
+                        singleWeight: pkg ? pkg.singleGrams : 0
+                    }, '*');
+                } catch (err) {}
+                return;
+            }
+            if (e.data.type !== 'ZALOGA_STOCK_DATA') return;
             const items = e.data.items;
             if (!Array.isArray(items) || items.length === 0) return;
             saveStockCache(items);

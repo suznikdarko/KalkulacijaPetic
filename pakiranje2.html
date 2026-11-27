@@ -548,11 +548,11 @@
                 <div class="grid-2 form-group">
                     <div>
                         <label class="form-label" for="inp-width">Širina (mm)</label>
-                        <input type="number" id="inp-width" class="form-control" value="210" min="10" step="1" oninput="recalculateAll()">
+                        <input type="number" id="inp-width" class="form-control" value="210" min="10" step="1" oninput="calcWeightFromPaper()">
                     </div>
                     <div>
                         <label class="form-label" for="inp-height">Višina (mm)</label>
-                        <input type="number" id="inp-height" class="form-control" value="297" min="10" step="1" oninput="recalculateAll()">
+                        <input type="number" id="inp-height" class="form-control" value="297" min="10" step="1" oninput="calcWeightFromPaper()">
                     </div>
                 </div>
 
@@ -581,10 +581,10 @@
 
                 <div class="form-group" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                        <span style="font-size: 0.76rem; color: var(--text-muted); font-weight: 600;">ALI IZRAČUN IZ PAPIRJA:</span>
+                        <span style="font-size: 0.76rem; color: var(--text-muted); font-weight: 600;">IZRAČUN TEŽE IZ PAPIRJA:</span>
                         <a href="javascript:void(0)" onclick="togglePaperCalc()" style="font-size: 0.74rem; color: #60a5fa; text-decoration: none;">⚙️ Pokaži / Skrij</a>
                     </div>
-                    <div id="paper-calc-box" style="display: none; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 8px; margin-top: 6px;">
+                    <div id="paper-calc-box" style="display: block; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 8px; margin-top: 6px;">
                         <div class="grid-2 form-group">
                             <div>
                                 <label class="form-label" for="inp-paper-gsm">Gramatura (g/m²)</label>
@@ -954,10 +954,10 @@
         const pages = gn('inp-item-pages', 2);
 
         const areaM2 = (wMm / 1000) * (hMm / 1000);
-        const sheets = Math.ceil(pages / 2);
+        const sheets = Math.max(1, Math.ceil(pages / 2));
         const weightG = areaM2 * gsm * sheets;
 
-        sv('inp-single-weight', Math.max(0.1, Math.round(weightG * 10) / 10));
+        sv('inp-single-weight', Math.max(0.01, Math.round(weightG * 100) / 100));
         recalculateAll();
     }
 
@@ -985,9 +985,17 @@
     }
 
     function onManualBoxCapChange() {
-        isManualBoxCap = true;
-        document.getElementById('auto-cap-hint').innerText = 'Ročno nastavljeno';
-        document.getElementById('auto-cap-hint').style.color = '#fbbf24';
+        const raw = gv('inp-items-per-box').trim();
+        const val = parseInt(raw, 10);
+        if (!raw || isNaN(val) || val <= 0) {
+            isManualBoxCap = false;
+            document.getElementById('auto-cap-hint').innerText = 'Avtomatsko';
+            document.getElementById('auto-cap-hint').style.color = '#34d399';
+        } else {
+            isManualBoxCap = true;
+            document.getElementById('auto-cap-hint').innerText = 'Ročno nastavljeno';
+            document.getElementById('auto-cap-hint').style.color = '#fbbf24';
+        }
         recalculateAll();
     }
 
@@ -1385,81 +1393,73 @@
         });
     }
 
-    // IMPORT FROM ACTIVE CALCULATOR IN PARENT IFRAME
-    function importFromActiveCalculator() {
-        try {
-            if (!window.parent || window.parent === window) {
-                alert('Orodje ni naloženo znotraj skupnega vmesnika PETRIČ.KALKULACIJE2.html.');
-                return;
-            }
+    // IMPORT FROM ACTIVE CALCULATOR IN PARENT IFRAME (postMessage za delovanje tudi prek file://)
+    let _pkgImportPending = false;
+    let _pkgImportTimeout = null;
 
-            const activeTabKey = window.parent.currentTabKey || 'pola';
-            const frameId = 'iframe_' + activeTabKey;
-            const frameEl = window.parent.document.getElementById(frameId);
+    function applyImportedCalculatorData(data) {
+        if (!data) return;
+        const sourceLabel = (data.source || 'KALKULATOR').toUpperCase();
+        if (data.customer !== undefined && data.customer !== '') sv('inp-customer', data.customer);
+        if (data.dnNumber !== undefined && data.dnNumber !== '') sv('inp-dn-number', data.dnNumber);
+        if (data.jobTitle !== undefined && data.jobTitle !== '') sv('inp-job-title', data.jobTitle);
+        if (data.width > 0) sv('inp-width', data.width);
+        if (data.height > 0) sv('inp-height', data.height);
+        if (data.qty > 0) sv('inp-quantity', data.qty);
+        if (data.gsm > 0) sv('inp-paper-gsm', data.gsm);
+        if (data.pages > 0) sv('inp-item-pages', data.pages);
 
-            if (!frameEl || !frameEl.contentWindow) {
-                alert('Ni mogoče dostopati do aktivnega zavihka (' + activeTabKey + ').');
-                return;
-            }
-
-            const doc = frameEl.contentWindow.document;
-
-            // Attempt to grab project data
-            let jobTitle = '';
-            let customer = '';
-            let dnNumber = '';
-            let width = 210;
-            let height = 297;
-            let qty = 1000;
-            let singleWeight = 0;
-
-            // Customer
-            const custEl = doc.getElementById('calc-customer-name') || doc.getElementById('calc-customer-select');
-            if (custEl) customer = custEl.value || (custEl.options ? custEl.options[custEl.selectedIndex]?.text : '') || '';
-
-            // DN
-            const dnEl = doc.getElementById('calc-dn-number');
-            if (dnEl) dnNumber = dnEl.value || '';
-
-            // Job Title
-            const titleEl = doc.getElementById('calc-product-name') || doc.getElementById('calc-notes') || doc.getElementById('calc-job-title');
-            if (titleEl) jobTitle = titleEl.value || '';
-
-            // Format (width, height)
-            const wEl = doc.getElementById('calc-cut-width') || doc.getElementById('calc-format-custom-w') || doc.getElementById('calc-block-w');
-            const hEl = doc.getElementById('calc-cut-height') || doc.getElementById('calc-format-custom-h') || doc.getElementById('calc-block-h');
-            if (wEl && parseFloat(wEl.value) > 0) width = parseFloat(wEl.value);
-            if (hEl && parseFloat(hEl.value) > 0) height = parseFloat(hEl.value);
-
-            // Quantity
-            const qtyEl = doc.getElementById('calc-quantities') || doc.getElementById('calc-order-qty') || doc.getElementById('krka-order-qty');
-            if (qtyEl && parseFloat(qtyEl.value) > 0) qty = parseFloat(qtyEl.value.replace(/\./g, ''));
-
-            // Weight
-            if (frameEl.contentWindow.d && frameEl.contentWindow.d.weight) {
-                singleWeight = frameEl.contentWindow.d.weight.singleKg * 1000;
-            } else if (frameEl.contentWindow.d && frameEl.contentWindow.d.productWeight) {
-                singleWeight = frameEl.contentWindow.d.productWeight.oneProductGrams;
-            }
-
-            // Apply imported values
-            if (customer) sv('inp-customer', customer);
-            if (dnNumber) sv('inp-dn-number', dnNumber);
-            if (jobTitle) sv('inp-job-title', jobTitle);
-            if (width > 0) sv('inp-width', width);
-            if (height > 0) sv('inp-height', height);
-            if (qty > 0) sv('inp-quantity', qty);
-            if (singleWeight > 0) sv('inp-single-weight', Math.round(singleWeight * 10) / 10);
-
-            document.getElementById('badge-imported').innerText = 'Uvoženo iz: ' + activeTabKey.toUpperCase();
-            document.getElementById('badge-imported').className = 'badge-success';
-
-            recalculateAll();
-            alert(`✅ Uspešno uvoženi podatki iz zavihka [${activeTabKey.toUpperCase()}]:\n• Naklada: ${qty.toLocaleString('sl-SI')} kos\n• Format: ${width} × ${height} mm\n• Teža kosa: ${singleWeight > 0 ? (singleWeight.toFixed(1) + ' g') : 'ocenjena'}`);
-        } catch (err) {
-            console.error('Napaka pri uvozu:', err);
-            alert('Napaka pri samodejnem branju podatkov iz kalkulatorja: ' + err.message);
+        if (data.singleWeight > 0) {
+            sv('inp-single-weight', Math.max(0.01, Math.round(data.singleWeight * 100) / 100));
+        } else if (data.width > 0 && data.height > 0 && data.gsm > 0) {
+            const areaM2 = (data.width / 1000) * (data.height / 1000);
+            const sheets = Math.max(1, Math.ceil((data.pages || 2) / 2));
+            sv('inp-single-weight', Math.max(0.01, Math.round(areaM2 * data.gsm * sheets * 100) / 100));
         }
+
+        // Vedno ponastavi na samodejni izračun kapacitete škatle ob uvozu
+        isManualBoxCap = false;
+        const hintEl = document.getElementById('auto-cap-hint');
+        if (hintEl) {
+            hintEl.innerText = 'Avtomatsko';
+            hintEl.style.color = '#34d399';
+        }
+
+        const badge = document.getElementById('badge-imported');
+        if (badge) {
+            badge.innerText = 'Uvoženo iz: ' + sourceLabel;
+            badge.className = 'badge-success';
+        }
+
+        recalculateAll();
+    }
+
+    window.addEventListener('message', (e) => {
+        if (!e || !e.data || e.data.type !== 'PACKAGING_IMPORT_DATA') return;
+        if (_pkgImportTimeout) {
+            clearTimeout(_pkgImportTimeout);
+            _pkgImportTimeout = null;
+        }
+        _pkgImportPending = false;
+        applyImportedCalculatorData(e.data);
+    });
+
+    function importFromActiveCalculator() {
+        if (!window.parent || window.parent === window) {
+            alert('Orodje ni naloženo znotraj skupnega vmesnika PETRIČ.KALKULACIJE2.html.');
+            return;
+        }
+
+        _pkgImportPending = true;
+        if (_pkgImportTimeout) clearTimeout(_pkgImportTimeout);
+        window.parent.postMessage({ type: 'REQUEST_PACKAGING_IMPORT' }, '*');
+
+        _pkgImportTimeout = setTimeout(() => {
+            if (_pkgImportPending) {
+                _pkgImportPending = false;
+                alert('Iz aktivnega kalkulatorja ni bilo mogoče prebrati podatkov. Odpri najprej zavihek s kalkulacijo (npr. Pola, Blok, Brošura ali Etikete) in poskusi znova.');
+            }
+        }, 1200);
     }
 
     // MODAL WINDOWS
