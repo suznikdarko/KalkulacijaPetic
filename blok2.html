@@ -4136,6 +4136,18 @@
                 }
             }
 
+            function formatPaperQuoteLabel(desc, weight, fallback) {
+                const d = (desc || '').trim();
+                const w = (weight || '').trim();
+                if (d && w) {
+                    const hasGram = new RegExp('(?:^|\\D)' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*g\\b', 'i').test(d);
+                    return hasGram ? d : `${w}g ${d}`;
+                }
+                if (d) return d;
+                if (w) return `${w}g`;
+                return fallback;
+            }
+
             function setV(id, val) {
                 const el = document.getElementById(id);
                 if (el) el.value = val;
@@ -7029,8 +7041,8 @@
                     formatLeaves: `${document.getElementById('width').value}x${document.getElementById('height').value}`,
                     formatCover: `${document.getElementById('calc-cover-w').value}x${document.getElementById('calc-cover-h').value}`,
                     extentText: extentText,
-                    paperLeaves: document.getElementById('calc-leaves-material').value || '/',
-                    paperCover: document.getElementById('calc-cover-desc').value || '/',
+                    paperLeaves: formatPaperQuoteLabel(document.getElementById('calc-leaves-material')?.value, document.getElementById('calc-paper-weight')?.value, '/'),
+                    paperCover: formatPaperQuoteLabel(document.getElementById('calc-cover-desc')?.value, document.getElementById('calc-cardboard-weight')?.value, '/'),
                     tiskLeaves: (document.getElementById('calc-color-front-leaves').value || '0') + "/" + (document.getElementById('calc-color-back-leaves').value || '0'),
                     tiskCover: (document.getElementById('calc-color-front-cover').value || '0') + "/" + (document.getElementById('calc-color-back-cover').value || '0'),
                     mTypeL: document.getElementById('calc-machine-type-leaves') ? document.getElementById('calc-machine-type-leaves').value : 'S4',
@@ -10766,8 +10778,16 @@
                     let leavesCount = (document.getElementById('calc-leaves') ? document.getElementById('calc-leaves').value : '').trim();
                     let extentText = leavesCount ? `${leavesCount} listov` : '/';
 
-                    let paperLeaves = (document.getElementById('calc-leaves-material') ? document.getElementById('calc-leaves-material').value : '').trim() || '/';
-                    let paperCover = (document.getElementById('calc-cover-desc') ? document.getElementById('calc-cover-desc').value : '').trim() || 'Brez ovitka';
+                    let paperLeaves = formatPaperQuoteLabel(
+                        document.getElementById('calc-leaves-material')?.value,
+                        document.getElementById('calc-paper-weight')?.value,
+                        '/'
+                    );
+                    let paperCover = formatPaperQuoteLabel(
+                        document.getElementById('calc-cover-desc')?.value,
+                        document.getElementById('calc-cardboard-weight')?.value,
+                        'Brez ovitka'
+                    );
 
                     let frontL = document.getElementById('calc-color-front-leaves') ? document.getElementById('calc-color-front-leaves').value : '0';
                     let backL = document.getElementById('calc-color-back-leaves') ? document.getElementById('calc-color-back-leaves').value : '0';
